@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Inbox</h1>
+<div class="toolbar">
+  <form method="get" action="/mail">
+    <select name="mailbox" onchange="this.form.submit()">
+      {% for b in mailboxes %}
+        <option value="{{ b.id }}" {% if b.id == selected %}selected{% endif %}>{{ b.name }}{% if b.unread %} ({{ b.unread }}){% endif %}</option>
+      {% endfor %}
+    </select>
+    <input name="q" placeholder="Search (from, subject, text…)" value="{{ q or '' }}">
+  </form>
+  <a class="btn" href="/compose">Compose</a>
+</div>
+<table>
+  <tr><th class="nowrap">When</th><th>From</th><th>Subject</th><th class="right">Size</th></tr>
+  {% for m in messages %}
+  <tr class="msg" onclick="location.href='/mail/{{ m.id }}'">
+    <td class="nowrap">{{ m.when }}</td>
+    <td>{{ m.from }}</td>
+    <td>{{ m.subject }}</td>
+    <td class="right">{{ m.size }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

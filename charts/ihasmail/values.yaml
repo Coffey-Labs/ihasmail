@@ -1,0 +1,32 @@
+image:
+  repository: ghcr.io/your-org/ihasmail
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8000
+
+ingress:
+  enabled: false
+  className: ""
+  hosts:
+    - host: ihasmail.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+env:
+  APP_SECRET: "CHANGE_ME"
+  JMAP_BASE: "https://mail.example.com/jmap"
+  CALDAV_BASE: "https://mail.example.com/caldav/"
+  WEBDAV_BASE: "https://mail.example.com/webdav/"
+  COOKIE_NAME: "ihasmail"
+  TRUST_PROXY: "1"
+  UPSTREAM_TIMEOUT: "15"
+
+resources: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}

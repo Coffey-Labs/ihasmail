@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Compose</h1>
+<form method="post" action="/compose">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <div class="row"><label>To</label><input name="to" required></div>
+  <div class="row"><label>Subject</label><input name="subject"></div>
+  <div class="row"><label>Body</label><textarea name="body" rows="14"></textarea></div>
+  <button class="btn">Send</button>
+</form>
+{% endblock %}
