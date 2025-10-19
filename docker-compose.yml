@@ -1,0 +1,11 @@
+services:
+  ihasmail:
+    build: .
+    image: ihasmail:latest
+    env_file: .env
+    restart: unless-stopped
+    networks: [edge]
+    ports:
+      - "127.0.0.1:8080:8000"
+networks:
+  edge: {}

@@ -1,0 +1,7 @@
+Thanks for installing ihasmail!
+
+Get the service URL by running these commands:
+  export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "ihasmail.fullname" . }} -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+  echo http://$SERVICE_IP:{{ .Values.service.port }}/
+
+If using Ingress and DNS, browse to the configured host (e.g., https://ihasmail.example.com).

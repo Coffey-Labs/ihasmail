@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="center"><div class="card" style="min-width:320px; max-width:420px;">
+<div style="text-align:center;margin-bottom:8px"><img class="logo-lg" src="/static/img/logo.png" alt="ihasmail"></div>
+<h2 style="text-align:center;margin-top:0">Sign in</h2>
+<form method="post" action="/login">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <div class="row">
+    <label>Username</label>
+    <input name="username" autocomplete="username" required>
+  </div>
+  <div class="row">
+    <label>Password</label>
+    <input type="password" name="password" autocomplete="current-password" required>
+  </div>
+  <div class="row">
+    <label>JMAP Base</label>
+    <input name="jmap_base" value="{{ jmap_base }}">
+  </div>
+  <button class="btn" type="submit">Sign in</button>
+</form>
+</div></div>
+<p class="muted">Credentials are sent to your JMAP server to obtain a session/auth token; they are not stored on the server.</p>
+{% endblock %}

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>WebDAV</h1>
+<p class="muted">Browsing {{ base }}</p>
+<table>
+  <tr><th>Name</th><th>Type</th><th class="right">Size</th></tr>
+  {% for i in items %}
+  <tr>
+    <td>{{ i.name }}</td>
+    <td>{{ i.type }}</td>
+    <td class="right">{% if i.size is not none %}{{ i.size }}{% endif %}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}
