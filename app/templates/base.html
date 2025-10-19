@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>{{ title or "ihasmail" }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' https://unpkg.com;">
+    <link rel="icon" href="/static/img/logo.png">
+    <link rel="preconnect" href="https://unpkg.com">
+    <script defer src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+  </head>
+  <body>
+    <header>
+      <div class="brand">
+        <a href="/" class="brand-link"><img src="/static/img/logo.png" alt="ihasmail" class="logo"> <strong>ihasmail</strong></a>
+      </div>
+      <nav>
+        {% if user %}
+          <span class="muted">Signed in as {{ user.get("username") }}</span>
+          <a class="btn" href="/mail">Inbox</a>
+          <a class="btn" href="/compose">Compose</a>
+          <a class="btn" href="/calendar">Calendar</a>
+          <a class="btn" href="/contacts">Contacts</a>
+          <a class="btn" href="/webdav">WebDAV</a>
+          <a class="btn" href="/logout">Logout</a>
+        {% else %}
+          <a class="btn" href="/login">Login</a>
+        {% endif %}
+      </nav>
+    </header>
+    <main>
+      {% block content %}{% endblock %}
+    </main>
+    <footer class="muted">ihasmail • JMAP • Sieve • DAV • FastAPI • reverse-proxy ready</footer>
+  </body>
+</html>
