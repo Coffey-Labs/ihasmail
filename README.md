@@ -8,7 +8,7 @@
 
 ihasmail is a JMAP-first web client: mail, calendars, contacts, files, filters and every other modern feature Stalwart exposes, in a responsive single-page app that works equally well on a desktop monitor and a phone. It talks only JMAP (plus Stalwart's blob/upload/EventSource endpoints) — no IMAP, no SMTP, no database.
 
-> Status: 2.0 rewrite, in QA against a live Stalwart 1.0 server. The previous FastAPI/HTMX prototype has been removed entirely (only the logo survived).
+> Status: 2.0 rewrite, in QA against a live Stalwart 0.15.5 server. The previous FastAPI/HTMX prototype has been removed entirely (only the logo survived).
 
 ## Screenshots
 
