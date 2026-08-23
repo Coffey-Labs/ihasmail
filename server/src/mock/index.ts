@@ -95,6 +95,8 @@ for (let i = 0; i < 45; i++) {
 }
 addEmail({ from: ["Demo User", USER], to: "ada@example.org", subject: "Draft: ideas for the retreat", daysAgo: 0.1, mailbox: "drafts", html: true }).keywords = { $draft: true, $seen: true };
 addEmail({ from: ["Spammy", "win@lottery.example"], subject: "You have WON!!!", daysAgo: 2, mailbox: "junk", unread: true });
+addEmail({ from: ["Finance Team", "finance@example.org"], subject: "Invoice 2201 approved", daysAgo: 1, mailbox: "work-inv", unread: true });
+addEmail({ from: ["Finance Team", "finance@example.org"], subject: "Invoice 2202 pending", daysAgo: 2, mailbox: "work-inv", unread: true });
 // Invitation email
 {
   const ics = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//mock//EN\r\nMETHOD:REQUEST\r\nBEGIN:VEVENT\r\nUID:inv-1@mock\r\nDTSTAMP:20260820T100000Z\r\nDTSTART:20260825T140000Z\r\nDTEND:20260825T150000Z\r\nSUMMARY:Project kickoff\r\nORGANIZER;CN=Ada Lovelace:mailto:ada@example.org\r\nATTENDEE;CN=Demo User;RSVP=TRUE;PARTSTAT=NEEDS-ACTION:mailto:${USER}\r\nLOCATION:Room 4B\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n`;
