@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { client, chunk, JmapMethodError } from "@/jmap/client";
+import { JmapMethodError, chunk, client, setErrorMessage } from "@/jmap/client";
 import type {
   Comparator,
   Email,
@@ -626,7 +626,7 @@ export const useMail = create<MailState>((set, get) => ({
     const accountId = get().accountId!;
     const res = await client.call<SetResponse<Mailbox>>("Mailbox/set", { accountId, create: { n: { name, parentId, isSubscribed: true } } });
     const err = res.notCreated?.n;
-    if (err) throw new Error(err.description ?? err.type);
+    if (err) throw new Error(setErrorMessage(err));
     await get().loadMailboxes();
     return res.created!.n!.id;
   },
@@ -635,7 +635,7 @@ export const useMail = create<MailState>((set, get) => ({
     const accountId = get().accountId!;
     const res = await client.call<SetResponse>("Mailbox/set", { accountId, update: { [id]: patch } });
     const err = res.notUpdated?.[id];
-    if (err) throw new Error(err.description ?? err.type);
+    if (err) throw new Error(setErrorMessage(err));
     await get().loadMailboxes();
   },
 
@@ -643,7 +643,7 @@ export const useMail = create<MailState>((set, get) => ({
     const accountId = get().accountId!;
     const res = await client.call<SetResponse>("Mailbox/set", { accountId, destroy: [id], onDestroyRemoveEmails: removeEmails });
     const err = res.notDestroyed?.[id];
-    if (err) throw new Error(err.description ?? err.type);
+    if (err) throw new Error(setErrorMessage(err));
     await get().loadMailboxes();
   },
 
@@ -684,7 +684,7 @@ export const useMail = create<MailState>((set, get) => ({
       ? await client.call<SetResponse<Identity>>("Identity/set", { accountId, update: { [id]: patch } })
       : await client.call<SetResponse<Identity>>("Identity/set", { accountId, create: { n: patch } });
     const err = id ? res.notUpdated?.[id] : res.notCreated?.n;
-    if (err) throw new Error(err.description ?? err.type);
+    if (err) throw new Error(setErrorMessage(err));
     await get().loadIdentities();
   },
 
@@ -692,7 +692,7 @@ export const useMail = create<MailState>((set, get) => ({
     const accountId = get().accountId!;
     const res = await client.call<SetResponse>("Identity/set", { accountId, destroy: [id] });
     const err = res.notDestroyed?.[id];
-    if (err) throw new Error(err.description ?? err.type);
+    if (err) throw new Error(setErrorMessage(err));
     await get().loadIdentities();
   },
 
@@ -711,7 +711,7 @@ export const useMail = create<MailState>((set, get) => ({
     const accountId = get().accountId!;
     const res = await client.call<SetResponse>("VacationResponse/set", { accountId, update: { singleton: patch } });
     const err = res.notUpdated?.singleton;
-    if (err) throw new Error(err.description ?? err.type);
+    if (err) throw new Error(setErrorMessage(err));
     await get().loadVacation();
   },
 
@@ -823,7 +823,7 @@ export const useMail = create<MailState>((set, get) => ({
       accountId,
       emails: { i: { blobId, mailboxIds: { [mailboxId]: true }, keywords } },
     });
-    if (res.notCreated?.i) throw new Error(res.notCreated.i.description ?? res.notCreated.i.type);
+    if (res.notCreated?.i) throw new Error(setErrorMessage(res.notCreated.i));
     void get().refreshList();
     void get().loadMailboxes();
     return res.created?.i?.id ?? null;

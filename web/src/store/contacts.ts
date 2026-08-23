@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { CAP, client } from "@/jmap/client";
+import { CAP, client, setErrorMessage } from "@/jmap/client";
 import type { AddressBook, ContactCard, EmailAddress, GetResponse, Id, Principal, QueryResponse, SetResponse } from "@/jmap/types";
 import { contactDisplayName, contactEmails, sortKey } from "@/lib/contacts";
 import { useSession } from "./session";
@@ -133,7 +133,7 @@ export const useContacts = create<ContactsState>((set, get) => ({
     const obj = { "@type": "Card", version: "1.0", uid: crypto.randomUUID(), kind: "individual", ...card, addressBookIds: { [addressBookId]: true } };
     const res = await client.call<SetResponse<ContactCard>>("ContactCard/set", { accountId, create: { c: obj } });
     const err = res.notCreated?.c;
-    if (err) throw new Error(err.description ?? err.type);
+    if (err) throw new Error(setErrorMessage(err));
     const id = res.created!.c!.id;
     await get().getCard(id);
     return id;
@@ -143,7 +143,7 @@ export const useContacts = create<ContactsState>((set, get) => ({
     const accountId = get().accountId!;
     const res = await client.call<SetResponse>("ContactCard/set", { accountId, update: { [id]: patch } });
     const err = res.notUpdated?.[id];
-    if (err) throw new Error(err.description ?? err.type);
+    if (err) throw new Error(setErrorMessage(err));
     await get().getCard(id);
   },
 
@@ -151,7 +151,7 @@ export const useContacts = create<ContactsState>((set, get) => ({
     const accountId = get().accountId!;
     const res = await client.call<SetResponse>("ContactCard/set", { accountId, destroy: ids });
     const failed = Object.values(res.notDestroyed ?? {})[0];
-    if (failed) throw new Error(failed.description ?? failed.type);
+    if (failed) throw new Error(setErrorMessage(failed));
     set((s) => {
       const cards = { ...s.cards };
       for (const id of ids) delete cards[id];
@@ -163,7 +163,7 @@ export const useContacts = create<ContactsState>((set, get) => ({
     const accountId = get().accountId!;
     const res = await client.call<SetResponse<AddressBook>>("AddressBook/set", { accountId, create: { b: { name } } });
     const err = res.notCreated?.b;
-    if (err) throw new Error(err.description ?? err.type);
+    if (err) throw new Error(setErrorMessage(err));
     await get().loadBooks();
     return res.created!.b!.id;
   },
@@ -172,7 +172,7 @@ export const useContacts = create<ContactsState>((set, get) => ({
     const accountId = get().accountId!;
     const res = await client.call<SetResponse>("AddressBook/set", { accountId, update: { [id]: patch } });
     const err = res.notUpdated?.[id];
-    if (err) throw new Error(err.description ?? err.type);
+    if (err) throw new Error(setErrorMessage(err));
     await get().loadBooks();
   },
 
@@ -180,7 +180,7 @@ export const useContacts = create<ContactsState>((set, get) => ({
     const accountId = get().accountId!;
     const res = await client.call<SetResponse>("AddressBook/set", { accountId, destroy: [id], onDestroyRemoveContents: true });
     const err = res.notDestroyed?.[id];
-    if (err) throw new Error(err.description ?? err.type);
+    if (err) throw new Error(setErrorMessage(err));
     await get().loadBooks();
     await get().loadAll();
   },
