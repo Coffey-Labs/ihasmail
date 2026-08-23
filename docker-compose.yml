@@ -6,7 +6,7 @@ services:
     ports:
       - "8080:8080"
     environment:
-      STALWART_URL: ${STALWART_URL:-https://mail.example.com}
+      STALWART_URL: ${STALWART_URL:?set STALWART_URL in .env}
       APP_SECRET: ${APP_SECRET:?set APP_SECRET in .env (openssl rand -base64 48)}
       APP_NAME: ${APP_NAME:-ihasmail}
       TRUST_PROXY: "1"
