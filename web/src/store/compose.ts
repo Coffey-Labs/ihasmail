@@ -481,7 +481,7 @@ function scheduleAutosave(key: string, get: () => ComposeState) {
 }
 
 /** Build the JMAP Email creation object from a draft. */
-async function buildEmailObject(d: Draft, opts: { forSend: boolean }): Promise<Record<string, unknown>> {
+export async function buildEmailObject(d: Draft, opts: { forSend: boolean }): Promise<Record<string, unknown>> {
   const mail = useMail.getState();
   const accountId = mail.accountId!;
   const ident = mail.identities.find((i) => i.id === d.identityId) ?? mail.identities[0];
@@ -561,18 +561,23 @@ async function buildEmailObject(d: Draft, opts: { forSend: boolean }): Promise<R
 
   const obj: Record<string, unknown> = {
     from: [from],
-    to: d.to.length ? d.to : null,
-    cc: d.cc.length ? d.cc : null,
-    bcc: d.bcc.length ? d.bcc : null,
-    replyTo: d.replyTo.length ? d.replyTo : ident.replyTo?.length ? ident.replyTo : null,
     subject: d.subject,
     sentAt: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),
-    inReplyTo: d.inReplyTo,
-    references: d.references,
     bodyStructure,
     bodyValues,
     "header:User-Agent:asText": "ihasmail/2.0",
   };
+  // Header properties are omitted when empty, never sent as null: JMAP servers
+  // are entitled to reject null for a header field (Stalwart parses these as
+  // address lists and fails the whole create), and on a create there is no
+  // previous value that would need clearing.
+  const replyTo = d.replyTo.length ? d.replyTo : (ident.replyTo ?? []);
+  if (d.to.length) obj.to = d.to;
+  if (d.cc.length) obj.cc = d.cc;
+  if (d.bcc.length) obj.bcc = d.bcc;
+  if (replyTo.length) obj.replyTo = replyTo;
+  if (d.inReplyTo?.length) obj.inReplyTo = d.inReplyTo;
+  if (d.references?.length) obj.references = d.references;
   if (d.priority === "high") {
     obj["header:X-Priority:asText"] = "1 (Highest)";
     obj["header:Importance:asText"] = "High";
