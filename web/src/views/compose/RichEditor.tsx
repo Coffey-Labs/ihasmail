@@ -48,20 +48,23 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
     }
   }, [html]);
 
+  // autoFocus means "focus on mount", as it does on a DOM element. Reacting to
+  // the prop turning true later yanks the caret out of whatever the user is
+  // typing in — typing the first letter of a subject used to jump to the body.
+  const autoFocusOnMount = useRef(autoFocus);
   useEffect(() => {
-    if (autoFocus) {
-      const el = elRef.current;
-      if (!el) return;
-      el.focus();
-      // caret at start
-      const sel = window.getSelection();
-      const range = document.createRange();
-      range.setStart(el, 0);
-      range.collapse(true);
-      sel?.removeAllRanges();
-      sel?.addRange(range);
-    }
-  }, [autoFocus]);
+    if (!autoFocusOnMount.current) return;
+    const el = elRef.current;
+    if (!el) return;
+    el.focus();
+    // caret at start
+    const sel = window.getSelection();
+    const range = document.createRange();
+    range.setStart(el, 0);
+    range.collapse(true);
+    sel?.removeAllRanges();
+    sel?.addRange(range);
+  }, []);
 
   const emit = useCallback(() => {
     const el = elRef.current;
