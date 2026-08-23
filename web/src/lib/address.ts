@@ -114,3 +114,45 @@ export function domainOf(email: string): string {
   const i = email.lastIndexOf("@");
   return i >= 0 ? email.slice(i + 1).toLowerCase() : "";
 }
+
+export interface MailtoFields {
+  to: EmailAddress[];
+  cc: EmailAddress[];
+  bcc: EmailAddress[];
+  subject: string;
+  body: string;
+}
+
+/**
+ * Parse a `mailto:` URL (RFC 6068) into composer fields.
+ *
+ * Recipients may sit in the path, in `to=`, or both; headers other than
+ * to/cc/bcc/subject/body are ignored. Percent-encoding is undone leniently —
+ * a malformed escape yields the raw text rather than throwing.
+ */
+export function parseMailto(url: string): MailtoFields {
+  const withoutScheme = url.replace(/^mailto:/i, "");
+  const q = withoutScheme.indexOf("?");
+  const path = q === -1 ? withoutScheme : withoutScheme.slice(0, q);
+  const params = new URLSearchParams(q === -1 ? "" : withoutScheme.slice(q + 1));
+  const header = (name: string) => {
+    for (const [k, v] of params) if (k.toLowerCase() === name) return v;
+    return "";
+  };
+  const addresses = (raw: string) => (raw.trim() ? parseAddressList(decode(raw)) : []);
+  return {
+    to: [...addresses(path), ...addresses(header("to"))],
+    cc: addresses(header("cc")),
+    bcc: addresses(header("bcc")),
+    subject: decode(header("subject")),
+    body: decode(header("body")),
+  };
+}
+
+function decode(s: string): string {
+  try {
+    return decodeURIComponent(s.replace(/\+/g, " "));
+  } catch {
+    return s;
+  }
+}

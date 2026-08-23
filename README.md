@@ -55,6 +55,7 @@ ihasmail is a JMAP-first web client: mail, calendars, contacts, files, filters a
 
 **Platform**
 - Installable PWA (manifest + service worker), mobile layout with bottom tab bar, drawer navigation, full-screen composer, FAB
+- **Default mail app**: register ihasmail as the browser's handler for `mailto:` links from Settings › General (`registerProtocolHandler`; needs HTTPS and a browser that supports it — Safari does not). Installed as an app it also declares `protocol_handlers` in the manifest, which is what lets the operating system offer ihasmail wherever it asks for a mail client. Links arrive with recipients, Cc, Bcc, subject and body filled in
 - Security: no credentials in the browser (server-side session with per-session encrypted upstream credentials), httpOnly SameSite cookies, CSRF header + Sec-Fetch-Site checks, strict CSP, sandboxed blob downloads, SSRF-safe image proxy, login rate limiting, security headers
 
 ## Architecture
