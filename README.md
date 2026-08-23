@@ -29,6 +29,7 @@ ihasmail is a JMAP-first web client: mail, calendars, contacts, files, filters a
 - Archive / delete / spam / star / mark read / move / labels (IMAP keywords with colours) with **Undo**
 - **"Filter messages like this…"** from the message context menu: creates a Sieve rule pre-filled from the sender/list (target folders can be created on the fly), and can **apply it immediately to the existing messages in the folder** (evaluated client-side, actions applied via JMAP)
 - Safe HTML rendering: DOMPurify sanitisation inside a Shadow DOM, **remote images blocked by default** with a per-sender allow-list and an optional **privacy image proxy** (like Gmail's)
+- Messages sit on a light card by default, untouched as the sender designed them. *Appearance › Apply the theme to messages too* lets them follow the app's light/dark theme instead — plain-text mail always does, and with the option on so does HTML mail that brings no colours of its own; mail that styles itself is still left alone
 - Attachments: previews for images/PDF/text, download all, inline `cid:` images, `.eml` export, *Show original*, header viewer
 - Invitations: `.ics` parts render as an invite card with **Yes/Maybe/No** RSVP (via `CalendarEvent/parse` + iTIP); `.vcf` parts offer *Add to contacts*; `List-Unsubscribe` one-click
 - Search with Gmail operators (`from:`, `to:`, `subject:`, `has:attachment`, `is:unread`, `is:starred`, `in:`, `label:`, `before:`, `after:`, `larger:`, `smaller:` …) plus an advanced-search panel

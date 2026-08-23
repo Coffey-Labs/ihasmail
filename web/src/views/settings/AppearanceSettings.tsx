@@ -26,6 +26,13 @@ export function AppearanceSettings() {
           </button>
         ))}
       </div>
+      <Switch
+        checked={s.themeMessageBody}
+        onChange={(v) => update({ themeMessageBody: v })}
+        label="Apply the theme to messages too"
+        hint="Plain-text mail already follows the theme. With this on, HTML mail that brings no colours of its own does as well, instead of sitting on a white card. Messages that style themselves are left exactly as the sender designed them."
+      />
+
       <h2>Accent color</h2>
       <div className="swatches">
         {ACCENTS.map((a) => (
