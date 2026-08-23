@@ -4,7 +4,7 @@
  * blobs) under an "ihasmail" folder and reference them by blob URL; the composer
  * turns such references into inline cid: parts when sending.
  */
-import { CAP, client } from "@/jmap/client";
+import { CAP, client, setErrorMessage } from "@/jmap/client";
 import type { FileNode, GetResponse, QueryResponse, SetResponse } from "@/jmap/types";
 import { useSession } from "@/store/session";
 import { toast } from "@/ui/toast";
@@ -31,7 +31,7 @@ async function ensureFolder(accountId: string): Promise<string> {
   if (existing) return existing.id;
   const set = await client.call<SetResponse<FileNode>>("FileNode/set", { accountId, create: { d: { parentId: null, name: FOLDER, nodeType: "directory" } } });
   const err = set.notCreated?.d;
-  if (err) throw new Error(err.description ?? err.type);
+  if (err) throw new Error(setErrorMessage(err));
   return set.created!.d!.id;
 }
 
@@ -53,7 +53,7 @@ export async function uploadSignatureImage(file: File): Promise<string> {
     const name = `${Date.now()}-${file.name.replace(/[^\w.-]+/g, "_")}`;
     const res = await client.call<SetResponse<FileNode>>("FileNode/set", { accountId, create: { f: { parentId: folderId, name, nodeType: "file", blobId: up.blobId, type } } });
     const err = res.notCreated?.f;
-    if (err) throw new Error(err.description ?? err.type);
+    if (err) throw new Error(setErrorMessage(err));
     const created = res.created?.f as Partial<FileNode> | undefined;
     // Prefer the node's (persistent) blobId if the server returned one.
     const blobId = created?.blobId ?? (await nodeBlobId(accountId, created?.id)) ?? up.blobId;
@@ -73,7 +73,7 @@ export async function storeSignatureHtml(html: string): Promise<string> {
   const name = `signature-${Date.now()}.html`;
   const res = await client.call<SetResponse<FileNode>>("FileNode/set", { accountId, create: { f: { parentId: folderId, name, nodeType: "file", blobId: up.blobId, type: "text/html" } } });
   const err = res.notCreated?.f;
-  if (err) throw new Error(err.description ?? err.type);
+  if (err) throw new Error(setErrorMessage(err));
   const created = res.created?.f as Partial<FileNode> | undefined;
   return created?.blobId ?? (await nodeBlobId(accountId, created?.id)) ?? up.blobId;
 }
