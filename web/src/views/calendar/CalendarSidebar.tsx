@@ -2,9 +2,10 @@ import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { ChevronLeft, ChevronRight, MoreVertical, Pencil, Plus, Share2, Trash2, Eye, EyeOff, Star } from "lucide-react";
 import { useCalendar } from "@/store/calendar";
-import { useSettings } from "@/store/settings";
+import { dateTimeKey, useSettings } from "@/store/settings";
 import { addMonths, isSameDay, isToday, monthGrid, startOfDay, toLocalDateOnly } from "@/lib/dates";
 import { formatMonthYear } from "@/lib/format";
+import { formatWeekday } from "@/lib/datetime";
 import { MenuItem, MenuSep, Popover, useMenu } from "@/ui/popover";
 import { confirmDialog } from "@/ui/dialog";
 import { toast } from "@/ui/toast";
@@ -16,6 +17,7 @@ export function CalendarSidebar() {
   const [location, navigate] = useLocation();
   const cal = useCalendar();
   const weekStart = useSettings((s) => s.settings.weekStart);
+  const locale = useSettings((s) => dateTimeKey(s.settings));
   const parts = location.split("/");
   const view = parts[2] || "week";
   const dateStr = parts[3];
@@ -27,10 +29,7 @@ export function CalendarSidebar() {
   const [editCal, setEditCal] = useState<Partial<Calendar> | null>(null);
   const [share, setShare] = useState<Calendar | null>(null);
   const instances = cal.instancesIn(grid[0]!, new Date(grid[41]!.getTime() + 86400000));
-  const dow = useMemo(() => {
-    const names = ["S", "M", "T", "W", "T", "F", "S"];
-    return [...Array(7)].map((_, i) => names[(weekStart + i) % 7]);
-  }, [weekStart]);
+  const dow = useMemo(() => grid.slice(0, 7).map((d) => formatWeekday(d, "narrow")), [grid, locale]);
 
   if (!cal.available) return null;
   const calendars = Object.values(cal.calendars).sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));

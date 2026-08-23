@@ -1,3 +1,5 @@
+import { formatClock, formatDayMonth, formatDayMonthTime, formatWeekdayDate } from "./datetime";
+
 export const DAY_MS = 86_400_000;
 
 export function startOfDay(d: Date): Date {
@@ -219,14 +221,13 @@ export function listTimeZones(): string[] {
 export function formatTimeRange(start: Date, end: Date, allDay: boolean): string {
   if (allDay) {
     const lastDay = new Date(end.getTime() - 1);
-    if (isSameDay(start, lastDay)) return start.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
-    return `${start.toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${lastDay.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+    if (isSameDay(start, lastDay)) return formatWeekdayDate(start);
+    return `${formatDayMonth(start)} – ${formatDayMonth(lastDay)}`;
   }
-  const t = (d: Date) => d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
   if (isSameDay(start, end)) {
-    return `${start.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })} · ${t(start)} – ${t(end)}`;
+    return `${formatWeekdayDate(start)} · ${formatClock(start)} – ${formatClock(end)}`;
   }
-  return `${start.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })} – ${end.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}`;
+  return `${formatDayMonthTime(start)} – ${formatDayMonthTime(end)}`;
 }
 
 /** For <input type="datetime-local"> */
