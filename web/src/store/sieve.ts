@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { CAP, client } from "@/jmap/client";
+import { CAP, client, setErrorMessage } from "@/jmap/client";
 import type { GetResponse, Id, SetResponse, SieveScript } from "@/jmap/types";
 import { rulesToSieve, sieveToRules, type SieveRule } from "@/lib/sieve";
 import { useSession } from "./session";
@@ -97,7 +97,7 @@ export const useSieve = create<SieveState>((set, get) => ({
     if (activate) args.onSuccessActivateScript = id ?? "#s";
     const res = await client.call<SetResponse<SieveScript>>("SieveScript/set", args);
     const err = id ? res.notUpdated?.[id] : res.notCreated?.s;
-    if (err) throw new Error(err.description ?? err.type);
+    if (err) throw new Error(setErrorMessage(err));
     const newId = id ?? res.created!.s!.id;
     set((s) => ({ contents: { ...s.contents, [newId]: content } }));
     await get().load();
@@ -118,7 +118,7 @@ export const useSieve = create<SieveState>((set, get) => ({
     const accountId = get().accountId!;
     const res = await client.call<SetResponse>("SieveScript/set", { accountId, destroy: [id] });
     const err = res.notDestroyed?.[id];
-    if (err) throw new Error(err.description ?? err.type);
+    if (err) throw new Error(setErrorMessage(err));
     await get().load();
   },
 

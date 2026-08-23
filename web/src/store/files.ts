@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { CAP, client, JmapMethodError } from "@/jmap/client";
+import { CAP, JmapMethodError, client, setErrorMessage } from "@/jmap/client";
 import type { FileNode, GetResponse, Id, QueryResponse, SetResponse } from "@/jmap/types";
 import { useSession } from "./session";
 
@@ -114,7 +114,7 @@ export const useFiles = create<FilesState>((set, get) => ({
     const accountId = get().accountId!;
     const res = await client.call<SetResponse<FileNode>>("FileNode/set", { accountId, create: { d: { parentId, name, nodeType: "directory" } } });
     const err = res.notCreated?.d;
-    if (err) throw new Error(err.description ?? err.type);
+    if (err) throw new Error(setErrorMessage(err));
     await get().loadChildren(parentId);
     return res.created!.d!.id;
   },
@@ -134,7 +134,7 @@ export const useFiles = create<FilesState>((set, get) => ({
           create: { f: { parentId, name: f.name, nodeType: "file", blobId: up.blobId, type: f.type || "application/octet-stream" } },
         });
         const err = res.notCreated?.f;
-        if (err) throw new Error(err.description ?? err.type);
+        if (err) throw new Error(setErrorMessage(err));
         set((s) => ({ uploads: s.uploads.filter((u) => u.id !== id) }));
       } catch (err) {
         set((s) => ({ uploads: s.uploads.map((u) => (u.id === id ? { ...u, error: (err as Error).message } : u)) }));
@@ -147,7 +147,7 @@ export const useFiles = create<FilesState>((set, get) => ({
     const accountId = get().accountId!;
     const res = await client.call<SetResponse>("FileNode/set", { accountId, update: { [id]: { name } } });
     const err = res.notUpdated?.[id];
-    if (err) throw new Error(err.description ?? err.type);
+    if (err) throw new Error(setErrorMessage(err));
     await get().loadChildren(get().nodes[id]?.parentId ?? null);
   },
 
@@ -156,7 +156,7 @@ export const useFiles = create<FilesState>((set, get) => ({
     const from = get().nodes[id]?.parentId ?? null;
     const res = await client.call<SetResponse>("FileNode/set", { accountId, update: { [id]: { parentId } } });
     const err = res.notUpdated?.[id];
-    if (err) throw new Error(err.description ?? err.type);
+    if (err) throw new Error(setErrorMessage(err));
     await Promise.all([get().loadChildren(from), get().loadChildren(parentId)]);
   },
 
@@ -165,7 +165,7 @@ export const useFiles = create<FilesState>((set, get) => ({
     const parents = new Set(ids.map((id) => get().nodes[id]?.parentId ?? null));
     const res = await client.call<SetResponse>("FileNode/set", { accountId, destroy: ids, onDestroyRemoveChildren: true });
     const failed = Object.values(res.notDestroyed ?? {})[0];
-    if (failed) throw new Error(failed.description ?? failed.type);
+    if (failed) throw new Error(setErrorMessage(failed));
     for (const p of parents) await get().loadChildren(p);
   },
 
