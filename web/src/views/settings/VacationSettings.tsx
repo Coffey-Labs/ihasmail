@@ -3,6 +3,8 @@ import { useMail } from "@/store/mail";
 import { Switch } from "@/ui/misc";
 import { toast } from "@/ui/toast";
 import { toInputDateTime, fromInputDateTime, toUTCDate } from "@/lib/dates";
+import { formatFullDateTime } from "@/lib/datetime";
+import { dateTimeKey, useSettings } from "@/store/settings";
 import { client, CAP } from "@/jmap/client";
 
 export function VacationSettings() {
@@ -16,6 +18,13 @@ export function VacationSettings() {
   const [to, setTo] = useState("");
   const [busy, setBusy] = useState(false);
   const available = client.hasCapability(CAP.vacation);
+  // The date pickers themselves are native controls and follow the browser's
+  // locale; echo the value back in the user's chosen format so there is no doubt.
+  useSettings((s) => dateTimeKey(s.settings));
+  const echo = (v: string) => {
+    const d = fromInputDateTime(v);
+    return v && !Number.isNaN(d.getTime()) ? formatFullDateTime(d) : "";
+  };
 
   useEffect(() => {
     void load();
@@ -56,8 +65,16 @@ export function VacationSettings() {
       <p className="lead">Automatically reply to people who email you while you're away. Each sender gets at most one reply.</p>
       <Switch checked={enabled} onChange={setEnabled} label="Auto-reply enabled" />
       <div className="field-row mt-16">
-        <div className="field"><label>Starts (optional)</label><input className="input" type="datetime-local" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
-        <div className="field"><label>Ends (optional)</label><input className="input" type="datetime-local" value={to} onChange={(e) => setTo(e.target.value)} /></div>
+        <div className="field">
+          <label>Starts (optional)</label>
+          <input className="input" type="datetime-local" value={from} onChange={(e) => setFrom(e.target.value)} />
+          {echo(from) && <p className="hint">{echo(from)}</p>}
+        </div>
+        <div className="field">
+          <label>Ends (optional)</label>
+          <input className="input" type="datetime-local" value={to} onChange={(e) => setTo(e.target.value)} />
+          {echo(to) && <p className="hint">{echo(to)}</p>}
+        </div>
       </div>
       <div className="field"><label>Subject</label><input className="input" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Out of office" /></div>
       <div className="field"><label>Message</label><textarea className="textarea" rows={7} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Thanks for your message. I'm away until … and will reply when I'm back." /></div>
