@@ -1,60 +1,142 @@
+<p align="center">
+  <img src="web/public/img/logo.png" alt="ihasmail" width="180">
+</p>
+
 # ihasmail
 
-![ihasmail logo](app/static/img/logo.png)
+**A fast, friendly, Gmail-class webmail for [Stalwart Mail Server](https://stalw.art) — built on JMAP, from the ground up.**
 
-A polished, FastAPI + HTMX/Jinja webmail for Stalwart, with JMAP mail/contacts/calendar, Sieve UI, DAV browsing, and reverse-proxy friendly deploy.
+ihasmail is a JMAP-first web client: mail, calendars, contacts, files, filters and every other modern feature Stalwart exposes, in a responsive single-page app that works equally well on a desktop monitor and a phone. It talks only JMAP (plus Stalwart's blob/upload/EventSource endpoints) — no IMAP, no SMTP, no database.
 
-A production-leaning, **FastAPI** + **HTMX/Jinja** webmail for [Stalwart Mail Server](https://stalw.art/), using **JMAP** for mail, contacts, and calendar, plus simple **WebDAV/CalDAV** helpers. Authenticates with the user's Stalwart mailbox (like Roundcube). Designed to run behind a reverse proxy.
+> Status: 2.0 rewrite, in QA against a live Stalwart 1.0 server. The previous FastAPI/HTMX prototype has been removed entirely (only the logo survived).
+
+## Screenshots
+
+*All screenshots are taken against the built-in mock server (`npm run dev:mock`) with sample data — no real mailbox involved.*
+
+| | |
+| --- | --- |
+| **Inbox & conversation view (dark)** ![Inbox, dark theme](docs/screenshots/inbox-dark.jpg) | **Inbox & conversation view (light)** ![Inbox, light theme](docs/screenshots/inbox-light.jpg) |
+| **Reply composer** — identities, Reply-To, rich text, signature, quoted text ![Composer](docs/screenshots/compose.jpg) | **Calendar (month view)** ![Calendar](docs/screenshots/calendar.jpg) |
+| **Contacts** ![Contacts](docs/screenshots/contacts.jpg) | **Sieve filter builder** — also reachable from a message's right-click menu ![Filters](docs/screenshots/filters.jpg) |
+| **Sign-in** ![Login](docs/screenshots/login.jpg) | **Mobile layout** <img src="docs/screenshots/mobile.jpg" alt="Mobile" width="300"> |
 
 ## Features
-- Login with Stalwart mailbox (HTTP Basic against JMAP session or bearer token if provided)
-- Inbox listing, read messages (plain text), compose & send via JMAP (`Email`, `EmailSubmission`)
-- Contacts/Directory via JMAP `Contact`
-- Calendar view via JMAP `CalendarEvent`
-- WebDAV browser (read-only sample) and CalDAV endpoints (external DAV clients)
-- CSRF on POST, signed session cookie, proxy-friendly
-- Dockerfile + docker-compose for easy deploy
 
-> HTML rendering and attachment streaming are stubbed—extend using the JMAP `downloadUrl` and sanitize HTML before display.
+**Mail**
+- Gmail-style three-pane layout (reading pane right/bottom/off, **drag-to-resize splitter** in both orientations, quick layout switch in the list menu), conversation view with collapsed messages and "show quoted text", dense/cozy/comfortable density, light/dark/system theme with accent colours
+- Virtualised, infinitely-scrolling message list; multi-select (click, ⇧-click, ⌃-click), drag & drop to folders, right-click context menus, hover actions, Gmail keyboard shortcuts (`j/k`, `e`, `#`, `r/a/f`, `g i`, `/`, `?` …)
+- Archive / delete / spam / star / mark read / move / labels (IMAP keywords with colours) with **Undo**
+- **"Filter messages like this…"** from the message context menu: creates a Sieve rule pre-filled from the sender/list (target folders can be created on the fly), and can **apply it immediately to the existing messages in the folder** (evaluated client-side, actions applied via JMAP)
+- Safe HTML rendering: DOMPurify sanitisation inside a Shadow DOM, **remote images blocked by default** with a per-sender allow-list and an optional **privacy image proxy** (like Gmail's)
+- Attachments: previews for images/PDF/text, download all, inline `cid:` images, `.eml` export, *Show original*, header viewer
+- Invitations: `.ics` parts render as an invite card with **Yes/Maybe/No** RSVP (via `CalendarEvent/parse` + iTIP); `.vcf` parts offer *Add to contacts*; `List-Unsubscribe` one-click
+- Search with Gmail operators (`from:`, `to:`, `subject:`, `has:attachment`, `is:unread`, `is:starred`, `in:`, `label:`, `before:`, `after:`, `larger:`, `smaller:` …) plus an advanced-search panel
+- Composer: multiple floating/minimised/maximised composers, rich-text editor (formatting, lists, links, colours, images pasted/dropped inline, emoji), plain-text mode, recipient chips with autocomplete from **contacts, the directory (GAL) and recent recipients**, multiple identities with HTML signatures, Cc/Bcc, priority, read-receipt request, templates/canned responses, attachment upload with progress, drag & drop, attachment reminder, **undo send**, autosaved drafts, reply/reply-all/forward with quoting and inline images preserved
+- Live updates via JMAP push (EventSource proxied server-side) with polling fallback; desktop notifications, sound, title/favicon unread badge
+- A–Z folder list with Inbox pinned on top (other special folders mixed in), subfolders nested and collapsed by default, folder management (create/rename/hide/share/empty), quota bar, Outlook-style module bar (Mail · Calendar · Contacts · Files) at the bottom of the pane, multi-account switching for shared accounts
 
-## Quick Start (Docker)
+**Calendar** (JMAP Calendars / JSCalendar)
+- Month / week / day / agenda views, mini calendar, multiple calendars with colours, show/hide, create/edit/share calendars
+- Create events by click or drag, edit everything: all-day, time zones, recurrence (presets + custom rule builder), location, meeting link, description, reminders, status/privacy/free-busy, colour
+- Attendees with invitations (`sendSchedulingMessages`), RSVP, and **free/busy lookup** via `Principal/getAvailability`
+- **Right-click menus** on events (open, edit, duplicate, colour, category, delete) and on empty slots/days (new event here, go to day/week)
+- **Outlook-style colour categories**: named colours managed in Settings, assigned from the context menu or editor; stored as JSCalendar `categories` (+ `color`) so they sync
+
+**Contacts** (JMAP Contacts / JSContact)
+- Address books (create/rename/share/default), contact list with search and letter index, full contact editor (names, emails, phones, addresses, org/title, birthday, website, notes, photo), **groups**, vCard import/export, compose-to-contact
+
+**Files** (JMAP FileNode)
+- Browse folders, upload (drag & drop), download, create folders, rename, move, delete
+
+**Settings**
+- Identities & signatures, **Sieve filters** (visual rule builder that round-trips to a Sieve script, plus a raw script editor with server-side validation), out-of-office (`VacationResponse`), folders, labels, templates, notifications, calendar defaults, sessions (sign out other devices), keyboard shortcuts, import/export of settings
+
+**Platform**
+- Installable PWA (manifest + service worker), mobile layout with bottom tab bar, drawer navigation, full-screen composer, FAB
+- Security: no credentials in the browser (server-side session with per-session encrypted upstream credentials), httpOnly SameSite cookies, CSRF header + Sec-Fetch-Site checks, strict CSP, sandboxed blob downloads, SSRF-safe image proxy, login rate limiting, security headers
+
+## Architecture
+
+```
+browser  ──(same-origin /api/*)──►  ihasmail server (Node + Hono)  ──(JMAP over HTTPS)──►  Stalwart
+  React SPA                           • session cookie ⇄ Basic auth
+  JMAP client + stores                • /api/jmap, /api/blob, /api/upload, /api/events (SSE), /api/image
+```
+
+- `web/` — Vite + React 19 + TypeScript SPA. `src/jmap` (client, push, types), `src/store` (zustand stores: session, mail, compose, contacts, calendar, files, sieve, settings), `src/views` (mail, compose, calendar, contacts, files, settings), `src/lib` (sanitiser, search parser, Sieve codec, dates, vCard, …).
+- `server/` — tiny Node/Hono backend: authenticates against Stalwart's JMAP session endpoint, stores the credentials sealed with a key derived from the cookie secret (the server never persists plaintext passwords), proxies JMAP/blob/SSE calls, serves the SPA with a strict CSP. Also contains `src/mock/` — an in-memory fake Stalwart for local development and demos.
+
+Stalwart capabilities used: `core`, `mail`, `submission`, `vacationresponse`, `sieve`, `contacts`(+`parse`), `calendars`(+`parse`), `principals`(+`availability`), `quota`, `blob`, `filenode`, EventSource push. Features degrade gracefully when a capability is missing.
+
+## Quick start (Docker)
 
 ```bash
-# 1) Configure environment
 cp .env.example .env
-# Edit JMAP_BASE, CALDAV_BASE, WEBDAV_BASE, APP_SECRET
-
-# 2) Build & run
+# edit: STALWART_URL=https://mail.example.com  and  APP_SECRET=$(openssl rand -base64 48)
 docker compose up --build -d
-
-# 3) Reverse proxy (Nginx/Caddy) to http://127.0.0.1:8080
+# → http://localhost:8080  (put Caddy/nginx in front for TLS; see Caddyfile.example / nginx.example.conf)
 ```
 
-## Environment Variables
-- `APP_SECRET` – random string for signing cookies (required)
-- `JMAP_BASE` – e.g., `https://mail.example.com/jmap`
-- `CALDAV_BASE` – e.g., `https://mail.example.com/caldav/`
-- `WEBDAV_BASE` – e.g., `https://mail.example.com/webdav/`
-- `COOKIE_NAME` – cookie name (default: `stalwart_webmail`)
-- `TRUST_PROXY` – `1` to honor `X-Forwarded-*` (default: `1`)
-- `UPSTREAM_TIMEOUT` – seconds for upstream HTTP (default: `15`)
+Users sign in with their Stalwart mailbox credentials (TOTP codes are supported via the "two-factor code" field, which Stalwart accepts as `password$code`).
 
-## Dev
+## Development
+
+Requirements: Node ≥ 20.10 (22 recommended), npm ≥ 10.
+
 ```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
-uvicorn app.main:app --reload
-pytest
+npm install
+
+# against a real Stalwart (default: mail.example.com, change STALWART_URL in .env or the environment)
+npm run dev            # server on :8080 (tsx watch) + Vite dev server on :5173 (proxying /api)
+
+# against the built-in mock Stalwart (demo@example.com / demo) — no real mailbox needed
+npm run dev:mock       # mock on :8788, server on :8080, Vite on :5173
+
+npm run typecheck      # tsc for both packages
+npm test               # vitest (web) + node:test (server)
+npm run build          # web/dist + server/dist
+npm start              # serve the production build
 ```
 
-## Security & Hardening
-- Prefer **bearer tokens** if Stalwart issues them; update `jmap_session()` to store `accessToken`
-- Set explicit `accountId` from the JMAP session `primaryAccounts`
-- Add mailbox/folder navigation via `Mailbox/query` + `Mailbox/get`
-- Sanitize HTML bodies (e.g., `bleach`) before rendering
-- Add Sieve UI via `urn:ietf:params:jmap:sieve`
-- Consider rate limiting and security headers in the reverse proxy
-- Serve static assets via proxy/CDN
+Open http://localhost:5173 in dev (or http://localhost:8080 for the production build).
+
+## Configuration
+
+All configuration is via environment variables (see `.env.example`):
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `STALWART_URL` | `https://mail.example.com` | Base URL of Stalwart; the JMAP session is discovered at `/.well-known/jmap` |
+| `APP_SECRET` | *(required in production)* | Secret used to derive session encryption keys |
+| `PORT` / `HOST` | `8080` / `0.0.0.0` | Listen address |
+| `TRUST_PROXY` | `1` | Honour `X-Forwarded-*` from a reverse proxy |
+| `SECURE_COOKIES` | `auto` | `auto` (Secure on https), `1`, or `0` for plain-HTTP dev |
+| `SESSION_TTL` / `SESSION_REMEMBER_TTL` | `43200` / `2592000` | Idle session lifetime (seconds), with/without "keep me signed in" |
+| `SESSION_FILE` | *(unset)* | Persist sessions across restarts (ciphertext only) |
+| `IMAGE_PROXY` | `1` | Route remote images through the privacy proxy |
+| `MAX_UPLOAD_BYTES` | `52428800` | Upload size limit (Stalwart has its own limit too) |
+| `APP_NAME` | `ihasmail` | Branding |
+
+## Keyboard shortcuts
+
+Press `?` anywhere. Highlights: `c` compose · `/` search · `j`/`k` navigate · `o`/`Enter` open · `u` back · `e` archive · `#` delete · `!` spam · `s` star · `r`/`a`/`f` reply/reply-all/forward · `v` move · `l` label · `x` select · `⇧I`/`⇧U` read/unread · `g i` inbox · `g l` calendar · `g c` contacts · `Ctrl+Enter` send.
+
+## Known issues / pending QA
+
+Verified against the mock server and, for the core mail flows, against a live Stalwart 1.0 (`mail.example.com`). Still pending live verification:
+
+- **HTML signatures** — Stalwart caps identity signatures at 2 KB. ihasmail compacts pasted HTML, moves images to Files and, if still too large, keeps the full signature in Files behind a short marker (other clients see a text fallback). The end-to-end flow (save → compose → send with inline logo) is implemented but not yet confirmed on the live server.
+- **Files** — the live server runs an older Stalwart build than `main`; `FileNode/query` there rejects `isTopLevel`/`parentId` filters, so ihasmail falls back to listing all nodes and building the tree client-side. Upload/rename/move/delete still need a live pass.
+- Recurring events: colour/category/edit/delete apply to the whole series (per-occurrence overrides aren't supported by the server yet).
+
+## Roadmap / not yet
+
+- Snooze and scheduled send (needs server-side support)
+- Read-receipt (MDN) sending, S/MIME / OpenPGP
+- Self-service password / app-password / 2FA management (Stalwart exposes this through its own account portal)
+- Translations (strings are English-only for now)
 
 ## License
-GPL-3.0-or-later
+
+GPL-3.0-or-later. See [LICENSE](LICENSE).

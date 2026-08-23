@@ -1,11 +1,17 @@
 services:
   ihasmail:
     build: .
-    image: ihasmail:latest
-    env_file: .env
+    image: ihasmail:2
     restart: unless-stopped
-    networks: [edge]
     ports:
-      - "127.0.0.1:8080:8000"
-networks:
-  edge: {}
+      - "8080:8080"
+    environment:
+      STALWART_URL: ${STALWART_URL:-https://mail.example.com}
+      APP_SECRET: ${APP_SECRET:?set APP_SECRET in .env (openssl rand -base64 48)}
+      APP_NAME: ${APP_NAME:-ihasmail}
+      TRUST_PROXY: "1"
+      IMAGE_PROXY: "1"
+    volumes:
+      - ihasmail-data:/data
+volumes:
+  ihasmail-data:
