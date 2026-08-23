@@ -139,7 +139,7 @@ Verified against the mock server and, for the core mail flows, against a live St
 
 ## License
 
-Copyright (C) 2025 John Coffey
+Copyright (C) 2026 LINUXexpert.org
 
 ihasmail is free software: you can redistribute it and/or modify it under the
 terms of the GNU General Public License as published by the Free Software
