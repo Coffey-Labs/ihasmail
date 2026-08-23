@@ -5,8 +5,15 @@ import {
   formatDateTime,
   formatDayMonth,
   formatFullDateTime,
+  formatDateInput,
   formatHourLabel,
+  formatTimeInput,
+  dateInputPattern,
+  dateInputPlaceholder,
   localeOptions,
+  parseDateInput,
+  parseTimeInput,
+  timeInputPlaceholder,
   normalizeLocale,
   resolvedLocale,
   setDateTimePrefs,
@@ -194,5 +201,92 @@ describe("locale options", () => {
     setServerLocale("de_DE_u_ca_buddhist");
     const tags = localeOptions().map((o) => o.tag);
     expect(tags).toContain("de-DE-u-ca-buddhist");
+  });
+});
+
+describe("editable date fields", () => {
+  it("lays out the input in the configured order", () => {
+    setDateTimePrefs({ locale: "en-US", dateFormat: "dmy-dot" });
+    expect(dateInputPattern()).toEqual({ order: ["d", "m", "y"], separator: "." });
+    expect(formatDateInput(SAMPLE)).toBe("22.11.2025");
+    expect(dateInputPlaceholder()).toBe("dd.mm.yyyy");
+
+    setDateTimePrefs({ dateFormat: "ymd-dash" });
+    expect(formatDateInput(SAMPLE)).toBe("2025-11-22");
+    expect(dateInputPlaceholder()).toBe("yyyy-mm-dd");
+  });
+
+  it("takes the order from the locale when the format is automatic", () => {
+    setDateTimePrefs({ locale: "de-DE", dateFormat: "auto" });
+    expect(dateInputPattern().order).toEqual(["d", "m", "y"]);
+    expect(formatDateInput(SAMPLE)).toBe("22.11.2025");
+
+    setDateTimePrefs({ locale: "en-US", dateFormat: "auto" });
+    expect(dateInputPattern().order).toEqual(["m", "d", "y"]);
+    expect(formatDateInput(SAMPLE)).toBe("11/22/2025");
+  });
+
+  it("stays Gregorian and Latin in the box even where display is not", () => {
+    // fa-IR displays a Persian-calendar date and Persian digits; an editable
+    // field must still round-trip against the Gregorian grid.
+    setDateTimePrefs({ locale: "fa-IR", dateFormat: "auto" });
+    expect(formatDateInput(SAMPLE)).toMatch(/^[\d/.-]+$/);
+    expect(parseDateInput(formatDateInput(SAMPLE))?.getFullYear()).toBe(2025);
+  });
+
+  const iso = (d: Date | null) => (d ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}` : null);
+
+  it("parses the configured order, loosely", () => {
+    setDateTimePrefs({ locale: "de-DE", dateFormat: "dmy-dot" });
+    for (const text of ["22.11.2025", "22/11/2025", "22-11-2025", "22.11.25", "2.1.2025", "22112025", "221125"]) {
+      expect(iso(parseDateInput(text))).toBe(text.includes("2.1.") ? "2025-01-02" : "2025-11-22");
+    }
+    // Bare ISO is unambiguous and always accepted.
+    expect(iso(parseDateInput("2025-11-22"))).toBe("2025-11-22");
+    // Day and month only fills in the current year.
+    expect(parseDateInput("22.11")?.getFullYear()).toBe(new Date().getFullYear());
+    // Non-Latin digits are accepted too.
+    expect(iso(parseDateInput("٢٢.١١.٢٠٢٥"))).toBe("2025-11-22");
+  });
+
+  it("respects the order when the same text means two things", () => {
+    setDateTimePrefs({ dateFormat: "dmy-slash" });
+    expect(iso(parseDateInput("11/12/2025"))).toBe("2025-12-11");
+    setDateTimePrefs({ dateFormat: "mdy-slash" });
+    expect(iso(parseDateInput("11/12/2025"))).toBe("2025-11-12");
+  });
+
+  it("rejects what is not a date", () => {
+    setDateTimePrefs({ dateFormat: "dmy-dot" });
+    for (const bad of ["", "   ", "hello", "31.02.2025", "45.11.2025", "22.13.2025", "1.2.3.4"]) {
+      expect(parseDateInput(bad)).toBeNull();
+    }
+  });
+
+  it("formats and parses times in both clocks", () => {
+    setDateTimePrefs({ locale: "en-US", timeFormat: "24" });
+    expect(formatTimeInput(SAMPLE)).toBe("18:23");
+    expect(timeInputPlaceholder()).toBe("hh:mm");
+
+    setDateTimePrefs({ timeFormat: "12" });
+    expect(formatTimeInput(SAMPLE)).toBe("6:23 PM");
+    expect(timeInputPlaceholder()).toBe("h:mm AM");
+
+    expect(parseTimeInput("18:23")).toEqual({ hours: 18, minutes: 23 });
+    expect(parseTimeInput("1823")).toEqual({ hours: 18, minutes: 23 });
+    expect(parseTimeInput("6:23 pm")).toEqual({ hours: 18, minutes: 23 });
+    expect(parseTimeInput("6:23PM")).toEqual({ hours: 18, minutes: 23 });
+    expect(parseTimeInput("6.23")).toEqual({ hours: 6, minutes: 23 });
+    expect(parseTimeInput("18")).toEqual({ hours: 18, minutes: 0 });
+    expect(parseTimeInput("9am")).toEqual({ hours: 9, minutes: 0 });
+    expect(parseTimeInput("12am")).toEqual({ hours: 0, minutes: 0 });
+    expect(parseTimeInput("12pm")).toEqual({ hours: 12, minutes: 0 });
+    expect(parseTimeInput("930")).toEqual({ hours: 9, minutes: 30 });
+  });
+
+  it("rejects what is not a time", () => {
+    for (const bad of ["", "noon", "25:00", "18:75", "13pm", "0pm"]) {
+      expect(parseTimeInput(bad)).toBeNull();
+    }
   });
 });
