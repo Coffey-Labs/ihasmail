@@ -4,7 +4,7 @@ import { FilterFromMessageDialog } from "./FilterFromMessage";
 import type { Email, EmailAddress, EmailBodyPart, Id } from "@/jmap/types";
 import { useMail } from "@/store/mail";
 import { useSettings } from "@/store/settings";
-import { useCompose } from "@/store/compose";
+import { draftFromMailto, useCompose } from "@/store/compose";
 import { useContacts } from "@/store/contacts";
 import { client } from "@/jmap/client";
 import { formatFullDate, formatListDate, formatSize } from "@/lib/format";
@@ -103,9 +103,8 @@ export const MessageView = memo(function MessageView({ email: e, expanded, onTog
     const mailto = urls.find((u) => u.startsWith("mailto:"));
     const http = urls.find((u) => /^https?:/i.test(u));
     if (mailto) {
-      const [addr, qs] = mailto.slice(7).split("?");
-      const q = new URLSearchParams(qs ?? "");
-      useCompose.getState().open({ to: [{ name: null, email: addr ?? "" }], subject: q.get("subject") ?? "unsubscribe", html: `<div>${q.get("body") ?? "unsubscribe"}</div>`, text: q.get("body") ?? "unsubscribe" });
+      const fields = draftFromMailto(mailto);
+      useCompose.getState().open({ ...fields, subject: fields.subject || "unsubscribe", html: fields.html ?? "<div>unsubscribe</div>", text: fields.text ?? "unsubscribe" });
       toast.show("Unsubscribe message prepared — just hit Send");
     } else if (http) {
       window.open(http, "_blank", "noopener,noreferrer");
@@ -272,9 +271,7 @@ function HtmlBody({ html, bodyStyle, onShowImages }: { html: string; bodyStyle: 
         const href = a.getAttribute("href") ?? "";
         if (href.startsWith("mailto:")) {
           ev.preventDefault();
-          const [addr, qs] = href.slice(7).split("?");
-          const q = new URLSearchParams(qs ?? "");
-          openCompose({ to: addr ? addr.split(",").map((x) => ({ name: null, email: decodeURIComponent(x.trim()) })) : [], subject: q.get("subject") ?? "", html: q.get("body") ? `<div>${q.get("body")}</div>` : "" });
+          openCompose(draftFromMailto(href));
           return;
         }
         if (/^(javascript|data|vbscript):/i.test(href)) {
