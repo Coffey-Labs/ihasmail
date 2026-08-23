@@ -110,15 +110,15 @@ export function MailboxTree() {
               </Link>
             </div>
             {labels.map((l) => (
-              <Link key={l.keyword} href={`/search?q=label:${encodeURIComponent(l.keyword)}`} className="nav-item" title={l.name}>
-                <span className="nav-label-color" style={{ background: l.color }} />
+              <Link key={l.keyword} href={`/search?q=label:${encodeURIComponent(l.keyword)}`} className="nav-item folder-row" title={l.name}>
+                <span className="nav-label-color" style={{ "--label-color": l.color } as React.CSSProperties} />
                 <span className="nav-label">{l.name}</span>
               </Link>
             ))}
           </>
         )}
       </nav>
-      <Popover anchor={menu.anchor} onClose={menu.close} width={240}>
+      <Popover anchor={menu.anchor} onClose={menu.close} width={300}>
         {menuTarget && <MailboxMenu mailbox={menuTarget} onCreateChild={() => void createFolder(menuTarget.id)} onShare={() => setShareTarget(menuTarget)} />}
       </Popover>
       {shareTarget && <ShareDialog kind="Mailbox" id={shareTarget.id} name={shareTarget.name} shareWith={shareTarget.shareWith ?? null} onClose={() => setShareTarget(null)} />}
@@ -156,7 +156,7 @@ function FolderRow({ mailbox: m, label, depth, hasChildren, open, hiddenUnread, 
   return (
     <Link
       href={`/mail/${m.id}`}
-      className={`nav-item depth-${Math.min(depth, 4)} ${currentId === m.id ? "active" : ""} ${unread ? "unread" : ""} ${dropping ? "drop-target" : ""}`}
+      className={`nav-item folder-row depth-${Math.min(depth, 4)} ${currentId === m.id ? "active" : ""} ${unread ? "unread" : ""} ${dropping ? "drop-target" : ""}`}
       title={label}
       onDragOver={onDragOver}
       onDragLeave={() => setDropping(false)}
@@ -166,23 +166,24 @@ function FolderRow({ mailbox: m, label, depth, hasChildren, open, hiddenUnread, 
         onMenu(m, { currentTarget: e.currentTarget });
       }}
     >
-      {hasChildren ? (
-        <span
-          className="nav-twisty"
-          role="button"
-          aria-label={open ? "Collapse" : "Expand"}
-          aria-expanded={open}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onToggle();
-          }}
-        >
-          {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-        </span>
-      ) : (
-        depth > 0 && <span style={{ width: 4 }} />
-      )}
+      <span
+        className="nav-twisty"
+        role={hasChildren ? "button" : undefined}
+        aria-label={hasChildren ? (open ? "Collapse" : "Expand") : undefined}
+        aria-expanded={hasChildren ? open : undefined}
+        aria-hidden={hasChildren ? undefined : true}
+        onClick={
+          hasChildren
+            ? (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onToggle();
+              }
+            : undefined
+        }
+      >
+        {hasChildren ? open ? <ChevronDown size={14} /> : <ChevronRight size={14} /> : null}
+      </span>
       {icon}
       <span className="nav-label">{label}</span>
       {count > 0 && <span className="nav-count" title={hiddenUnread ? `${own} here, ${hiddenUnread} in subfolders` : undefined}>{count > 9999 ? "9999+" : count}</span>}
@@ -204,6 +205,20 @@ function FolderRow({ mailbox: m, label, depth, hasChildren, open, hiddenUnread, 
 
 function MailboxMenu({ mailbox: m, onCreateChild, onShare }: { mailbox: Mailbox; onCreateChild: () => void; onShare: () => void }) {
   const [, navigate] = useLocation();
+  const hasChildren = useMail((s) => Object.values(s.mailboxes).some((x) => (x.parentId ?? null) === m.id));
+  const subUnread = useMail((s) => {
+    const all = Object.values(s.mailboxes);
+    let n = 0;
+    const walk = (parent: Id) => {
+      for (const x of all)
+        if ((x.parentId ?? null) === parent) {
+          n += x.unreadEmails;
+          walk(x.id);
+        }
+    };
+    walk(m.id);
+    return n;
+  });
   const rename = async () => {
     const name = await promptDialog({ title: "Rename folder", defaultValue: m.name });
     if (!name?.trim() || name.trim() === m.name) return;
@@ -232,6 +247,15 @@ function MailboxMenu({ mailbox: m, onCreateChild, onShare }: { mailbox: Mailbox;
   return (
     <>
       <MenuItem icon={<CheckCheck size={16} />} label="Mark all as read" onClick={() => void useMail.getState().markMailboxRead(m.id)} disabled={!m.unreadEmails} />
+      {hasChildren && (
+        <MenuItem
+          icon={<CheckCheck size={16} />}
+          label="Mark all as read, incl. subfolders"
+          kbd={m.unreadEmails + subUnread ? String(m.unreadEmails + subUnread) : undefined}
+          onClick={() => void useMail.getState().markMailboxRead(m.id, true)}
+          disabled={!m.unreadEmails && !subUnread}
+        />
+      )}
       <MenuItem icon={<FolderPlus size={16} />} label="New subfolder" onClick={onCreateChild} disabled={!m.myRights.mayCreateChild} />
       <MenuItem icon={<Pencil size={16} />} label="Rename" onClick={() => void rename()} disabled={isSpecial || !m.myRights.mayRename} />
       <MenuItem icon={m.isSubscribed ? <EyeOff size={16} /> : <Eye size={16} />} label={m.isSubscribed ? "Hide from list" : "Show in list"} onClick={() => void useMail.getState().updateMailbox(m.id, { isSubscribed: !m.isSubscribed })} disabled={m.role === "inbox"} />
