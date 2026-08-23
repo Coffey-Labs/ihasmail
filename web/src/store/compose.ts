@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { client } from "@/jmap/client";
+import { client, setErrorMessage } from "@/jmap/client";
 import type { Email, EmailAddress, EmailBodyPart, Id, Identity, SetResponse } from "@/jmap/types";
 import { formatFullDate, uid } from "@/lib/format";
 import { formatAddress, parseMailto, sameAddress, uniqueAddresses } from "@/lib/address";
@@ -611,7 +611,7 @@ async function saveDraftInternal(d: Draft, get: () => ComposeState, set: (fn: (s
     if (d.draftId) args.destroy = [d.draftId];
     const res = await client.call<SetResponse<Email>>("Email/set", args);
     const err = res.notCreated?.draft;
-    if (err) throw new Error(err.description ?? err.type);
+    if (err) throw new Error(setErrorMessage(err));
     const newId = res.created?.draft?.id ?? null;
     if (!opts.final) set((s) => ({ drafts: s.drafts.map((x) => (x.key === d.key ? { ...x, draftId: newId, saving: false, dirty: false, savedAt: Date.now(), error: null } : x)) }));
     void mail.loadMailboxes();
@@ -654,16 +654,16 @@ async function sendInternal(d: Draft, _get: () => ComposeState): Promise<void> {
   }
   const res = await client.chain(calls, { allowErrors: true });
   const e = res.get("e")?.[0] as unknown as SetResponse<Email> & { __error?: { type: string; description?: string } };
-  if (e.__error) throw new Error(e.__error.description ?? e.__error.type);
-  if (e.notCreated?.m) throw new Error(e.notCreated.m.description ?? e.notCreated.m.type);
+  if (e.__error) throw new Error(setErrorMessage(e.__error));
+  if (e.notCreated?.m) throw new Error(setErrorMessage(e.notCreated.m));
   const s = res.get("s")?.[0] as unknown as SetResponse & { __error?: { type: string; description?: string } };
-  if (s.__error) throw new Error(s.__error.description ?? s.__error.type);
+  if (s.__error) throw new Error(setErrorMessage(s.__error));
   if (s.notCreated?.s) {
     const err = s.notCreated.s;
     // Clean up the created (unsent) email so it doesn't linger in Sent.
     const created = e.created?.m?.id;
     if (created) void client.call("Email/set", { accountId, destroy: [created] });
-    throw new Error(err.description ?? err.type);
+    throw new Error(setErrorMessage(err));
   }
   if (d.relatedEmailId && d.relatedKeyword) {
     useMail.setState((st) => {
