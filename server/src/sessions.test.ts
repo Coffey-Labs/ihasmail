@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { SessionStore } from "./sessions.js";
+import { normalizeLocale } from "./upstream.js";
 import { deriveKey, open, seal, sha256 } from "./crypto.js";
 import { RateLimiter } from "./ratelimit.js";
 import { randomBytes } from "node:crypto";
@@ -45,4 +46,20 @@ test("rate limiter blocks after max hits in window", () => {
   assert.ok(rl.retryAfterSeconds("k") > 0);
   rl.reset("k");
   assert.equal(rl.check("k"), true);
+});
+
+test("normalizes Stalwart account locales to BCP-47 tags", () => {
+  assert.equal(normalizeLocale("de_DE"), "de-DE");
+  assert.equal(normalizeLocale("de_DE.UTF-8"), "de-DE");
+  assert.equal(normalizeLocale("ca_ES@valencia"), "ca-ES");
+  assert.equal(normalizeLocale("sr_RS@latin"), "sr-Latn-RS");
+  assert.equal(normalizeLocale("uz_UZ@cyrillic"), "uz-Cyrl-UZ");
+  assert.equal(normalizeLocale("ru_RU@cyrillic"), "ru-RU");
+  assert.equal(normalizeLocale("en"), "en");
+  assert.equal(normalizeLocale("POSIX"), null);
+  assert.equal(normalizeLocale("C"), null);
+  assert.equal(normalizeLocale(""), null);
+  assert.equal(normalizeLocale(undefined), null);
+  assert.equal(normalizeLocale({ locale: "de_DE" }), null);
+  assert.equal(normalizeLocale("../etc/passwd"), null);
 });
