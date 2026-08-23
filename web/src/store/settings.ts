@@ -26,6 +26,8 @@ export interface Settings {
   pageSize: number;
   markReadDelay: number; // seconds; -1 = never auto
   imagePolicy: ImagePolicy;
+  /** Let messages follow the app's light/dark theme instead of always sitting on white. */
+  themeMessageBody: boolean;
   undoSendSeconds: number;
   composeFormat: ComposeFormat;
   replyAllDefault: boolean;
@@ -79,6 +81,7 @@ export const DEFAULT_SETTINGS: Settings = {
   pageSize: 50,
   markReadDelay: 0,
   imagePolicy: "ask",
+  themeMessageBody: false,
   undoSendSeconds: 8,
   composeFormat: "html",
   replyAllDefault: false,
