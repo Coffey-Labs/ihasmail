@@ -851,6 +851,10 @@ img { max-width: 100%; }
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
 
+/* Addresses in a message carry a right-click menu (see mail/AddressMenu.tsx). */
+.addr { cursor: context-menu; }
+.message-details .addr:hover, .message-head .from .addr:hover { text-decoration: underline dotted; text-underline-offset: 2px; }
+
 /* ---- Date & time fields (custom pickers; see ui/datefield.tsx) ---- */
 .dp-field { position: relative; display: inline-flex; align-items: center; width: 100%; }
 .dp-field .input { width: 100%; padding-right: 30px; }
