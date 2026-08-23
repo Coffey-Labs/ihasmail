@@ -1,0 +1,9 @@
+# Example reverse proxy (Caddy) in front of ihasmail.
+# TLS is automatic. ihasmail sets Secure cookies and HSTS when X-Forwarded-Proto is https.
+mail.example.com {
+    encode zstd gzip
+    reverse_proxy 127.0.0.1:8080 {
+        # Keep SSE (push) connections open
+        flush_interval -1
+    }
+}

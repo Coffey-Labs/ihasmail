@@ -1,0 +1,88 @@
+import { useState, type FormEvent } from "react";
+import { Eye, EyeOff, LogIn, ShieldCheck } from "lucide-react";
+import { useSession } from "@/store/session";
+import { ApiError } from "@/jmap/client";
+
+export function LoginPage() {
+  const login = useSession((s) => s.login);
+  const [username, setUsername] = useState(() => localStorage.getItem("ihasmail:lastUser") ?? "");
+  const [password, setPassword] = useState("");
+  const [totp, setTotp] = useState("");
+  const [showTotp, setShowTotp] = useState(false);
+  const [showPw, setShowPw] = useState(false);
+  const [remember, setRemember] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!username || !password) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await login(username.trim(), password, totp.trim(), remember);
+      localStorage.setItem("ihasmail:lastUser", username.trim());
+    } catch (err) {
+      if (err instanceof ApiError) {
+        if (err.code === "invalid_credentials") {
+          setError(showTotp ? "Invalid credentials or verification code." : "Invalid username or password.");
+          if (!showTotp && password) setShowTotp(true);
+        } else if (err.code === "rate_limited") setError("Too many attempts. Please wait a few minutes and try again.");
+        else setError(err.message || "Could not sign in.");
+      } else setError("Network error. Please check your connection.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="login-page">
+      <form className="login-card" onSubmit={submit}>
+        <div className="logo">
+          <img src="/img/logo.png" alt="" width={120} height={113} />
+          <p className="tagline">Fast, friendly webmail. Your mailbox, your way.</p>
+        </div>
+        {error && (
+          <div className="error-box mb-16" role="alert">
+            {error}
+          </div>
+        )}
+        <div className="field">
+          <label htmlFor="u">Email or username</label>
+          <input id="u" className="input" type="text" autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} value={username} onChange={(e) => setUsername(e.target.value)} autoFocus={!username} required />
+        </div>
+        <div className="field">
+          <label htmlFor="p">Password</label>
+          <div className="pw-wrap">
+            <input id="p" className="input" type={showPw ? "text" : "password"} autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus={Boolean(username)} required style={{ paddingRight: 40 }} />
+            <button type="button" className="icon-btn" onClick={() => setShowPw((v) => !v)} aria-label={showPw ? "Hide password" : "Show password"} tabIndex={-1}>
+              {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
+        </div>
+        {showTotp ? (
+          <div className="field">
+            <label htmlFor="t">Two-factor code</label>
+            <input id="t" className="input" inputMode="numeric" autoComplete="one-time-code" placeholder="123456" value={totp} onChange={(e) => setTotp(e.target.value)} autoFocus />
+            <span className="hint">Enter the code from your authenticator app if your account uses 2FA.</span>
+          </div>
+        ) : (
+          <button type="button" className="btn btn-ghost btn-sm" style={{ marginBottom: 12, color: "var(--fg-muted)" }} onClick={() => setShowTotp(true)}>
+            <ShieldCheck size={16} /> I have a two-factor code
+          </button>
+        )}
+        <label className="check" style={{ marginBottom: 12 }}>
+          <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+          <span>Keep me signed in on this device</span>
+        </label>
+        <button className="btn btn-primary btn-lg btn-block" type="submit" disabled={busy}>
+          {busy ? <span className="spinner" style={{ borderTopColor: "#fff" }} /> : <LogIn size={18} />}
+          {busy ? "Signing in…" : "Sign in"}
+        </button>
+        <p className="foot">
+          ihasmail by <a href="https://linuxexpert.org" target="_blank" rel="noopener noreferrer">linuxexpert.org</a>
+        </p>
+      </form>
+    </div>
+  );
+}

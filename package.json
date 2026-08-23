@@ -1,0 +1,29 @@
+{
+  "name": "ihasmail",
+  "version": "2.0.0",
+  "private": true,
+  "description": "ihasmail \u2014 a fast, modern JMAP webmail for Stalwart Mail Server",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "workspaces": [
+    "server",
+    "web"
+  ],
+  "engines": {
+    "node": ">=20.10"
+  },
+  "scripts": {
+    "dev": "concurrently -n server,web -c blue,magenta \"npm run dev -w server\" \"npm run dev -w web\"",
+    "build": "npm run build -w web && npm run build -w server",
+    "start": "node server/dist/index.js",
+    "typecheck": "npm run typecheck -w web && npm run typecheck -w server",
+    "test": "npm run test -w web && npm run test -w server",
+    "lint": "npm run typecheck",
+    "mock": "npm run mock -w server",
+    "dev:mock": "concurrently -n mock,server,web -c yellow,blue,magenta \"npm run mock -w server\" \"STALWART_URL=http://127.0.0.1:8788 npm run dev -w server\" \"npm run dev -w web\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.7.3"
+  }
+}

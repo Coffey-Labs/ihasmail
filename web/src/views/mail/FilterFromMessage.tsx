@@ -1,0 +1,81 @@
+import { useEffect, useState } from "react";
+import type { Email, Id } from "@/jmap/types";
+import { useSieve } from "@/store/sieve";
+import { useMail } from "@/store/mail";
+import { ruleFromEmail, applyRuleToMailbox } from "@/lib/sieveApply";
+import type { SieveRule } from "@/lib/sieve";
+import { RuleDialog } from "../settings/RuleDialog";
+import { toast } from "@/ui/toast";
+import { Spinner } from "@/ui/misc";
+import { Dialog } from "@/ui/dialog";
+
+/** "Filter messages like this…" — creates a Sieve rule seeded from a message, optionally applying it to the current folder. */
+export function FilterFromMessageDialog({ email, mailboxId, onClose }: { email: Email; mailboxId: Id | null; onClose: () => void }) {
+  const sieve = useSieve();
+  const mailbox = useMail((s) => (mailboxId ? s.mailboxes[mailboxId] : undefined));
+  const [rule] = useState<SieveRule>(() => ruleFromEmail(email, mailboxId));
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      if (sieve.available && !sieve.scripts.length && !sieve.loading) await sieve.load();
+      setReady(true);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (!sieve.available) {
+    return (
+      <Dialog open onClose={onClose} title="Filters unavailable" size="sm" footer={<button className="btn" onClick={onClose}>Close</button>}>
+        <p>Sieve filtering is not enabled for this account.</p>
+      </Dialog>
+    );
+  }
+  if (!ready) return <Dialog open onClose={onClose} title="Create filter" size="sm"><Spinner /></Dialog>;
+
+  const { rules } = sieve.rules();
+  if (rules === null) {
+    return (
+      <Dialog open onClose={onClose} title="Create filter" size="sm" footer={<button className="btn" onClick={onClose}>Close</button>}>
+        <p>Your active Sieve script was written by hand, so rules can't be added automatically. Open <b>Settings → Filters & rules</b> to edit the script or switch to managed rules.</p>
+      </Dialog>
+    );
+  }
+
+  return (
+    <RuleDialog
+      rule={rule}
+      title="Filter messages like this"
+      saveLabel="Create filter"
+      applyMailbox={mailbox ? { id: mailbox.id, name: mailbox.name } : null}
+      onClose={onClose}
+      onSave={(r, applyNow) => {
+        onClose();
+        void saveAndApply(r, rules, applyNow && mailbox ? mailbox.id : null);
+      }}
+    />
+  );
+}
+
+export async function saveAndApply(r: SieveRule, existing: SieveRule[], applyMailboxId: Id | null) {
+  const sieve = useSieve.getState();
+  try {
+    await sieve.saveRules([...existing.filter((x) => x.id !== r.id), r]);
+  } catch (err) {
+    toast.error(`Could not save filter: ${(err as Error).message}`);
+    return;
+  }
+  if (!applyMailboxId) {
+    toast.success("Filter created — it will run on new mail");
+    return;
+  }
+  const tid = toast.show("Applying filter to existing messages…", { duration: 0 });
+  try {
+    const res = await applyRuleToMailbox(r, applyMailboxId);
+    toast.dismiss(tid);
+    toast.success(`Filter created · applied to ${res.matched} of ${res.scanned} message${res.scanned === 1 ? "" : "s"}${res.skippedActions.length ? ` (skipped: ${res.skippedActions.join("; ")})` : ""}`, { duration: 8000 });
+  } catch (err) {
+    toast.dismiss(tid);
+    toast.error(`Filter saved, but applying it failed: ${(err as Error).message}`);
+  }
+}
