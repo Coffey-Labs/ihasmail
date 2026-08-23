@@ -1,0 +1,52 @@
+import { useState } from "react";
+import type { Calendar } from "@/jmap/types";
+import { useCalendar } from "@/store/calendar";
+import { Dialog } from "@/ui/dialog";
+import { ColorSwatches } from "@/ui/misc";
+import { toast } from "@/ui/toast";
+import { browserTimeZone, listTimeZones } from "@/lib/dates";
+
+export function CalendarDialog({ calendar, onClose }: { calendar: Partial<Calendar>; onClose: () => void }) {
+  const cal = useCalendar();
+  const [name, setName] = useState(calendar.name ?? "");
+  const [color, setColor] = useState(calendar.color ?? "#0f766e");
+  const [description, setDescription] = useState(calendar.description ?? "");
+  const [tz, setTz] = useState(calendar.timeZone ?? "");
+  const [avail, setAvail] = useState<Calendar["includeInAvailability"]>(calendar.includeInAvailability ?? "all");
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    if (!name.trim()) return;
+    setBusy(true);
+    try {
+      const data: Partial<Calendar> = { name: name.trim(), color, description: description || null, timeZone: tz || null, includeInAvailability: avail };
+      if (calendar.id) await cal.updateCalendar(calendar.id, data);
+      else await cal.createCalendar(data);
+      toast.success("Calendar saved");
+      onClose();
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Dialog open onClose={onClose} title={calendar.id ? "Edit calendar" : "New calendar"} size="sm" footer={<><button className="btn" onClick={onClose}>Cancel</button><button className="btn btn-primary" disabled={busy || !name.trim()} onClick={() => void save()}>Save</button></>}>
+      <div className="field"><label>Name</label><input className="input" autoFocus value={name} onChange={(e) => setName(e.target.value)} /></div>
+      <div className="field"><label>Color</label><ColorSwatches value={color} onChange={setColor} /></div>
+      <div className="field"><label>Description</label><input className="input" value={description} onChange={(e) => setDescription(e.target.value)} /></div>
+      <div className="field"><label>Time zone</label>
+        <select className="select" value={tz} onChange={(e) => setTz(e.target.value)}>
+          <option value="">Default ({browserTimeZone})</option>
+          {listTimeZones().map((t) => <option key={t} value={t}>{t}</option>)}
+        </select>
+      </div>
+      <div className="field"><label>Free/busy</label>
+        <select className="select" value={avail} onChange={(e) => setAvail(e.target.value as Calendar["includeInAvailability"])}>
+          <option value="all">Count all events as busy</option>
+          <option value="attending">Only events I'm attending</option>
+          <option value="none">Don't include in availability</option>
+        </select>
+      </div>
+    </Dialog>
+  );
+}
