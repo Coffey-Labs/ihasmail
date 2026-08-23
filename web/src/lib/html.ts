@@ -150,6 +150,7 @@ export function sanitizeEditorHtml(input: string): string {
 /** Base CSS injected into the shadow root that hosts HTML email. */
 export const EMAIL_BASE_CSS = `
 :host { display:block; color-scheme: light; }
+:host(.themed) { color-scheme: inherit; }
 .ihm-email-root { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 1.5; color:#1f2937; background:#fff; padding:16px; border-radius:8px; overflow-wrap:anywhere; word-break:normal; contain: content; }
 .ihm-email-root img { max-width:100%; height:auto; }
 .ihm-email-root img[data-ihm-blocked] { display:inline-block; min-width:16px; min-height:16px; background:#f1f5f9 repeating-linear-gradient(45deg,#e2e8f0 0 6px,#f1f5f9 6px 12px); border:1px dashed #cbd5e1; }
@@ -159,7 +160,30 @@ export const EMAIL_BASE_CSS = `
 .ihm-email-root a { color:#0f766e; }
 .ihm-email-root * { max-width:100%; box-sizing:border-box; }
 .ihm-email-root [style*="position:fixed"], .ihm-email-root [style*="position: fixed"] { position:static !important; }
+
+/* "Follow the app theme" — only applied to mail that brings no colours of its
+   own. The custom properties are inherited from the host document, so a theme
+   switch repaints the message without re-rendering it. */
+.ihm-email-root.themed { color: var(--fg, #1f2937); background: var(--bg-elev, #fff); }
+.ihm-email-root.themed blockquote { border-left-color: var(--border-strong, #cbd5e1); color: var(--fg-muted, #475569); }
+.ihm-email-root.themed a { color: var(--link, #0f766e); }
+.ihm-email-root.themed hr { border-color: var(--border, #e3e7ec); }
+.ihm-email-root.themed img[data-ihm-blocked] { background: var(--bg-sunken, #f1f5f9) repeating-linear-gradient(45deg, var(--bg-hover, #e2e8f0) 0 6px, transparent 6px 12px); border-color: var(--border-strong, #cbd5e1); }
 `;
+
+/**
+ * Does this message paint itself? Mail that sets a background or text colour
+ * has a design of its own, and forcing a dark palette on half of it is worse
+ * than leaving it alone — so those keep the light card they were built for.
+ */
+export function htmlDeclaresColors(html: string, bodyStyle = ""): boolean {
+  const haystack = `${bodyStyle} ${html}`;
+  return (
+    /\bbgcolor\s*=/i.test(haystack) ||
+    /<font[^>]*\bcolor\s*=/i.test(haystack) ||
+    /(?:^|[;"'\s{])(?:background(?:-color)?|color)\s*:/i.test(haystack)
+  );
+}
 
 export const TEXT_EMAIL_CSS = `
 :host { display:block; }

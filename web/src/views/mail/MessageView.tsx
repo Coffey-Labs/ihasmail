@@ -9,7 +9,7 @@ import { useContacts } from "@/store/contacts";
 import { client } from "@/jmap/client";
 import { formatFullDate, formatListDate, formatSize } from "@/lib/format";
 import { displayName, formatAddress } from "@/lib/address";
-import { EMAIL_BASE_CSS, TEXT_EMAIL_CSS, sanitizeEmailHtml } from "@/lib/html";
+import { EMAIL_BASE_CSS, TEXT_EMAIL_CSS, htmlDeclaresColors, sanitizeEmailHtml } from "@/lib/html";
 import { findQuoteStart, textToHtml } from "@/lib/text";
 import { Avatar } from "@/ui/misc";
 import { MenuItem, MenuSep, Popover, useMenu } from "@/ui/popover";
@@ -51,6 +51,7 @@ export const MessageView = memo(function MessageView({ email: e, expanded, onTog
   const htmlRaw = htmlPart?.partId ? e.bodyValues?.[htmlPart.partId]?.value : undefined;
   const textRaw = textPart?.partId ? e.bodyValues?.[textPart.partId]?.value : undefined;
   const showHtml = Boolean(htmlRaw);
+  const themeMessageBody = settings.themeMessageBody;
 
   // Inline images map
   const cidMap = useMemo(() => {
@@ -70,6 +71,13 @@ export const MessageView = memo(function MessageView({ email: e, expanded, onTog
     if (showHtml) return sanitizeEmailHtml(htmlRaw!, { cidMap, allowRemote: remoteAllowed, proxyRemote: imageProxy });
     return null;
   }, [expanded, showHtml, htmlRaw, cidMap, remoteAllowed, imageProxy]);
+
+  // Mail that paints itself keeps the light card it was designed for; the rest
+  // can follow the app theme when the user has asked for that.
+  const themed = useMemo(
+    () => themeMessageBody && Boolean(rendered) && !htmlDeclaresColors(rendered!.html, rendered!.bodyStyle),
+    [themeMessageBody, rendered],
+  );
 
   const attachments = useMemo(() => (e.attachments ?? []).filter((a) => !(a.cid && a.disposition === "inline" && a.type.startsWith("image/") && htmlRaw?.includes(`cid:${a.cid}`))), [e.attachments, htmlRaw]);
   const icsPart = useMemo(() => findPart(e.bodyStructure, (p) => p.type === "text/calendar" || (p.name ?? "").toLowerCase().endsWith(".ics")), [e.bodyStructure]);
@@ -202,7 +210,7 @@ export const MessageView = memo(function MessageView({ email: e, expanded, onTog
           {icsPart && <InviteCard email={e} part={icsPart} />}
           {vcfParts.map((p) => <VCardCard key={p.blobId ?? p.partId ?? ""} part={p} accountId={accountId} />)}
           <div className="message-body">
-            {showHtml && rendered ? <HtmlBody html={rendered.html} bodyStyle={rendered.bodyStyle} onShowImages={() => setAllowRemote(true)} /> : <TextBody text={textRaw ?? ""} />}
+            {showHtml && rendered ? <HtmlBody html={rendered.html} bodyStyle={rendered.bodyStyle} themed={themed} onShowImages={() => setAllowRemote(true)} /> : <TextBody text={textRaw ?? ""} />}
           </div>
           {attachments.length > 0 && <AttachmentList attachments={attachments} accountId={accountId} email={e} />}
           {unsubscribe && (
@@ -258,7 +266,7 @@ function findPart(p: EmailBodyPart | undefined, pred: (p: EmailBodyPart) => bool
 
 const QUOTE_SELECTORS = [".gmail_quote", "blockquote[type=cite]", ".moz-cite-prefix", "#divRplyFwdMsg", ".yahoo_quoted", "div[id^=appendonsend]", ".ms-outlook-mobile-reference-message", "#OLK_SRC_BODY_SECTION", ".protonmail_quote", ".ihm-quote"];
 
-function HtmlBody({ html, bodyStyle, onShowImages }: { html: string; bodyStyle: string; onShowImages: () => void }) {
+function HtmlBody({ html, bodyStyle, themed, onShowImages }: { html: string; bodyStyle: string; themed: boolean; onShowImages: () => void }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const [hasQuote, setHasQuote] = useState(false);
   const [quoteOpen, setQuoteOpen] = useState(false);
@@ -294,7 +302,8 @@ function HtmlBody({ html, bodyStyle, onShowImages }: { html: string; bodyStyle: 
     const host = hostRef.current;
     if (!host) return;
     const root = host.shadowRoot ?? host.attachShadow({ mode: "open" });
-    root.innerHTML = `<style>${EMAIL_BASE_CSS}</style><div class="ihm-email-root" style="${bodyStyle.replace(/"/g, "'")}">${html}</div>`;
+    host.classList.toggle("themed", themed);
+    root.innerHTML = `<style>${EMAIL_BASE_CSS}</style><div class="ihm-email-root${themed ? " themed" : ""}" style="${bodyStyle.replace(/"/g, "'")}">${html}</div>`;
     // Collapse quoted content
     const container = root.querySelector(".ihm-email-root") as HTMLElement | null;
     let found = false;
@@ -340,7 +349,7 @@ function HtmlBody({ html, bodyStyle, onShowImages }: { html: string; bodyStyle: 
     setQuoteOpen(false);
     root.addEventListener("click", onClick);
     return () => root.removeEventListener("click", onClick);
-  }, [html, bodyStyle, onClick]);
+  }, [html, bodyStyle, themed, onClick]);
 
   useEffect(() => {
     const root = hostRef.current?.shadowRoot;
