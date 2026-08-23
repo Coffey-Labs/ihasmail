@@ -5,6 +5,7 @@ import { useCalendar, type EventInstance } from "@/store/calendar";
 import { useSettings } from "@/store/settings";
 import { addDays, addMonths, DAY_MS, endOfDay, isSameDay, isToday, monthGrid, roundToNext, startOfDay, startOfWeek, toLocalDateOnly, weekDays } from "@/lib/dates";
 import { formatMonthYear, formatTime } from "@/lib/format";
+import { formatDate, formatDateLong, formatDayMonth, formatHourLabel, formatWeekday, formatWeekdayDate } from "@/lib/datetime";
 import { Empty, useIsMobile } from "@/ui/misc";
 import { keyboard } from "@/lib/keyboard";
 import { EventPopover } from "./EventPopover";
@@ -95,9 +96,9 @@ export function CalendarView({ view: viewParam, date }: { view?: string; date?: 
 
   const title =
     effectiveView === "month" ? formatMonthYear(anchor)
-    : effectiveView === "week" ? `${range.start.toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${addDays(range.end, -1).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`
-    : effectiveView === "day" ? anchor.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" })
-    : `Agenda from ${anchor.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+    : effectiveView === "week" ? `${formatDayMonth(range.start)} – ${formatDate(addDays(range.end, -1))}`
+    : effectiveView === "day" ? formatWeekdayDate(anchor, true)
+    : `Agenda from ${formatDayMonth(anchor)}`;
 
   const onEvent = (inst: EventInstance, el: Element) => {
     const r = el.getBoundingClientRect();
@@ -152,7 +153,7 @@ function MonthView({ anchor, weekStart, onDay, onEvent, onEventContext, onSlotCo
   const grid = useMemo(() => monthGrid(anchor, weekStart), [anchor, weekStart]);
   const instances = cal.instancesIn(grid[0]!, addDays(grid[41]!, 1));
   const weeks = [...Array(6)].map((_, w) => grid.slice(w * 7, w * 7 + 7));
-  const dow = weeks[0]!.map((d) => d.toLocaleDateString(undefined, { weekday: "short" }));
+  const dow = weeks[0]!.map((d) => formatWeekday(d));
   const maxPer = 4;
   return (
     <div className="month-grid">
@@ -165,7 +166,7 @@ function MonthView({ anchor, weekStart, onDay, onEvent, onEventContext, onSlotCo
             const shown = evs.slice(0, maxPer);
             return (
               <div key={d.toISOString()} className={`month-cell ${d.getMonth() !== anchor.getMonth() ? "other" : ""} ${isToday(d) ? "today" : ""}`} onClick={() => onCreate(d)} onDoubleClick={() => onDay(d)} onContextMenu={(e) => onSlotContext(new Date(d.getTime() + 9 * 3600_000), new Date(d.getTime() + 10 * 3600_000), false, e)}>
-                <span className="day-num" onClick={(e) => { e.stopPropagation(); onDay(d); }}>{d.getDate() === 1 ? d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) : d.getDate()}</span>
+                <span className="day-num" onClick={(e) => { e.stopPropagation(); onDay(d); }}>{d.getDate() === 1 ? formatDayMonth(d) : d.getDate()}</span>
                 {shown.map((i) => <EventChip key={i.key} inst={i} day={d} onClick={(el) => onEvent(i, el)} onContext={(e) => onEventContext(i, e)} />)}
                 {evs.length > maxPer && <span className="more" onClick={(e) => { e.stopPropagation(); onDay(d); }}>+{evs.length - maxPer} more</span>}
               </div>
@@ -244,7 +245,7 @@ function TimeGrid({ days, onEvent, onEventContext, onSlotContext, onCreate, onDa
         <div />
         {days.map((d) => (
           <div key={d.toISOString()} className={`wh-day ${isToday(d) ? "today" : ""}`} onClick={() => onDayHeader(d)}>
-            <div className="dow">{d.toLocaleDateString(undefined, { weekday: "short" })}</div>
+            <div className="dow">{formatWeekday(d)}</div>
             <div className="dnum">{d.getDate()}</div>
           </div>
         ))}
@@ -260,7 +261,7 @@ function TimeGrid({ days, onEvent, onEventContext, onSlotContext, onCreate, onDa
       <div className="week-scroll" ref={scrollRef}>
         <div className="week-body" style={{ "--hour-h": `${HOUR_H}px` } as React.CSSProperties}>
           <div className="time-col">
-            {[...Array(24)].map((_, h) => h > 0 && <span key={h} className="hour-label" style={{ top: h * HOUR_H }}>{new Date(2000, 0, 1, h).toLocaleTimeString(undefined, { hour: "numeric" })}</span>)}
+            {[...Array(24)].map((_, h) => h > 0 && <span key={h} className="hour-label" style={{ top: h * HOUR_H }}>{formatHourLabel(h)}</span>)}
           </div>
           {days.map((d) => {
             const evs = layoutOverlaps(timed(d), d);
@@ -400,8 +401,8 @@ function AgendaView({ start, onEvent, onEventContext }: { start: Date; onEvent: 
       {byDay.map(({ day, items }) => (
         <div key={day.toISOString()} className="agenda-day">
           <div className={`ad-date ${isToday(day) ? "today" : ""}`}>
-            {day.toLocaleDateString(undefined, { weekday: "long" })}
-            <small>{day.toLocaleDateString(undefined, { month: "long", day: "numeric" })}</small>
+            {formatWeekday(day, "long")}
+            <small>{formatDateLong(day, false)}</small>
           </div>
           <div>
             {items.map((i) => (
