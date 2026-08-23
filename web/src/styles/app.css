@@ -850,3 +850,39 @@ img { max-width: 100%; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+
+/* ---- Date & time fields (custom pickers; see ui/datefield.tsx) ---- */
+.dp-field { position: relative; display: inline-flex; align-items: center; width: 100%; }
+.dp-field .input { width: 100%; padding-right: 30px; }
+.dp-open { position: absolute; right: 4px; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border: 0; background: none; color: var(--fg-muted); cursor: pointer; border-radius: var(--radius-sm); }
+button.dp-open:hover { background: var(--bg-hover); color: var(--fg); }
+button.dp-open:disabled { cursor: default; opacity: .5; }
+.dp-field.w-auto { width: auto; }
+.dp-field.w-auto .input { width: 10em; }
+.dp-datetime { display: flex; gap: 6px; align-items: center; }
+.dp-datetime .dp-field { flex: 1 1 auto; }
+.dp-datetime .dp-time-field { flex: 0 0 8.5em; }
+.dp-pop { padding: 10px; }
+.dp-pop-wide { display: flex; }
+.dp-split { display: flex; gap: 10px; align-items: stretch; }
+.dp-cal { width: 15.5em; }
+.dp-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; font-weight: 650; }
+.dp-dow, .dp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; text-align: center; }
+.dp-dow { color: var(--fg-faint); font-size: .8em; padding-bottom: 2px; }
+.dp-day { height: 28px; border: 0; background: none; color: inherit; font: inherit; font-size: .9em; border-radius: 50%; cursor: pointer; }
+.dp-day:hover { background: var(--bg-hover); }
+.dp-day:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.dp-day.other { color: var(--fg-faint); }
+.dp-day.today { font-weight: 700; color: var(--accent); }
+.dp-day.selected { background: var(--accent); color: var(--accent-fg); font-weight: 600; }
+.dp-foot { display: flex; justify-content: space-between; margin-top: 6px; }
+.dp-times { display: flex; flex-direction: column; gap: 1px; overflow-y: auto; max-height: 17em; min-width: 7.5em; border-left: 1px solid var(--border); padding-left: 8px; }
+.dp-time { border: 0; background: none; color: inherit; font: inherit; font-size: .9em; text-align: left; padding: 4px 8px; border-radius: var(--radius-sm); cursor: pointer; white-space: nowrap; }
+.dp-time:hover { background: var(--bg-hover); }
+.dp-time.selected { background: var(--accent); color: var(--accent-fg); }
+@media (max-width: 480px) {
+  .dp-datetime { flex-wrap: wrap; }
+  .dp-datetime .dp-time-field { flex: 1 1 100%; }
+  .dp-split { flex-direction: column; }
+  .dp-times { flex-direction: row; overflow-x: auto; max-height: none; border-left: 0; border-top: 1px solid var(--border); padding: 6px 0 0; }
+}

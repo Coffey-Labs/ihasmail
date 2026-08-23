@@ -3,6 +3,7 @@ import { useLocation, useSearch } from "wouter";
 import { Search, SlidersHorizontal, X } from "lucide-react";
 import { useMail } from "@/store/mail";
 import { keyboard } from "@/lib/keyboard";
+import { DateField } from "@/ui/datefield";
 
 export function SearchBar() {
   const [location, navigate] = useLocation();
@@ -78,7 +79,7 @@ export function SearchBar() {
               </select>
             </label>
             <div className="field"><span className="label">Date</span>
-              <div className="row"><input className="input sm" type="date" value={advFields.after} onChange={(e) => setAdvFields({ ...advFields, after: e.target.value })} /><span className="muted">to</span><input className="input sm" type="date" value={advFields.before} onChange={(e) => setAdvFields({ ...advFields, before: e.target.value })} /></div>
+              <div className="row"><DateField aria-label="After" value={advFields.after} onChange={(v) => setAdvFields({ ...advFields, after: v })} /><span className="muted">to</span><DateField aria-label="Before" value={advFields.before} onChange={(v) => setAdvFields({ ...advFields, before: v })} /></div>
             </div>
           </div>
           <div className="row" style={{ justifyContent: "space-between", marginTop: 4 }}>
