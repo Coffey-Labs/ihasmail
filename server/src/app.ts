@@ -11,6 +11,7 @@ import {
   expandTemplate,
   fetchUpstreamSession,
   forgetUpstreamSession,
+  getAccountLocale,
   getUpstreamSession,
   localizeSession,
 } from "./upstream.js";
@@ -170,7 +171,8 @@ export function createApp(): Hono<Env> {
         ip,
       });
       setSessionCookie(c, cookie, session.remember);
-      return c.json(localizeSession(upstream, sessionExtras(session)));
+      const locale = await getAccountLocale(session.id, session.authorization, upstream);
+      return c.json(localizeSession(upstream, sessionExtras(session, locale)));
     } catch (err) {
       return upstreamFailure(c, err);
     }
@@ -180,7 +182,8 @@ export function createApp(): Hono<Env> {
     const session = c.get("session");
     try {
       const upstream = await getUpstreamSession(session.id, session.authorization, c.req.query("refresh") === "1");
-      return c.json(localizeSession(upstream, sessionExtras(session)));
+      const locale = await getAccountLocale(session.id, session.authorization, upstream);
+      return c.json(localizeSession(upstream, sessionExtras(session, locale)));
     } catch (err) {
       if (err instanceof UpstreamError && err.status === 401) {
         sessions.destroy(session.id);
@@ -350,7 +353,7 @@ export function createApp(): Hono<Env> {
   return app;
 }
 
-function sessionExtras(session: LiveSession) {
+function sessionExtras(session: LiveSession, userLocale: string | null = null) {
   return {
     ihasmail: {
       appName: config.appName,
@@ -359,6 +362,8 @@ function sessionExtras(session: LiveSession) {
       sessionId: session.id,
       loginName: session.username,
       remember: session.remember,
+      /** Locale configured for the account in Stalwart's directory, if readable. */
+      userLocale,
     },
   };
 }

@@ -664,7 +664,7 @@ img { max-width: 100%; }
 .month-cell:last-child { border-right: 0; }
 .month-cell.other { background: var(--bg-sunken); color: var(--fg-faint); }
 .month-cell:hover { background: var(--bg-hover); }
-.month-cell .day-num { width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: .9em; font-weight: 500; align-self: flex-start; }
+.month-cell .day-num { min-width: 26px; height: 26px; padding: 0 4px; display: flex; align-items: center; justify-content: center; border-radius: 999px; font-size: .9em; font-weight: 500; align-self: flex-start; white-space: nowrap; }
 .month-cell.today .day-num { background: var(--accent); color: var(--accent-fg); font-weight: 700; }
 .month-cell .more { font-size: .78em; color: var(--fg-muted); padding-left: 4px; font-weight: 600; }
 .ev-chip { display: flex; align-items: center; gap: 4px; padding: 1px 6px; border-radius: 4px; font-size: .8em; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; color: #fff; font-weight: 500; flex: 0 0 auto; border: 1px solid transparent; }

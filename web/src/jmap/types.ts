@@ -30,6 +30,8 @@ export interface JmapSession {
     sessionId: string;
     loginName: string;
     remember: boolean;
+    /** Locale configured for the account in Stalwart, if the server exposes it. */
+    userLocale?: string | null;
   };
 }
 

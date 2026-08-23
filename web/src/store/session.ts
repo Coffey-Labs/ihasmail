@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { apiFetch, ApiError, CAP, client } from "@/jmap/client";
 import type { Id, JmapSession } from "@/jmap/types";
 import { push } from "@/jmap/push";
+import { setServerLocale } from "@/lib/datetime";
 
 export type AuthStatus = "loading" | "anonymous" | "authenticated";
 
@@ -49,6 +50,7 @@ export const useSession = create<SessionState>((set, get) => ({
 
   async logout() {
     push.stop();
+    setServerLocale(null);
     try {
       await apiFetch("/api/auth/logout", { method: "POST" });
     } catch {
@@ -62,6 +64,7 @@ export const useSession = create<SessionState>((set, get) => ({
     try {
       const s = await apiFetch<JmapSession>("/api/auth/session?refresh=1");
       client.session = s;
+      setServerLocale(s.ihasmail?.userLocale);
       set({ session: s });
     } catch {
       /* ignore */
@@ -83,6 +86,7 @@ export const useSession = create<SessionState>((set, get) => ({
 
 function applySession(s: JmapSession, set: (p: Partial<SessionState>) => void) {
   client.session = s;
+  setServerLocale(s.ihasmail?.userLocale);
   const accountId = s.primaryAccounts[CAP.mail] ?? Object.keys(s.accounts)[0] ?? null;
   set({ status: "authenticated", session: s, accountId, error: null });
 }
