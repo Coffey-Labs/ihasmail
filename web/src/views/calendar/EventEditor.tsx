@@ -9,6 +9,7 @@ import { Dialog } from "@/ui/dialog";
 import { ColorSwatches, Switch } from "@/ui/misc";
 import { toast } from "@/ui/toast";
 import { RecipientInput } from "../compose/RecipientInput";
+import { DateField, DateTimeField } from "@/ui/datefield";
 import { browserTimeZone, dateToZonedLocal, formatDuration, fromInputDateTime, listTimeZones, parseDuration, toInputDateTime, toLocalDateOnly, zonedToDate, DAY_MS, humanDuration } from "@/lib/dates";
 import { formatClock, formatNumericDate, formatWeekday } from "@/lib/datetime";
 import { WEEKDAYS, describeRule, presetFor, ruleFromPreset, type RecurrencePreset } from "@/lib/recurrence";
@@ -206,15 +207,15 @@ function EventForm({ init, base, editing, onClose, settingsTz, defaultAlert, myE
         <div className="time-row mb-8">
           {allDay ? (
             <>
-              <input className="input" type="date" value={toLocalDateOnly(start)} onChange={(e) => onStartChange(new Date(`${e.target.value}T00:00:00`))} />
+              <DateField aria-label="Starts" value={toLocalDateOnly(start)} onChange={(v) => v && onStartChange(new Date(`${v}T00:00:00`))} />
               <span className="muted center">to</span>
-              <input className="input" type="date" value={toLocalDateOnly(new Date(end.getTime() - 1))} onChange={(e) => setEnd(new Date(new Date(`${e.target.value}T00:00:00`).getTime() + DAY_MS))} />
+              <DateField aria-label="Ends" value={toLocalDateOnly(new Date(end.getTime() - 1))} onChange={(v) => v && setEnd(new Date(new Date(`${v}T00:00:00`).getTime() + DAY_MS))} />
             </>
           ) : (
             <>
-              <input className="input" type="datetime-local" value={toInputDateTime(start)} onChange={(e) => onStartChange(fromInputDateTime(e.target.value))} />
+              <DateTimeField aria-label="Starts" value={toInputDateTime(start)} onChange={(v) => v && onStartChange(fromInputDateTime(v))} />
               <span className="muted center">to</span>
-              <input className="input" type="datetime-local" value={toInputDateTime(end)} onChange={(e) => setEnd(fromInputDateTime(e.target.value))} />
+              <DateTimeField aria-label="Ends" value={toInputDateTime(end)} onChange={(v) => v && setEnd(fromInputDateTime(v))} />
             </>
           )}
         </div>
@@ -258,7 +259,7 @@ function EventForm({ init, base, editing, onClose, settingsTz, defaultAlert, myE
               <select className="select" style={{ width: "auto" }} value={customRule.until ? "until" : customRule.count ? "count" : "never"} onChange={(e) => { const v = e.target.value; setRule({ ...customRule, until: v === "until" ? `${toLocalDateOnly(new Date(start.getTime() + 30 * DAY_MS))}T23:59:59` : undefined, count: v === "count" ? 10 : undefined }); }}>
                 <option value="never">never</option><option value="until">on date</option><option value="count">after N times</option>
               </select>
-              {customRule.until && <input className="input" type="date" style={{ width: "auto" }} value={customRule.until.slice(0, 10)} onChange={(e) => setRule({ ...customRule, until: `${e.target.value}T23:59:59` })} />}
+              {customRule.until && <DateField aria-label="Repeat until" className="w-auto" value={customRule.until.slice(0, 10)} onChange={(v) => v && setRule({ ...customRule, until: `${v}T23:59:59` })} />}
               {customRule.count && <input className="input" type="number" min={1} style={{ width: 80 }} value={customRule.count} onChange={(e) => setRule({ ...customRule, count: Math.max(1, Number(e.target.value)) })} />}
             </div>
             <div className="hint mt-8">{describeRule(customRule)}</div>
