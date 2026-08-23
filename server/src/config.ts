@@ -55,7 +55,7 @@ if (!appSecret || appSecret === "change-me") {
   );
 }
 
-const stalwartUrl = env("STALWART_URL", "https://mail.inbuxa.com").replace(/\/+$/, "");
+const stalwartUrl = env("STALWART_URL", "https://mail.example.com").replace(/\/+$/, "");
 
 export const config = {
   isProd,
