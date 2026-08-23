@@ -2,6 +2,15 @@ import { useSettings } from "@/store/settings";
 import { Switch } from "@/ui/misc";
 import { browserTimeZone, listTimeZones } from "@/lib/dates";
 import { toast } from "@/ui/toast";
+import { useState } from "react";
+import {
+  canUnregisterMailtoHandler,
+  isInstalledApp,
+  mailtoHandlerRequested,
+  mailtoHandlerSupport,
+  registerMailtoHandler,
+  unregisterMailtoHandler,
+} from "@/lib/mailhandler";
 import {
   browserLocale,
   formatClock,
@@ -154,6 +163,9 @@ export function GeneralSettings() {
       </div>
       <p className="hint">Preview: {formatFullDateTime(SAMPLE)}</p>
 
+      <h2>Default mail app</h2>
+      <MailHandlerSettings />
+
       <h2>Backup</h2>
       <div className="row wrap">
         <button className="btn" onClick={() => { const blob = new Blob([exportJson()], { type: "application/json" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "ihasmail-settings.json"; a.click(); }}>Export settings</button>
@@ -167,3 +179,54 @@ export function GeneralSettings() {
   );
 }
 
+/**
+ * Offer ihasmail as the browser's handler for `mailto:` links. The browser
+ * owns the decision, and nothing can read the answer back, so this states what
+ * it can and points at the browser's own settings for the rest.
+ */
+function MailHandlerSettings() {
+  const support = mailtoHandlerSupport();
+  const [requested, setRequested] = useState(mailtoHandlerRequested);
+
+  const ask = () => {
+    try {
+      registerMailtoHandler();
+      setRequested(true);
+      toast.success("Your browser will ask whether to open mail links in ihasmail");
+    } catch (err) {
+      toast.error(`Your browser refused the request: ${(err as Error).message}`);
+    }
+  };
+
+  const remove = () => {
+    unregisterMailtoHandler();
+    setRequested(false);
+    toast.show("Removed. Mail links will open in whatever your browser falls back to.");
+  };
+
+  if (support === "unsupported") {
+    return <p className="hint">This browser cannot register apps for <code>mailto:</code> links. Safari, in particular, has no such API — you can still make ihasmail the default from your operating system if you install it as an app.</p>;
+  }
+  if (support === "insecure") {
+    return <p className="hint">Registering for <code>mailto:</code> links requires a secure (HTTPS) connection.</p>;
+  }
+
+  return (
+    <>
+      <p className="hint">
+        Open <code>mailto:</code> links — in web pages, documents and other apps — in ihasmail instead of a desktop mail client.
+        Your browser will ask you to confirm, and you can change it later in its own settings (Chrome: Settings › Privacy and security › Site settings › Protocol handlers; Firefox: Settings › General › Applications).
+      </p>
+      <div className="row wrap">
+        <button className="btn btn-primary" onClick={ask}>{requested ? "Ask again" : "Make ihasmail the default mail app"}</button>
+        {requested && canUnregisterMailtoHandler() && <button className="btn btn-ghost" onClick={remove}>Remove</button>}
+      </div>
+      {requested && <p className="hint mt-8">Requested in this browser. Whether it took effect is up to the browser — check its settings if mail links still open elsewhere.</p>}
+      {!isInstalledApp() && (
+        <p className="hint mt-8">
+          For a system-wide default, install ihasmail as an app first (in Chrome: the install icon in the address bar). Your operating system can then offer ihasmail directly wherever it asks which mail app to use.
+        </p>
+      )}
+    </>
+  );
+}
