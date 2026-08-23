@@ -346,3 +346,17 @@ export function chunk<T>(arr: T[], size: number): T[][] {
   for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
   return out;
 }
+
+/**
+ * A readable message for a JMAP SetError.
+ *
+ * Servers name the offending field in `properties`, which is usually the whole
+ * answer to "why was this rejected" — Stalwart's description alone is often
+ * just "Invalid property or value." Keep both.
+ */
+export function setErrorMessage(err: { type: string; description?: string; properties?: string[] } | null | undefined): string {
+  if (!err) return "Unknown error";
+  const base = err.description ?? err.type;
+  const props = err.properties?.length ? ` (${err.properties.join(", ")})` : "";
+  return `${base}${props}`;
+}
