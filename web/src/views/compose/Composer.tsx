@@ -38,6 +38,11 @@ export function Composer({ draft }: { draft: Draft }) {
   const [showToolbar, setShowToolbar] = useState(true);
   const d = draft;
   const key = d.key;
+  // Where the caret starts, decided once when the composer opens: a blank
+  // message starts in the recipients, a reply (already addressed and titled)
+  // starts in the body. Deriving this from live state would move the caret
+  // while the user types.
+  const [initialFocus] = useState(() => initialFocusTarget(draft));
 
   const patch = useCallback((p: Partial<Draft>) => update(key, p), [update, key]);
   const onHtml = useCallback((html: string) => update(key, { html }), [update, key]);
@@ -138,7 +143,7 @@ export function Composer({ draft }: { draft: Draft }) {
           )}
           <div className="composer-field">
             <label htmlFor={`${key}-to`}>To</label>
-            <RecipientInput id={`${key}-to`} value={d.to} onChange={(to) => patch({ to })} placeholder="Recipients" autoFocus={!d.to.length} />
+            <RecipientInput id={`${key}-to`} value={d.to} onChange={(to) => patch({ to })} placeholder="Recipients" autoFocus={initialFocus === "to"} />
             <span className="field-extra">
               {!d.showCc && <button type="button" onClick={() => patch({ showCc: true })}>Cc</button>}
               {!d.showBcc && <button type="button" onClick={() => patch({ showBcc: true })}>Bcc</button>}
@@ -165,13 +170,13 @@ export function Composer({ draft }: { draft: Draft }) {
           )}
           <div className="composer-field">
             <label htmlFor={`${key}-subj`} className="sr-only">Subject</label>
-            <input id={`${key}-subj`} className="plain" placeholder="Subject" value={d.subject} onChange={(e) => patch({ subject: e.target.value })} autoFocus={d.to.length > 0 && !d.subject} />
+            <input id={`${key}-subj`} className="plain" placeholder="Subject" value={d.subject} onChange={(e) => patch({ subject: e.target.value })} autoFocus={initialFocus === "subject"} />
             {d.priority !== "normal" && <span className="tag" style={{ background: d.priority === "high" ? "var(--danger)" : "var(--fg-faint)" }}>{d.priority === "high" ? "High priority" : "Low priority"}</span>}
             {d.requestReceipt && <span className="tag" style={{ background: "var(--accent)" }} title="Read receipt requested"><CheckCheck size={12} /></span>}
           </div>
         </div>
         {d.format === "html" ? (
-          <RichEditor ref={editorRef} html={d.html} onChange={onHtml} placeholder="Write your message…" spellcheck={settings.spellcheck} onFiles={(files) => addFiles(key, files)} showToolbar={showToolbar} autoFocus={d.to.length > 0 && Boolean(d.subject)} />
+          <RichEditor ref={editorRef} html={d.html} onChange={onHtml} placeholder="Write your message…" spellcheck={settings.spellcheck} onFiles={(files) => addFiles(key, files)} showToolbar={showToolbar} autoFocus={initialFocus === "body"} />
         ) : (
           <textarea className="editor-textarea" value={d.text} onChange={(e) => patch({ text: e.target.value })} placeholder="Write your message…" spellCheck={settings.spellcheck} />
         )}
@@ -229,4 +234,13 @@ export function Composer({ draft }: { draft: Draft }) {
       </div>
     </div>
   );
+}
+
+export type FocusTarget = "to" | "subject" | "body";
+
+/** Which field a freshly opened composer should put the caret in. */
+export function initialFocusTarget(d: Pick<Draft, "to" | "subject">): FocusTarget {
+  if (!d.to.length) return "to";
+  if (!d.subject) return "subject";
+  return "body";
 }
