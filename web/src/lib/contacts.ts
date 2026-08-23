@@ -147,3 +147,34 @@ function fold(line: string): string {
 export function newKey(prefix = "k"): string {
   return `${prefix}${Math.random().toString(36).slice(2, 8)}`;
 }
+
+/**
+ * A new contact card seeded from an email address.
+ *
+ * The display name in a From header is one string, so it has to be split into
+ * name components: "Ada Lovelace" gives given + surname, the "Lovelace, Ada"
+ * form is unpicked, and a single word becomes the given name. Anything that
+ * looks like an address rather than a name is left out — a card named
+ * "ada@example.org" helps nobody.
+ */
+export function contactFromAddress(addr: EmailAddress): Partial<ContactCard> {
+  const card: Partial<ContactCard> = {
+    kind: "individual",
+    emails: { [newKey("e")]: { "@type": "EmailAddress", address: addr.email, pref: 1 } },
+  };
+  const raw = (addr.name ?? "").trim().replace(/^["']|["']$/g, "").trim();
+  if (!raw || raw.includes("@")) return card;
+  const [surnameFirst, givenRest] = raw.includes(",") ? raw.split(",", 2) : [];
+  const parts = surnameFirst && givenRest
+    ? { given: givenRest.trim(), surname: surnameFirst.trim() }
+    : splitName(raw);
+  const name = buildName(parts);
+  if (name) card.name = name;
+  return card;
+}
+
+function splitName(full: string): { given: string; middle: string; surname: string } {
+  const words = full.split(/\s+/).filter(Boolean);
+  if (words.length === 1) return { given: words[0]!, middle: "", surname: "" };
+  return { given: words[0]!, middle: words.slice(1, -1).join(" "), surname: words[words.length - 1]! };
+}
