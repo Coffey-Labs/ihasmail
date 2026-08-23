@@ -18,6 +18,7 @@ import { toast } from "@/ui/toast";
 import type { ListActions } from "./MessageList";
 import { InviteCard } from "./InviteCard";
 import { VCardCard } from "./VCardCard";
+import { AddressList, useAddressMenu } from "./AddressMenu";
 import { useSession } from "@/store/session";
 
 interface Props {
@@ -40,6 +41,7 @@ export const MessageView = memo(function MessageView({ email: e, expanded, onTog
   const [allowRemote, setAllowRemote] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const moreMenu = useMenu();
+  const addrMenu = useAddressMenu();
   const from = e.from?.[0];
   const senderTrusted = settings.trustedImageSenders.includes((from?.email ?? "").toLowerCase());
   const inContacts = useContacts((s) => Boolean(from && s.loaded && s.lookupByEmail(from.email)));
@@ -128,9 +130,9 @@ export const MessageView = memo(function MessageView({ email: e, expanded, onTog
       <header className="message-head" onClick={(ev) => { if (expanded && !(ev.target as HTMLElement).closest("button,a,.message-details")) onToggle(); }}>
         <Avatar who={from ?? null} />
         <div className="who">
-          <div className="from">
-            <span>{displayName(from)}</span>
-            {expanded && from && <span className="email">&lt;{from.email}&gt;</span>}
+          <div className="from" onContextMenu={(ev) => from && addrMenu.open(ev, from)}>
+            <span className="addr">{displayName(from)}</span>
+            {expanded && from && <span className="email addr">&lt;{from.email}&gt;</span>}
             {isHighPriority && <span className="tag" style={{ background: "var(--danger)" }}>Important</span>}
             {authFailed && <span className="tag" style={{ background: "var(--warn)" }} title={e["header:Authentication-Results:asText"] ?? ""}><ShieldAlert size={12} /> Unverified</span>}
           </div>
@@ -184,12 +186,12 @@ export const MessageView = memo(function MessageView({ email: e, expanded, onTog
         <>
           {details && (
             <dl className="message-details" onClick={(ev) => ev.stopPropagation()}>
-              <dt>From</dt><dd>{(e.from ?? []).map(formatAddress).join(", ")}</dd>
-              {e.sender?.length && !(e.sender.length === 1 && e.from?.some((f) => f.email === e.sender![0]!.email)) ? <><dt>Sender</dt><dd>{e.sender.map(formatAddress).join(", ")}</dd></> : null}
-              {e.replyTo?.length ? <><dt>Reply-To</dt><dd>{e.replyTo.map(formatAddress).join(", ")}</dd></> : null}
-              <dt>To</dt><dd>{(e.to ?? []).map(formatAddress).join(", ") || "—"}</dd>
-              {e.cc?.length ? <><dt>Cc</dt><dd>{e.cc.map(formatAddress).join(", ")}</dd></> : null}
-              {e.bcc?.length ? <><dt>Bcc</dt><dd>{e.bcc.map(formatAddress).join(", ")}</dd></> : null}
+              <dt>From</dt><dd><AddressList list={e.from} onContext={addrMenu.open} /></dd>
+              {e.sender?.length && !(e.sender.length === 1 && e.from?.some((f) => f.email === e.sender![0]!.email)) ? <><dt>Sender</dt><dd><AddressList list={e.sender} onContext={addrMenu.open} /></dd></> : null}
+              {e.replyTo?.length ? <><dt>Reply-To</dt><dd><AddressList list={e.replyTo} onContext={addrMenu.open} /></dd></> : null}
+              <dt>To</dt><dd><AddressList list={e.to} onContext={addrMenu.open} /></dd>
+              {e.cc?.length ? <><dt>Cc</dt><dd><AddressList list={e.cc} onContext={addrMenu.open} /></dd></> : null}
+              {e.bcc?.length ? <><dt>Bcc</dt><dd><AddressList list={e.bcc} onContext={addrMenu.open} /></dd></> : null}
               <dt>Date</dt><dd>{formatFullDate(e.sentAt ?? e.receivedAt)}</dd>
               <dt>Subject</dt><dd>{e.subject || "(no subject)"}</dd>
               {e.messageId?.[0] && <><dt>Message-ID</dt><dd className="mono small">{e.messageId[0]}</dd></>}
@@ -220,6 +222,7 @@ export const MessageView = memo(function MessageView({ email: e, expanded, onTog
           )}
         </>
       )}
+      {addrMenu.node}
       {filterOpen && <FilterFromMessageDialog email={e} mailboxId={Object.keys(e.mailboxIds)[0] ?? null} onClose={() => setFilterOpen(false)} />}
       <Dialog open={showSource} onClose={() => setShowSource(false)} title="Original message" size="xl">
         {source === null ? <div className="center"><span className="spinner" /></div> : <pre className="code" style={{ minHeight: 300, maxHeight: "65vh" }}>{source}</pre>}

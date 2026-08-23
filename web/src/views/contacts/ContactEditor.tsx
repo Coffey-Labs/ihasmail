@@ -26,7 +26,8 @@ type AddrRow = { key: string; ctx: string; street: string; city: string; region:
 export function ContactEditor({ card, defaultBookId, onClose, onSaved }: Props) {
   const contacts = useContacts();
   const isNew = !card.id;
-  const np = card.id ? nameParts(card as ContactCard) : { given: "", surname: "", middle: "", prefix: "", suffix: "" };
+  // Read from the card whether it is saved or seeded (e.g. from a message header).
+  const np = nameParts(card as ContactCard);
   const [kind, setKind] = useState<"individual" | "group" | "org">((card.kind as "individual" | "group" | "org") ?? "individual");
   const [given, setGiven] = useState(np.given);
   const [surname, setSurname] = useState(np.surname);
