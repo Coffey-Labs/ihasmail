@@ -26,10 +26,12 @@ interface PopoverProps {
   style?: CSSProperties;
   closeOnClick?: boolean;
   role?: string;
+  /** Accessible name — dialogs need one; menus take it from their trigger. */
+  ariaLabel?: string;
 }
 
 /** Generic anchored popover rendered in a portal; closes on outside click / Escape. */
-export function Popover({ anchor, onClose, children, className, align = "start", side = "bottom", width, style, closeOnClick = true, role = "menu" }: PopoverProps) {
+export function Popover({ anchor, onClose, children, className, align = "start", side = "bottom", width, style, closeOnClick = true, role = "menu", ariaLabel }: PopoverProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ left: number; top: number; maxHeight: number } | null>(null);
 
@@ -96,6 +98,7 @@ export function Popover({ anchor, onClose, children, className, align = "start",
     <div
       ref={ref}
       role={role}
+      aria-label={ariaLabel}
       className={`popover ${className ?? ""}`}
       style={{ left: pos?.left ?? -9999, top: pos?.top ?? -9999, visibility: pos ? "visible" : "hidden", width, maxHeight: pos?.maxHeight, ...style }}
       onClick={(e) => {
