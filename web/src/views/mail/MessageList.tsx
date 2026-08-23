@@ -1,0 +1,441 @@
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { Archive, ArrowLeft, CheckSquare, FolderInput, PanelRight, PanelBottom, PanelTop, Filter, Inbox, Mail, MailOpen, MoreVertical, Paperclip, RefreshCw, Reply, Search, Star, Tag, Trash2, AlertOctagon, Forward, Eraser, ShieldCheck } from "lucide-react";
+import { useLocation } from "wouter";
+import { useMail, type ListState } from "@/store/mail";
+import { useSettings } from "@/store/settings";
+import type { Email, Id } from "@/jmap/types";
+import { formatListDate } from "@/lib/format";
+import { displayName, shortName } from "@/lib/address";
+import { Avatar, Empty, useIsMobile } from "@/ui/misc";
+import { MenuItem, MenuSep, MenuTitle, Popover, useMenu } from "@/ui/popover";
+import { confirmDialog } from "@/ui/dialog";
+import { useCompose } from "@/store/compose";
+import { FilterFromMessageDialog } from "./FilterFromMessage";
+
+export interface ListActions {
+  archive: (rows?: Id[]) => Promise<void>;
+  trash: (rows?: Id[]) => Promise<void>;
+  spam: (rows?: Id[]) => Promise<void>;
+  read: (read: boolean, rows?: Id[]) => Promise<void>;
+  star: (on: boolean, rows?: Id[]) => Promise<void>;
+  move: (rows?: Id[]) => void;
+  label: (rows: Id[] | undefined, anchor: { x: number; y: number }) => void;
+  moveTo: (ids: Id[], mailboxId: Id) => Promise<void>;
+}
+
+interface Props {
+  title: string;
+  list: ListState | null;
+  openThreadId: Id | null;
+  focusId: Id | null;
+  setFocusId: (id: Id | null) => void;
+  onOpen: (rowId: Id) => void;
+  actions: ListActions;
+  mailboxId: Id | null;
+  isSearch: boolean;
+}
+
+export function MessageList({ title, list, openThreadId, focusId, setFocusId, onOpen, actions, mailboxId, isSearch }: Props) {
+  const [, navigate] = useLocation();
+  const emails = useMail((s) => s.emails);
+  const threads = useMail((s) => s.threads);
+  const selected = useMail((s) => s.selected);
+  const select = useMail((s) => s.select);
+  const selectAll = useMail((s) => s.selectAll);
+  const clearSelection = useMail((s) => s.clearSelection);
+  const loadMore = useMail((s) => s.loadMore);
+  const refreshList = useMail((s) => s.refreshList);
+  const mailboxes = useMail((s) => s.mailboxes);
+  const settings = useSettings((s) => s.settings);
+  const updateSettings = useSettings((s) => s.update);
+  const parentRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
+  const [paneWidth, setPaneWidth] = useState(0);
+  useEffect(() => {
+    const el = parentRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width ?? 0;
+      setPaneWidth(w);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const twoLine = isMobile || (paneWidth > 0 && paneWidth < 640);
+  const ctxMenu = useMenu();
+  const [ctxRow, setCtxRow] = useState<Id | null>(null);
+  const moreMenu = useMenu();
+  const [refreshing, setRefreshing] = useState(false);
+  const [filterFrom, setFilterFrom] = useState<Email | null>(null);
+  const lastClick = useRef<Id | null>(null);
+
+  const ids = list?.ids ?? [];
+  const selCount = Object.keys(selected).length;
+  const mailbox = mailboxId ? mailboxes[mailboxId] : undefined;
+  const isTrashOrJunk = mailbox?.role === "trash" || mailbox?.role === "junk";
+  const isDrafts = mailbox?.role === "drafts";
+
+  const rowHeight = twoLine ? (settings.density === "compact" ? 56 : settings.density === "comfortable" ? 78 : 66) : settings.density === "compact" ? 36 : settings.density === "comfortable" ? 52 : 44;
+  const virtualizer = useVirtualizer({
+    count: ids.length + (list && !list.exhausted ? 1 : 0),
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => rowHeight,
+    overscan: 12,
+  });
+
+  // Re-measure when the row height changes (one-line ↔ two-line, density).
+  useEffect(() => {
+    virtualizer.measure();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rowHeight]);
+
+  // Infinite scroll
+  const items = virtualizer.getVirtualItems();
+  useEffect(() => {
+    const last = items[items.length - 1];
+    if (!last || !list) return;
+    if (last.index >= ids.length - 5 && !list.loadingMore && !list.exhausted && !list.loading) void loadMore();
+  }, [items, ids.length, list, loadMore]);
+
+  // Pull-to-refresh-ish: manual refresh button
+  const doRefresh = async () => {
+    setRefreshing(true);
+    await refreshList();
+    await useMail.getState().loadMailboxes();
+    setRefreshing(false);
+  };
+
+  const onRowClick = useCallback(
+    (e: MouseEvent, rowId: Id) => {
+      if (e.shiftKey && lastClick.current) {
+        const a = ids.indexOf(lastClick.current);
+        const b = ids.indexOf(rowId);
+        if (a >= 0 && b >= 0) {
+          const [s, en] = a < b ? [a, b] : [b, a];
+          select(ids.slice(s, en + 1), true);
+          window.getSelection()?.removeAllRanges();
+          return;
+        }
+      }
+      if (e.ctrlKey || e.metaKey) {
+        select([rowId], !selected[rowId]);
+        lastClick.current = rowId;
+        return;
+      }
+      lastClick.current = rowId;
+      if (selCount > 0 && isMobile) {
+        select([rowId], !selected[rowId]);
+        return;
+      }
+      onOpen(rowId);
+    },
+    [ids, select, selected, selCount, isMobile, onOpen],
+  );
+
+  const onContext = useCallback(
+    (e: MouseEvent, rowId: Id) => {
+      e.preventDefault();
+      setCtxRow(rowId);
+      setFocusId(rowId);
+      ctxMenu.openAt(e.clientX, e.clientY);
+    },
+    [ctxMenu, setFocusId],
+  );
+
+  const ctxTargets = useMemo(() => (ctxRow ? (selected[ctxRow] ? Object.keys(selected) : [ctxRow]) : []), [ctxRow, selected]);
+  const allSelected = ids.length > 0 && ids.every((id) => selected[id]);
+  const someUnread = ctxTargets.some((id) => !emails[id]?.keywords.$seen);
+  const someUnstarred = ctxTargets.some((id) => !emails[id]?.keywords.$flagged);
+
+  return (
+    <div className="mail-list-pane">
+      <div className="list-toolbar">
+        {isMobile && isSearch && (
+          <button className="icon-btn" onClick={() => navigate("/mail")} aria-label="Back">
+            <ArrowLeft size={20} />
+          </button>
+        )}
+        <input
+          type="checkbox"
+          className="select-all"
+          aria-label="Select all"
+          checked={allSelected}
+          ref={(el) => {
+            if (el) el.indeterminate = selCount > 0 && !allSelected;
+          }}
+          onChange={() => (allSelected || selCount > 0 ? clearSelection() : selectAll())}
+        />
+        {selCount > 0 ? (
+          <>
+            <span className="tb-count">{selCount} selected</span>
+            <span className="tb-sep" />
+            <button className="icon-btn" title="Archive (e)" onClick={() => void actions.archive()}><Archive size={19} /></button>
+            <button className="icon-btn" title={isTrashOrJunk ? "Delete forever" : "Delete (#)"} onClick={() => void actions.trash()}><Trash2 size={19} /></button>
+            <button className="icon-btn hide-mobile" title={mailbox?.role === "junk" ? "Not spam" : "Report spam (!)"} onClick={() => void actions.spam()}>{mailbox?.role === "junk" ? <ShieldCheck size={19} /> : <AlertOctagon size={19} />}</button>
+            <span className="tb-sep" />
+            <button className="icon-btn" title="Mark as read (Shift+I)" onClick={() => void actions.read(true)}><MailOpen size={19} /></button>
+            <button className="icon-btn hide-mobile" title="Mark as unread (Shift+U)" onClick={() => void actions.read(false)}><Mail size={19} /></button>
+            <button className="icon-btn" title="Move to (v)" onClick={() => actions.move()}><FolderInput size={19} /></button>
+            <button className="icon-btn hide-mobile" title="Labels (l)" onClick={(e) => actions.label(undefined, { x: e.clientX, y: e.clientY })}><Tag size={19} /></button>
+          </>
+        ) : (
+          <>
+            <span className="tb-title">{title}</span>
+            {list && !list.loading && <span className="tb-count">{list.total.toLocaleString()}</span>}
+            <span className="spacer" />
+            <button className={`icon-btn ${refreshing ? "active" : ""}`} title="Refresh" onClick={() => void doRefresh()} aria-label="Refresh">
+              <RefreshCw size={18} className={refreshing ? "spin" : ""} style={refreshing ? { animation: "spin .8s linear infinite" } : undefined} />
+            </button>
+            <button className="icon-btn" onClick={moreMenu.open} aria-label="More">
+              <MoreVertical size={18} />
+            </button>
+            <Popover anchor={moreMenu.anchor} onClose={moreMenu.close} align="end" width={240}>
+              <MenuTitle>Reading pane</MenuTitle>
+              <MenuItem icon={<PanelRight size={16} />} label="Right of the list" checked={settings.readingPane === "right"} onClick={() => updateSettings({ readingPane: "right" })} />
+              <MenuItem icon={<PanelBottom size={16} />} label="Below the list" checked={settings.readingPane === "bottom"} onClick={() => updateSettings({ readingPane: "bottom" })} />
+              <MenuItem icon={<PanelTop size={16} />} label="Hidden (open full width)" checked={settings.readingPane === "off"} onClick={() => updateSettings({ readingPane: "off" })} />
+              <MenuSep />
+              <MenuItem icon={<CheckSquare size={16} />} label="Select all" onClick={selectAll} />
+              <MenuItem icon={<MailOpen size={16} />} label="Mark all as read" onClick={() => mailboxId && void useMail.getState().markMailboxRead(mailboxId)} disabled={!mailboxId} />
+              {isTrashOrJunk && (
+                <>
+                  <MenuSep />
+                  <MenuItem
+                    danger
+                    icon={<Eraser size={16} />}
+                    label={`Empty ${mailbox?.name}`}
+                    onClick={async () => {
+                      if (await confirmDialog({ title: `Empty ${mailbox?.name}?`, message: "All messages will be permanently deleted.", confirmLabel: "Empty", danger: true })) void useMail.getState().emptyMailbox(mailboxId!);
+                    }}
+                  />
+                </>
+              )}
+            </Popover>
+          </>
+        )}
+      </div>
+      {list?.error && (
+        <div className="list-hint">
+          <span className="grow" style={{ color: "var(--danger)" }}>{list.error}</span>
+          <button onClick={() => void doRefresh()}>Retry</button>
+        </div>
+      )}
+      <div ref={parentRef} className={`mail-list ${selCount ? "has-selection" : ""} ${twoLine ? "two-line" : ""} ${settings.density === "compact" ? "compact" : ""}`} tabIndex={-1}>
+        {list?.loading && ids.length === 0 ? (
+          <div style={{ padding: 8 }}>
+            {[...Array(12)].map((_, i) => (
+              <div key={i} className="row" style={{ height: rowHeight, padding: "0 8px", gap: 12 }}>
+                <span className="skeleton" style={{ width: 32, height: 32, borderRadius: 16 }} />
+                <span className="skeleton" style={{ width: 140, height: 14 }} />
+                <span className="skeleton grow" style={{ height: 14 }} />
+                <span className="skeleton" style={{ width: 50, height: 12 }} />
+              </div>
+            ))}
+          </div>
+        ) : ids.length === 0 && list && !list.loading ? (
+          <Empty icon={isSearch ? <Search size={40} /> : <Inbox size={40} />} title={isSearch ? "No results" : mailbox?.role === "inbox" ? "You're all caught up" : "Nothing here"}>
+            {isSearch ? "Try different keywords or filters." : mailbox?.role === "inbox" ? "No new mail in your inbox." : "This folder is empty."}
+          </Empty>
+        ) : (
+          <div className="mail-list-inner" style={{ height: virtualizer.getTotalSize() }}>
+            {items.map((vi) => {
+              const id = ids[vi.index];
+              if (!id) {
+                return (
+                  <div key="loader" className="list-footer" style={{ position: "absolute", top: vi.start, left: 0, right: 0, height: vi.size }}>
+                    {list?.loadingMore ? <span className="spinner" style={{ display: "inline-block" }} /> : ""}
+                  </div>
+                );
+              }
+              const e = emails[id];
+              if (!e) return <div key={id} style={{ position: "absolute", top: vi.start, height: vi.size }} />;
+              const thread = list?.collapseThreads ? threads[e.threadId] : undefined;
+              return (
+                <Row
+                  key={id}
+                  email={e}
+                  threadEmails={thread ? thread.emailIds.map((x) => emails[x]).filter((x): x is Email => Boolean(x)) : undefined}
+                  top={vi.start}
+                  height={vi.size}
+                  selected={Boolean(selected[id])}
+                  focused={focusId === id}
+                  open={openThreadId === e.threadId}
+                  twoLine={twoLine}
+                  showAvatar={settings.showAvatars}
+                  showPreview={settings.showPreview}
+                  isDrafts={isDrafts}
+                  mailboxId={mailboxId}
+                  isSent={mailbox?.role === "sent"}
+                  onClick={onRowClick}
+                  onContext={onContext}
+                  onSelect={(rowId, on) => { select([rowId], on); lastClick.current = rowId; }}
+                  onStar={(rowId, on) => void actions.star(on, [rowId])}
+                  onArchive={(rowId) => void actions.archive([rowId])}
+                  onTrash={(rowId) => void actions.trash([rowId])}
+                  onRead={(rowId, read) => void actions.read(read, [rowId])}
+                  selectedIds={selected}
+                />
+              );
+            })}
+          </div>
+        )}
+      </div>
+      <Popover anchor={ctxMenu.anchor} onClose={ctxMenu.close} width={250}>
+        <MenuItem icon={<Reply size={16} />} label="Reply" onClick={() => { const e = ctxRow ? emails[ctxRow] : undefined; if (e) void useCompose.getState().reply(e, "reply"); }} />
+        <MenuItem icon={<Forward size={16} />} label="Forward" onClick={() => { const e = ctxRow ? emails[ctxRow] : undefined; if (e) void useCompose.getState().reply(e, "forward"); }} />
+        <MenuSep />
+        <MenuItem icon={<Archive size={16} />} label="Archive" kbd="e" onClick={() => void actions.archive(ctxTargets)} />
+        <MenuItem icon={<Trash2 size={16} />} label="Delete" kbd="#" onClick={() => void actions.trash(ctxTargets)} />
+        <MenuItem icon={<AlertOctagon size={16} />} label={mailbox?.role === "junk" ? "Not spam" : "Report spam"} kbd="!" onClick={() => void actions.spam(ctxTargets)} />
+        <MenuSep />
+        <MenuItem icon={someUnread ? <MailOpen size={16} /> : <Mail size={16} />} label={someUnread ? "Mark as read" : "Mark as unread"} onClick={() => void actions.read(someUnread, ctxTargets)} />
+        <MenuItem icon={<Star size={16} />} label={someUnstarred ? "Add star" : "Remove star"} kbd="s" onClick={() => void actions.star(someUnstarred, ctxTargets)} />
+        <MenuItem icon={<FolderInput size={16} />} label="Move to…" kbd="v" onClick={() => actions.move(ctxTargets)} />
+        <MenuItem icon={<Tag size={16} />} label="Label…" kbd="l" onClick={() => actions.label(ctxTargets, ctxMenu.anchor ?? { x: 0, y: 0 })} />
+        <MenuSep />
+        <MenuItem icon={<Filter size={16} />} label="Filter messages like this…" onClick={() => { const e = ctxRow ? emails[ctxRow] : undefined; if (e) setFilterFrom(e); }} />
+      </Popover>
+      {filterFrom && <FilterFromMessageDialog email={filterFrom} mailboxId={mailboxId} onClose={() => setFilterFrom(null)} />}
+    </div>
+  );
+}
+
+interface RowProps {
+  email: Email;
+  threadEmails?: Email[];
+  top: number;
+  height: number;
+  selected: boolean;
+  focused: boolean;
+  open: boolean;
+  twoLine: boolean;
+  showAvatar: boolean;
+  showPreview: boolean;
+  isDrafts: boolean;
+  isSent: boolean;
+  mailboxId: Id | null;
+  selectedIds: Record<Id, true>;
+  onClick: (e: MouseEvent, id: Id) => void;
+  onContext: (e: MouseEvent, id: Id) => void;
+  onSelect: (id: Id, on: boolean) => void;
+  onStar: (id: Id, on: boolean) => void;
+  onArchive: (id: Id) => void;
+  onTrash: (id: Id) => void;
+  onRead: (id: Id, read: boolean) => void;
+}
+
+const Row = memo(function Row({ email: e, threadEmails, top, height, selected, focused, open, twoLine, showAvatar, showPreview, isDrafts, isSent, mailboxId, selectedIds, onClick, onContext, onSelect, onStar, onArchive, onTrash, onRead }: RowProps) {
+  const labels = useSettings((s) => s.settings.labels);
+  const inScope = threadEmails ? threadEmails.filter((x) => (mailboxId ? x.mailboxIds[mailboxId] : true)) : [e];
+  const scope = inScope.length ? inScope : [e];
+  const unread = scope.some((x) => !x.keywords.$seen);
+  const starred = scope.some((x) => x.keywords.$flagged);
+  const hasAtt = scope.some((x) => x.hasAttachment);
+  const answered = e.keywords.$answered;
+  const forwarded = e.keywords.$forwarded;
+  const latest = scope.reduce((a, b) => (a.receivedAt > b.receivedAt ? a : b), scope[0]!);
+  const count = threadEmails ? scope.length : 0;
+  // Participants: Gmail-style "Ann, Bob, Me (3)"
+  const names = useMemo(() => {
+    const out: string[] = [];
+    const seen = new Set<string>();
+    const src = isSent || isDrafts ? scope.flatMap((x) => x.to ?? []) : scope.map((x) => x.from?.[0]).filter(Boolean);
+    for (const a of src) {
+      if (!a) continue;
+      const k = a.email.toLowerCase();
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push(count > 1 ? shortName(a) : displayName(a));
+    }
+    return out;
+  }, [scope, isSent, isDrafts, count]);
+  const who = (isSent || isDrafts ? (names.length ? `To: ${names.join(", ")}` : "(no recipients)") : names.join(", ")) || "(unknown)";
+  const rowLabels = labels.filter((l) => scope.some((x) => x.keywords[l.keyword]));
+
+  const onDragStart = (ev: DragEvent) => {
+    const ids = selectedIds[e.id] ? Object.keys(selectedIds) : [e.id];
+    // include thread emails in scope
+    const all = new Set<Id>();
+    for (const id of ids) {
+      all.add(id);
+    }
+    for (const x of scope) all.add(x.id);
+    ev.dataTransfer.setData("application/x-ihasmail-emails", JSON.stringify([...all]));
+    ev.dataTransfer.effectAllowed = "move";
+    const ghost = document.createElement("div");
+    ghost.className = "drag-ghost";
+    ghost.textContent = `${ids.length > 1 ? `${ids.length} conversations` : e.subject || "(no subject)"}`;
+    document.body.appendChild(ghost);
+    ev.dataTransfer.setDragImage(ghost, 10, 10);
+    setTimeout(() => ghost.remove(), 0);
+  };
+
+  return (
+    <div
+      className={`msg-row ${unread ? "unread" : ""} ${selected ? "selected" : ""} ${focused ? "focused" : ""} ${open ? "open" : ""}`}
+      style={{ top, height }}
+      data-row-id={e.id}
+      onClick={(ev) => onClick(ev, e.id)}
+      onContextMenu={(ev) => onContext(ev, e.id)}
+      draggable
+      onDragStart={onDragStart}
+      role="row"
+      aria-selected={selected}
+    >
+      <input type="checkbox" className="msg-check" checked={selected} onClick={(ev) => ev.stopPropagation()} onChange={(ev) => onSelect(e.id, ev.target.checked)} aria-label="Select" />
+      {!twoLine && (
+        <button className={`msg-star ${starred ? "on" : ""}`} onClick={(ev) => { ev.stopPropagation(); onStar(e.id, !starred); }} aria-label={starred ? "Unstar" : "Star"}>
+          <Star size={18} fill={starred ? "currentColor" : "none"} />
+        </button>
+      )}
+      {showAvatar && <Avatar who={isSent || isDrafts ? (e.to?.[0] ?? null) : (latest.from?.[0] ?? null)} />}
+      {twoLine ? (
+        <div className="msg-body">
+          <div className="msg-line1">
+            <span className="msg-from truncate">
+              {who}
+              {count > 1 && <span className="thread-count"> {count}</span>}
+            </span>
+            <span className="msg-meta">
+              {hasAtt && <Paperclip size={14} className="msg-attach" />}
+              <span className="msg-date">{formatListDate(latest.receivedAt)}</span>
+            </span>
+          </div>
+          <div className="msg-main">
+            {isDrafts && <span style={{ color: "var(--danger)" }}>Draft</span>}
+            <span className="msg-subject">{e.subject || "(no subject)"}</span>
+            {showPreview && <span className="msg-preview">{latest.preview}</span>}
+            <button className={`msg-star ${starred ? "on" : ""}`} style={{ marginLeft: "auto" }} onClick={(ev) => { ev.stopPropagation(); onStar(e.id, !starred); }} aria-label="Star">
+              <Star size={16} fill={starred ? "currentColor" : "none"} />
+            </button>
+          </div>
+          {rowLabels.length > 0 && <div className="msg-labels">{rowLabels.map((l) => <span key={l.keyword} className="tag" style={{ background: l.color }}>{l.name}</span>)}</div>}
+        </div>
+      ) : (
+        <>
+          <span className="msg-from" title={who}>
+            <span className="truncate">{who}</span>
+            {count > 1 && <span className="thread-count">{count}</span>}
+          </span>
+          <span className="msg-main">
+            {isDrafts && <span style={{ color: "var(--danger)", flex: "0 0 auto" }}>Draft</span>}
+            {rowLabels.length > 0 && <span className="msg-labels">{rowLabels.map((l) => <span key={l.keyword} className="tag" style={{ background: l.color }}>{l.name}</span>)}</span>}
+            <span className="msg-subject">{e.subject || "(no subject)"}</span>
+            {showPreview && <span className="msg-preview">{latest.preview}</span>}
+          </span>
+          <span className="msg-meta">
+            {(answered || forwarded) && <span className="msg-answered" title={answered ? "Replied" : "Forwarded"}>{answered ? <Reply size={14} /> : <Forward size={14} />}</span>}
+            {hasAtt && <Paperclip size={14} className="msg-attach" />}
+            <span className="msg-date">{formatListDate(latest.receivedAt)}</span>
+            <span className="msg-actions">
+              <button className="icon-btn sm" title="Archive" onClick={(ev) => { ev.stopPropagation(); onArchive(e.id); }}><Archive size={16} /></button>
+              <button className="icon-btn sm" title="Delete" onClick={(ev) => { ev.stopPropagation(); onTrash(e.id); }}><Trash2 size={16} /></button>
+              <button className="icon-btn sm" title={unread ? "Mark as read" : "Mark as unread"} onClick={(ev) => { ev.stopPropagation(); onRead(e.id, unread); }}>{unread ? <MailOpen size={16} /> : <Mail size={16} />}</button>
+            </span>
+          </span>
+        </>
+      )}
+    </div>
+  );
+});

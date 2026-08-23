@@ -1,0 +1,211 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AlertOctagon, Archive, ArrowLeft, ChevronDown, ChevronUp, FolderInput, Forward, Mail, MailOpen, MoreVertical, Printer, Reply, ReplyAll, ShieldCheck, Star, Tag, Trash2, Download } from "lucide-react";
+import { useMail } from "@/store/mail";
+import { useSettings } from "@/store/settings";
+import { useCompose } from "@/store/compose";
+import type { Email, Id } from "@/jmap/types";
+import { MessageView } from "./MessageView";
+import type { ListActions } from "./MessageList";
+import { MenuItem, MenuSep, Popover, useMenu } from "@/ui/popover";
+import { Spinner } from "@/ui/misc";
+import { client } from "@/jmap/client";
+import { LabelPicker } from "./LabelPicker";
+
+interface Props {
+  threadId: Id;
+  mailboxId: Id | null;
+  onBack: () => void;
+  actions: ListActions;
+  onNavigate: (delta: number) => void;
+  hasPrev: boolean;
+  hasNext: boolean;
+}
+
+export function ThreadView({ threadId, mailboxId, onBack, actions, onNavigate, hasPrev, hasNext }: Props) {
+  const loadThread = useMail((s) => s.loadThread);
+  const thread = useMail((s) => s.threads[threadId]);
+  const emails = useMail((s) => s.emails);
+  const fullIds = useMail((s) => s.fullIds);
+  const loading = useMail((s) => Boolean(s.loadingThreads[threadId]));
+  const mailboxes = useMail((s) => s.mailboxes);
+  const settings = useSettings((s) => s.settings);
+  const labels = settings.labels;
+  const reply = useCompose((s) => s.reply);
+  const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<Record<Id, boolean>>({});
+  const [allExpanded, setAllExpanded] = useState(false);
+  const [labelAnchor, setLabelAnchor] = useState<{ x: number; y: number } | null>(null);
+  const moreMenu = useMenu();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const markTimer = useRef<number | null>(null);
+
+  // Load
+  useEffect(() => {
+    setError(null);
+    useMail.getState().setOpenThread(threadId);
+    loadThread(threadId).catch((err) => setError((err as Error).message));
+    return () => {
+      if (useMail.getState().openThreadId === threadId) useMail.getState().setOpenThread(null);
+    };
+  }, [threadId, loadThread]);
+
+  const messages = useMemo(() => {
+    if (!thread) return [] as Email[];
+    const all = thread.emailIds.map((id) => emails[id]).filter((e): e is Email => Boolean(e && fullIds[e.id]));
+    // Conversation view: hide trash/junk messages unless we're in that folder.
+    const mail = useMail.getState();
+    const trash = mail.roleId("trash");
+    const junk = mail.roleId("junk");
+    const filtered = all.filter((e) => {
+      if (mailboxId && (mailboxId === trash || mailboxId === junk)) return true;
+      if (trash && e.mailboxIds[trash]) return false;
+      if (junk && e.mailboxIds[junk]) return false;
+      return true;
+    });
+    return (filtered.length ? filtered : all).sort((a, b) => a.receivedAt.localeCompare(b.receivedAt));
+  }, [thread, emails, fullIds, mailboxId]);
+
+  // Default expansion: unread + last message expanded, others collapsed
+  const lastId = messages[messages.length - 1]?.id;
+  const isExpanded = useCallback(
+    (e: Email) => {
+      if (e.id in expanded) return expanded[e.id]!;
+      if (allExpanded) return true;
+      return !e.keywords.$seen || e.id === lastId || messages.length === 1;
+    },
+    [expanded, allExpanded, lastId, messages.length],
+  );
+
+  // Mark as read after delay
+  useEffect(() => {
+    if (!messages.length) return;
+    const unread = messages.filter((e) => !e.keywords.$seen && isExpanded(e)).map((e) => e.id);
+    if (!unread.length || settings.markReadDelay < 0) return;
+    if (markTimer.current) window.clearTimeout(markTimer.current);
+    markTimer.current = window.setTimeout(() => void useMail.getState().markRead(unread, true), settings.markReadDelay * 1000);
+    return () => {
+      if (markTimer.current) window.clearTimeout(markTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages.map((m) => m.id + (m.keywords.$seen ? "1" : "0")).join(","), settings.markReadDelay]);
+
+  // Scroll last expanded into view on load
+  useEffect(() => {
+    if (!messages.length || !scrollRef.current) return;
+    const el = scrollRef.current.querySelector<HTMLElement>(`[data-msg-id="${CSS.escape(lastId ?? "")}"]`);
+    if (el && messages.length > 1) el.scrollIntoView({ block: "start" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [threadId, messages.length > 0]);
+
+  // Keyboard: reply/forward events from MailView
+  useEffect(() => {
+    const onReply = (ev: Event) => {
+      const mode = (ev as CustomEvent<"reply" | "replyAll" | "forward">).detail;
+      const last = messages[messages.length - 1];
+      if (last) void reply(last, mode);
+    };
+    const onNav = (ev: Event) => {
+      const delta = (ev as CustomEvent<number>).detail;
+      const els = Array.from(scrollRef.current?.querySelectorAll<HTMLElement>("[data-msg-id]") ?? []);
+      if (!els.length) return;
+      const top = scrollRef.current!.getBoundingClientRect().top;
+      let idx = els.findIndex((el) => el.getBoundingClientRect().top - top > 8);
+      if (idx < 0) idx = els.length;
+      const target = els[Math.max(0, Math.min(els.length - 1, (delta > 0 ? idx : idx - 2)))];
+      if (target) {
+        const id = target.dataset.msgId!;
+        setExpanded((x) => ({ ...x, [id]: true }));
+        target.scrollIntoView({ block: "start", behavior: "smooth" });
+      }
+    };
+    window.addEventListener("ihm:reply", onReply);
+    window.addEventListener("ihm:msg-nav", onNav);
+    return () => {
+      window.removeEventListener("ihm:reply", onReply);
+      window.removeEventListener("ihm:msg-nav", onNav);
+    };
+  }, [messages, reply]);
+
+  const subject = messages[0]?.subject || emails[thread?.emailIds[0] ?? ""]?.subject || "(no subject)";
+  const rowIds = thread ? thread.emailIds.filter((id) => emails[id]) : [];
+  const anyUnread = messages.some((e) => !e.keywords.$seen);
+  const anyStarred = messages.some((e) => e.keywords.$flagged);
+  const inJunk = Boolean(mailboxId && mailboxes[mailboxId]?.role === "junk");
+  const threadLabels = labels.filter((l) => messages.some((m) => m.keywords[l.keyword]));
+  const threadMailboxes = useMemo(() => {
+    const set = new Set<string>();
+    for (const m of messages) for (const id of Object.keys(m.mailboxIds)) if (mailboxes[id] && id !== mailboxId) set.add(mailboxes[id]!.name);
+    return [...set];
+  }, [messages, mailboxes, mailboxId]);
+
+  const last = messages[messages.length - 1];
+  const accountId = useMail((s) => s.accountId);
+
+  return (
+    <div className="thread-view">
+      <div className="thread-toolbar">
+        <button className="icon-btn" onClick={onBack} aria-label="Back to list" title="Back (u)">
+          <ArrowLeft size={20} />
+        </button>
+        <button className="icon-btn" title="Archive (e)" onClick={() => void actions.archive(rowIds)}><Archive size={19} /></button>
+        <button className="icon-btn" title={inJunk ? "Not spam" : "Report spam (!)"} onClick={() => void actions.spam(rowIds)}>{inJunk ? <ShieldCheck size={19} /> : <AlertOctagon size={19} />}</button>
+        <button className="icon-btn" title="Delete (#)" onClick={() => void actions.trash(rowIds)}><Trash2 size={19} /></button>
+        <span className="tb-sep hide-mobile" />
+        <button className="icon-btn hide-mobile" title={anyUnread ? "Mark as read" : "Mark as unread"} onClick={() => void actions.read(anyUnread, rowIds)}>{anyUnread ? <MailOpen size={19} /> : <Mail size={19} />}</button>
+        <button className="icon-btn hide-mobile" title="Move to (v)" onClick={() => actions.move(rowIds)}><FolderInput size={19} /></button>
+        <button className="icon-btn hide-mobile" title="Labels (l)" onClick={(e) => setLabelAnchor({ x: e.clientX, y: e.clientY })}><Tag size={19} /></button>
+        <button className="icon-btn" onClick={moreMenu.open} aria-label="More"><MoreVertical size={19} /></button>
+        <Popover anchor={moreMenu.anchor} onClose={moreMenu.close} align="start" width={240}>
+          <MenuItem icon={<Star size={16} />} label={anyStarred ? "Remove star" : "Add star"} onClick={() => void actions.star(!anyStarred, rowIds)} />
+          <MenuItem icon={<Tag size={16} />} label="Label…" onClick={() => setLabelAnchor({ x: window.innerWidth / 2, y: 100 })} />
+          <MenuItem icon={allExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />} label={allExpanded ? "Collapse all" : "Expand all"} onClick={() => { setAllExpanded((v) => !v); setExpanded({}); }} />
+          <MenuSep />
+          <MenuItem icon={<Printer size={16} />} label="Print conversation" onClick={() => window.print()} />
+          {last && accountId && (
+            <MenuItem icon={<Download size={16} />} label="Download latest as .eml" onClick={() => { const a = document.createElement("a"); a.href = client.downloadUrl(accountId, last.blobId, `${(last.subject || "message").replace(/[^\w.-]+/g, "_")}.eml`, "message/rfc822"); a.download = ""; a.click(); }} />
+          )}
+        </Popover>
+        <div className="thread-nav hide-mobile">
+          <button className="icon-btn sm" disabled={!hasPrev} onClick={() => onNavigate(-1)} title="Newer (k)"><ChevronUp size={18} /></button>
+          <button className="icon-btn sm" disabled={!hasNext} onClick={() => onNavigate(1)} title="Older (j)"><ChevronDown size={18} /></button>
+        </div>
+      </div>
+      <div className="thread-scroll" ref={scrollRef}>
+        <div className="thread-subject">
+          <div className="grow">
+            <h1>{subject}</h1>
+            {(threadLabels.length > 0 || threadMailboxes.length > 0) && (
+              <div className="labels">
+                {threadMailboxes.map((n) => <span key={n} className="chip">{n}</span>)}
+                {threadLabels.map((l) => <span key={l.keyword} className="tag" style={{ background: l.color }}>{l.name}</span>)}
+              </div>
+            )}
+          </div>
+          {messages.length > 1 && <span className="muted small nowrap" style={{ marginTop: 6 }}>{messages.length} messages</span>}
+        </div>
+        {error && <div className="error-box" style={{ margin: 16 }}>{error}</div>}
+        {loading && !messages.length && <Spinner label="Loading conversation…" />}
+        {messages.map((e, i) => (
+          <MessageView
+            key={e.id}
+            email={e}
+            expanded={isExpanded(e)}
+            onToggle={() => setExpanded((x) => ({ ...x, [e.id]: !isExpanded(e) }))}
+            isLast={i === messages.length - 1}
+            actions={actions}
+          />
+        ))}
+        {last && (
+          <div className="reply-box">
+            <div className="reply-prompt">
+              <button onClick={() => void reply(last, "reply")}><Reply size={16} /> Reply</button>
+              <button onClick={() => void reply(last, "replyAll")}><ReplyAll size={16} /> Reply all</button>
+              <button onClick={() => void reply(last, "forward")}><Forward size={16} /> Forward</button>
+            </div>
+          </div>
+        )}
+      </div>
+      {labelAnchor && <LabelPicker ids={rowIds} anchor={labelAnchor} onClose={() => setLabelAnchor(null)} />}
+    </div>
+  );
+}
