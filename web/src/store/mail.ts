@@ -126,7 +126,10 @@ export interface MailState {
   archive(ids: Id[]): Promise<void>;
   spam(ids: Id[], isSpam: boolean): Promise<void>;
   emptyMailbox(mailboxId: Id): Promise<void>;
-  markMailboxRead(mailboxId: Id): Promise<void>;
+  /** Mark every unread message in a mailbox read; optionally its subfolders too. */
+  markMailboxRead(mailboxId: Id, includeChildren?: boolean): Promise<void>;
+  /** The mailbox plus all of its descendants. */
+  descendantMailboxIds(mailboxId: Id): Id[];
 
   createMailbox(name: string, parentId: Id | null): Promise<Id>;
   updateMailbox(id: Id, patch: Partial<Mailbox>): Promise<void>;
@@ -568,16 +571,51 @@ export const useMail = create<MailState>((set, get) => ({
     }
   },
 
-  async markMailboxRead(mailboxId) {
+  descendantMailboxIds(mailboxId) {
+    const all = Object.values(get().mailboxes);
+    const out: Id[] = [mailboxId];
+    const walk = (parent: Id) => {
+      for (const m of all) {
+        if ((m.parentId ?? null) === parent) {
+          out.push(m.id);
+          walk(m.id);
+        }
+      }
+    };
+    walk(mailboxId);
+    return out;
+  },
+
+  async markMailboxRead(mailboxId, includeChildren = false) {
     const accountId = get().accountId;
     if (!accountId) return;
-    try {
+    const boxes = includeChildren ? get().descendantMailboxIds(mailboxId) : [mailboxId];
+    const unreadIn = async (filter: EmailFilter): Promise<Id[]> => {
       const res = await client.chain([
-        ["Email/query", { accountId, filter: { inMailbox: mailboxId, notKeyword: "$seen" }, limit: 5000 }, "q"],
+        ["Email/query", { accountId, filter, limit: 5000 }, "q"],
         ["Email/get", { accountId, "#ids": { resultOf: "q", name: "Email/query", path: "/ids" }, properties: ["id"] }, "g"],
       ]);
-      const ids = ((res.get("g")?.[0] as unknown as GetResponse<Email>).list ?? []).map((e) => e.id);
-      if (ids.length) await get().markRead(ids, true);
+      return ((res.get("g")?.[0] as unknown as GetResponse<Email>).list ?? []).map((e) => e.id);
+    };
+    try {
+      let ids: Id[];
+      if (boxes.length === 1) {
+        ids = await unreadIn({ inMailbox: boxes[0]!, notKeyword: "$seen" });
+      } else {
+        try {
+          ids = await unreadIn({ operator: "AND", conditions: [{ notKeyword: "$seen" }, { operator: "OR", conditions: boxes.map((id) => ({ inMailbox: id })) }] });
+        } catch {
+          // Server without filter-operator support: one query per folder.
+          const per = await Promise.all(boxes.map((id) => unreadIn({ inMailbox: id, notKeyword: "$seen" }).catch(() => [] as Id[])));
+          ids = [...new Set(per.flat())];
+        }
+      }
+      if (!ids.length) {
+        toast.show("Nothing unread here");
+        return;
+      }
+      await get().markRead(ids, true);
+      toast.success(`Marked ${ids.length} message${ids.length === 1 ? "" : "s"} as read${includeChildren && boxes.length > 1 ? ` in ${boxes.length} folders` : ""}`);
       void get().loadMailboxes();
     } catch (err) {
       toast.error(`Could not mark as read: ${(err as Error).message}`);
