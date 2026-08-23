@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { loadJson, saveJson } from "@/lib/storage";
+import { setDateTimePrefs, type DateFormat, type TimeFormat } from "@/lib/datetime";
 
 export type Theme = "system" | "light" | "dark";
 export type Density = "comfortable" | "cozy" | "compact";
@@ -36,14 +37,16 @@ export interface Settings {
   notificationSound: boolean;
   attachmentReminder: boolean;
   weekStart: 0 | 1 | 6;
-  timeFormat: "12" | "24" | "auto";
+  /** "" = follow the mail server's locale, then the browser's. */
+  locale: string;
+  dateFormat: DateFormat;
+  timeFormat: TimeFormat;
   calendarDefaultView: "month" | "week" | "day" | "agenda";
   workDayStart: number;
   workDayEnd: number;
   defaultEventDuration: number; // minutes
   defaultAlertMinutes: number;
   timeZone: string | null; // null = browser
-  language: string;
   labelsSidebar: boolean;
   fontSize: "small" | "medium" | "large";
   templates: Template[];
@@ -87,6 +90,8 @@ export const DEFAULT_SETTINGS: Settings = {
   notificationSound: false,
   attachmentReminder: true,
   weekStart: 1,
+  locale: "",
+  dateFormat: "auto",
   timeFormat: "auto",
   calendarDefaultView: "week",
   workDayStart: 8,
@@ -94,7 +99,6 @@ export const DEFAULT_SETTINGS: Settings = {
   defaultEventDuration: 60,
   defaultAlertMinutes: 10,
   timeZone: null,
-  language: "en",
   labelsSidebar: true,
   fontSize: "medium",
   templates: [],
@@ -126,18 +130,23 @@ interface SettingsState {
   importJson(json: string): boolean;
 }
 
+const initialSettings = loadJson<Settings>("settings", DEFAULT_SETTINGS);
+applyDateTimePrefs(initialSettings);
+
 export const useSettings = create<SettingsState>((set, get) => ({
-  settings: loadJson<Settings>("settings", DEFAULT_SETTINGS),
+  settings: initialSettings,
   update(patch) {
     const settings = { ...get().settings, ...patch };
     saveJson("settings", settings);
     set({ settings });
     applyTheme(settings);
+    applyDateTimePrefs(settings);
   },
   reset() {
     saveJson("settings", DEFAULT_SETTINGS);
     set({ settings: DEFAULT_SETTINGS });
     applyTheme(DEFAULT_SETTINGS);
+    applyDateTimePrefs(DEFAULT_SETTINGS);
   },
   exportJson() {
     return JSON.stringify(get().settings, null, 2);
@@ -152,6 +161,10 @@ export const useSettings = create<SettingsState>((set, get) => ({
     }
   },
 }));
+
+function applyDateTimePrefs(s: Settings): void {
+  setDateTimePrefs({ locale: s.locale, dateFormat: s.dateFormat, timeFormat: s.timeFormat });
+}
 
 export function applyTheme(s: Settings = useSettings.getState().settings): void {
   const root = document.documentElement;
@@ -171,3 +184,9 @@ if (typeof window !== "undefined") {
 }
 
 export const settings = () => useSettings.getState().settings;
+
+/**
+ * Primitive that changes whenever a date/time preference does, so memoised
+ * components that render dates re-render when the format is switched.
+ */
+export const dateTimeKey = (s: Settings): string => `${s.locale}|${s.dateFormat}|${s.timeFormat}`;

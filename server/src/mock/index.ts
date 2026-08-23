@@ -9,6 +9,8 @@ import { randomUUID } from "node:crypto";
 const PORT = Number(process.env.MOCK_PORT ?? 8788);
 const ACCOUNT = "a1";
 const USER = process.env.MOCK_USER ?? "demo@example.com";
+/** Locale the fake directory reports for the account (POSIX style, as Stalwart does). */
+const MOCK_LOCALE = process.env.MOCK_LOCALE ?? "en_US";
 const PASS = process.env.MOCK_PASS ?? "demo";
 
 type Obj = Record<string, unknown>;
@@ -254,6 +256,12 @@ function genericSet(list: Obj[], prefix: string, onCreate?: (o: Obj) => void) {
 }
 
 const handlers: Record<string, Handler> = {
+  // Stalwart's directory extension - the client reads the account locale from here.
+  "x:Account/get": (a) => {
+    const ids = (a.ids as string[] | null) ?? [ACCOUNT];
+    const list = ids.filter((id) => id === ACCOUNT).map((id) => ({ id, name: USER, locale: MOCK_LOCALE, timeZone: null }));
+    return { accountId: ACCOUNT, state: String(state.n), list, notFound: ids.filter((id) => id !== ACCOUNT) };
+  },
   "Mailbox/get": genericGet(mailboxes),
   "Mailbox/set": (a) => { const r = genericSet(mailboxes, "m", (o) => Object.assign(o, { ...mb(o.id as string, o.name as string, null, (o.parentId as string) ?? null), ...o }))(a); recount(); return r; },
   "Mailbox/changes": () => ({ accountId: ACCOUNT, oldState: "1", newState: String(state.n), hasMoreChanges: false, created: [], updated: [], destroyed: [] }),
@@ -352,9 +360,9 @@ function readBody(req: IncomingMessage): Promise<Buffer> {
 }
 
 const session = () => ({
-  capabilities: { "urn:ietf:params:jmap:core": { maxSizeUpload: 50000000, maxConcurrentUpload: 4, maxSizeRequest: 10000000, maxConcurrentRequests: 4, maxCallsInRequest: 16, maxObjectsInGet: 500, maxObjectsInSet: 500, collationAlgorithms: ["i;ascii-casemap"] }, "urn:ietf:params:jmap:mail": {}, "urn:ietf:params:jmap:submission": {}, "urn:ietf:params:jmap:vacationresponse": {}, "urn:ietf:params:jmap:sieve": { implementation: "mock" }, "urn:ietf:params:jmap:calendars": {}, "urn:ietf:params:jmap:calendars:parse": {}, "urn:ietf:params:jmap:contacts": {}, "urn:ietf:params:jmap:contacts:parse": {}, "urn:ietf:params:jmap:principals": {}, "urn:ietf:params:jmap:principals:availability": {}, "urn:ietf:params:jmap:quota": {}, "urn:ietf:params:jmap:blob": {}, "urn:ietf:params:jmap:filenode": {} },
+  capabilities: { "urn:ietf:params:jmap:core": { maxSizeUpload: 50000000, maxConcurrentUpload: 4, maxSizeRequest: 10000000, maxConcurrentRequests: 4, maxCallsInRequest: 16, maxObjectsInGet: 500, maxObjectsInSet: 500, collationAlgorithms: ["i;ascii-casemap"] }, "urn:ietf:params:jmap:mail": {}, "urn:ietf:params:jmap:submission": {}, "urn:ietf:params:jmap:vacationresponse": {}, "urn:ietf:params:jmap:sieve": { implementation: "mock" }, "urn:ietf:params:jmap:calendars": {}, "urn:ietf:params:jmap:calendars:parse": {}, "urn:ietf:params:jmap:contacts": {}, "urn:ietf:params:jmap:contacts:parse": {}, "urn:ietf:params:jmap:principals": {}, "urn:ietf:params:jmap:principals:availability": {}, "urn:ietf:params:jmap:quota": {}, "urn:ietf:params:jmap:blob": {}, "urn:ietf:params:jmap:filenode": {}, "urn:stalwart:jmap": {} },
   accounts: { [ACCOUNT]: { name: USER, isPersonal: true, isReadOnly: false, accountCapabilities: { "urn:ietf:params:jmap:mail": {}, "urn:ietf:params:jmap:submission": {}, "urn:ietf:params:jmap:vacationresponse": {}, "urn:ietf:params:jmap:sieve": {}, "urn:ietf:params:jmap:calendars": {}, "urn:ietf:params:jmap:contacts": {}, "urn:ietf:params:jmap:principals": {}, "urn:ietf:params:jmap:quota": {}, "urn:ietf:params:jmap:filenode": {} } } },
-  primaryAccounts: Object.fromEntries(["mail", "submission", "vacationresponse", "sieve", "calendars", "contacts", "principals", "quota", "filenode", "blob"].map((c) => [`urn:ietf:params:jmap:${c}`, ACCOUNT])),
+  primaryAccounts: { ...Object.fromEntries(["mail", "submission", "vacationresponse", "sieve", "calendars", "contacts", "principals", "quota", "filenode", "blob"].map((c) => [`urn:ietf:params:jmap:${c}`, ACCOUNT])), "urn:stalwart:jmap": ACCOUNT },
   username: USER,
   apiUrl: `http://127.0.0.1:${PORT}/jmap/`,
   downloadUrl: `http://127.0.0.1:${PORT}/jmap/download/{accountId}/{blobId}/{name}?accept={type}`,

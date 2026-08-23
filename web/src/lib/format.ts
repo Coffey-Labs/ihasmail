@@ -1,4 +1,12 @@
-const rtf = typeof Intl !== "undefined" && "RelativeTimeFormat" in Intl ? new Intl.RelativeTimeFormat(undefined, { numeric: "auto" }) : null;
+import {
+  formatClock,
+  formatDate,
+  formatDayMonth,
+  formatFullDateTime,
+  formatMonthYear as fmtMonthYear,
+  formatWeekday,
+  relativeFormat,
+} from "./datetime";
 
 export function formatSize(bytes: number | null | undefined): string {
   if (bytes == null || !Number.isFinite(bytes)) return "";
@@ -22,24 +30,17 @@ export function formatListDate(iso: string | null | undefined, now = new Date())
   if (!iso) return "";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  if (isSameDay(d, now)) return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-  if (d.getFullYear() === now.getFullYear()) return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-  return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  if (isSameDay(d, now)) return formatClock(d);
+  if (d.getFullYear() === now.getFullYear()) return formatDayMonth(d);
+  return formatDate(d);
 }
 
-/** Full date for message headers, e.g. "Sat, Aug 22, 2026, 3:14 PM" */
+/** Full date for message headers, e.g. "Sat, Aug 22, 2026, 3:14 PM" or "Sa., 22.08.2026 15:14" */
 export function formatFullDate(iso: string | null | undefined): string {
   if (!iso) return "";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString(undefined, {
-    weekday: "short",
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return formatFullDateTime(d);
 }
 
 export function formatRelative(iso: string | null | undefined, now = new Date()): string {
@@ -47,6 +48,7 @@ export function formatRelative(iso: string | null | undefined, now = new Date())
   const d = new Date(iso);
   const diff = (d.getTime() - now.getTime()) / 1000;
   const abs = Math.abs(diff);
+  const rtf = relativeFormat();
   if (!rtf) return formatListDate(iso, now);
   if (abs < 60) return rtf.format(Math.round(diff), "second");
   if (abs < 3600) return rtf.format(Math.round(diff / 60), "minute");
@@ -56,15 +58,15 @@ export function formatRelative(iso: string | null | undefined, now = new Date())
 }
 
 export function formatDateShort(d: Date): string {
-  return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+  return `${formatWeekday(d)}, ${formatDayMonth(d)}`;
 }
 
 export function formatTime(d: Date): string {
-  return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return formatClock(d);
 }
 
 export function formatMonthYear(d: Date): string {
-  return d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  return fmtMonthYear(d);
 }
 
 export function plural(n: number, one: string, many = `${one}s`): string {

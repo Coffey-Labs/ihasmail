@@ -10,6 +10,7 @@ import { ColorSwatches, Switch } from "@/ui/misc";
 import { toast } from "@/ui/toast";
 import { RecipientInput } from "../compose/RecipientInput";
 import { browserTimeZone, dateToZonedLocal, formatDuration, fromInputDateTime, listTimeZones, parseDuration, toInputDateTime, toLocalDateOnly, zonedToDate, DAY_MS, humanDuration } from "@/lib/dates";
+import { formatClock, formatNumericDate, formatWeekday } from "@/lib/datetime";
 import { WEEKDAYS, describeRule, presetFor, ruleFromPreset, type RecurrencePreset } from "@/lib/recurrence";
 import { newKey } from "@/lib/contacts";
 
@@ -228,7 +229,7 @@ function EventForm({ init, base, editing, onClose, settingsTz, defaultAlert, myE
           <select className="select" style={{ width: "auto", height: 32 }} value={preset} onChange={(e) => { const p = e.target.value as RecurrencePreset; setPreset(p); if (p === "custom") setRule(rule ?? { "@type": "RecurrenceRule", frequency: "weekly", byDay: [{ "@type": "NDay", day: WEEKDAYS[(start.getDay() + 6) % 7]!.key }] }); else setRule(ruleFromPreset(p, start)); }}>
             <option value="none">Does not repeat</option>
             <option value="daily">Daily</option>
-            <option value="weekly">Weekly on {start.toLocaleDateString(undefined, { weekday: "long" })}</option>
+            <option value="weekly">Weekly on {formatWeekday(start, "long")}</option>
             <option value="weekdays">Every weekday</option>
             <option value="monthly">Monthly on day {start.getDate()}</option>
             <option value="yearly">Yearly</option>
@@ -282,7 +283,7 @@ function EventForm({ init, base, editing, onClose, settingsTz, defaultAlert, myE
               <Switch checked={sendInvites} onChange={setSendInvites} label="Send invitation emails to guests" />
               {Object.keys(fb).length > 0 && (
                 <div className="freebusy">
-                  <div className="hint">Availability on {start.toLocaleDateString()}</div>
+                  <div className="hint">Availability on {formatNumericDate(start)}</div>
                   {attendees.filter((a) => fb[a.email]).map((a) => (
                     <div key={a.email} className="fb-row">
                       <span className="truncate" style={{ width: 140 }}>{a.name ?? a.email}</span>
@@ -291,7 +292,7 @@ function EventForm({ init, base, editing, onClose, settingsTz, defaultAlert, myE
                           const bs = Math.max(new Date(b.utcStart).getTime(), dayWindow.ds.getTime());
                           const be = Math.min(new Date(b.utcEnd).getTime(), dayWindow.de.getTime());
                           if (be <= bs) return null;
-                          return <span key={i} className="fb-busy" style={{ left: `${((bs - dayWindow.ds.getTime()) / DAY_MS) * 100}%`, width: `${((be - bs) / DAY_MS) * 100}%` }} title={`${b.busyStatus}: ${new Date(b.utcStart).toLocaleTimeString()} – ${new Date(b.utcEnd).toLocaleTimeString()}`} />;
+                          return <span key={i} className="fb-busy" style={{ left: `${((bs - dayWindow.ds.getTime()) / DAY_MS) * 100}%`, width: `${((be - bs) / DAY_MS) * 100}%` }} title={`${b.busyStatus}: ${formatClock(new Date(b.utcStart))} – ${formatClock(new Date(b.utcEnd))}`} />;
                         })}
                         {!allDay && <span className="fb-window" style={{ left: `${((start.getTime() - dayWindow.ds.getTime()) / DAY_MS) * 100}%`, width: `${((end.getTime() - start.getTime()) / DAY_MS) * 100}%` }} />}
                       </div>
