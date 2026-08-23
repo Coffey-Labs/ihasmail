@@ -4,6 +4,7 @@ import type { ContactCard, JSContactAddress, JSContactEmail, JSContactPhone } fr
 import { useContacts } from "@/store/contacts";
 import { buildName, contactDisplayName, nameParts, newKey } from "@/lib/contacts";
 import { Dialog } from "@/ui/dialog";
+import { DateField } from "@/ui/datefield";
 import { toast } from "@/ui/toast";
 import { client } from "@/jmap/client";
 
@@ -270,7 +271,7 @@ export function ContactEditor({ card, defaultBookId, onClose, onSaved }: Props) 
           </div>
         </div>
         <div className="field-row">
-          <div className="field"><label>Birthday</label><input className="input" type="date" value={birthday} onChange={(e) => setBirthday(e.target.value)} /></div>
+          <div className="field"><label>Birthday</label><DateField aria-label="Birthday" value={birthday} onChange={setBirthday} /></div>
           <div className="field"><label>Website</label><input className="input" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://" /></div>
         </div>
         <div className="field"><label>Notes</label><textarea className="textarea" value={note} onChange={(e) => setNote(e.target.value)} /></div>
