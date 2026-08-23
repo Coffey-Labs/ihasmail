@@ -2,6 +2,28 @@ import { useSettings } from "@/store/settings";
 import { Switch } from "@/ui/misc";
 import { browserTimeZone, listTimeZones } from "@/lib/dates";
 import { toast } from "@/ui/toast";
+import {
+  browserLocale,
+  formatClock,
+  formatDate,
+  formatFullDateTime,
+  getServerLocale,
+  localeLabel,
+  localeOptions,
+  withPrefs,
+  type DateFormat,
+} from "@/lib/datetime";
+
+/** Illustrative instant used for the format previews: 22 Nov 2025, 18:23. */
+const SAMPLE = new Date(2025, 10, 22, 18, 23);
+
+const DATE_FORMATS: Array<{ value: DateFormat; label: string }> = [
+  { value: "auto", label: "Automatic" },
+  { value: "dmy-dot", label: "Day.Month.Year" },
+  { value: "dmy-slash", label: "Day/Month/Year" },
+  { value: "mdy-slash", label: "Month/Day/Year" },
+  { value: "ymd-dash", label: "Year-Month-Day (ISO 8601)" },
+];
 
 export function GeneralSettings() {
   const s = useSettings((st) => st.settings);
@@ -9,6 +31,8 @@ export function GeneralSettings() {
   const reset = useSettings((st) => st.reset);
   const exportJson = useSettings((st) => st.exportJson);
   const importJson = useSettings((st) => st.importJson);
+  const serverLocale = getServerLocale();
+  const autoLocale = serverLocale ?? browserLocale();
 
   return (
     <div>
@@ -100,6 +124,35 @@ export function GeneralSettings() {
           </select>
         </div>
       </div>
+      <div className="field-row">
+        <div className="field">
+          <label>Language &amp; region</label>
+          <select className="select" value={s.locale} onChange={(e) => update({ locale: e.target.value })}>
+            <option value="">Automatic ({localeLabel(autoLocale)})</option>
+            {localeOptions().map((o) => <option key={o.tag} value={o.tag}>{o.label} — {o.tag}</option>)}
+          </select>
+          <p className="hint">{serverLocale ? `Your mail server reports ${localeLabel(serverLocale)} (${serverLocale}).` : "Your mail server does not report a locale, so the browser's is used."} Dates, times and month names follow this choice.</p>
+        </div>
+        <div className="field">
+          <label>Date format</label>
+          <select className="select" value={s.dateFormat} onChange={(e) => update({ dateFormat: e.target.value as DateFormat })}>
+            {DATE_FORMATS.map((f) => (
+              <option key={f.value} value={f.value}>
+                {f.label} ({withPrefs({ locale: s.locale, dateFormat: f.value }, () => formatDate(SAMPLE))})
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label>Time format</label>
+          <select className="select" value={s.timeFormat} onChange={(e) => update({ timeFormat: e.target.value as typeof s.timeFormat })}>
+            <option value="auto">Automatic ({withPrefs({ locale: s.locale, timeFormat: "auto" }, () => formatClock(SAMPLE))})</option>
+            <option value="24">24-hour clock (18:23)</option>
+            <option value="12">12-hour clock (6:23 PM)</option>
+          </select>
+        </div>
+      </div>
+      <p className="hint">Preview: {formatFullDateTime(SAMPLE)}</p>
 
       <h2>Backup</h2>
       <div className="row wrap">
@@ -113,3 +166,4 @@ export function GeneralSettings() {
     </div>
   );
 }
+

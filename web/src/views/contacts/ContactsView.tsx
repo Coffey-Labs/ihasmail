@@ -5,6 +5,7 @@ import { useContacts } from "@/store/contacts";
 import { useCompose } from "@/store/compose";
 import type { AddressBook, ContactCard } from "@/jmap/types";
 import { contactDisplayName, contactEmails, contactPhoto, formatAddressLines, sortKey, toVCard } from "@/lib/contacts";
+import { formatDate, formatDateLong } from "@/lib/datetime";
 import { Avatar, Empty, Spinner, useIsNarrow } from "@/ui/misc";
 import { MenuItem, MenuSep, Popover, useMenu } from "@/ui/popover";
 import { confirmDialog, promptDialog } from "@/ui/dialog";
@@ -237,14 +238,14 @@ function ContactDetail({ card: c, onBack, onEdit, narrow, onEmail }: { card: Con
         </div>
       )}
       {c.keywords && Object.keys(c.keywords).length > 0 && <div className="row wrap gap-4 mt-8">{Object.keys(c.keywords).map((k) => <span key={k} className="chip"><Pin size={12} /> {k}</span>)}</div>}
-      {c.updated && <p className="hint mt-16"><CalIcon size={12} /> Updated {new Date(c.updated).toLocaleDateString()}</p>}
+      {c.updated && <p className="hint mt-16"><CalIcon size={12} /> Updated {formatDate(new Date(c.updated))}</p>}
     </div>
   );
 }
 
 function fmtPartial(d: { year?: number; month?: number; day?: number; utc?: string }): string {
-  if (d.utc) return new Date(d.utc).toLocaleDateString();
-  if (d.year && d.month && d.day) return new Date(d.year, d.month - 1, d.day).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
-  if (d.month && d.day) return new Date(2000, d.month - 1, d.day).toLocaleDateString(undefined, { month: "long", day: "numeric" });
+  if (d.utc) return formatDate(new Date(d.utc));
+  if (d.year && d.month && d.day) return formatDateLong(new Date(d.year, d.month - 1, d.day));
+  if (d.month && d.day) return formatDateLong(new Date(2000, d.month - 1, d.day), false);
   return [d.year, d.month, d.day].filter(Boolean).join("-");
 }

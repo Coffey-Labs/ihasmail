@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import type { CalendarEvent } from "@/jmap/types";
 import { useCalendar, type EventInstance } from "@/store/calendar";
 import { useSettings } from "@/store/settings";
+import { formatDayMonth } from "@/lib/datetime";
 import { MenuItem, MenuSep, MenuTitle, Popover, type Anchor } from "@/ui/popover";
 import { CALENDAR_COLORS } from "@/ui/misc";
 import { confirmDialog } from "@/ui/dialog";
@@ -48,7 +49,7 @@ export function CalendarContextMenu({ ctx, onClose, onOpen, onEdit, onCreate }: 
     const { start, end, allDay } = ctx;
     return (
       <Popover anchor={ctx.anchor} onClose={onClose} width={240}>
-        <MenuItem icon={<Plus size={16} />} label={allDay ? `New all-day event on ${start.toLocaleDateString(undefined, { month: "short", day: "numeric" })}` : `New event at ${formatTime(start)}`} onClick={() => onCreate(start, end, allDay)} />
+        <MenuItem icon={<Plus size={16} />} label={allDay ? `New all-day event on ${formatDayMonth(start)}` : `New event at ${formatTime(start)}`} onClick={() => onCreate(start, end, allDay)} />
         {!allDay && <MenuItem icon={<CalendarDays size={16} />} label="New all-day event" onClick={() => { const d = new Date(start); d.setHours(0, 0, 0, 0); onCreate(d, new Date(d.getTime() + 86400000), true); }} />}
         <MenuSep />
         <MenuItem icon={<CalIcon size={16} />} label="Go to day" onClick={() => navigate(`/calendar/day/${toLocalDateOnly(start)}`)} />

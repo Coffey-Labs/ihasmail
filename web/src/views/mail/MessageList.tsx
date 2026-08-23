@@ -3,7 +3,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { Archive, ArrowLeft, CheckSquare, FolderInput, PanelRight, PanelBottom, PanelTop, Filter, Inbox, Mail, MailOpen, MoreVertical, Paperclip, RefreshCw, Reply, Search, Star, Tag, Trash2, AlertOctagon, Forward, Eraser, ShieldCheck } from "lucide-react";
 import { useLocation } from "wouter";
 import { useMail, type ListState } from "@/store/mail";
-import { useSettings } from "@/store/settings";
+import { dateTimeKey, useSettings } from "@/store/settings";
 import type { Email, Id } from "@/jmap/types";
 import { formatListDate } from "@/lib/format";
 import { displayName, shortName } from "@/lib/address";
@@ -327,6 +327,8 @@ interface RowProps {
 
 const Row = memo(function Row({ email: e, threadEmails, top, height, selected, focused, open, twoLine, showAvatar, showPreview, isDrafts, isSent, mailboxId, selectedIds, onClick, onContext, onSelect, onStar, onArchive, onTrash, onRead }: RowProps) {
   const labels = useSettings((s) => s.settings.labels);
+  // Subscribed purely so the row re-renders when the date format changes.
+  useSettings((s) => dateTimeKey(s.settings));
   const inScope = threadEmails ? threadEmails.filter((x) => (mailboxId ? x.mailboxIds[mailboxId] : true)) : [e];
   const scope = inScope.length ? inScope : [e];
   const unread = scope.some((x) => !x.keywords.$seen);
