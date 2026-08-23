@@ -139,4 +139,9 @@ Verified against the mock server and, for the core mail flows, against a live St
 
 ## License
 
-GPL-3.0-or-later. See [LICENSE](LICENSE).
+Copyright (C) 2025 John Coffey
+
+ihasmail is free software: you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version. See [LICENSE](LICENSE) for the full text.
