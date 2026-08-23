@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { CAP, client } from "@/jmap/client";
+import { CAP, client, setErrorMessage } from "@/jmap/client";
 import type { BusyPeriod, Calendar, CalendarEvent, GetResponse, Id, ParticipantIdentity, QueryResponse, SetResponse } from "@/jmap/types";
 import { toUTCDate, toLocalDateTime, zonedToDate, parseDuration, DAY_MS, browserTimeZone } from "@/lib/dates";
 import { settings } from "./settings";
@@ -168,7 +168,7 @@ export const useCalendar = create<CalendarState>((set, get) => ({
     const obj = { "@type": "Event", uid: crypto.randomUUID(), ...event, calendarIds: { [calendarId]: true } };
     const res = await client.call<SetResponse<CalendarEvent>>("CalendarEvent/set", { accountId, create: { e: obj }, sendSchedulingMessages: sendInvites });
     const err = res.notCreated?.e;
-    if (err) throw new Error(err.description ?? err.type);
+    if (err) throw new Error(setErrorMessage(err));
     get().invalidate();
     return res.created!.e!.id;
   },
@@ -177,7 +177,7 @@ export const useCalendar = create<CalendarState>((set, get) => ({
     const accountId = get().accountId!;
     const res = await client.call<SetResponse>("CalendarEvent/set", { accountId, update: { [id]: patch }, sendSchedulingMessages: sendInvites });
     const err = res.notUpdated?.[id];
-    if (err) throw new Error(err.description ?? err.type);
+    if (err) throw new Error(setErrorMessage(err));
     get().invalidate();
   },
 
@@ -185,7 +185,7 @@ export const useCalendar = create<CalendarState>((set, get) => ({
     const accountId = get().accountId!;
     const res = await client.call<SetResponse>("CalendarEvent/set", { accountId, destroy: [id], sendSchedulingMessages: sendInvites });
     const err = res.notDestroyed?.[id];
-    if (err) throw new Error(err.description ?? err.type);
+    if (err) throw new Error(setErrorMessage(err));
     set((s) => {
       const events = { ...s.events };
       delete events[id];
@@ -212,7 +212,7 @@ export const useCalendar = create<CalendarState>((set, get) => ({
     const accountId = get().accountId!;
     const res = await client.call<SetResponse<Calendar>>("Calendar/set", { accountId, create: { c: { name: "Calendar", ...data } } });
     const err = res.notCreated?.c;
-    if (err) throw new Error(err.description ?? err.type);
+    if (err) throw new Error(setErrorMessage(err));
     await get().loadCalendars();
     return res.created!.c!.id;
   },
@@ -221,7 +221,7 @@ export const useCalendar = create<CalendarState>((set, get) => ({
     const accountId = get().accountId!;
     const res = await client.call<SetResponse>("Calendar/set", { accountId, update: { [id]: patch } });
     const err = res.notUpdated?.[id];
-    if (err) throw new Error(err.description ?? err.type);
+    if (err) throw new Error(setErrorMessage(err));
     await get().loadCalendars();
   },
 
@@ -229,7 +229,7 @@ export const useCalendar = create<CalendarState>((set, get) => ({
     const accountId = get().accountId!;
     const res = await client.call<SetResponse>("Calendar/set", { accountId, destroy: [id], onDestroyRemoveEvents: true });
     const err = res.notDestroyed?.[id];
-    if (err) throw new Error(err.description ?? err.type);
+    if (err) throw new Error(setErrorMessage(err));
     await get().loadCalendars();
     get().invalidate();
   },

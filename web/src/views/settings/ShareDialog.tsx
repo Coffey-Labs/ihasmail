@@ -4,7 +4,7 @@ import { Dialog } from "@/ui/dialog";
 import { useContacts } from "@/store/contacts";
 import { useMail } from "@/store/mail";
 import { useCalendar } from "@/store/calendar";
-import { client } from "@/jmap/client";
+import { client, setErrorMessage } from "@/jmap/client";
 import { toast } from "@/ui/toast";
 import type { Id, Principal } from "@/jmap/types";
 
@@ -70,7 +70,7 @@ export function ShareDialog({ kind, id, name, shareWith, onClose }: { kind: Kind
       const accountId = kind === "Mailbox" ? useMail.getState().accountId : kind === "Calendar" ? useCalendar.getState().accountId : useContacts.getState().accountId;
       const res = await client.call<{ notUpdated?: Record<string, { type: string; description?: string }> }>(`${kind}/set`, { accountId, update: { [id]: { shareWith: Object.keys(rights).length ? rights : null } } });
       const err = res.notUpdated?.[id];
-      if (err) throw new Error(err.description ?? err.type);
+      if (err) throw new Error(setErrorMessage(err));
       toast.success("Sharing updated");
       if (kind === "Mailbox") void useMail.getState().loadMailboxes();
       if (kind === "Calendar") void useCalendar.getState().loadCalendars();
