@@ -297,6 +297,198 @@ export function formatFullDateTime(d: Date): string {
 }
 
 /* ------------------------------------------------------------------ */
+/* Editable fields                                                     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Text fields are a different problem from display: whatever we print has to
+ * parse back unambiguously. So the pickers keep the locale's *order and
+ * separator* but always use the Gregorian calendar and Latin digits — a
+ * Buddhist-era year or Arabic-Indic digits in an editable box round-trip badly
+ * and fight the keyboard. Parsing is lenient in return: any separator, any
+ * digit system, 2- or 4-digit years, and bare ISO is always accepted.
+ */
+export interface DatePattern {
+  /** Field order, e.g. ["d", "m", "y"]. */
+  order: Array<"d" | "m" | "y">;
+  separator: string;
+}
+
+const AUTO_PATTERNS = new Map<string, DatePattern>();
+
+function localePattern(): DatePattern {
+  const loc = resolvedLocale() ?? "";
+  const hit = AUTO_PATTERNS.get(loc);
+  if (hit) return hit;
+  let pattern: DatePattern = { order: ["m", "d", "y"], separator: "/" };
+  try {
+    const parts = new Intl.DateTimeFormat(loc || undefined, {
+      calendar: "gregory",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(new Date(2025, 10, 22));
+    const order = parts
+      .filter((p) => p.type === "day" || p.type === "month" || p.type === "year")
+      .map((p) => (p.type === "day" ? "d" : p.type === "month" ? "m" : "y") as "d" | "m" | "y");
+    const literal = parts.find((p) => p.type === "literal")?.value.trim();
+    if (order.length === 3) pattern = { order, separator: literal || "/" };
+  } catch {
+    /* keep the default */
+  }
+  AUTO_PATTERNS.set(loc, pattern);
+  return pattern;
+}
+
+/** How an editable date is laid out under the current preferences. */
+export function dateInputPattern(): DatePattern {
+  switch (prefs.dateFormat) {
+    case "dmy-dot":
+      return { order: ["d", "m", "y"], separator: "." };
+    case "dmy-slash":
+      return { order: ["d", "m", "y"], separator: "/" };
+    case "mdy-slash":
+      return { order: ["m", "d", "y"], separator: "/" };
+    case "ymd-dash":
+      return { order: ["y", "m", "d"], separator: "-" };
+    default:
+      return localePattern();
+  }
+}
+
+/** "dd.mm.yyyy" — the shape to show as a placeholder. */
+export function dateInputPlaceholder(): string {
+  const { order, separator } = dateInputPattern();
+  return order.map((f) => (f === "y" ? "yyyy" : f === "m" ? "mm" : "dd")).join(separator);
+}
+
+/** A date in the editable form: always Gregorian, always Latin digits. */
+export function formatDateInput(d: Date): string {
+  if (Number.isNaN(d.getTime())) return "";
+  const { order, separator } = dateInputPattern();
+  const parts: Record<"d" | "m" | "y", string> = {
+    d: String(d.getDate()).padStart(2, "0"),
+    m: String(d.getMonth() + 1).padStart(2, "0"),
+    y: String(d.getFullYear()).padStart(4, "0"),
+  };
+  return order.map((f) => parts[f]).join(separator);
+}
+
+/** Map Arabic-Indic, Persian, Devanagari … digits onto ASCII. */
+function latinDigits(text: string): string {
+  return text.replace(/[^\x00-\x7F]/g, (ch) => {
+    const code = ch.codePointAt(0)!;
+    for (const zero of [0x0660, 0x06f0, 0x0966, 0x09e6, 0x0a66, 0x0ae6, 0x0b66, 0x0be6, 0x0c66, 0x0ce6, 0x0d66, 0x0e50, 0x0ed0, 0x0f20, 0x1040, 0x17e0]) {
+      if (code >= zero && code <= zero + 9) return String(code - zero);
+    }
+    return ch;
+  });
+}
+
+/** Two-digit years land in the current century's ±50-year window. */
+function expandYear(y: number): number {
+  if (y >= 100) return y;
+  const pivot = new Date().getFullYear();
+  const century = Math.floor(pivot / 100) * 100;
+  const guess = century + y;
+  return guess - pivot > 50 ? guess - 100 : guess;
+}
+
+/**
+ * Read a typed date. Accepts the configured order with any separator, bare
+ * ISO (`2025-11-22`), and unseparated digits (`22112025`, `221125`).
+ */
+export function parseDateInput(text: string): Date | null {
+  const raw = latinDigits(text).trim();
+  if (!raw) return null;
+  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(raw);
+  if (iso) return validDate(+iso[1]!, +iso[2]!, +iso[3]!);
+
+  const { order } = dateInputPattern();
+  const groups = raw.split(/[^\d]+/).filter(Boolean);
+  let nums: number[];
+  if (groups.length === 3) {
+    nums = groups.map(Number);
+  } else if (groups.length === 1 && (groups[0]!.length === 6 || groups[0]!.length === 8)) {
+    const digits = groups[0]!;
+    const yLen = digits.length === 8 ? 4 : 2;
+    const widths = order.map((f) => (f === "y" ? yLen : 2));
+    let at = 0;
+    nums = widths.map((w) => Number(digits.slice(at, (at += w))));
+  } else if (groups.length === 2) {
+    // Day and month only — assume the current year.
+    const withYear = [...order];
+    const yAt = withYear.indexOf("y");
+    const vals = [...groups.map(Number)];
+    vals.splice(yAt, 0, new Date().getFullYear());
+    nums = vals;
+  } else {
+    return null;
+  }
+  if (nums.some((n) => !Number.isFinite(n))) return null;
+  const pick = (f: "d" | "m" | "y") => nums[order.indexOf(f)]!;
+  return validDate(expandYear(pick("y")), pick("m"), pick("d"));
+}
+
+function validDate(year: number, month: number, day: number): Date | null {
+  if (month < 1 || month > 12 || day < 1 || day > 31 || year < 1 || year > 9999) return null;
+  const d = new Date(year, month - 1, day);
+  // Rejects overflow like 31 February, which Date would roll into March.
+  if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) return null;
+  return d;
+}
+
+/** A time in the editable form: "18:23" or "6:23 PM". */
+export function formatTimeInput(d: Date): string {
+  if (Number.isNaN(d.getTime())) return "";
+  const h = d.getHours();
+  const m = String(d.getMinutes()).padStart(2, "0");
+  if (uses24Hour()) return `${String(h).padStart(2, "0")}:${m}`;
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${m} ${h < 12 ? "AM" : "PM"}`;
+}
+
+export function timeInputPlaceholder(): string {
+  return uses24Hour() ? "hh:mm" : "h:mm AM";
+}
+
+/**
+ * Read a typed time. Accepts "18:23", "1823", "18", "6:23 pm", "6pm",
+ * "6.23" and, in 12-hour mode, a bare "6" (morning) — anything unambiguous.
+ */
+export function parseTimeInput(text: string): { hours: number; minutes: number } | null {
+  const raw = latinDigits(text).trim().toLowerCase();
+  if (!raw) return null;
+  const suffix = /(a\.?m\.?|p\.?m\.?)\s*$/.exec(raw);
+  const meridiem = suffix ? (suffix[1]!.startsWith("a") ? "am" : "pm") : null;
+  const body = (suffix ? raw.slice(0, suffix.index) : raw).trim();
+  const digits = body.split(/[^\d]+/).filter(Boolean);
+  let h: number;
+  let m = 0;
+  if (digits.length === 2) {
+    h = Number(digits[0]);
+    m = Number(digits[1]);
+  } else if (digits.length === 1) {
+    const only = digits[0]!;
+    if (only.length <= 2) h = Number(only);
+    else if (only.length === 3) {
+      h = Number(only.slice(0, 1));
+      m = Number(only.slice(1));
+    } else if (only.length === 4) {
+      h = Number(only.slice(0, 2));
+      m = Number(only.slice(2));
+    } else return null;
+  } else return null;
+  if (!Number.isFinite(h) || !Number.isFinite(m) || m > 59) return null;
+  if (meridiem) {
+    if (h < 1 || h > 12) return null;
+    h = (h % 12) + (meridiem === "pm" ? 12 : 0);
+  }
+  if (h > 23) return null;
+  return { hours: h, minutes: m };
+}
+
+/* ------------------------------------------------------------------ */
 /* Relative times                                                      */
 /* ------------------------------------------------------------------ */
 
