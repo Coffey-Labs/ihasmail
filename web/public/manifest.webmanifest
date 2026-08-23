@@ -4,18 +4,47 @@
   "description": "Fast, friendly JMAP webmail for Stalwart",
   "start_url": "/mail",
   "scope": "/",
+  "protocol_handlers": [
+    {
+      "protocol": "mailto",
+      "url": "/mail?mailto=%s"
+    }
+  ],
   "display": "standalone",
   "orientation": "any",
   "background_color": "#ffffff",
   "theme_color": "#0f766e",
   "icons": [
-    { "src": "/img/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/img/icon-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "/img/icon-maskable.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "/img/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/img/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/img/icon-maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ],
   "shortcuts": [
-    { "name": "Compose", "url": "/mail?compose=new", "description": "Write a new message" },
-    { "name": "Calendar", "url": "/calendar" },
-    { "name": "Contacts", "url": "/contacts" }
+    {
+      "name": "Compose",
+      "url": "/mail?compose=new",
+      "description": "Write a new message"
+    },
+    {
+      "name": "Calendar",
+      "url": "/calendar"
+    },
+    {
+      "name": "Contacts",
+      "url": "/contacts"
+    }
   ]
 }

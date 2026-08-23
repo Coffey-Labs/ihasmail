@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { client } from "@/jmap/client";
 import type { Email, EmailAddress, EmailBodyPart, Id, Identity, SetResponse } from "@/jmap/types";
 import { formatFullDate, uid } from "@/lib/format";
-import { formatAddress, sameAddress, uniqueAddresses } from "@/lib/address";
+import { formatAddress, parseMailto, sameAddress, uniqueAddresses } from "@/lib/address";
 import { escapeHtml, htmlToText, quoteText, replySubject, textToHtml } from "@/lib/text";
 import { sanitizeEmailHtml, sanitizeEditorHtml } from "@/lib/html";
 import { toast } from "@/ui/toast";
@@ -676,3 +676,18 @@ async function sendInternal(d: Draft, _get: () => ComposeState): Promise<void> {
 }
 
 export { FULL_PROPS, BODY_PROPS };
+
+/** Composer fields for a `mailto:` URL, including cc/bcc and a quoted body. */
+export function draftFromMailto(url: string): Partial<Draft> {
+  const m = parseMailto(url);
+  const body = m.body ? `<div>${escapeHtml(m.body).replace(/\n/g, "<br>")}</div>` : "";
+  return {
+    to: m.to,
+    cc: m.cc,
+    bcc: m.bcc,
+    showCc: m.cc.length > 0,
+    showBcc: m.bcc.length > 0,
+    subject: m.subject,
+    ...(body ? { html: body, text: m.body } : {}),
+  };
+}

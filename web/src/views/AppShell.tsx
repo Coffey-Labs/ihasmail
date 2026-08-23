@@ -4,7 +4,7 @@ import { Calendar, ChevronsUpDown, FolderOpen, HelpCircle, Mail, Menu as MenuIco
 import { useSession } from "@/store/session";
 import { useSettings } from "@/store/settings";
 import { useMail } from "@/store/mail";
-import { useCompose } from "@/store/compose";
+import { draftFromMailto, useCompose } from "@/store/compose";
 import { Avatar, useIsMobile } from "@/ui/misc";
 import { MenuItem, MenuSep, MenuTitle, Popover, useMenu } from "@/ui/popover";
 import { SearchBar } from "./SearchBar";
@@ -42,9 +42,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
     const mailto = params.get("mailto");
     if (mailto) {
-      const [addr, qs] = mailto.replace(/^mailto:/, "").split("?");
-      const q = new URLSearchParams(qs ?? "");
-      openCompose({ to: addr ? addr.split(",").map((e) => ({ name: null, email: e.trim() })) : [], subject: q.get("subject") ?? "", html: q.get("body") ? `<div>${q.get("body")}</div>` : "" });
+      openCompose(draftFromMailto(mailto));
       navigate("/mail", { replace: true });
     }
   }, [openCompose, navigate]);
