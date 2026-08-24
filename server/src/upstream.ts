@@ -85,6 +85,8 @@ export interface AccountInfo {
 const infoCache = new Map<string, { info: AccountInfo; fetchedAt: number }>();
 const INFO_CACHE_MS = 30 * 60_000;
 const EMPTY_INFO: AccountInfo = { locale: null, generation: null, edition: null };
+/** A server that has never heard of the registry: nothing to read, but dated. */
+const PRE_REGISTRY_INFO: AccountInfo = { locale: null, generation: "pre-0.16", edition: null };
 
 /**
  * glibc modifiers that name a script rather than a dialect or a currency:
@@ -138,7 +140,12 @@ export function normalizeLocale(raw: unknown): string | null {
  * tells us which generation we are talking to.
  */
 async function fetchAccountInfo(authorization: string, session: UpstreamSession): Promise<AccountInfo> {
-  if (!session.capabilities || !(STALWART_CAP in session.capabilities)) return EMPTY_INFO;
+  // Every 0.16 build advertises urn:stalwart:jmap, and no earlier one knows it
+  // at all, so its absence already answers the question — and asking anyway
+  // would fail the whole request, since those servers reject a `using` naming
+  // a capability they cannot parse.
+  if (!session.capabilities) return EMPTY_INFO;
+  if (!(STALWART_CAP in session.capabilities)) return PRE_REGISTRY_INFO;
   const accountId =
     session.primaryAccounts?.[STALWART_CAP] ??
     session.primaryAccounts?.["urn:ietf:params:jmap:mail"] ??
