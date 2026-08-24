@@ -10,7 +10,8 @@
     "start": "node dist/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "tsx --test src/*.test.ts",
-    "mock": "tsx src/mock/index.ts"
+    "mock": "tsx src/mock/index.ts",
+    "mock:legacy": "MOCK_STALWART=0.15 tsx src/mock/index.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.8",
