@@ -471,7 +471,20 @@ img { max-width: 100%; }
 .message-details { margin: 0 16px 8px; padding: 10px 12px; background: var(--bg-sunken); border-radius: var(--radius-sm); font-size: .88em; display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; }
 .message-details dt { color: var(--fg-muted); }
 .message-details dd { margin: 0; overflow-wrap: anywhere; }
-.message-body { padding: 4px 16px 16px; }
+/*
+ * Layout containment here is a security control, not a layout tweak.
+ *
+ * Message bodies render in a shadow root, which scopes selectors but not
+ * layout: a `position:fixed` rule in mail CSS is still positioned against the
+ * viewport, so a sender could paint over the whole application. Containment
+ * inside the shadow root cannot stop it — mail CSS lives in the same tree and
+ * simply overrides it, and `:host` reaches the host element too (an
+ * `!important` there even beats an `!important` from this file, because
+ * importance reverses tree order). An ancestor of the host is the one thing
+ * mail CSS has no selector for. `layout` rather than `paint`: it makes this a
+ * containing block for fixed descendants without clipping tall messages.
+ */
+.message-body { padding: 4px 16px 16px; contain: layout; }
 .message-body .body-host { display: block; }
 .remote-banner { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 12px; padding: 8px 12px; background: var(--warn-soft); color: var(--warn); border-radius: var(--radius-sm); font-size: .9em; }
 .remote-banner button { color: inherit; font-weight: 700; text-decoration: underline; }
