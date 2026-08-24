@@ -100,6 +100,9 @@ npm run dev            # server on :8080 (tsx watch) + Vite dev server on :5173 
 # against the built-in mock Stalwart (demo@example.com / demo) — no real mailbox needed
 npm run dev:mock       # mock on :8788, server on :8080, Vite on :5173
 
+# the same, with the mock impersonating Stalwart 0.15 instead of 0.16
+npm run dev:mock:legacy
+
 npm run typecheck      # tsc for both packages
 npm test               # vitest (web) + node:test (server)
 npm run build          # web/dist + server/dist
@@ -107,6 +110,27 @@ npm start              # serve the production build
 ```
 
 Open http://localhost:5173 in dev (or http://localhost:8080 for the production build).
+
+### The mock, and which Stalwart it pretends to be
+
+`npm run mock` impersonates **0.16** by default; `MOCK_STALWART=0.15` (or
+`npm run mock:legacy`) impersonates the generation before the registry. The
+older mode is not a smaller mock — it reproduces the specific ways that
+generation differs, none of which the server reports as an error:
+
+- `urn:stalwart:jmap` is not a capability it knows, and naming one it cannot
+  parse fails the **whole request**, not the one call that wanted it
+- `x:` methods do not exist, so the registry — credentials, account settings —
+  is unreachable, and self-service credentials live at `POST /api/account/auth`
+- `FileNode/query` masks its results to non-containers, so it returns files and
+  **never folders**, silently; `FileNode/get` has no such mask
+- FileNode has no `nodeType` (a directory is a node with no file properties),
+  and rights are only `mayRead`/`mayWrite`/`mayShare`
+
+Both modes enforce the 2047-**byte** cap on identity signatures. Every one of
+these cost a live debugging session against a real 0.15.5 server, because the
+0.16-shaped mock could not express them; `server/src/account-legacy.test.ts`
+now pins them.
 
 ## Configuration
 
