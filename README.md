@@ -128,7 +128,7 @@ Press `?` anywhere. Highlights: `c` compose · `/` search · `j`/`k` navigate ·
 
 ## Known issues / pending QA
 
-Verified against the mock server and, for the core mail flows, against a live Stalwart 1.0. Still pending live verification:
+Verified against the mock server and, for the core mail flows, against a live Stalwart 0.15.5. Still pending live verification:
 
 - **HTML signatures** — Stalwart caps identity signatures at 2 KB. ihasmail compacts pasted HTML, moves images to Files and, if still too large, keeps the full signature in Files behind a short marker (other clients see a text fallback). The end-to-end flow (save → compose → send with inline logo) is implemented but not yet confirmed on the live server.
 - **Files** — the live server runs an older Stalwart build than `main`; `FileNode/query` there rejects `isTopLevel`/`parentId` filters, so ihasmail falls back to listing all nodes and building the tree client-side. Upload/rename/move/delete still need a live pass.
