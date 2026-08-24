@@ -10,7 +10,7 @@ import { parseAddressList, formatAddressList } from "@/lib/address";
 import { htmlToText } from "@/lib/text";
 import { sanitizeEditorHtml } from "@/lib/html";
 import { externalizeDataImages, storeSignatureHtml, uploadSignatureImage } from "@/lib/signatureImages";
-import { buildMarkerSignature, compactHtml, SIGNATURE_LIMIT } from "@/lib/signatureHtml";
+import { buildMarkerSignature, byteLength, compactHtml, signatureTooLong, SIGNATURE_LIMIT } from "@/lib/signatureHtml";
 
 export function IdentitiesSettings() {
   const identities = useMail((s) => s.identities);
@@ -57,8 +57,9 @@ function IdentityDialog({ identity, onClose }: { identity: Partial<Identity>; on
   const [busy, setBusy] = useState(false);
   const ref = useRef<RichEditorHandle>(null);
   const compact = compactHtml(sanitizeEditorHtml(html));
-  const sigLen = compact.length;
-  const tooLong = sigLen > SIGNATURE_LIMIT || htmlToText(compact).length > SIGNATURE_LIMIT;
+  // The server's limit is on encoded bytes, so that is what to count and show.
+  const sigLen = byteLength(compact);
+  const tooLong = signatureTooLong(compact, htmlToText(compact));
   const save = async () => {
     setBusy(true);
     try {
@@ -67,7 +68,7 @@ function IdentityDialog({ identity, onClose }: { identity: Partial<Identity>; on
       const clean = compactHtml(externalized);
       let htmlSignature = clean;
       let textSignature = htmlToText(clean);
-      if (clean.length > SIGNATURE_LIMIT || textSignature.length > SIGNATURE_LIMIT) {
+      if (signatureTooLong(clean, textSignature)) {
         const blobId = await storeSignatureHtml(clean);
         ({ htmlSignature, textSignature } = buildMarkerSignature(blobId, clean));
       }
@@ -103,7 +104,7 @@ function IdentityDialog({ identity, onClose }: { identity: Partial<Identity>; on
           <span className="hint">Images are stored in your Files (folder “ihasmail”) and embedded when you send.</span>
           <span className="hint nowrap" style={tooLong ? { color: "var(--warn)", fontWeight: 600 } : undefined}>{sigLen.toLocaleString()} / {SIGNATURE_LIMIT.toLocaleString()}</span>
         </div>
-        {tooLong && <div className="warn-box mt-8">This signature is larger than the server's {SIGNATURE_LIMIT}-character limit. ihasmail will keep the full version in your Files and store a short text fallback on the server — other mail clients will see the plain-text version.</div>}
+        {tooLong && <div className="warn-box mt-8">This signature is larger than the server's {SIGNATURE_LIMIT}-byte limit. ihasmail will keep the full version in your Files and store a short text fallback on the server — other mail clients will see the plain-text version.</div>}
       </div>
     </Dialog>
   );
