@@ -254,6 +254,30 @@ class MethodError extends Error {
   }
 }
 
+const MAX_OBJECTS = 500;
+
+/**
+ * Stalwart refuses a whole method call that carries more objects than it will
+ * process at once - it does not quietly handle the first 500. Enforce the same
+ * ceiling the session advertises, so an unbatched client fails here too.
+ */
+function enforceLimits(name: string, args: Obj): void {
+  const tooLarge = () => {
+    throw new MethodError("requestTooLarge", "The number of ids requested by the client exceeds the maximum number the server is willing to process in a single method call.");
+  };
+  if (name.endsWith("/get")) {
+    const ids = args.ids as unknown[] | null | undefined;
+    if (Array.isArray(ids) && ids.length > MAX_OBJECTS) tooLarge();
+  }
+  if (name.endsWith("/set")) {
+    const n =
+      Object.keys((args.create as Obj) ?? {}).length +
+      Object.keys((args.update as Obj) ?? {}).length +
+      ((args.destroy as unknown[] | undefined)?.length ?? 0);
+    if (n > MAX_OBJECTS) tooLarge();
+  }
+}
+
 const setResp = (extra: Obj = {}): Obj => ({ accountId: ACCOUNT, oldState: "1", newState: nextState(), created: {}, updated: {}, destroyed: [], ...extra });
 
 function genericGet(list: Obj[]) {
@@ -520,7 +544,7 @@ function readBody(req: IncomingMessage): Promise<Buffer> {
 }
 
 const session = () => ({
-  capabilities: { "urn:ietf:params:jmap:core": { maxSizeUpload: 50000000, maxConcurrentUpload: 4, maxSizeRequest: 10000000, maxConcurrentRequests: 4, maxCallsInRequest: 16, maxObjectsInGet: 500, maxObjectsInSet: 500, collationAlgorithms: ["i;ascii-casemap"] }, "urn:ietf:params:jmap:mail": {}, "urn:ietf:params:jmap:submission": {}, "urn:ietf:params:jmap:vacationresponse": {}, "urn:ietf:params:jmap:sieve": { implementation: "mock" }, "urn:ietf:params:jmap:calendars": {}, "urn:ietf:params:jmap:calendars:parse": {}, "urn:ietf:params:jmap:contacts": {}, "urn:ietf:params:jmap:contacts:parse": {}, "urn:ietf:params:jmap:principals": {}, "urn:ietf:params:jmap:principals:availability": {}, "urn:ietf:params:jmap:quota": {}, "urn:ietf:params:jmap:blob": {}, "urn:ietf:params:jmap:filenode": {}, ...(LEGACY ? {} : { "urn:stalwart:jmap": {} }) },
+  capabilities: { "urn:ietf:params:jmap:core": { maxSizeUpload: 50000000, maxConcurrentUpload: 4, maxSizeRequest: 10000000, maxConcurrentRequests: 4, maxCallsInRequest: 16, maxObjectsInGet: MAX_OBJECTS, maxObjectsInSet: MAX_OBJECTS, collationAlgorithms: ["i;ascii-casemap"] }, "urn:ietf:params:jmap:mail": {}, "urn:ietf:params:jmap:submission": {}, "urn:ietf:params:jmap:vacationresponse": {}, "urn:ietf:params:jmap:sieve": { implementation: "mock" }, "urn:ietf:params:jmap:calendars": {}, "urn:ietf:params:jmap:calendars:parse": {}, "urn:ietf:params:jmap:contacts": {}, "urn:ietf:params:jmap:contacts:parse": {}, "urn:ietf:params:jmap:principals": {}, "urn:ietf:params:jmap:principals:availability": {}, "urn:ietf:params:jmap:quota": {}, "urn:ietf:params:jmap:blob": {}, "urn:ietf:params:jmap:filenode": {}, ...(LEGACY ? {} : { "urn:stalwart:jmap": {} }) },
   accounts: { [ACCOUNT]: { name: USER, isPersonal: true, isReadOnly: false, accountCapabilities: { "urn:ietf:params:jmap:mail": {}, "urn:ietf:params:jmap:submission": {}, "urn:ietf:params:jmap:vacationresponse": {}, "urn:ietf:params:jmap:sieve": {}, "urn:ietf:params:jmap:calendars": {}, "urn:ietf:params:jmap:contacts": {}, "urn:ietf:params:jmap:principals": {}, "urn:ietf:params:jmap:quota": {}, "urn:ietf:params:jmap:filenode": {} } } },
   primaryAccounts: { ...Object.fromEntries(["mail", "submission", "vacationresponse", "sieve", "calendars", "contacts", "principals", "quota", "filenode", "blob"].map((c) => [`urn:ietf:params:jmap:${c}`, ACCOUNT])), ...(LEGACY ? {} : { "urn:stalwart:jmap": ACCOUNT }) },
   username: USER,
@@ -596,6 +620,7 @@ export const server = createServer(async (req, res) => {
       if (!h || (LEGACY && name.startsWith("x:"))) { responses.push(["error", { type: "unknownMethod" }, id]); continue; }
       try {
         const args = resolveRefs(rawArgs, responses);
+        enforceLimits(name, args);
         const r = h(args);
         responses.push([name, r as Obj, id]);
         if (name.endsWith("/set") || name.endsWith("/import")) touched.add(name.split("/")[0]!);
