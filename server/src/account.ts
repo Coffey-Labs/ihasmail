@@ -371,16 +371,25 @@ async function assertCurrentPassword(ctx: Ctx, current: string, otpCode?: string
   if (!res.ok) throw new UpstreamError(`Could not verify the current password (${res.status})`, 502);
 }
 
-/** A legacy app password a person can read off a screen and type. */
-function readableSecret(): string {
+/**
+ * A legacy app password a person can read off a screen and type.
+ *
+ * Drawn by rejection sampling. Plain `% alphabet.length` would favour the
+ * first 25 characters, because 256 is not a multiple of 33: each of those
+ * would come up on 8 byte values and the remaining 8 on only 7.
+ */
+export function readableSecret(): string {
   const alphabet = "abcdefghijkmnopqrstuvwxyz23456789"; // no l/1/0 lookalikes
-  const bytes = randomBytes(20);
-  let out = "";
-  for (let i = 0; i < 20; i++) {
-    if (i > 0 && i % 5 === 0) out += "-";
-    out += alphabet[bytes[i]! % alphabet.length];
+  const limit = 256 - (256 % alphabet.length);
+  const chars: string[] = [];
+  while (chars.length < 20) {
+    for (const b of randomBytes(32)) {
+      if (b >= limit) continue; // the tail that would skew the alphabet
+      chars.push(alphabet[b % alphabet.length]!);
+      if (chars.length === 20) break;
+    }
   }
-  return out;
+  return (chars.join("").match(/.{5}/g) ?? []).join("-");
 }
 
 export { MASKED };
