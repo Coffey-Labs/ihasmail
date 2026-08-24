@@ -24,6 +24,19 @@ export function supportsNodeType(): boolean {
 
 const BASE_PROPS = ["id", "parentId", "blobId", "size", "name", "type", "created", "modified", "myRights", "role", "executable"];
 
+/**
+ * Whether `FileNode/query` is blind to directories.
+ *
+ * Before 0.16 the query masks its results with `document_ids(false)`, which
+ * keeps only resources that are *not* containers — so it returns files and
+ * never folders, with no error to say so. A folder created there is real, and
+ * simply never comes back in a listing. `FileNode/get` has no such mask, so
+ * asking it for every id is the only way to see the whole tree.
+ */
+export function queryOmitsDirectories(): boolean {
+  return !supportsNodeType();
+}
+
 /** Properties to request, asking for `nodeType` only where it exists. */
 export function fileNodeProps(): string[] {
   return supportsNodeType() ? [...BASE_PROPS, "nodeType"] : BASE_PROPS;
