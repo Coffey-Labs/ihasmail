@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { client } from "@/jmap/client";
-import { directoryCreate, fileCreate, fileNodeProps, supportsNodeType, normalizeFileNodes } from "../filenode";
+import { directoryCreate, fileCreate, fileNodeProps, normalizeFileNodes, queryOmitsDirectories, supportsNodeType } from "../filenode";
 import type { FileNode, JmapSession } from "@/jmap/types";
 
 /**
@@ -115,5 +115,23 @@ describe("rights on a pre-0.16 server", () => {
     const [node] = normalizeFileNodes([{ id: "1", name: "x" }] as Partial<FileNode>[]);
     expect(node!.myRights).toBeUndefined();
     expect(node!.nodeType).toBe("directory");
+  });
+});
+
+/**
+ * Before 0.16, FileNode/query masks its results with `document_ids(false)` —
+ * only resources that are *not* containers. It therefore returns files and
+ * never folders, with no error to explain the omission: a folder created there
+ * exists but never comes back in a listing. FileNode/get carries no such mask.
+ */
+describe("directory-blind query", () => {
+  it("is worked around on older servers", () => {
+    client.session = session(OLD_SERVER);
+    expect(queryOmitsDirectories()).toBe(true);
+  });
+
+  it("is not worked around where query can see folders", () => {
+    client.session = session(NEW_SERVER);
+    expect(queryOmitsDirectories()).toBe(false);
   });
 });
