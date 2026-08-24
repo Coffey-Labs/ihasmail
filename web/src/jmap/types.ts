@@ -32,6 +32,12 @@ export interface JmapSession {
     remember: boolean;
     /** Locale configured for the account in Stalwart, if the server exposes it. */
     userLocale?: string | null;
+    /** What the upstream server was willing to say about itself. */
+    server?: {
+      /** Which API generation answered: Stalwart publishes no version number. */
+      generation?: "0.16+" | "pre-0.16" | null;
+      edition?: string | null;
+    };
   };
 }
 
