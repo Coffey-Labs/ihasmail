@@ -6,7 +6,44 @@
  */
 import { escapeHtml, htmlToText } from "./text";
 
+/**
+ * Stalwart accepts a signature of `value.len() < 2048` — and that is Rust's
+ * `len()`, so the limit is 2047 **bytes of UTF-8**, not characters. A string's
+ * `.length` in JavaScript counts UTF-16 units, which matches only for ASCII: an
+ * accent is one unit but two bytes, CJK three, an emoji two units and four. So
+ * every check here weighs the encoded form, or a signature we judged to fit
+ * would come back rejected.
+ */
 export const SIGNATURE_LIMIT = 2047;
+
+const encoder = new TextEncoder();
+
+export function byteLength(s: string): number {
+  return encoder.encode(s).length;
+}
+
+/**
+ * Render `text` into at most `budget` bytes, appending an ellipsis if it had to
+ * be cut. Cutting the *source* text and rendering afterwards — rather than
+ * slicing the rendered string — means a cut can never land inside an HTML
+ * entity or a `<br>`; stepping through code points means it never splits a
+ * surrogate pair either. Binary search keeps it to a handful of encodes.
+ */
+function renderWithinBytes(text: string, budget: number, render: (t: string) => string): string {
+  const whole = render(text);
+  if (byteLength(whole) <= budget) return whole;
+  const ellipsis = "…";
+  if (budget < byteLength(ellipsis)) return "";
+  const chars = Array.from(text);
+  let lo = 0;
+  let hi = chars.length;
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    if (byteLength(render(chars.slice(0, mid).join("")) + ellipsis) <= budget) lo = mid;
+    else hi = mid - 1;
+  }
+  return render(chars.slice(0, lo).join("")) + ellipsis;
+}
 
 const KEEP_STYLES = new Set(["color", "background-color", "font-weight", "font-style", "text-decoration", "font-size", "font-family", "text-align", "vertical-align", "width", "height", "max-width", "border", "border-left", "padding-left", "margin"]);
 const KEEP_ATTRS = new Set(["href", "src", "alt", "width", "height", "target", "style", "title", "colspan", "rowspan", "cellpadding", "cellspacing", "border", "align", "valign"]);
@@ -96,8 +133,15 @@ export function markerOf(htmlSignature: string | null | undefined): { blobId: st
 export function buildMarkerSignature(blobId: string, fullHtml: string): { htmlSignature: string; textSignature: string } {
   const text = htmlToText(fullHtml);
   const marker = `<!--ihasmail:sig=${blobId}:text/html-->`;
-  const budget = SIGNATURE_LIMIT - marker.length - 11; // <div></div>
-  let fallback = escapeHtml(text).replace(/\n/g, "<br>");
-  if (fallback.length > budget) fallback = `${fallback.slice(0, Math.max(0, budget - 1))}…`;
-  return { htmlSignature: `${marker}<div>${fallback}</div>`, textSignature: text.length > SIGNATURE_LIMIT ? `${text.slice(0, SIGNATURE_LIMIT - 1)}…` : text };
+  const budget = SIGNATURE_LIMIT - byteLength(marker) - "<div></div>".length;
+  const fallback = renderWithinBytes(text, budget, (t) => escapeHtml(t).replace(/\n/g, "<br>"));
+  return {
+    htmlSignature: `${marker}<div>${fallback}</div>`,
+    textSignature: renderWithinBytes(text, SIGNATURE_LIMIT, (t) => t),
+  };
+}
+
+/** Whether a signature would be refused by the server as it stands. */
+export function signatureTooLong(htmlSignature: string, textSignature: string): boolean {
+  return byteLength(htmlSignature) > SIGNATURE_LIMIT || byteLength(textSignature) > SIGNATURE_LIMIT;
 }
