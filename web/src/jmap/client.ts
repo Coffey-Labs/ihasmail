@@ -104,6 +104,11 @@ export class JmapClient {
     return core?.maxObjectsInGet ?? 500;
   }
 
+  get maxObjectsInSet(): number {
+    const core = this.session?.capabilities[CAP.core] as { maxObjectsInSet?: number } | undefined;
+    return core?.maxObjectsInSet ?? 500;
+  }
+
   get maxSizeUpload(): number {
     const core = this.session?.capabilities[CAP.core] as { maxSizeUpload?: number } | undefined;
     return core?.maxSizeUpload ?? 50_000_000;
@@ -358,7 +363,7 @@ export function ref(resultOf: string, name: string, path: string): ResultRef {
   return { resultOf, name, path };
 }
 
-/** Chunk ids for /get calls to respect maxObjectsInGet. */
+/** Chunk ids so a /get or /set call stays under the server's per-call maximum. */
 export function chunk<T>(arr: T[], size: number): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
