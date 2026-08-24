@@ -41,6 +41,25 @@ function ensureHooks() {
   });
 }
 
+/**
+ * Blunt the positioning tricks mail CSS can use to escape its card.
+ *
+ * A shadow root scopes selectors but not layout, so `position:fixed` in a
+ * message is still positioned against the viewport — enough to paint a
+ * convincing fake over the whole app. The control that actually stops that is
+ * layout containment on an ancestor of the shadow host (see `.message-body` in
+ * app.css), which mail CSS has no selector for. This is the second line:
+ * neutralise the declarations themselves, and defang `:host`, which is how mail
+ * CSS would otherwise reach the host element.
+ */
+function hardenCss(css: string): string {
+  return css
+    // `:host` / `:host-context` become a selector that matches nothing; where
+    // they took an argument the rule is left invalid, and so dropped.
+    .replace(/:host(-context)?/gi, ":not(*)")
+    .replace(/position\s*:\s*(fixed|sticky)/gi, "position:static");
+}
+
 export function proxiedImageUrl(url: string): string {
   return `/api/image?url=${encodeURIComponent(url)}`;
 }
@@ -124,12 +143,14 @@ export function sanitizeEmailHtml(input: string, opts: SanitizeOptions = {}): Sa
     });
   clean.querySelectorAll<HTMLElement>("[style]").forEach((el) => {
     const s = el.getAttribute("style");
-    if (s && /url\(/i.test(s)) el.setAttribute("style", rewriteCss(s));
+    if (!s) return;
+    const out = hardenCss(/url\(/i.test(s) ? rewriteCss(s) : s);
+    if (out !== s) el.setAttribute("style", out);
   });
   clean.querySelectorAll("style").forEach((st) => {
-    if (st.textContent && /url\(|@import/i.test(st.textContent)) {
-      st.textContent = rewriteCss(st.textContent.replace(/@import[^;]+;?/gi, ""));
-    }
+    const css = st.textContent ?? "";
+    if (!css) return;
+    st.textContent = hardenCss(rewriteCss(css.replace(/@import[^;]+;?/gi, "")));
   });
   if (bodyStyle && /url\(/i.test(bodyStyle)) bodyStyle = rewriteCss(bodyStyle);
 
