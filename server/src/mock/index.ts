@@ -5,6 +5,7 @@
  */
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
+import { parseOtpauthUrl, verifyTotp } from "../totp.js";
 
 const PORT = Number(process.env.MOCK_PORT ?? 8788);
 const ACCOUNT = "a1";
@@ -12,6 +13,14 @@ const USER = process.env.MOCK_USER ?? "demo@example.com";
 /** Locale the fake directory reports for the account (POSIX style, as Stalwart does). */
 const MOCK_LOCALE = process.env.MOCK_LOCALE ?? "en_US";
 const PASS = process.env.MOCK_PASS ?? "demo";
+/**
+ * Credential state, mutable so the self-service flows can be exercised against
+ * the mock the way they run against a real 0.16 server: the password changes,
+ * 2FA starts demanding a code on every request, and app passwords keep working
+ * without one.
+ */
+export const account = { password: PASS, otpUrl: null as string | null, appPasswords: [] as Obj[] };
+const MASKED = "[********]";
 
 type Obj = Record<string, unknown>;
 const state = { n: 1 };
@@ -302,6 +311,64 @@ const handlers: Record<string, Handler> = {
   },
   "Email/import": (a) => { const created: Obj = {}; for (const [cid, spec] of Object.entries((a.emails as Obj) ?? {})) { const id = `e${counter++}`; emails.push({ id, blobId: (spec as Obj).blobId, threadId: `t${id}`, mailboxIds: (spec as Obj).mailboxIds, keywords: (spec as Obj).keywords ?? {}, size: 100, receivedAt: new Date().toISOString(), subject: "(imported message)", from: [{ name: null, email: "import@example" }], to: null, preview: "", hasAttachment: false, textBody: [], htmlBody: [], attachments: [], bodyValues: {} }); created[cid] = { id }; } recount(); return setResp({ created }); },
   "Thread/get": (a) => { const ids = a.ids as string[]; const list = ids.map((id) => ({ id, emailIds: emails.filter((e) => e.threadId === id).sort((x, y) => String(x.receivedAt).localeCompare(String(y.receivedAt))).map((e) => e.id) })).filter((t) => t.emailIds.length); return { accountId: ACCOUNT, state: String(state.n), list, notFound: ids.filter((id) => !list.some((t) => t.id === id)) }; },
+  // Stalwart 0.16 registry objects backing self-service credentials.
+  "x:AccountPassword/get": () => ({
+    accountId: ACCOUNT,
+    state: String(state.n),
+    list: [{ id: "singleton", otpAuth: { otpUrl: account.otpUrl ? MASKED : null, otpCode: null } }],
+    notFound: [],
+  }),
+  "x:AccountPassword/set": (a) => {
+    const patch = ((a.update as Obj) ?? {})["singleton"] as Obj | undefined;
+    if (!patch) return setResp({ updated: {} });
+    const current = patch.currentSecret as string | undefined;
+    const code = (patch["otpAuth/otpCode"] ?? (patch.otpAuth as Obj | undefined)?.otpCode) as string | undefined;
+    if (!current) {
+      return setResp({ notUpdated: { singleton: { type: "forbidden", description: "Current secret must be provided to change the password or OTP auth." } } });
+    }
+    if (current !== account.password) {
+      return setResp({ notUpdated: { singleton: { type: "forbidden", description: "Current secret is incorrect." } } });
+    }
+    if (account.otpUrl && !code) {
+      return setResp({ notUpdated: { singleton: { type: "forbidden", description: "Current OTP code is required to change the password or OTP auth." } } });
+    }
+    if (account.otpUrl && !checkOtp(code!)) {
+      return setResp({ notUpdated: { singleton: { type: "forbidden", description: "Current secret is incorrect." } } });
+    }
+    const secret = patch.secret as string | undefined;
+    if (secret !== undefined && secret !== MASKED) {
+      if (secret.length < 8) {
+        return setResp({ notUpdated: { singleton: { type: "invalidProperties", properties: ["secret"], description: "Password must be at least 8 characters long." } } });
+      }
+      account.password = secret;
+    }
+    if ("otpAuth/otpUrl" in patch) {
+      const url = patch["otpAuth/otpUrl"] as string | null;
+      if (url !== MASKED) account.otpUrl = url;
+    }
+    state.n++;
+    return setResp({ updated: { singleton: null } });
+  },
+  "x:AppPassword/get": (a) => genericGet(account.appPasswords)(a),
+  "x:AppPassword/set": (a) => {
+    const created: Obj = {};
+    const destroyed: string[] = [];
+    for (const [cid, obj] of Object.entries((a.create as Obj) ?? {})) {
+      const id = `ap${randomUUID().slice(0, 6)}`;
+      // Real app passwords carry their credential id, so the server can spot
+      // one by its shape alone. Mirror that.
+      const secret = `$app$${id}$${randomUUID().replace(/-/g, "").slice(0, 20)}`;
+      const row: Obj = { id, description: (obj as Obj).description ?? "App password", createdAt: new Date().toISOString(), expiresAt: null, secret };
+      account.appPasswords.push(row);
+      created[cid] = { id, secret, createdAt: row.createdAt };
+    }
+    for (const id of (a.destroy as string[]) ?? []) {
+      const i = account.appPasswords.findIndex((x) => x.id === id);
+      if (i >= 0) { account.appPasswords.splice(i, 1); destroyed.push(id); }
+    }
+    state.n++;
+    return setResp({ created, destroyed });
+  },
   "Identity/get": genericGet(identities),
   "Identity/set": genericSet(identities, "i", (o) => Object.assign(o, { replyTo: null, bcc: null, textSignature: "", htmlSignature: "", mayDelete: true, ...o })),
   "EmailSubmission/set": (a) => {
@@ -349,11 +416,28 @@ function unauthorized(res: ServerResponse) {
   res.writeHead(401, { "content-type": "application/json", "www-authenticate": 'Basic realm="mock"' });
   res.end(JSON.stringify({ type: "about:blank", status: 401, title: "Unauthorized" }));
 }
+function checkOtp(code: string | undefined): boolean {
+  if (!account.otpUrl) return true;
+  const params = parseOtpauthUrl(account.otpUrl);
+  return Boolean(code && params && verifyTotp(params, code));
+}
+
 function checkAuth(req: IncomingMessage): boolean {
   const h = req.headers.authorization ?? "";
   if (!h.startsWith("Basic ")) return false;
-  const [u, p] = Buffer.from(h.slice(6), "base64").toString().split(":");
-  return u === USER && p === PASS;
+  const raw = Buffer.from(h.slice(6), "base64").toString();
+  const sep = raw.indexOf(":");
+  if (sep < 0) return false;
+  const u = raw.slice(0, sep);
+  const p = raw.slice(sep + 1);
+  if (u !== USER) return false;
+  // App passwords are recognised by shape and skip the second factor, which is
+  // exactly what lets a webmail session survive 2FA being switched on.
+  if (account.appPasswords.some((a) => a.secret === p)) return true;
+  if (!account.otpUrl) return p === account.password;
+  const at = p.lastIndexOf("$");
+  if (at < 0) return false;
+  return p.slice(0, at) === account.password && checkOtp(p.slice(at + 1));
 }
 function readBody(req: IncomingMessage): Promise<Buffer> {
   return new Promise((resolve) => { const chunks: Buffer[] = []; req.on("data", (c) => chunks.push(c)); req.on("end", () => resolve(Buffer.concat(chunks))); });
@@ -377,7 +461,8 @@ function broadcast(types: string[]) {
   for (const c of sseClients) c.write(payload);
 }
 
-createServer(async (req, res) => {
+/** Exported so tests can drive the mock in-process and shut it down. */
+export const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", `http://127.0.0.1:${PORT}`);
   if (!checkAuth(req)) return unauthorized(res);
   if (url.pathname === "/.well-known/jmap" || url.pathname === "/jmap/session") {

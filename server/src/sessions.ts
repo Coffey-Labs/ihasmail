@@ -171,6 +171,30 @@ export class SessionStore {
     return this.toLive(stored, creds.u, creds.p);
   }
 
+  /**
+   * Re-seal this session's stored credentials.
+   *
+   * The upstream password is what every proxied call authenticates with, so a
+   * password change (or swapping in an app password when 2FA is switched on)
+   * would otherwise leave the session holding a credential the server no
+   * longer accepts. Needs the cookie: the sealing key is derived from the
+   * secret half of it, which the server never keeps.
+   */
+  reseal(cookie: string | undefined, password: string): boolean {
+    if (!cookie) return false;
+    const idx = cookie.indexOf(COOKIE_SEP);
+    if (idx <= 0) return false;
+    const id = cookie.slice(0, idx);
+    const secret = cookie.slice(idx + 1);
+    const stored = this.sessions.get(id);
+    if (!stored) return false;
+    if (!safeEqual(stored.secretHash, sha256(secret))) return false;
+    const key = deriveKey(secret, config.appSecret, Buffer.from(stored.salt, "base64"));
+    stored.sealedCredentials = seal(JSON.stringify({ u: stored.username, p: password }), key);
+    this.scheduleSave();
+    return true;
+  }
+
   destroy(id: string): void {
     if (this.sessions.delete(id)) this.scheduleSave();
   }
