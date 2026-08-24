@@ -65,6 +65,13 @@ export const config = {
   stalwartUrl,
   appSecret,
   trustProxy: bool("TRUST_PROXY", true),
+  /**
+   * Peers whose X-Forwarded-* headers are believed. Empty falls back to
+   * loopback and the private ranges, which covers the usual reverse proxy on
+   * the same host or Docker network. A peer outside this is attributed by its
+   * socket address whatever it claims.
+   */
+  trustedProxies: (process.env.TRUSTED_PROXIES ?? "").split(",").map((s) => s.trim()).filter(Boolean),
   /** "auto" = Secure when the request arrived over https; "1"/"0" to force. */
   secureCookies: (process.env.SECURE_COOKIES ?? "auto").toLowerCase(),
   sessionTtl: int("SESSION_TTL", 12 * 60 * 60),

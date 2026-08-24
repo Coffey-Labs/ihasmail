@@ -5,6 +5,7 @@ import { getConnInfo } from "@hono/node-server/conninfo";
 import { config } from "./config.js";
 import { SessionStore, type LiveSession } from "./sessions.js";
 import { RateLimiter } from "./ratelimit.js";
+import { resolveClientIp } from "./clientip.js";
 import {
   type AccountInfo,
   UpstreamError,
@@ -57,17 +58,13 @@ const HOP_BY_HOP = new Set([
 ]);
 
 export function clientIp(c: Context): string {
-  if (config.trustProxy) {
-    const xff = c.req.header("x-forwarded-for");
-    if (xff) return xff.split(",")[0]!.trim();
-    const realIp = c.req.header("x-real-ip");
-    if (realIp) return realIp.trim();
-  }
+  let peer = "unknown";
   try {
-    return getConnInfo(c).remote.address ?? "unknown";
+    peer = getConnInfo(c).remote.address ?? "unknown";
   } catch {
-    return "unknown";
+    /* no socket information available */
   }
+  return resolveClientIp(peer, { forwardedFor: c.req.header("x-forwarded-for"), realIp: c.req.header("x-real-ip") }, config);
 }
 
 function isSecureRequest(c: Context): boolean {
@@ -450,6 +447,9 @@ export function createApp(): Hono<Env> {
     const accountId = c.req.param("accountId");
     const len = Number(c.req.header("content-length") ?? "0");
     if (len > config.maxUploadBytes) return c.json({ error: "too_large" }, 413);
+    // content-length is absent on a chunked request, so the header alone is a
+    // suggestion; count the bytes as they go past.
+    const body = c.req.raw.body ? c.req.raw.body.pipeThrough(byteCap(config.maxUploadBytes)) : null;
     try {
       const upstream = await getUpstreamSession(session.id, session.authorization);
       const url = absoluteUpstream(expandTemplate(upstream.uploadUrl, { accountId }));
@@ -460,7 +460,7 @@ export function createApp(): Hono<Env> {
           "content-type": c.req.header("content-type") ?? "application/octet-stream",
           accept: "application/json",
         },
-        body: c.req.raw.body,
+        body,
         duplex: "half",
         signal: AbortSignal.timeout(Math.max(config.upstreamTimeout, 5 * 60_000)),
       });
@@ -550,6 +550,18 @@ export function createApp(): Hono<Env> {
   return app;
 }
 
+/** Fail a stream that runs past `max` bytes, whatever its headers claimed. */
+function byteCap(max: number): TransformStream<Uint8Array, Uint8Array> {
+  let total = 0;
+  return new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      total += chunk.byteLength;
+      if (total > max) controller.error(new Error("upload too large"));
+      else controller.enqueue(chunk);
+    },
+  });
+}
+
 async function readJson<T>(c: Context): Promise<T | null> {
   try {
     return (await c.req.json()) as T;
@@ -582,10 +594,17 @@ function sessionExtras(session: LiveSession, info: AccountInfo = { locale: null,
   };
 }
 
+/**
+ * Headers worth relaying from the mail server. An allowlist rather than a
+ * denylist: everything else it might set — cookies, auth challenges, CORS
+ * grants — would be landing on *our* origin, where it means something else.
+ */
+const PASSTHROUGH_HEADERS = new Set(["content-type", "content-disposition", "content-language", "etag", "last-modified", "retry-after"]);
+
 function passthrough(res: Response): Response {
   const headers = new Headers();
   res.headers.forEach((v, k) => {
-    if (!HOP_BY_HOP.has(k.toLowerCase())) headers.set(k, v);
+    if (PASSTHROUGH_HEADERS.has(k.toLowerCase())) headers.set(k, v);
   });
   if (!headers.has("content-type")) headers.set("content-type", "application/json");
   headers.set("Cache-Control", "no-store");

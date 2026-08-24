@@ -63,3 +63,37 @@ test("normalizes Stalwart account locales to BCP-47 tags", () => {
   assert.equal(normalizeLocale({ locale: "de_DE" }), null);
   assert.equal(normalizeLocale("../etc/passwd"), null);
 });
+
+test("generated app passwords are unbiased and long enough", async () => {
+  const { readableSecret } = await import("./account.js");
+  const alphabet = "abcdefghijkmnopqrstuvwxyz23456789";
+  const counts = new Map<string, number>();
+  let samples = 0;
+  for (let i = 0; i < 2000; i++) {
+    const secret = readableSecret();
+    assert.match(secret, /^[a-z2-9]{5}-[a-z2-9]{5}-[a-z2-9]{5}-[a-z2-9]{5}$/, secret);
+    for (const ch of secret.replace(/-/g, "")) {
+      counts.set(ch, (counts.get(ch) ?? 0) + 1);
+      samples++;
+    }
+  }
+  assert.equal(samples, 2000 * 20);
+
+  /*
+   * `% 33` over a byte maps 25 characters onto 8 values each and the last 8
+   * onto 7, so the digits — the tail of the alphabet — would come up about
+   * 7/8 as often as they should. Testing each character on its own cannot see
+   * a skew that size against the noise, so weigh the whole tail at once:
+   * uniform puts 8/33 of the draw there, the biased version 7/8 of that, and
+   * over 40,000 draws the two are more than four standard deviations apart.
+   */
+  const tail = alphabet.slice(25); // "23456789"
+  const tailSeen = [...tail].reduce((n, ch) => n + (counts.get(ch) ?? 0), 0);
+  const p = tail.length / alphabet.length;
+  const expected = samples * p;
+  const sigma = Math.sqrt(samples * p * (1 - p));
+  assert.ok(
+    Math.abs(tailSeen - expected) < 4 * sigma,
+    `digits appeared ${tailSeen} times, expected ~${Math.round(expected)} (sigma ${sigma.toFixed(1)}) - modulo bias?`,
+  );
+});
