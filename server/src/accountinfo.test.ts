@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { interpretAccountInfo } from "./upstream.js";
+import { getAccountInfo, interpretAccountInfo } from "./upstream.js";
 
 /**
  * The account locale used to be read only from `x:Account/get`, which needs
@@ -48,4 +48,20 @@ test("neither answering leaves everything unknown rather than guessing", () => {
 test("locales that carry no language are dropped, not passed through", () => {
   assert.equal(interpretAccountInfo([settingsOk("C")]).locale, null);
   assert.equal(interpretAccountInfo([settingsOk("POSIX")]).locale, null);
+});
+
+test("a server that never heard of the Stalwart capability is reported as pre-0.16", async () => {
+  // 0.16 always advertises urn:stalwart:jmap and nothing older knows it at all,
+  // so its absence is the answer - and asking anyway would fail the whole
+  // request on those servers. This is what the live 0.15.5 box hits.
+  const session = { capabilities: { "urn:ietf:params:jmap:core": {}, "urn:ietf:params:jmap:mail": {} }, accounts: {}, primaryAccounts: {} };
+  const info = await getAccountInfo("session-pre-016", "Basic x", session as never);
+  assert.equal(info.generation, "pre-0.16");
+  assert.equal(info.locale, null);
+  assert.equal(info.edition, null);
+});
+
+test("no capabilities at all leaves the generation unknown", async () => {
+  const info = await getAccountInfo("session-no-caps", "Basic x", { accounts: {}, primaryAccounts: {} } as never);
+  assert.equal(info.generation, null);
 });
