@@ -1,8 +1,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { Calendar, ChevronsUpDown, FolderOpen, HelpCircle, Mail, Menu as MenuIcon, PenSquare, Settings, Users, LogOut, Plus, RefreshCw } from "lucide-react";
+import { Calendar, ChevronsUpDown, FolderOpen, HelpCircle, Mail, Menu as MenuIcon, Moon, PenSquare, Settings, Sun, Users, LogOut, Plus, RefreshCw } from "lucide-react";
 import { useSession } from "@/store/session";
-import { useSettings } from "@/store/settings";
+import { useEffectiveTheme, useSettings } from "@/store/settings";
 import { useMail } from "@/store/mail";
 import { draftFromMailto, useCompose } from "@/store/compose";
 import { Avatar, useIsMobile } from "@/ui/misc";
@@ -70,6 +70,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <button className="icon-btn hide-mobile" aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)" onClick={() => setHelpOpen(true)}>
             <HelpCircle size={21} />
           </button>
+          <ThemeToggle />
           <Link href="/settings" className={`icon-btn ${section === "settings" ? "active" : ""}`} aria-label="Settings" title="Settings">
             <Settings size={21} />
           </Link>
@@ -194,5 +195,29 @@ function QuotaBar() {
         <span className={pct > 95 ? "danger" : pct > 80 ? "warn" : ""} style={{ width: `${pct}%` }} />
       </div>
     </div>
+  );
+}
+
+/**
+ * Flip between light and dark from the top bar.
+ *
+ * The stored setting has a third value, "system", so the button acts on what
+ * is actually on screen rather than on the setting: whichever theme you can
+ * see, one click gives you the other one. Choosing "match system" again lives
+ * in Settings › Appearance, where the three-way choice belongs.
+ */
+function ThemeToggle() {
+  const effective = useEffectiveTheme();
+  const update = useSettings((s) => s.update);
+  const next = effective === "dark" ? "light" : "dark";
+  return (
+    <button
+      className="icon-btn"
+      aria-label={`Switch to ${next} mode`}
+      title={`Switch to ${next} mode`}
+      onClick={() => update({ theme: next })}
+    >
+      {effective === "dark" ? <Sun size={21} /> : <Moon size={21} />}
+    </button>
   );
 }
