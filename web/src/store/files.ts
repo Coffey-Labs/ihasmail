@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { CAP, JmapMethodError, client, setErrorMessage } from "@/jmap/client";
-import { directoryCreate, fileCreate, fileNodeProps, withNodeType } from "@/lib/filenode";
+import { directoryCreate, fileCreate, fileNodeProps, normalizeFileNodes } from "@/lib/filenode";
 import type { FileNode, GetResponse, Id, QueryResponse, SetResponse } from "@/jmap/types";
 import { useSession } from "./session";
 
@@ -41,7 +41,7 @@ async function loadAllNodes(accountId: Id, set: (fn: (s: FilesState) => Partial<
     ]);
     const q = res.get("q")?.[0] as unknown as QueryResponse;
     const g = res.get("g")?.[0] as unknown as GetResponse<FileNode>;
-    all.push(...withNodeType(g.list));
+    all.push(...normalizeFileNodes(g.list));
     position += q.ids.length;
     if (!q.ids.length || (q.total != null && position >= q.total)) break;
   }
@@ -90,7 +90,7 @@ export const useFiles = create<FilesState>((set, get) => ({
       const g = res.get("g")?.[0] as unknown as GetResponse<FileNode>;
       set((s) => {
         const nodes = { ...s.nodes };
-        for (const n of withNodeType(g.list)) nodes[n.id] = n;
+        for (const n of normalizeFileNodes(g.list)) nodes[n.id] = n;
         return { nodes, children: { ...s.children, [parentId ?? "root"]: q.ids }, loading: false, error: null };
       });
     } catch (err) {

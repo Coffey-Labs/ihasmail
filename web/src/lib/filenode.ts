@@ -43,12 +43,30 @@ export function fileCreate(parentId: Id | null, name: string, blobId: Id, type: 
 }
 
 /**
- * Fill in `nodeType` where the server does not report it, so everything
- * downstream — icons, sorting, "is this a folder" — can rely on it.
+ * Fill in what an older server does not report, so everything downstream —
+ * icons, sorting, "may I delete this" — can read the 0.16 shape.
+ *
+ * Rights were split up in 0.16. Before that a node carried `mayRead`,
+ * `mayWrite` and `mayShare`, with the one `mayWrite` covering everything the
+ * newer release names separately. Without translating it, the Rename and
+ * Delete menu items sit permanently greyed out: no error, just nothing.
  */
-export function withNodeType<T extends Partial<FileNode>>(nodes: T[]): T[] {
+export function normalizeFileNodes<T extends Partial<FileNode>>(nodes: T[]): T[] {
   if (supportsNodeType()) return nodes;
-  return nodes.map((n) => (n.nodeType ? n : { ...n, nodeType: isFile(n) ? "file" : "directory" }));
+  return nodes.map((n) => ({
+    ...n,
+    nodeType: n.nodeType ?? (isFile(n) ? "file" : "directory"),
+    myRights: widenRights(n.myRights),
+  }));
+}
+
+type Rights = FileNode["myRights"];
+
+function widenRights(rights: Rights | undefined): Rights | undefined {
+  if (!rights) return rights;
+  const r = rights as Rights & { mayWrite?: boolean };
+  if (r.mayDelete !== undefined || r.mayWrite === undefined) return rights; // already the newer shape
+  return { ...r, mayAddChildren: r.mayWrite, mayRename: r.mayWrite, mayDelete: r.mayWrite, mayModifyContent: r.mayWrite };
 }
 
 function isFile(n: Partial<FileNode>): boolean {
