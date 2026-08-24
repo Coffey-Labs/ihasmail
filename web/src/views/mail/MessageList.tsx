@@ -74,6 +74,8 @@ export function MessageList({ title, list, openThreadId, focusId, setFocusId, on
   const selCount = Object.keys(selected).length;
   const mailbox = mailboxId ? mailboxes[mailboxId] : undefined;
   const isTrashOrJunk = mailbox?.role === "trash" || mailbox?.role === "junk";
+  // Emptying in one action is for Deleted Items only; Junk is cleared by hand.
+  const isTrash = mailbox?.role === "trash";
   const isDrafts = mailbox?.role === "drafts";
 
   const rowHeight = twoLine ? (settings.density === "compact" ? 56 : settings.density === "comfortable" ? 78 : 66) : settings.density === "compact" ? 36 : settings.density === "comfortable" ? 52 : 44;
@@ -198,7 +200,7 @@ export function MessageList({ title, list, openThreadId, focusId, setFocusId, on
               <MenuSep />
               <MenuItem icon={<CheckSquare size={16} />} label="Select all" onClick={selectAll} />
               <MenuItem icon={<MailOpen size={16} />} label="Mark all as read" onClick={() => mailboxId && void useMail.getState().markMailboxRead(mailboxId)} disabled={!mailboxId} />
-              {isTrashOrJunk && (
+              {isTrash && (
                 <>
                   <MenuSep />
                   <MenuItem

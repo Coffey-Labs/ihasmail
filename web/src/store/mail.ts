@@ -11,6 +11,7 @@ import type {
   MailboxRole,
   QueryResponse,
   Quota,
+  SetError,
   SetResponse,
   Thread,
   VacationResponse,
@@ -517,8 +518,8 @@ export const useMail = create<MailState>((set, get) => ({
       return { emails: next, selected: {} };
     });
     try {
-      const res = await client.call<SetResponse>("Email/set", { accountId, destroy: ids });
-      const failed = Object.keys(res.notDestroyed ?? {});
+      const { notDestroyed } = await destroyEmails(accountId, ids);
+      const failed = Object.keys(notDestroyed);
       if (failed.length) toast.error(`${failed.length} message(s) could not be deleted`);
       else toast.show(`${ids.length === 1 ? "Message" : `${ids.length} messages`} deleted forever`);
       void get().loadMailboxes();
@@ -555,19 +556,44 @@ export const useMail = create<MailState>((set, get) => ({
   async emptyMailbox(mailboxId) {
     const accountId = get().accountId;
     if (!accountId) return;
+    // Emptying is permanent and covers the whole folder at once, so it is
+    // offered for Deleted Items alone. The menus hide it elsewhere; this is
+    // the guard that makes that true of the action itself.
+    if (mailboxId !== get().roleId("trash")) {
+      toast.error("Only Deleted Items can be emptied.");
+      return;
+    }
+    // A folder can hold far more messages than the server will destroy in one
+    // call, so walk it a page at a time instead of back-referencing one huge
+    // query into one Email/set. Each pass re-runs the filter, so the next page
+    // is simply whatever is still in the folder.
+    const page = client.maxObjectsInSet;
+    let deleted = 0;
+    let progress: number | null = null;
     try {
-      const res = await client.chain([
-        ["Email/query", { accountId, filter: { inMailbox: mailboxId }, limit: 5000 }, "q"],
-        ["Email/set", { accountId, "#destroy": { resultOf: "q", name: "Email/query", path: "/ids" } }, "s"],
-      ]);
-      const s = res.get("s")?.[0] as unknown as SetResponse;
-      const n = s.destroyed?.length ?? 0;
-      toast.show(`Deleted ${n} message${n === 1 ? "" : "s"}`);
+      for (;;) {
+        const q = await client.call<QueryResponse>("Email/query", { accountId, filter: { inMailbox: mailboxId }, limit: page });
+        if (!q.ids.length) break;
+        if (progress === null && (q.total ?? q.ids.length) > page) {
+          progress = toast.show("Emptying folder…", { duration: 0 });
+        }
+        const { destroyed, notDestroyed } = await destroyEmails(accountId, q.ids);
+        deleted += destroyed.length;
+        // Nothing went through: the rest is undeletable, and looping again
+        // would ask for the same ids forever.
+        if (!destroyed.length) {
+          const [, err] = Object.entries(notDestroyed)[0] ?? [];
+          throw new Error(err ? setErrorMessage(err) : "the server refused to delete these messages");
+        }
+      }
+      toast.show(`Deleted ${deleted} message${deleted === 1 ? "" : "s"}`);
       set({ list: get().list ? { ...get().list!, ids: get().list!.mailboxId === mailboxId ? [] : get().list!.ids, total: 0 } : null });
+    } catch (err) {
+      toast.error(`Could not empty folder: ${(err as Error).message}${deleted ? ` (${deleted} deleted first)` : ""}`);
+    } finally {
+      if (progress !== null) toast.dismiss(progress);
       void get().loadMailboxes();
       void get().refreshList();
-    } catch (err) {
-      toast.error(`Could not empty folder: ${(err as Error).message}`);
     }
   },
 
@@ -590,32 +616,40 @@ export const useMail = create<MailState>((set, get) => ({
     const accountId = get().accountId;
     if (!accountId) return;
     const boxes = includeChildren ? get().descendantMailboxIds(mailboxId) : [mailboxId];
+    // The ids the query returns are all we need; asking Email/get to echo them
+    // back only risks blowing past maxObjectsInGet on a very full folder.
+    const page = client.maxObjectsInSet;
     const unreadIn = async (filter: EmailFilter): Promise<Id[]> => {
-      const res = await client.chain([
-        ["Email/query", { accountId, filter, limit: 5000 }, "q"],
-        ["Email/get", { accountId, "#ids": { resultOf: "q", name: "Email/query", path: "/ids" }, properties: ["id"] }, "g"],
-      ]);
-      return ((res.get("g")?.[0] as unknown as GetResponse<Email>).list ?? []).map((e) => e.id);
+      const res = await client.call<QueryResponse>("Email/query", { accountId, filter, limit: page });
+      return res.ids;
+    };
+    const nextUnread = async (): Promise<Id[]> => {
+      if (boxes.length === 1) return unreadIn({ inMailbox: boxes[0]!, notKeyword: "$seen" });
+      try {
+        return await unreadIn({ operator: "AND", conditions: [{ notKeyword: "$seen" }, { operator: "OR", conditions: boxes.map((id) => ({ inMailbox: id })) }] });
+      } catch {
+        // Server without filter-operator support: one query per folder.
+        const per = await Promise.all(boxes.map((id) => unreadIn({ inMailbox: id, notKeyword: "$seen" }).catch(() => [] as Id[])));
+        return [...new Set(per.flat())];
+      }
     };
     try {
-      let ids: Id[];
-      if (boxes.length === 1) {
-        ids = await unreadIn({ inMailbox: boxes[0]!, notKeyword: "$seen" });
-      } else {
-        try {
-          ids = await unreadIn({ operator: "AND", conditions: [{ notKeyword: "$seen" }, { operator: "OR", conditions: boxes.map((id) => ({ inMailbox: id })) }] });
-        } catch {
-          // Server without filter-operator support: one query per folder.
-          const per = await Promise.all(boxes.map((id) => unreadIn({ inMailbox: id, notKeyword: "$seen" }).catch(() => [] as Id[])));
-          ids = [...new Set(per.flat())];
-        }
+      // One page per pass; the ones just marked drop out of the filter, so a
+      // repeated head id means the last pass changed nothing and we stop.
+      let marked = 0;
+      let lastHead: Id | null = null;
+      for (;;) {
+        const ids = await nextUnread();
+        if (!ids.length || ids[0] === lastHead) break;
+        lastHead = ids[0]!;
+        await get().markRead(ids, true);
+        marked += ids.length;
       }
-      if (!ids.length) {
+      if (!marked) {
         toast.show("Nothing unread here");
         return;
       }
-      await get().markRead(ids, true);
-      toast.success(`Marked ${ids.length} message${ids.length === 1 ? "" : "s"} as read${includeChildren && boxes.length > 1 ? ` in ${boxes.length} folders` : ""}`);
+      toast.success(`Marked ${marked} message${marked === 1 ? "" : "s"} as read${includeChildren && boxes.length > 1 ? ` in ${boxes.length} folders` : ""}`);
       void get().loadMailboxes();
     } catch (err) {
       toast.error(`Could not mark as read: ${(err as Error).message}`);
@@ -860,9 +894,26 @@ async function runQuery(accountId: Id, q: ListQuery, position: number, limit: nu
   return { ids: query.ids, total: query.total ?? query.ids.length, queryState: query.queryState };
 }
 
+/**
+ * Destroy emails in batches the server will accept.
+ *
+ * Handing Email/set more ids than `maxObjectsInSet` fails the whole call with
+ * requestTooLarge — nothing is deleted — so split first and merge the results.
+ */
+async function destroyEmails(accountId: Id, ids: Id[]): Promise<{ destroyed: Id[]; notDestroyed: Record<Id, SetError> }> {
+  const destroyed: Id[] = [];
+  const notDestroyed: Record<Id, SetError> = {};
+  for (const part of chunk(ids, client.maxObjectsInSet)) {
+    const res = await client.call<SetResponse>("Email/set", { accountId, destroy: part });
+    destroyed.push(...(res.destroyed ?? []));
+    Object.assign(notDestroyed, res.notDestroyed ?? {});
+  }
+  return { destroyed, notDestroyed };
+}
+
 async function setEmails(accountId: Id, update: Record<Id, Record<string, unknown>>) {
   const ids = Object.keys(update);
-  for (const part of chunk(ids, 400)) {
+  for (const part of chunk(ids, client.maxObjectsInSet)) {
     const sub: Record<Id, Record<string, unknown>> = {};
     for (const id of part) sub[id] = update[id]!;
     const res = await client.call<SetResponse>("Email/set", { accountId, update: sub });
