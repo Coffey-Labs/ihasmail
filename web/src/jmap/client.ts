@@ -195,9 +195,22 @@ export class JmapClient {
     }
   }
 
+  /**
+   * Drop capabilities this session never advertised.
+   *
+   * A server MUST reject the whole request with `unknownCapability` when
+   * `using` names something it does not implement (RFC 8620), which would take
+   * down every call in the batch — not just the one that wanted the capability.
+   * Core always stays: it is the one urn every server has.
+   */
+  private supportedUsing(using: string[]): string[] {
+    if (!this.session?.capabilities) return using;
+    return using.filter((u) => u === CAP.core || this.hasCapability(u));
+  }
+
   /** Low-level request: send invocations verbatim, return raw response. */
   async request(methodCalls: Invocation[], using: string[] = [CAP.core, CAP.mail], createdIds?: Record<string, Id>): Promise<JmapResponse> {
-    const body: Record<string, unknown> = { using, methodCalls };
+    const body: Record<string, unknown> = { using: this.supportedUsing(using), methodCalls };
     if (createdIds) body.createdIds = createdIds;
     const res = await apiFetch<JmapResponse>("/api/jmap", { method: "POST", body: JSON.stringify(body) });
     if (res.sessionState && this.session && res.sessionState !== this.session.state) {
@@ -302,8 +315,13 @@ function usingFor(method: string): string[] {
     case "Thread":
     case "Email":
     case "SearchSnippet":
-    case "Identity":
       return [CAP.mail];
+    // Identity belongs to the submission capability (RFC 8621), not mail:
+    // Stalwart >= 0.16 rejects Identity/get and Identity/set outright when
+    // "using" names only mail. Keep mail as well, so the filter in
+    // supportedUsing() still leaves a usable urn on servers that predate
+    // advertising submission.
+    case "Identity":
     case "EmailSubmission":
       return [CAP.mail, CAP.submission];
     case "VacationResponse":
