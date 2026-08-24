@@ -265,6 +265,13 @@ function genericSet(list: Obj[], prefix: string, onCreate?: (o: Obj) => void) {
 }
 
 const handlers: Record<string, Handler> = {
+  // 0.16 exposes the account locale here, under a permission ordinary users
+  // actually have (unlike x:Account below, which needs sysAccountGet).
+  "x:AccountSettings/get": (a) => {
+    const ids = (a.ids as string[] | null) ?? ["singleton"];
+    const list = ids.filter((id) => id === "singleton").map((id) => ({ id, locale: MOCK_LOCALE, timeZone: null, description: null }));
+    return { accountId: ACCOUNT, state: String(state.n), list: list.map((x) => pick(x, a.properties as string[] | null)), notFound: ids.filter((id) => id !== "singleton") };
+  },
   // Stalwart's directory extension - the client reads the account locale from here.
   "x:Account/get": (a) => {
     const ids = (a.ids as string[] | null) ?? [ACCOUNT];
@@ -468,6 +475,11 @@ export const server = createServer(async (req, res) => {
   if (url.pathname === "/.well-known/jmap" || url.pathname === "/jmap/session") {
     res.writeHead(200, { "content-type": "application/json" });
     return res.end(JSON.stringify(session()));
+  }
+  // 0.16's account info endpoint; the only place a server reports its edition.
+  if (url.pathname === "/api/account" && req.method === "GET") {
+    res.writeHead(200, { "content-type": "application/json" });
+    return res.end(JSON.stringify({ permissions: ["jmapEmailGet", "sysAccountSettingsGet"], edition: "oss", locale: MOCK_LOCALE }));
   }
   if (url.pathname === "/jmap/" && req.method === "POST") {
     const body = JSON.parse((await readBody(req)).toString()) as { methodCalls: [string, Obj, string][] };
