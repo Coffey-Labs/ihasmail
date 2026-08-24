@@ -6,7 +6,7 @@
  */
 import { CAP, client, setErrorMessage } from "@/jmap/client";
 import type { FileNode, GetResponse, QueryResponse, SetResponse } from "@/jmap/types";
-import { directoryCreate, fileCreate, supportsNodeType, withNodeType } from "@/lib/filenode";
+import { directoryCreate, fileCreate, supportsNodeType, normalizeFileNodes } from "@/lib/filenode";
 import { useSession } from "@/store/session";
 import { toast } from "@/ui/toast";
 
@@ -22,14 +22,14 @@ async function ensureFolder(accountId: string): Promise<string> {
       ["FileNode/query", { accountId, filter: { isTopLevel: true, nodeType: "directory", name: FOLDER }, limit: 5 }, "q"],
       ["FileNode/get", { accountId, "#ids": { resultOf: "q", name: "FileNode/query", path: "/ids" }, properties: folderProps() }, "g"],
     ]);
-    list = withNodeType((res.get("g")?.[0] as unknown as GetResponse<FileNode>).list);
+    list = normalizeFileNodes((res.get("g")?.[0] as unknown as GetResponse<FileNode>).list);
   } catch {
     // Older servers: no filter support — scan everything.
     const res = await client.chain([
       ["FileNode/query", { accountId, limit: 1000 }, "q"],
       ["FileNode/get", { accountId, "#ids": { resultOf: "q", name: "FileNode/query", path: "/ids" }, properties: folderProps() }, "g"],
     ]);
-    list = withNodeType((res.get("g")?.[0] as unknown as GetResponse<FileNode>).list);
+    list = normalizeFileNodes((res.get("g")?.[0] as unknown as GetResponse<FileNode>).list);
   }
   const existing = list.find((n) => n.name === FOLDER && n.nodeType === "directory" && !n.parentId);
   if (existing) return existing.id;
