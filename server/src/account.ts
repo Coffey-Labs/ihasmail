@@ -83,11 +83,17 @@ async function probeBackend(ctx: Ctx): Promise<Backend> {
   // A server with the registry answers x:AccountPassword/get; one without it
   // fails to parse the method name at all and returns unknownMethod.
   if (ctx.session.capabilities && STALWART_CAP in ctx.session.capabilities) {
-    const res = await jmap(ctx, [["x:AccountPassword/get", { accountId: accountId(ctx), ids: [SINGLETON] }, "p"]]);
-    const [name, args] = res.methodResponses?.[0] ?? [];
-    if (name && name !== "error") return "registry";
-    const type = (args as { type?: string } | undefined)?.type;
-    if (type && type !== "unknownMethod") return "registry"; // present, but refused us
+    try {
+      const res = await jmap(ctx, [["x:AccountPassword/get", { accountId: accountId(ctx), ids: [SINGLETON] }, "p"]]);
+      const [name, args] = res.methodResponses?.[0] ?? [];
+      if (name && name !== "error") return "registry";
+      const type = (args as { type?: string } | undefined)?.type;
+      if (type && type !== "unknownMethod") return "registry"; // present, but refused us
+    } catch {
+      // Not an answer we can read - most likely a server too old to know the
+      // capability we named, which rejects the whole request rather than the
+      // one call. Fall through and try the endpoint such servers do have.
+    }
   }
   return "legacy";
 }
