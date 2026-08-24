@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { CAP, JmapMethodError, client, setErrorMessage } from "@/jmap/client";
+import { directoryCreate, fileCreate, fileNodeProps, withNodeType } from "@/lib/filenode";
 import type { FileNode, GetResponse, Id, QueryResponse, SetResponse } from "@/jmap/types";
 import { useSession } from "./session";
 
@@ -23,7 +24,6 @@ interface FilesState {
   applyChanges(types: Set<string>): void;
 }
 
-const PROPS = ["id", "parentId", "nodeType", "blobId", "size", "name", "type", "created", "modified", "myRights", "role", "executable"];
 
 /** Whether the server supports parentId/isTopLevel query filters (detected at runtime). */
 let filtersSupported = true;
@@ -37,11 +37,11 @@ async function loadAllNodes(accountId: Id, set: (fn: (s: FilesState) => Partial<
   for (let guard = 0; guard < 100; guard++) {
     const res = await client.chain([
       ["FileNode/query", { accountId, position, limit: 500, calculateTotal: true }, "q"],
-      ["FileNode/get", { accountId, "#ids": { resultOf: "q", name: "FileNode/query", path: "/ids" }, properties: PROPS }, "g"],
+      ["FileNode/get", { accountId, "#ids": { resultOf: "q", name: "FileNode/query", path: "/ids" }, properties: fileNodeProps() }, "g"],
     ]);
     const q = res.get("q")?.[0] as unknown as QueryResponse;
     const g = res.get("g")?.[0] as unknown as GetResponse<FileNode>;
-    all.push(...g.list);
+    all.push(...withNodeType(g.list));
     position += q.ids.length;
     if (!q.ids.length || (q.total != null && position >= q.total)) break;
   }
@@ -84,13 +84,13 @@ export const useFiles = create<FilesState>((set, get) => ({
       const filter = parentId ? { parentId } : { isTopLevel: true };
       const res = await client.chain([
         ["FileNode/query", { accountId, filter, sort: [{ property: "nodeType", isAscending: false }, { property: "name", isAscending: true }], limit: 1000 }, "q"],
-        ["FileNode/get", { accountId, "#ids": { resultOf: "q", name: "FileNode/query", path: "/ids" }, properties: PROPS }, "g"],
+        ["FileNode/get", { accountId, "#ids": { resultOf: "q", name: "FileNode/query", path: "/ids" }, properties: fileNodeProps() }, "g"],
       ]);
       const q = res.get("q")?.[0] as unknown as QueryResponse;
       const g = res.get("g")?.[0] as unknown as GetResponse<FileNode>;
       set((s) => {
         const nodes = { ...s.nodes };
-        for (const n of g.list) nodes[n.id] = n;
+        for (const n of withNodeType(g.list)) nodes[n.id] = n;
         return { nodes, children: { ...s.children, [parentId ?? "root"]: q.ids }, loading: false, error: null };
       });
     } catch (err) {
@@ -112,7 +112,7 @@ export const useFiles = create<FilesState>((set, get) => ({
 
   async mkdir(parentId, name) {
     const accountId = get().accountId!;
-    const res = await client.call<SetResponse<FileNode>>("FileNode/set", { accountId, create: { d: { parentId, name, nodeType: "directory" } } });
+    const res = await client.call<SetResponse<FileNode>>("FileNode/set", { accountId, create: { d: directoryCreate(parentId, name) } });
     const err = res.notCreated?.d;
     if (err) throw new Error(setErrorMessage(err));
     await get().loadChildren(parentId);
@@ -131,7 +131,7 @@ export const useFiles = create<FilesState>((set, get) => ({
         });
         const res = await client.call<SetResponse<FileNode>>("FileNode/set", {
           accountId,
-          create: { f: { parentId, name: f.name, nodeType: "file", blobId: up.blobId, type: f.type || "application/octet-stream" } },
+          create: { f: fileCreate(parentId, f.name, up.blobId, f.type || "application/octet-stream") },
         });
         const err = res.notCreated?.f;
         if (err) throw new Error(setErrorMessage(err));
