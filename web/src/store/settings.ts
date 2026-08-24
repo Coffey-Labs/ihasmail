@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { create } from "zustand";
 import { loadJson, saveJson } from "@/lib/storage";
 import { setDateTimePrefs, type DateFormat, type TimeFormat } from "@/lib/datetime";
@@ -184,6 +185,23 @@ export function applyTheme(s: Settings = useSettings.getState().settings): void 
 if (typeof window !== "undefined") {
   applyTheme();
   window.matchMedia?.("(prefers-color-scheme: dark)").addEventListener("change", () => applyTheme());
+}
+
+/**
+ * The theme actually on screen, which is not the same as the setting: "system"
+ * resolves to whatever the OS is doing right now, and follows it as it changes.
+ */
+export function useEffectiveTheme(): "light" | "dark" {
+  const theme = useSettings((s) => s.settings.theme);
+  const [systemDark, setSystemDark] = useState(() => window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false);
+  useEffect(() => {
+    const mq = window.matchMedia?.("(prefers-color-scheme: dark)");
+    if (!mq) return;
+    const onChange = () => setSystemDark(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return theme === "dark" || (theme === "system" && systemDark) ? "dark" : "light";
 }
 
 export const settings = () => useSettings.getState().settings;

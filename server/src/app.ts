@@ -6,12 +6,13 @@ import { config } from "./config.js";
 import { SessionStore, type LiveSession } from "./sessions.js";
 import { RateLimiter } from "./ratelimit.js";
 import {
+  type AccountInfo,
   UpstreamError,
   absoluteUpstream,
   expandTemplate,
   fetchUpstreamSession,
   forgetUpstreamSession,
-  getAccountLocale,
+  getAccountInfo,
   getUpstreamSession,
   localizeSession,
 } from "./upstream.js";
@@ -190,8 +191,8 @@ export function createApp(): Hono<Env> {
         ip,
       });
       setSessionCookie(c, cookie, session.remember);
-      const locale = await getAccountLocale(session.id, session.authorization, upstream);
-      return c.json(localizeSession(upstream, sessionExtras(session, locale)));
+      const info = await getAccountInfo(session.id, session.authorization, upstream);
+      return c.json(localizeSession(upstream, sessionExtras(session, info)));
     } catch (err) {
       return upstreamFailure(c, err);
     }
@@ -201,8 +202,8 @@ export function createApp(): Hono<Env> {
     const session = c.get("session");
     try {
       const upstream = await getUpstreamSession(session.id, session.authorization, c.req.query("refresh") === "1");
-      const locale = await getAccountLocale(session.id, session.authorization, upstream);
-      return c.json(localizeSession(upstream, sessionExtras(session, locale)));
+      const info = await getAccountInfo(session.id, session.authorization, upstream);
+      return c.json(localizeSession(upstream, sessionExtras(session, info)));
     } catch (err) {
       if (err instanceof UpstreamError && err.status === 401) {
         sessions.destroy(session.id);
@@ -564,7 +565,7 @@ function appPasswordName(c: Context): string {
   return `${config.appName} (${browser})`;
 }
 
-function sessionExtras(session: LiveSession, userLocale: string | null = null) {
+function sessionExtras(session: LiveSession, info: AccountInfo = { locale: null, generation: null, edition: null }) {
   return {
     ihasmail: {
       appName: config.appName,
@@ -574,7 +575,9 @@ function sessionExtras(session: LiveSession, userLocale: string | null = null) {
       loginName: session.username,
       remember: session.remember,
       /** Locale configured for the account in Stalwart's directory, if readable. */
-      userLocale,
+      userLocale: info.locale,
+      /** What the upstream server would tell us about itself. */
+      server: { generation: info.generation, edition: info.edition },
     },
   };
 }
