@@ -15,6 +15,18 @@ import {
   getUpstreamSession,
   localizeSession,
 } from "./upstream.js";
+import {
+  AccountError,
+  assertEnrolmentCode,
+  beginOtpEnrolment,
+  changePassword,
+  createAppPassword,
+  disableOtp,
+  enableOtp,
+  forgetBackend,
+  getState,
+  revokeAppPassword,
+} from "./account.js";
 import { imageProxyHandler } from "./imageproxy.js";
 import { staticHandler } from "./static.js";
 
@@ -22,6 +34,13 @@ type Env = { Variables: { session: LiveSession } };
 
 export const sessions = new SessionStore(config.sessionFile);
 const loginLimiter = new RateLimiter(config.loginRateLimit, 15 * 60_000);
+/**
+ * Credential changes verify the current password upstream, and Stalwart's
+ * fail2ban counts those failures against the *caller's* IP — which for a proxy
+ * is shared by every user. Keep our own lid on it so one person guessing
+ * cannot get the whole deployment banned.
+ */
+const accountLimiter = new RateLimiter(10, 15 * 60_000);
 
 const HOP_BY_HOP = new Set([
   "connection",
@@ -215,6 +234,183 @@ export function createApp(): Hono<Env> {
     return c.json({ revoked: n });
   });
 
+  // ---------- Self-service credentials ----------
+  /**
+   * Password, app passwords and 2FA. These live on the server rather than in
+   * the browser because the pre-0.16 API is REST rather than JMAP (the browser
+   * only ever sees /api/jmap), and because changing a credential means
+   * re-sealing the session cookie that holds it.
+   */
+  const accountCtx = async (c: Context<Env>) => {
+    const session = c.get("session");
+    const upstream = await getUpstreamSession(session.id, session.authorization);
+    return { authorization: session.authorization, session: upstream, username: session.username };
+  };
+
+  const accountFailure = (c: Context, err: unknown) => {
+    if (err instanceof AccountError) {
+      return c.json({ error: err.code, message: err.message }, err.status as 400);
+    }
+    return upstreamFailure(c, err);
+  };
+
+  /** Guard the endpoints that check a password against brute-forcing. */
+  const guarded = (c: Context<Env>): Response | null => {
+    const key = `account|${c.get("session").username.toLowerCase()}`;
+    if (accountLimiter.check(key)) return null;
+    c.header("Retry-After", String(accountLimiter.retryAfterSeconds(key)));
+    return c.json({ error: "rate_limited", message: "Too many attempts. Please wait and try again." }, 429);
+  };
+
+  api.get("/account/security", requireSession, async (c) => {
+    const session = c.get("session");
+    try {
+      return c.json(await getState(session.id, await accountCtx(c)));
+    } catch (err) {
+      return accountFailure(c, err);
+    }
+  });
+
+  api.post("/account/password", requireSession, async (c) => {
+    const limited = guarded(c);
+    if (limited) return limited;
+    const session = c.get("session");
+    const body = await readJson<{ current?: string; next?: string; otpCode?: string }>(c);
+    if (!body) return c.json({ error: "bad_request" }, 400);
+    const current = body.current ?? "";
+    const next = body.next ?? "";
+    if (!current || !next) return c.json({ error: "missing_fields", message: "Both passwords are required." }, 400);
+    if (next.length > 1024) return c.json({ error: "bad_request" }, 400);
+    if (next === current) {
+      return c.json({ error: "unchanged", message: "The new password matches the old one." }, 400);
+    }
+    try {
+      await changePassword(session.id, await accountCtx(c), { current, next, otpCode: body.otpCode?.trim() || undefined });
+    } catch (err) {
+      return accountFailure(c, err);
+    }
+    // The old password is now dead: re-seal this session with the new one and
+    // drop the others, whose sealed copies would fail on their next call.
+    const otpCode = body.otpCode?.trim();
+    sessions.reseal(getCookie(c, config.cookieName), otpCode ? `${next}$${otpCode}` : next);
+    forgetUpstreamSession(session.id);
+    const revoked = sessions.destroyAllForUser(session.username, session.id);
+    return c.json({ ok: true, revokedSessions: revoked });
+  });
+
+  api.get("/account/app-passwords", requireSession, async (c) => {
+    const session = c.get("session");
+    try {
+      const state = await getState(session.id, await accountCtx(c));
+      return c.json({ appPasswords: state.appPasswords, keyedByName: state.appPasswordsKeyedByName });
+    } catch (err) {
+      return accountFailure(c, err);
+    }
+  });
+
+  api.post("/account/app-passwords", requireSession, async (c) => {
+    const session = c.get("session");
+    const body = await readJson<{ description?: string }>(c);
+    if (!body) return c.json({ error: "bad_request" }, 400);
+    const description = (body.description ?? "").trim().slice(0, 120);
+    if (!description) return c.json({ error: "missing_fields", message: "Give the app password a name." }, 400);
+    try {
+      return c.json(await createAppPassword(session.id, await accountCtx(c), { description }));
+    } catch (err) {
+      return accountFailure(c, err);
+    }
+  });
+
+  api.post("/account/app-passwords/revoke", requireSession, async (c) => {
+    const session = c.get("session");
+    const body = await readJson<{ id?: string }>(c);
+    if (!body?.id) return c.json({ error: "bad_request" }, 400);
+    try {
+      await revokeAppPassword(session.id, await accountCtx(c), body.id);
+      return c.json({ ok: true });
+    } catch (err) {
+      return accountFailure(c, err);
+    }
+  });
+
+  api.post("/account/2fa/begin", requireSession, async (c) => {
+    try {
+      // Nothing is stored yet; the client hands the URL back to confirm.
+      return c.json(beginOtpEnrolment(await accountCtx(c)));
+    } catch (err) {
+      return accountFailure(c, err);
+    }
+  });
+
+  api.post("/account/2fa/enable", requireSession, async (c) => {
+    const limited = guarded(c);
+    if (limited) return limited;
+    const session = c.get("session");
+    const body = await readJson<{ url?: string; code?: string; current?: string }>(c);
+    if (!body?.url || !body.code || !body.current) return c.json({ error: "bad_request" }, 400);
+    const ctx = await accountCtx(c);
+    const code = body.code.trim();
+    /*
+     * Every proxied call re-authenticates with the stored password, and once
+     * 2FA is on the server wants a fresh TOTP code alongside it — which we
+     * cannot produce between requests. An app password authenticates without
+     * one, so the session moves onto a dedicated app password rather than
+     * being signed out the moment 2FA is switched on.
+     *
+     * Order matters: mint it while the current credential still works, since
+     * the moment 2FA is enabled this session can no longer authenticate at all.
+     */
+    try {
+      assertEnrolmentCode(body.url, code);
+    } catch (err) {
+      return accountFailure(c, err);
+    }
+    let app: { id: string; secret: string } | null = null;
+    try {
+      app = await createAppPassword(session.id, ctx, { description: appPasswordName(c) });
+    } catch (err) {
+      // Out of app-password quota, say. 2FA is still worth having; the user
+      // just has to sign in again afterwards.
+      console.warn("[ihasmail] could not mint a session app password:", (err as Error).message);
+    }
+    try {
+      await enableOtp(session.id, ctx, { url: body.url, code, current: body.current });
+    } catch (err) {
+      if (app) {
+        // Don't leave a credential behind for a change that never happened.
+        await revokeAppPassword(session.id, ctx, app.id).catch(() => {});
+      }
+      return accountFailure(c, err);
+    }
+    let sessionKept = false;
+    if (app) {
+      sessionKept = sessions.reseal(getCookie(c, config.cookieName), app.secret);
+      if (sessionKept) forgetUpstreamSession(session.id);
+    }
+    // Other sessions still hold the bare password and will be refused.
+    const revoked = sessions.destroyAllForUser(session.username, session.id);
+    return c.json({ ok: true, sessionKept, revokedSessions: revoked });
+  });
+
+  api.post("/account/2fa/disable", requireSession, async (c) => {
+    const limited = guarded(c);
+    if (limited) return limited;
+    const session = c.get("session");
+    const body = await readJson<{ current?: string; code?: string }>(c);
+    if (!body?.current || !body.code) return c.json({ error: "bad_request" }, 400);
+    try {
+      await disableOtp(session.id, await accountCtx(c), { current: body.current, code: body.code.trim() });
+    } catch (err) {
+      return accountFailure(c, err);
+    }
+    // This session may be running on the app password minted when 2FA went on;
+    // the plain password works again now, so put it back.
+    sessions.reseal(getCookie(c, config.cookieName), body.current);
+    forgetUpstreamSession(session.id);
+    forgetBackend(session.id);
+    return c.json({ ok: true });
+  });
+
   // ---------- JMAP API proxy ----------
   api.post("/jmap", requireSession, async (c) => {
     const session = c.get("session");
@@ -351,6 +547,21 @@ export function createApp(): Hono<Env> {
   // ---------- Static SPA ----------
   app.get("*", staticHandler(config.staticDir));
   return app;
+}
+
+async function readJson<T>(c: Context): Promise<T | null> {
+  try {
+    return (await c.req.json()) as T;
+  } catch {
+    return null;
+  }
+}
+
+/** Name the app password after the browser it will live in. */
+function appPasswordName(c: Context): string {
+  const ua = c.req.header("user-agent") ?? "";
+  const browser = /Firefox\//.test(ua) ? "Firefox" : /Edg\//.test(ua) ? "Edge" : /Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : "browser";
+  return `${config.appName} (${browser})`;
 }
 
 function sessionExtras(session: LiveSession, userLocale: string | null = null) {
