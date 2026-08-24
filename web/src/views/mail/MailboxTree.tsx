@@ -261,7 +261,7 @@ function MailboxMenu({ mailbox: m, onCreateChild, onShare }: { mailbox: Mailbox;
       <MenuItem icon={m.isSubscribed ? <EyeOff size={16} /> : <Eye size={16} />} label={m.isSubscribed ? "Hide from list" : "Show in list"} onClick={() => void useMail.getState().updateMailbox(m.id, { isSubscribed: !m.isSubscribed })} disabled={m.role === "inbox"} />
       <MenuItem icon={<Share2 size={16} />} label="Share…" onClick={onShare} />
       <MenuSep />
-      {(m.role === "trash" || m.role === "junk") && <MenuItem icon={<Eraser size={16} />} label="Empty folder" onClick={() => void empty()} danger />}
+      {m.role === "trash" && <MenuItem icon={<Eraser size={16} />} label="Empty folder" onClick={() => void empty()} danger />}
       <MenuItem icon={<Trash2 size={16} />} label="Delete folder" onClick={() => void remove()} danger disabled={isSpecial || !m.myRights.mayDelete} />
     </>
   );
