@@ -8,6 +8,15 @@ import { randomUUID } from "node:crypto";
 import { parseOtpauthUrl, verifyTotp } from "../totp.js";
 
 const PORT = Number(process.env.MOCK_PORT ?? 8788);
+/**
+ * Which Stalwart generation to impersonate. "0.16" (the default) has the
+ * registry — the `x:` methods, `nodeType` on FileNode, the finer-grained
+ * rights. "0.15" is the older shape, and differs in ways that mostly do not
+ * announce themselves: its FileNode/query cannot see directories at all, it
+ * refuses a `using` naming a capability it does not know, and self-service
+ * credentials live behind a REST endpoint instead.
+ */
+const LEGACY = process.env.MOCK_STALWART === "0.15";
 const ACCOUNT = "a1";
 const USER = process.env.MOCK_USER ?? "demo@example.com";
 /** Locale the fake directory reports for the account (POSIX style, as Stalwart does). */
@@ -149,7 +158,12 @@ const fileNodes: Obj[] = [
   { id: "f2", parentId: "f1", nodeType: "file", blobId: putBlob("hello world", "text/plain"), size: 11, name: "notes.txt", type: "text/plain", created: new Date().toISOString(), modified: new Date().toISOString(), myRights: fr() },
   { id: "f3", parentId: null, nodeType: "file", blobId: putBlob("%PDF-1.4 mock", "application/pdf"), size: 14, name: "report.pdf", type: "application/pdf", created: new Date().toISOString(), modified: new Date().toISOString(), myRights: fr() },
 ];
-function fr() { return { mayRead: true, mayAddChildren: true, mayRename: true, mayDelete: true, mayModifyContent: true, mayShare: true }; }
+function fr() {
+  // 0.16 split what used to be a single mayWrite into four.
+  return LEGACY
+    ? { mayRead: true, mayWrite: true, mayShare: true }
+    : { mayRead: true, mayAddChildren: true, mayRename: true, mayDelete: true, mayModifyContent: true, mayShare: true };
+}
 
 function recount() {
   for (const m of mailboxes) {
@@ -230,6 +244,16 @@ function applyPatch(obj: Obj, patch: Obj) {
 
 /* ---------- method handlers ---------- */
 type Handler = (args: Obj) => Obj | [string, Obj][];
+/** A method-level failure, surfaced as ["error", {type, description}, id]. */
+class MethodError extends Error {
+  constructor(
+    public readonly type: string,
+    description?: string,
+  ) {
+    super(description ?? type);
+  }
+}
+
 const setResp = (extra: Obj = {}): Obj => ({ accountId: ACCOUNT, oldState: "1", newState: nextState(), created: {}, updated: {}, destroyed: [], ...extra });
 
 function genericGet(list: Obj[]) {
@@ -377,7 +401,20 @@ const handlers: Record<string, Handler> = {
     return setResp({ created, destroyed });
   },
   "Identity/get": genericGet(identities),
-  "Identity/set": genericSet(identities, "i", (o) => Object.assign(o, { replyTo: null, bcc: null, textSignature: "", htmlSignature: "", mayDelete: true, ...o })),
+  "Identity/set": (a) => {
+    // Stalwart's cap is `value.len() < 2048` on a Rust string: 2047 bytes of
+    // UTF-8, not characters. Anything longer is refused by name.
+    for (const [where, entries] of [["notCreated", (a.create as Obj) ?? {}], ["notUpdated", (a.update as Obj) ?? {}]] as const) {
+      for (const [key, obj] of Object.entries(entries)) {
+        const over = ["htmlSignature", "textSignature"].find((prop) => {
+          const v = (obj as Obj)[prop];
+          return typeof v === "string" && Buffer.byteLength(v, "utf8") > 2047;
+        });
+        if (over) return setResp({ [where]: { [key]: { type: "invalidProperties", properties: [over], description: "Invalid property." } } });
+      }
+    }
+    return genericSet(identities, "i", (o) => Object.assign(o, { replyTo: null, bcc: null, textSignature: "", htmlSignature: "", mayDelete: true, ...o }))(a);
+  },
   "EmailSubmission/set": (a) => {
     const created: Obj = {};
     for (const [cid, sub] of Object.entries((a.create as Obj) ?? {})) {
@@ -413,9 +450,41 @@ const handlers: Record<string, Handler> = {
   "ContactCard/get": genericGet(cards),
   "ContactCard/set": genericSet(cards, "cc"),
   "ContactCard/parse": (a) => { const parsed: Obj = {}; for (const b of a.blobIds as string[]) { const t = blobs.get(b)?.data.toString() ?? ""; const fn = /^FN:(.*)$/m.exec(t)?.[1]?.trim() ?? "Imported"; const em = /^EMAIL[^:]*:(.*)$/m.exec(t)?.[1]?.trim(); parsed[b] = [{ "@type": "Card", version: "1.0", uid: randomUUID(), kind: "individual", name: { full: fn }, emails: em ? { e1: { address: em } } : undefined }]; } return { accountId: ACCOUNT, parsed, notParsable: [] }; },
-  "FileNode/query": (a) => { const f = (a.filter as Obj) ?? {}; const list = fileNodes.filter((n) => (f.isTopLevel ? n.parentId == null : f.parentId ? n.parentId === f.parentId : true)); return { accountId: ACCOUNT, queryState: "1", canCalculateChanges: false, position: 0, ids: list.map((n) => n.id), total: list.length }; },
-  "FileNode/get": genericGet(fileNodes),
-  "FileNode/set": genericSet(fileNodes, "f", (o) => Object.assign(o, { created: new Date().toISOString(), modified: new Date().toISOString(), myRights: fr(), size: o.blobId ? (blobs.get(o.blobId as string)?.data.length ?? 0) : null, type: o.type ?? null, blobId: o.blobId ?? null, ...o })),
+  "FileNode/query": (a) => {
+    const f = (a.filter as Obj) ?? {};
+    if (LEGACY) {
+      // Sorting is refused outright, and isTopLevel / nodeType are not filters
+      // this generation knows.
+      if (a.sort) throw new MethodError("unsupportedSort", "Sorting is not supported on FileNode");
+      if ("isTopLevel" in f || "nodeType" in f) throw new MethodError("unsupportedFilter", "Unsupported filter");
+    }
+    let list = fileNodes.filter((n) => (f.isTopLevel ? n.parentId == null : f.parentId ? n.parentId === f.parentId : true));
+    // The pre-0.16 query masks its results to non-containers, so a directory
+    // never comes back — with nothing to say it was left out.
+    if (LEGACY) list = list.filter((n) => n.nodeType !== "directory");
+    return { accountId: ACCOUNT, queryState: "1", canCalculateChanges: false, position: 0, ids: list.map((n) => n.id), total: list.length };
+  },
+  "FileNode/get": (a) => {
+    const res = genericGet(fileNodes)(a);
+    // nodeType does not exist before 0.16; the shape is all the client gets.
+    if (LEGACY) res.list = (res.list as Obj[]).map((n) => { const { nodeType: _drop, ...rest } = n; return rest; });
+    return res;
+  },
+  "FileNode/set": (a) => {
+    if (LEGACY) {
+      for (const obj of [...Object.values((a.create as Obj) ?? {}), ...Object.values((a.update as Obj) ?? {})]) {
+        if (obj && typeof obj === "object" && "nodeType" in (obj as Obj)) {
+          return setResp({ notCreated: Object.fromEntries(Object.keys((a.create as Obj) ?? {}).map((k) => [k, { type: "invalidProperties", properties: ["nodeType"], description: "Invalid property." }])), notUpdated: Object.fromEntries(Object.keys((a.update as Obj) ?? {}).map((k) => [k, { type: "invalidProperties", properties: ["nodeType"], description: "Invalid property." }])) });
+        }
+      }
+    }
+    return genericSet(fileNodes, "f", (o) => {
+      Object.assign(o, { created: new Date().toISOString(), modified: new Date().toISOString(), myRights: fr(), size: o.blobId ? (blobs.get(o.blobId as string)?.data.length ?? 0) : null, type: o.type ?? null, blobId: o.blobId ?? null, ...o });
+      // Without nodeType, a node is a directory precisely when it carries no
+      // file properties. Keep it internally so query and get stay consistent.
+      if (!o.nodeType) o.nodeType = o.blobId || o.size != null || o.type ? "file" : "directory";
+    })(a);
+  },
 };
 
 /* ---------- http ---------- */
@@ -451,9 +520,9 @@ function readBody(req: IncomingMessage): Promise<Buffer> {
 }
 
 const session = () => ({
-  capabilities: { "urn:ietf:params:jmap:core": { maxSizeUpload: 50000000, maxConcurrentUpload: 4, maxSizeRequest: 10000000, maxConcurrentRequests: 4, maxCallsInRequest: 16, maxObjectsInGet: 500, maxObjectsInSet: 500, collationAlgorithms: ["i;ascii-casemap"] }, "urn:ietf:params:jmap:mail": {}, "urn:ietf:params:jmap:submission": {}, "urn:ietf:params:jmap:vacationresponse": {}, "urn:ietf:params:jmap:sieve": { implementation: "mock" }, "urn:ietf:params:jmap:calendars": {}, "urn:ietf:params:jmap:calendars:parse": {}, "urn:ietf:params:jmap:contacts": {}, "urn:ietf:params:jmap:contacts:parse": {}, "urn:ietf:params:jmap:principals": {}, "urn:ietf:params:jmap:principals:availability": {}, "urn:ietf:params:jmap:quota": {}, "urn:ietf:params:jmap:blob": {}, "urn:ietf:params:jmap:filenode": {}, "urn:stalwart:jmap": {} },
+  capabilities: { "urn:ietf:params:jmap:core": { maxSizeUpload: 50000000, maxConcurrentUpload: 4, maxSizeRequest: 10000000, maxConcurrentRequests: 4, maxCallsInRequest: 16, maxObjectsInGet: 500, maxObjectsInSet: 500, collationAlgorithms: ["i;ascii-casemap"] }, "urn:ietf:params:jmap:mail": {}, "urn:ietf:params:jmap:submission": {}, "urn:ietf:params:jmap:vacationresponse": {}, "urn:ietf:params:jmap:sieve": { implementation: "mock" }, "urn:ietf:params:jmap:calendars": {}, "urn:ietf:params:jmap:calendars:parse": {}, "urn:ietf:params:jmap:contacts": {}, "urn:ietf:params:jmap:contacts:parse": {}, "urn:ietf:params:jmap:principals": {}, "urn:ietf:params:jmap:principals:availability": {}, "urn:ietf:params:jmap:quota": {}, "urn:ietf:params:jmap:blob": {}, "urn:ietf:params:jmap:filenode": {}, ...(LEGACY ? {} : { "urn:stalwart:jmap": {} }) },
   accounts: { [ACCOUNT]: { name: USER, isPersonal: true, isReadOnly: false, accountCapabilities: { "urn:ietf:params:jmap:mail": {}, "urn:ietf:params:jmap:submission": {}, "urn:ietf:params:jmap:vacationresponse": {}, "urn:ietf:params:jmap:sieve": {}, "urn:ietf:params:jmap:calendars": {}, "urn:ietf:params:jmap:contacts": {}, "urn:ietf:params:jmap:principals": {}, "urn:ietf:params:jmap:quota": {}, "urn:ietf:params:jmap:filenode": {} } } },
-  primaryAccounts: { ...Object.fromEntries(["mail", "submission", "vacationresponse", "sieve", "calendars", "contacts", "principals", "quota", "filenode", "blob"].map((c) => [`urn:ietf:params:jmap:${c}`, ACCOUNT])), "urn:stalwart:jmap": ACCOUNT },
+  primaryAccounts: { ...Object.fromEntries(["mail", "submission", "vacationresponse", "sieve", "calendars", "contacts", "principals", "quota", "filenode", "blob"].map((c) => [`urn:ietf:params:jmap:${c}`, ACCOUNT])), ...(LEGACY ? {} : { "urn:stalwart:jmap": ACCOUNT }) },
   username: USER,
   apiUrl: `http://127.0.0.1:${PORT}/jmap/`,
   downloadUrl: `http://127.0.0.1:${PORT}/jmap/download/{accountId}/{blobId}/{name}?accept={type}`,
@@ -476,25 +545,63 @@ export const server = createServer(async (req, res) => {
     res.writeHead(200, { "content-type": "application/json" });
     return res.end(JSON.stringify(session()));
   }
+  // Before 0.16, self-service credentials are a REST endpoint rather than
+  // registry objects: GET reports the state, POST takes a list of actions.
+  if (LEGACY && url.pathname === "/api/account/auth") {
+    if (req.method === "GET") {
+      res.writeHead(200, { "content-type": "application/json" });
+      return res.end(JSON.stringify({ data: { otpEnabled: Boolean(account.otpUrl), appPasswords: account.appPasswords.map((a) => a.description) } }));
+    }
+    if (req.method === "POST") {
+      const actions = JSON.parse((await readBody(req)).toString()) as { type: string; password?: string; url?: string | null; name?: string }[];
+      // Password and OTP changes are only accepted over Basic auth.
+      if (actions.some((a) => ["setPassword", "enableOtpAuth", "disableOtpAuth"].includes(a.type)) && !(req.headers.authorization ?? "").startsWith("Basic ")) {
+        res.writeHead(400, { "content-type": "application/json" });
+        return res.end(JSON.stringify({ error: "unauthorized", details: "Password changes only allowed using Basic auth" }));
+      }
+      for (const a of actions) {
+        if (a.type === "setPassword") account.password = a.password ?? account.password;
+        else if (a.type === "enableOtpAuth") account.otpUrl = a.url ?? null;
+        else if (a.type === "disableOtpAuth") account.otpUrl = null;
+        else if (a.type === "addAppPassword") account.appPasswords.push({ id: `ap${randomUUID().slice(0, 6)}`, description: a.name ?? "App password", secret: a.password ?? "", createdAt: new Date().toISOString(), expiresAt: null });
+        else if (a.type === "removeAppPassword") {
+          const i = account.appPasswords.findIndex((p) => p.description === a.name);
+          if (i >= 0) account.appPasswords.splice(i, 1);
+        }
+      }
+      res.writeHead(200, { "content-type": "application/json" });
+      return res.end(JSON.stringify({ data: null }));
+    }
+  }
+
   // 0.16's account info endpoint; the only place a server reports its edition.
-  if (url.pathname === "/api/account" && req.method === "GET") {
+  if (!LEGACY && url.pathname === "/api/account" && req.method === "GET") {
     res.writeHead(200, { "content-type": "application/json" });
     return res.end(JSON.stringify({ permissions: ["jmapEmailGet", "sysAccountSettingsGet"], edition: "oss", locale: MOCK_LOCALE }));
   }
   if (url.pathname === "/jmap/" && req.method === "POST") {
-    const body = JSON.parse((await readBody(req)).toString()) as { methodCalls: [string, Obj, string][] };
+    const body = JSON.parse((await readBody(req)).toString()) as { methodCalls: [string, Obj, string][]; using?: string[] };
+    // A capability the server cannot parse fails the whole request, not the one
+    // call that wanted it - which is why an over-eager `using` is so damaging.
+    const unknown = (body.using ?? []).find((u) => !(u in session().capabilities));
+    if (unknown) {
+      res.writeHead(400, { "content-type": "application/json" });
+      return res.end(JSON.stringify({ type: "urn:ietf:params:jmap:error:unknownCapability", status: 400, detail: `Unknown capability: ${JSON.stringify(unknown)}` }));
+    }
     const responses: [string, Obj, string][] = [];
     const touched = new Set<string>();
     for (const [name, rawArgs, id] of body.methodCalls) {
       const h = handlers[name];
-      if (!h) { responses.push(["error", { type: "unknownMethod" }, id]); continue; }
+      // The registry, and every x: method with it, arrived in 0.16.
+      if (!h || (LEGACY && name.startsWith("x:"))) { responses.push(["error", { type: "unknownMethod" }, id]); continue; }
       try {
         const args = resolveRefs(rawArgs, responses);
         const r = h(args);
         responses.push([name, r as Obj, id]);
         if (name.endsWith("/set") || name.endsWith("/import")) touched.add(name.split("/")[0]!);
       } catch (err) {
-        responses.push(["error", { type: "serverFail", description: String(err) }, id]);
+        if (err instanceof MethodError) responses.push(["error", { type: err.type, description: err.message }, id]);
+        else responses.push(["error", { type: "serverFail", description: String(err) }, id]);
       }
     }
     if (touched.size) { nextState(); setTimeout(() => broadcast([...touched, ...(touched.has("Email") ? ["Mailbox", "Thread"] : [])]), 50); }
@@ -528,6 +635,7 @@ export const server = createServer(async (req, res) => {
   res.end(JSON.stringify({ error: "not found" }));
 }).listen(PORT, "127.0.0.1", () => {
   console.log(`[mock-stalwart] listening on http://127.0.0.1:${PORT}  (login: ${USER} / ${PASS})`);
+  console.log(`[mock-stalwart] impersonating Stalwart ${LEGACY ? "0.15 (pre-registry)" : "0.16+"}`);
   console.log(`[mock-stalwart] run the app with: STALWART_URL=http://127.0.0.1:${PORT} npm run dev`);
 });
 
