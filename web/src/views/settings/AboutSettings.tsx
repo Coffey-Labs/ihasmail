@@ -19,15 +19,29 @@ export function AboutSettings() {
       <table className="sessions-table">
         <tbody>
           <tr><td>Signed in as</td><td>{session?.username}</td></tr>
+          <tr><td>Stalwart</td><td>{describeServer(session?.ihasmail?.server)}</td></tr>
           <tr><td>Accounts</td><td>{Object.values(session?.accounts ?? {}).map((a) => a.name).join(", ")}</td></tr>
           <tr><td>Max upload</td><td>{Math.round(client.maxSizeUpload / 1048576)} MB</td></tr>
           <tr><td>Image privacy proxy</td><td>{session?.ihasmail?.imageProxy ? "enabled" : "disabled"}</td></tr>
         </tbody>
       </table>
+      <p className="hint" style={{ marginTop: 6 }}>Stalwart does not publish its version number to mail clients, so ihasmail reports the API generation it detected instead.</p>
       <h2>Server capabilities</h2>
       <div className="row wrap gap-4">
         {caps.map((c) => <span key={c} className="chip mono" style={{ fontSize: ".78em" }}>{c.replace("urn:ietf:params:jmap:", "")}</span>)}
       </div>
     </div>
   );
+}
+
+/**
+ * Stalwart deliberately withholds its version from clients (it reports a fixed
+ * "1.0.0" wherever it publishes one at all), so the most honest thing we can
+ * show is which generation of its API answered us, plus the edition where the
+ * server reports it.
+ */
+function describeServer(server: { generation?: "0.16+" | "pre-0.16" | null; edition?: string | null } | undefined): string {
+  if (!server?.generation) return "not detected";
+  const generation = server.generation === "0.16+" ? "0.16 or newer" : "older than 0.16";
+  return server.edition ? `${generation} (${server.edition})` : generation;
 }

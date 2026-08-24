@@ -16,13 +16,23 @@ interface DialogProps {
 
 export function Dialog({ open, onClose, title, children, footer, size = "md", closeOnBackdrop = true, className }: DialogProps) {
   const ref = useRef<HTMLDivElement>(null);
+  /*
+   * Callers almost always pass an inline arrow for onClose, so its identity
+   * changes on every render of the parent. Depending on it here would tear the
+   * effect down and set it up again on every keystroke in a dialog that holds
+   * state, and the autofocus below would drag the caret back to the first
+   * field mid-typing. Keep the latest handler in a ref instead, so the effect
+   * depends only on `open`.
+   */
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   useEffect(() => {
     if (!open) return;
     const prev = document.activeElement as HTMLElement | null;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.stopPropagation();
-        onClose();
+        onCloseRef.current();
       }
       if (e.key === "Tab" && ref.current) {
         const focusables = ref.current.querySelectorAll<HTMLElement>('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"]),[contenteditable="true"]');
@@ -48,7 +58,7 @@ export function Dialog({ open, onClose, title, children, footer, size = "md", cl
       document.removeEventListener("keydown", onKey, true);
       prev?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
   if (!open) return null;
   return createPortal(
     <div
