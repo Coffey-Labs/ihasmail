@@ -141,7 +141,8 @@ All configuration is via environment variables (see `.env.example`):
 | `STALWART_URL` | `https://mail.example.com` | Base URL of Stalwart; the JMAP session is discovered at `/.well-known/jmap` |
 | `APP_SECRET` | *(required in production)* | Secret used to derive session encryption keys |
 | `PORT` / `HOST` | `8080` / `0.0.0.0` | Listen address |
-| `TRUST_PROXY` | `1` | Honour `X-Forwarded-*` from a reverse proxy |
+| `TRUST_PROXY` | `1` | Honour `X-Forwarded-*`, but only from a peer listed in `TRUSTED_PROXIES` |
+| `TRUSTED_PROXIES` | *(loopback + private ranges)* | Comma-separated CIDRs or addresses whose forwarding headers are believed. Anything else is attributed by its socket address, whatever it claims |
 | `SECURE_COOKIES` | `auto` | `auto` (Secure on https), `1`, or `0` for plain-HTTP dev |
 | `SESSION_TTL` / `SESSION_REMEMBER_TTL` | `43200` / `2592000` | Idle session lifetime (seconds), with/without "keep me signed in" |
 | `SESSION_FILE` | *(unset)* | Persist sessions across restarts (ciphertext only) |
