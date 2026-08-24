@@ -6,30 +6,41 @@
  */
 import { CAP, client, setErrorMessage } from "@/jmap/client";
 import type { FileNode, GetResponse, QueryResponse, SetResponse } from "@/jmap/types";
+import { directoryCreate, fileCreate, normalizeFileNodes, queryOmitsDirectories, supportsNodeType } from "@/lib/filenode";
 import { useSession } from "@/store/session";
 import { toast } from "@/ui/toast";
 
 const FOLDER = "ihasmail";
 
+/** Just enough to find the folder, asking for nodeType only where it exists. */
+const folderProps = () => (supportsNodeType() ? ["id", "name", "nodeType", "parentId"] : ["id", "name", "parentId", "blobId", "size", "type"]);
+
 async function ensureFolder(accountId: string): Promise<string> {
   let list: FileNode[] = [];
-  try {
-    const res = await client.chain([
-      ["FileNode/query", { accountId, filter: { isTopLevel: true, nodeType: "directory", name: FOLDER }, limit: 5 }, "q"],
-      ["FileNode/get", { accountId, "#ids": { resultOf: "q", name: "FileNode/query", path: "/ids" }, properties: ["id", "name", "nodeType", "parentId"] }, "g"],
-    ]);
-    list = (res.get("g")?.[0] as unknown as GetResponse<FileNode>).list;
-  } catch {
-    // Older servers: no filter support — scan everything.
-    const res = await client.chain([
-      ["FileNode/query", { accountId, limit: 1000 }, "q"],
-      ["FileNode/get", { accountId, "#ids": { resultOf: "q", name: "FileNode/query", path: "/ids" }, properties: ["id", "name", "nodeType", "parentId"] }, "g"],
-    ]);
-    list = (res.get("g")?.[0] as unknown as GetResponse<FileNode>).list;
+  if (queryOmitsDirectories()) {
+    // Query cannot see a directory on these servers, so it would never find the
+    // folder and we would make a fresh one on every save. Ask get for the lot.
+    const res = await client.call<GetResponse<FileNode>>("FileNode/get", { accountId, ids: null, properties: folderProps() });
+    list = normalizeFileNodes(res.list);
+  } else {
+    try {
+      const res = await client.chain([
+        ["FileNode/query", { accountId, filter: { isTopLevel: true, nodeType: "directory", name: FOLDER }, limit: 5 }, "q"],
+        ["FileNode/get", { accountId, "#ids": { resultOf: "q", name: "FileNode/query", path: "/ids" }, properties: folderProps() }, "g"],
+      ]);
+      list = normalizeFileNodes((res.get("g")?.[0] as unknown as GetResponse<FileNode>).list);
+    } catch {
+      // Filters unsupported: scan everything and pick it out here.
+      const res = await client.chain([
+        ["FileNode/query", { accountId, limit: 1000 }, "q"],
+        ["FileNode/get", { accountId, "#ids": { resultOf: "q", name: "FileNode/query", path: "/ids" }, properties: folderProps() }, "g"],
+      ]);
+      list = normalizeFileNodes((res.get("g")?.[0] as unknown as GetResponse<FileNode>).list);
+    }
   }
   const existing = list.find((n) => n.name === FOLDER && n.nodeType === "directory" && !n.parentId);
   if (existing) return existing.id;
-  const set = await client.call<SetResponse<FileNode>>("FileNode/set", { accountId, create: { d: { parentId: null, name: FOLDER, nodeType: "directory" } } });
+  const set = await client.call<SetResponse<FileNode>>("FileNode/set", { accountId, create: { d: directoryCreate(null, FOLDER) } });
   const err = set.notCreated?.d;
   if (err) throw new Error(setErrorMessage(err));
   return set.created!.d!.id;
@@ -51,7 +62,7 @@ export async function uploadSignatureImage(file: File): Promise<string> {
     const up = await client.upload(accountId, file, { type });
     const folderId = await ensureFolder(accountId);
     const name = `${Date.now()}-${file.name.replace(/[^\w.-]+/g, "_")}`;
-    const res = await client.call<SetResponse<FileNode>>("FileNode/set", { accountId, create: { f: { parentId: folderId, name, nodeType: "file", blobId: up.blobId, type } } });
+    const res = await client.call<SetResponse<FileNode>>("FileNode/set", { accountId, create: { f: fileCreate(folderId, name, up.blobId, type) } });
     const err = res.notCreated?.f;
     if (err) throw new Error(setErrorMessage(err));
     const created = res.created?.f as Partial<FileNode> | undefined;
@@ -71,7 +82,7 @@ export async function storeSignatureHtml(html: string): Promise<string> {
   const up = await client.upload(accountId, new Blob([html], { type: "text/html" }), { type: "text/html" });
   const folderId = await ensureFolder(accountId);
   const name = `signature-${Date.now()}.html`;
-  const res = await client.call<SetResponse<FileNode>>("FileNode/set", { accountId, create: { f: { parentId: folderId, name, nodeType: "file", blobId: up.blobId, type: "text/html" } } });
+  const res = await client.call<SetResponse<FileNode>>("FileNode/set", { accountId, create: { f: fileCreate(folderId, name, up.blobId, "text/html") } });
   const err = res.notCreated?.f;
   if (err) throw new Error(setErrorMessage(err));
   const created = res.created?.f as Partial<FileNode> | undefined;
