@@ -15,9 +15,9 @@ describe("isRecurring", () => {
   it("does not call a one-off event a series just because it has a baseEventId", () => {
     expect(isRecurring(ev({ baseEventId: "ev1" }))).toBe(false);
     expect(isRecurring(ev({}))).toBe(false);
-  });
-  it("still recognises an occurrence whose base is another event", () => {
-    expect(isRecurring(ev({ id: "ev1_2", baseEventId: "ev1" }))).toBe(true);
+    // The shape a live 0.16.19 returns for a one-off: an instance id of its own,
+    // and a base that is a different id. Neither makes it a series.
+    expect(isRecurring(ev({ id: "eaaaaai", baseEventId: "i" }))).toBe(false);
   });
   it("recognises a series by its recurrence rules", () => {
     expect(isRecurring(ev({ recurrenceRules: [{ "@type": "RecurrenceRule", frequency: "weekly" }] }))).toBe(true);
