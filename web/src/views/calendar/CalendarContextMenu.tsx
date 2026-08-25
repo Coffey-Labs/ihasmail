@@ -1,7 +1,7 @@
 import { Calendar as CalIcon, CalendarDays, Copy, ExternalLink, Palette, Pencil, Plus, Tag, Trash2, X } from "lucide-react";
 import { useLocation } from "wouter";
 import type { CalendarEvent } from "@/jmap/types";
-import { useCalendar, type EventInstance } from "@/store/calendar";
+import { useCalendar, isRecurring, type EventInstance } from "@/store/calendar";
 import { useSettings } from "@/store/settings";
 import { formatDayMonth } from "@/lib/datetime";
 import { MenuItem, MenuSep, MenuTitle, Popover, type Anchor } from "@/ui/popover";
@@ -89,7 +89,7 @@ export function CalendarContextMenu({ ctx, onClose, onOpen, onEdit, onCreate }: 
   };
   const del = async () => {
     onClose();
-    const recurring = Boolean(ev.recurrenceRules?.length || ev.baseEventId);
+    const recurring = isRecurring(ev);
     if (!(await confirmDialog({ title: recurring ? "Delete all occurrences?" : "Delete this event?", confirmLabel: "Delete", danger: true }))) return;
     try {
       await cal.destroyEvent(baseId, participants > 1);
