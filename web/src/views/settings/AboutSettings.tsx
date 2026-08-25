@@ -1,9 +1,12 @@
 import { useSession } from "@/store/session";
 import { client } from "@/jmap/client";
+import { DEFAULT_SOURCE_URL } from "@/lib/source";
 
 export function AboutSettings() {
   const session = useSession((s) => s.session);
   const caps = Object.keys(session?.capabilities ?? {});
+  // A deployment running modified code should offer its own source, not ours.
+  const sourceUrl = session?.ihasmail?.sourceUrl ?? DEFAULT_SOURCE_URL;
   return (
     <div>
       <h1>About ihasmail</h1>
@@ -12,7 +15,7 @@ export function AboutSettings() {
         <img src="/img/logo.png" alt="ihasmail" width={96} />
         <div>
           <div style={{ fontWeight: 700, fontSize: "1.2em" }}>ihasmail 2.0</div>
-          <div className="hint">AGPL-3.0-or-later · <a href="https://github.com/LINUXexpert-org/ihasmail" target="_blank" rel="noreferrer">github.com/LINUXexpert-org/ihasmail</a></div>
+          <div className="hint">AGPL-3.0-or-later · <a href={sourceUrl} target="_blank" rel="noreferrer">{sourceUrl.replace(/^https?:\/\//, "")}</a></div>
         </div>
       </div>
       <h2>Server</h2>
