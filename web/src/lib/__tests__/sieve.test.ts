@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { newRule, rulesToSieve, sieveToRules, testToSieve, sieveString } from "../sieve";
+import { newRule, rulesToSieve, sieveToRules, testToSieve, sieveString, upsertRule } from "../sieve";
 
 describe("sieve codec", () => {
   it("escapes strings", () => {
@@ -23,6 +23,14 @@ describe("sieve codec", () => {
     expect(script).toContain('addflag "\\\\Seen";');
     expect(script).toContain("# (disabled) Big");
     expect(sieveToRules(script)).toEqual(rules);
+  });
+  it("keeps an edited rule in its place and appends a new one", () => {
+    const rules = ["r1", "r2", "r3"].map((id) => newRule({ id, name: id }));
+    const renamed = { ...rules[1]!, name: "Renamed" };
+    expect(upsertRule(rules, renamed).map((r) => r.id)).toEqual(["r1", "r2", "r3"]);
+    expect(upsertRule(rules, renamed)[1]!.name).toBe("Renamed");
+    expect(upsertRule(rules, newRule({ id: "r4" })).map((r) => r.id)).toEqual(["r1", "r2", "r3", "r4"]);
+    expect(rules.map((r) => r.name)).toEqual(["r1", "r2", "r3"]);
   });
   it("reports hand-written scripts as raw", () => {
     expect(sieveToRules('require ["fileinto"];\nif true { keep; }')).toBeNull();
