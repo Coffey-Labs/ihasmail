@@ -14,6 +14,12 @@ import { ShortcutsDialog, useGlobalShortcuts } from "./Shortcuts";
 import { formatSize } from "@/lib/format";
 import { CAP } from "@/jmap/client";
 
+const PUSH_LABEL = {
+  connected: "Live updates connected",
+  connecting: "Live updates reconnecting…",
+  disconnected: "Live updates off — checking periodically instead",
+} as const;
+
 export function AppShell({ children }: { children: ReactNode }) {
   const [location, navigate] = useLocation();
   const isMobile = useIsMobile();
@@ -22,7 +28,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [drawer, setDrawer] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const openCompose = useCompose((s) => s.open);
-  const pushConnected = useSession((s) => s.pushConnected);
+  const pushState = useSession((s) => s.pushState);
   const session = useSession((s) => s.session);
   const accountId = useSession((s) => s.accountId);
   const setAccount = useSession((s) => s.setAccount);
@@ -64,8 +70,8 @@ export function AppShell({ children }: { children: ReactNode }) {
         </Link>
         <SearchBar />
         <div className="topbar-actions">
-          <span className="push-dot hide-mobile" title={pushConnected ? "Live updates connected" : "Live updates disconnected (polling)"} aria-hidden="true">
-            <span className={`push-dot ${pushConnected ? "on" : ""}`} />
+          <span className="push-status hide-mobile" role="img" aria-label={PUSH_LABEL[pushState]} title={PUSH_LABEL[pushState]}>
+            <span className={`push-dot ${pushState}`} />
           </span>
           <button className="icon-btn hide-mobile" aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)" onClick={() => setHelpOpen(true)}>
             <HelpCircle size={21} />

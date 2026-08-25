@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { apiFetch, ApiError, CAP, client } from "@/jmap/client";
 import type { Id, JmapSession } from "@/jmap/types";
-import { push } from "@/jmap/push";
+import { push, type PushState } from "@/jmap/push";
 import { setServerLocale } from "@/lib/datetime";
 
 export type AuthStatus = "loading" | "anonymous" | "authenticated";
@@ -13,6 +13,8 @@ interface SessionState {
   accountId: Id | null;
   error: string | null;
   pushConnected: boolean;
+  /** Finer than pushConnected: tells "reconnecting" from "not connected". */
+  pushState: PushState;
   bootstrap(): Promise<void>;
   login(username: string, password: string, totp: string, remember: boolean): Promise<void>;
   logout(): Promise<void>;
@@ -28,6 +30,7 @@ export const useSession = create<SessionState>((set, get) => ({
   accountId: null,
   error: null,
   pushConnected: false,
+  pushState: "disconnected",
 
   async bootstrap() {
     try {
@@ -97,7 +100,7 @@ client.onUnauthenticated(() => {
   useSession.setState({ status: "anonymous", session: null, accountId: null });
 });
 
-push.onConnection((connected) => useSession.setState({ pushConnected: connected }));
+push.onConnection((state) => useSession.setState({ pushConnected: state === "connected", pushState: state }));
 
 export function hasCap(cap: string): boolean {
   return client.hasCapability(cap);
