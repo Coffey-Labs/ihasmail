@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
-import { ArrowDown, ArrowUp, Code, Plus, Trash2, Wand2, Play, AlertTriangle, Power } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowDown, ArrowUp, Code, GripVertical, Plus, Trash2, Wand2, Play, AlertTriangle, Power } from "lucide-react";
 import { useSieve } from "@/store/sieve";
 import { useMail } from "@/store/mail";
-import { describeRule, newRule, rulesToSieve, upsertRule, type SieveRule } from "@/lib/sieve";
+import { describeRule, newRule, reorderRules, rulesToSieve, upsertRule, type SieveRule } from "@/lib/sieve";
 import { RuleDialog } from "./RuleDialog";
 import { saveAndApply } from "../mail/FilterFromMessage";
 import { confirmDialog, promptDialog } from "@/ui/dialog";
@@ -40,6 +40,9 @@ export function FiltersSettings() {
   );
 }
 
+/** Private drag type, so a rule can only be dropped on the rule list. */
+const RULE_MIME = "application/x-ihasmail-sieve-rule";
+
 function RulesEditor() {
   const sieve = useSieve();
   const { script, rules, content } = sieve.rules();
@@ -49,6 +52,19 @@ function RulesEditor() {
   const list = local ?? rules ?? [];
   const dirty = local !== null;
   const inbox = useMail((s) => { const id = s.roleId("inbox"); return id ? s.mailboxes[id] : undefined; });
+  /** The rule being dragged, the one armed to be, and where a drop would land. */
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [armed, setArmed] = useState<string | null>(null);
+  const [over, setOver] = useState<{ id: string; below: boolean } | null>(null);
+  /**
+   * The same id as `dragId`, kept synchronously: the first dragover can arrive
+   * before React has re-rendered with the state, and a stale read there draws a
+   * drop line on the card being dragged.
+   */
+  const dragging = useRef<string | null>(null);
+  const endDrag = () => { dragging.current = null; setDragId(null); setArmed(null); setOver(null); };
+  /** Which half of the card the pointer is over decides which side of it the rule lands. */
+  const isBelow = (el: HTMLElement, y: number) => { const b = el.getBoundingClientRect(); return y > b.top + b.height / 2; };
   const activeIsOther = script && script.name !== "ihasmail" && script.isActive;
 
   const save = async (next: SieveRule[]) => {
@@ -79,8 +95,35 @@ function RulesEditor() {
       {activeIsOther && <div className="warn-box mb-16">Another script (“{script?.name}”) is active. Saving rules here will activate the “ihasmail” script instead.</div>}
       {list.length === 0 && <div className="empty" style={{ padding: 32 }}><Wand2 size={32} /><h3>No filters yet</h3><p>Create a rule to move newsletters to a folder, flag important senders, or forward mail.</p></div>}
       {list.map((r, i) => (
-        <div key={r.id} className={`rule-card ${r.enabled ? "" : "disabled"}`}>
+        <div
+          key={r.id}
+          className={`rule-card ${r.enabled ? "" : "disabled"} ${dragId === r.id ? "dragging" : ""} ${over?.id === r.id ? (over.below ? "drop-below" : "drop-above") : ""}`}
+          draggable={armed === r.id}
+          onDragStart={(e) => { e.dataTransfer.setData(RULE_MIME, r.id); e.dataTransfer.effectAllowed = "move"; dragging.current = r.id; setDragId(r.id); }}
+          onDragEnd={endDrag}
+          onDragOver={(e) => {
+            if (!e.dataTransfer.types.includes(RULE_MIME) || dragging.current === r.id) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+            const below = isBelow(e.currentTarget, e.clientY);
+            if (over?.id !== r.id || over.below !== below) setOver({ id: r.id, below });
+          }}
+          onDragLeave={() => setOver((o) => (o?.id === r.id ? null : o))}
+          onDrop={(e) => {
+            e.preventDefault();
+            const from = e.dataTransfer.getData(RULE_MIME);
+            if (from) setLocal(reorderRules(list, from, r.id, isBelow(e.currentTarget, e.clientY)));
+            endDrag();
+          }}
+        >
           <div className="row">
+            <span
+              className="drag-handle"
+              title="Drag to reorder"
+              aria-hidden="true"
+              onPointerDown={() => setArmed(r.id)}
+              onPointerUp={() => setArmed(null)}
+            ><GripVertical size={16} /></span>
             <Switch checked={r.enabled} onChange={(v) => setLocal(list.map((x) => (x.id === r.id ? { ...x, enabled: v } : x)))} />
             <div className="grow" style={{ cursor: "pointer", minWidth: 0 }} onClick={() => setEditing(r)}>
               <div style={{ fontWeight: 600 }}>{r.name}</div>
