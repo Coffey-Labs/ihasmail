@@ -14,6 +14,7 @@ import { LabelPicker } from "./LabelPicker";
 import type { Id } from "@/jmap/types";
 import { confirmDialog } from "@/ui/dialog";
 import { toast } from "@/ui/toast";
+import { scheduledMailboxIdFrom, useScheduled } from "@/store/scheduled";
 
 export function MailView({ mailboxId, threadId, search }: { mailboxId?: string; threadId?: string; search?: boolean }) {
   const [, navigate] = useLocation();
@@ -28,6 +29,8 @@ export function MailView({ mailboxId, threadId, search }: { mailboxId?: string; 
   const [focusId, setFocusId] = useState<Id | null>(null);
   const [movePicker, setMovePicker] = useState<{ ids: Id[] } | null>(null);
   const [labelPicker, setLabelPicker] = useState<{ ids: Id[]; anchor: { x: number; y: number } } | null>(null);
+  const reconcile = useScheduled((s) => s.reconcile);
+  const scheduledId = useMail((s) => scheduledMailboxIdFrom(s.mailboxes));
 
   const q = useMemo(() => (search ? (new URLSearchParams(searchStr).get("q") ?? "") : ""), [search, searchStr]);
 
@@ -47,13 +50,22 @@ export function MailView({ mailboxId, threadId, search }: { mailboxId?: string; 
     }
     if (!mailboxId) return null;
     const mb = mailboxes[mailboxId];
-    const isDraftsOrSent = mb?.role === "drafts" || mb?.role === "sent";
+    // Scheduled joins Drafts and Sent as a folder of individual messages: they
+    // are outgoing, and collapsing them into their threads hides them.
+    const isDraftsOrSent = mb?.role === "drafts" || mb?.role === "sent" || mailboxId === scheduledId;
     return { key: "", filter: { inMailbox: mailboxId }, sort: DEFAULT_SORT, collapseThreads: settings.conversationMode && !isDraftsOrSent, mailboxId };
-  }, [search, q, mailboxId, mailboxes, settings.conversationMode]);
+  }, [search, q, mailboxId, mailboxes, settings.conversationMode, scheduledId]);
 
   useEffect(() => {
     if (listQuery && mailboxesLoaded) void query(listQuery);
   }, [listQuery, query, mailboxesLoaded]);
+
+  // Nothing moves a message out of Scheduled when its hold expires, so settle
+  // the folder up on the way in: sent messages to Sent, cancelled ones back to
+  // Drafts, and refresh what is still waiting.
+  useEffect(() => {
+    if (mailboxesLoaded && mailboxId && mailboxId === scheduledId) void reconcile();
+  }, [mailboxId, scheduledId, mailboxesLoaded, reconcile]);
 
   const openThread = useCallback(
     (tid: Id | null) => {

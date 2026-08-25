@@ -6,6 +6,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
 import { parseOtpauthUrl, verifyTotp } from "../totp.js";
+import { holdUntilOf, undoStatusOf } from "./futurerelease.js";
 
 const PORT = Number(process.env.MOCK_PORT ?? 8788);
 /**
@@ -17,6 +18,15 @@ const PORT = Number(process.env.MOCK_PORT ?? 8788);
  * credentials live behind a REST endpoint instead.
  */
 const LEGACY = process.env.MOCK_STALWART === "0.15";
+/**
+ * Stalwart advertises FUTURERELEASE in the session but only honours it when
+ * the MTA's own `futureRelease` setting is on -- and that setting defaults to
+ * off, in which case the hold is dropped without a word and the message goes
+ * out at once. Set MOCK_NO_FUTURE_RELEASE=1 to reproduce that trap.
+ */
+const NO_FUTURE_RELEASE = process.env.MOCK_NO_FUTURE_RELEASE === "1";
+/** What the session advertises, matching Stalwart's own 30 days. */
+const MAX_DELAYED_SEND = 86400 * 30;
 const ACCOUNT = "a1";
 const USER = process.env.MOCK_USER ?? "demo@example.com";
 /** Locale the fake directory reports for the account (POSIX style, as Stalwart does). */
@@ -185,16 +195,42 @@ function pick(o: Obj, props?: string[] | null): Obj {
   else if (p.startsWith("header:")) out[p] = null;
   return out;
 }
-function resolveRefs(args: Obj, responses: [string, Obj, string][]): Obj {
+function resolveRefs(args: Obj, responses: [string, Obj, string][], creations: Record<string, string>): Obj {
   const out: Obj = {};
   for (const [k, v] of Object.entries(args)) {
     if (k.startsWith("#")) {
       const r = v as { resultOf: string; name: string; path: string };
       const resp = responses.find((x) => x[2] === r.resultOf && x[0] === r.name);
       out[k.slice(1)] = resp ? jsonPointer(resp[1], r.path) : [];
-    } else out[k] = v;
+    } else out[k] = resolveCreationIds(v, creations, k);
   }
   return out;
+}
+
+/**
+ * Creation references (RFC 8620 5.3): a `#creationId` anywhere a real id would
+ * go, pointing at something created earlier in the same request. Sending a
+ * message uses one -- `EmailSubmission/set` names the email as `#m` -- so
+ * without this the mock quietly declines to create any submission at all.
+ *
+ * `onSuccessUpdateEmail` is left alone: its keys are creation ids by design and
+ * the method that receives them resolves them itself.
+ */
+function resolveCreationIds(value: unknown, creations: Record<string, string>, key?: string): unknown {
+  if (key === "onSuccessUpdateEmail") return value;
+  if (typeof value === "string") {
+    return value.startsWith("#") && creations[value.slice(1)] ? creations[value.slice(1)]! : value;
+  }
+  if (Array.isArray(value)) return value.map((v) => resolveCreationIds(v, creations));
+  if (value && typeof value === "object") {
+    const out: Obj = {};
+    for (const [k, v] of Object.entries(value as Obj)) {
+      const nk = k.startsWith("#") && creations[k.slice(1)] ? creations[k.slice(1)]! : k;
+      out[nk] = resolveCreationIds(v, creations, k);
+    }
+    return out;
+  }
+  return value;
 }
 function jsonPointer(obj: unknown, path: string): unknown {
   const parts = path.split("/").filter(Boolean);
@@ -310,6 +346,26 @@ function genericSet(list: Obj[], prefix: string, onCreate?: (o: Obj) => void) {
     }
     return setResp({ created, updated, destroyed, ...(Object.keys(notCreated).length ? { notCreated } : {}) });
   };
+}
+
+/* ---------- submissions ---------- */
+/**
+ * Held messages, the way Stalwart models them: `sendAt` is derived from the
+ * envelope's FUTURERELEASE parameter rather than set by the client, and
+ * `undoStatus` reports whether the message is still in the queue.
+ */
+const submissions: Obj[] = [];
+
+function submissionView(sub: Obj): Obj {
+  return { ...sub, undoStatus: undoStatusOf(sub, Date.now()) };
+}
+
+function matchSubmissionFilter(sub: Obj, f: Obj | undefined): boolean {
+  if (!f) return true;
+  if (f.undoStatus && undoStatusOf(sub, Date.now()) !== f.undoStatus) return false;
+  if (Array.isArray(f.emailIds) && !(f.emailIds as string[]).includes(sub.emailId as string)) return false;
+  if (Array.isArray(f.identityIds) && !(f.identityIds as string[]).includes(sub.identityId as string)) return false;
+  return true;
 }
 
 const handlers: Record<string, Handler> = {
@@ -439,18 +495,81 @@ const handlers: Record<string, Handler> = {
     }
     return genericSet(identities, "i", (o) => Object.assign(o, { replyTo: null, bcc: null, textSignature: "", htmlSignature: "", mayDelete: true, ...o }))(a);
   },
+  "EmailSubmission/get": (a) => {
+    const ids = a.ids as string[] | null | undefined;
+    const found = ids ? ids.map((id) => submissions.find((x) => x.id === id)).filter(Boolean) as Obj[] : submissions;
+    return { accountId: ACCOUNT, state: String(state.n), list: found.map((x) => pick(submissionView(x), a.properties as string[] | null)), notFound: ids ? ids.filter((id) => !submissions.some((x) => x.id === id)) : [] };
+  },
+  "EmailSubmission/query": (a) => {
+    const list = submissions.filter((s) => matchSubmissionFilter(s, a.filter as Obj | undefined));
+    list.sort((x, y) => String(x.sendAt).localeCompare(String(y.sendAt)));
+    const pos = Number(a.position ?? 0);
+    const limit = Number(a.limit ?? 50);
+    return { accountId: ACCOUNT, queryState: String(state.n), canCalculateChanges: false, position: pos, ids: list.slice(pos, pos + limit).map((s) => s.id), total: list.length, limit };
+  },
   "EmailSubmission/set": (a) => {
     const created: Obj = {};
-    for (const [cid, sub] of Object.entries((a.create as Obj) ?? {})) {
-      const emailId = (sub as Obj).emailId as string;
+    const notCreated: Obj = {};
+    const updated: Obj = {};
+    const notUpdated: Obj = {};
+    for (const [cid, raw] of Object.entries((a.create as Obj) ?? {})) {
+      const sub = raw as Obj;
+      const emailId = sub.emailId as string;
       const e = emails.find((x) => x.id === emailId);
-      if (!e) continue;
-      created[cid] = { id: `s${randomUUID().slice(0, 6)}`, sendAt: new Date().toISOString(), undoStatus: "final" };
+      if (!e) {
+        notCreated[cid] = { type: "invalidProperties", properties: ["emailId"], description: "Blob for email not found." };
+        continue;
+      }
+      const hold = holdUntilOf(sub.envelope as Obj | undefined, Date.now());
+      if (Number.isNaN(hold)) {
+        notCreated[cid] = { type: "invalidProperties", properties: ["envelope"], description: "Failed to parse mailFrom parameters." };
+        continue;
+      }
+      // Stalwart rejects MAIL FROM outright past its own limit.
+      if (hold !== null && hold > Date.now() + MAX_DELAYED_SEND * 1000) {
+        notCreated[cid] = { type: "forbiddenMailFrom", description: `Server rejected MAIL-FROM: 501 5.5.4 Requested release time exceeds maximum of ${new Date(Date.now() + MAX_DELAYED_SEND * 1000).toISOString()}.` };
+        continue;
+      }
+      // With the MTA extension off, the hold is dropped in silence.
+      const sendAt = hold !== null && !NO_FUTURE_RELEASE ? hold : Date.now();
+      const rec: Obj = {
+        id: `s${randomUUID().slice(0, 6)}`,
+        identityId: sub.identityId ?? null,
+        emailId,
+        threadId: e.threadId ?? null,
+        envelope: sub.envelope ?? null,
+        sendAt: new Date(sendAt).toISOString(),
+        undoStatus: null,
+        deliveryStatus: null,
+      };
+      submissions.push(rec);
+      created[cid] = { id: rec.id, sendAt: rec.sendAt, undoStatus: undoStatusOf(rec, Date.now()) };
       const patch = ((a.onSuccessUpdateEmail as Obj) ?? {})[`#${cid}`] as Obj | undefined;
       if (patch) applyPatch(e, patch);
     }
+    for (const [id, raw] of Object.entries((a.update as Obj) ?? {})) {
+      const patch = raw as Obj;
+      const sub = submissions.find((x) => x.id === id);
+      if (!sub) { notUpdated[id] = { type: "notFound" }; continue; }
+      if (patch.undoStatus !== "canceled") {
+        notUpdated[id] = { type: "invalidProperties", properties: ["undoStatus"], description: "Only cancellation is supported." };
+        continue;
+      }
+      const status = undoStatusOf(sub, Date.now());
+      if (status !== "pending") {
+        notUpdated[id] = { type: "cannotUnsend", description: status === "canceled" ? "The message was already cancelled." : "The message has already been sent." };
+        continue;
+      }
+      sub.undoStatus = "canceled";
+      updated[id] = null;
+    }
     recount();
-    return setResp({ created });
+    return setResp({
+      created,
+      updated,
+      ...(Object.keys(notCreated).length ? { notCreated } : {}),
+      ...(Object.keys(notUpdated).length ? { notUpdated } : {}),
+    });
   },
   "VacationResponse/get": () => ({ accountId: ACCOUNT, state: "1", list: [vacation], notFound: [] }),
   "VacationResponse/set": (a) => { const p = ((a.update as Obj) ?? {}).singleton as Obj | undefined; if (p) vacation = { ...vacation, ...p }; return setResp({ updated: { singleton: null } }); },
@@ -545,7 +664,7 @@ function readBody(req: IncomingMessage): Promise<Buffer> {
 
 const session = () => ({
   capabilities: { "urn:ietf:params:jmap:core": { maxSizeUpload: 50000000, maxConcurrentUpload: 4, maxSizeRequest: 10000000, maxConcurrentRequests: 4, maxCallsInRequest: 16, maxObjectsInGet: MAX_OBJECTS, maxObjectsInSet: MAX_OBJECTS, collationAlgorithms: ["i;ascii-casemap"] }, "urn:ietf:params:jmap:mail": {}, "urn:ietf:params:jmap:submission": {}, "urn:ietf:params:jmap:vacationresponse": {}, "urn:ietf:params:jmap:sieve": { implementation: "mock" }, "urn:ietf:params:jmap:calendars": {}, "urn:ietf:params:jmap:calendars:parse": {}, "urn:ietf:params:jmap:contacts": {}, "urn:ietf:params:jmap:contacts:parse": {}, "urn:ietf:params:jmap:principals": {}, "urn:ietf:params:jmap:principals:availability": {}, "urn:ietf:params:jmap:quota": {}, "urn:ietf:params:jmap:blob": {}, "urn:ietf:params:jmap:filenode": {} },
-  accounts: { [ACCOUNT]: { name: USER, isPersonal: true, isReadOnly: false, accountCapabilities: { "urn:ietf:params:jmap:mail": {}, "urn:ietf:params:jmap:submission": {}, "urn:ietf:params:jmap:vacationresponse": {}, "urn:ietf:params:jmap:sieve": {}, "urn:ietf:params:jmap:calendars": {}, "urn:ietf:params:jmap:contacts": {}, "urn:ietf:params:jmap:principals": {}, "urn:ietf:params:jmap:quota": {}, "urn:ietf:params:jmap:filenode": {}, ...(LEGACY ? {} : { "urn:stalwart:jmap": {} }) } } },
+  accounts: { [ACCOUNT]: { name: USER, isPersonal: true, isReadOnly: false, accountCapabilities: { "urn:ietf:params:jmap:mail": {}, "urn:ietf:params:jmap:submission": { maxDelayedSend: MAX_DELAYED_SEND, submissionExtensions: { FUTURERELEASE: [], SIZE: [], DSN: [], DELIVERYBY: [], "MT-PRIORITY": ["MIXER"], REQUIRETLS: [] } }, "urn:ietf:params:jmap:vacationresponse": {}, "urn:ietf:params:jmap:sieve": {}, "urn:ietf:params:jmap:calendars": {}, "urn:ietf:params:jmap:contacts": {}, "urn:ietf:params:jmap:principals": {}, "urn:ietf:params:jmap:quota": {}, "urn:ietf:params:jmap:filenode": {}, ...(LEGACY ? {} : { "urn:stalwart:jmap": {} }) } } },
   primaryAccounts: { ...Object.fromEntries(["mail", "submission", "vacationresponse", "sieve", "calendars", "contacts", "principals", "quota", "filenode", "blob"].map((c) => [`urn:ietf:params:jmap:${c}`, ACCOUNT])), ...(LEGACY ? {} : { "urn:stalwart:jmap": ACCOUNT }) },
   username: USER,
   apiUrl: `http://127.0.0.1:${PORT}/jmap/`,
@@ -619,15 +738,20 @@ export const server = createServer(async (req, res) => {
     }
     const responses: [string, Obj, string][] = [];
     const touched = new Set<string>();
+    const creations: Record<string, string> = {};
     for (const [name, rawArgs, id] of body.methodCalls) {
       const h = handlers[name];
       // The registry, and every x: method with it, arrived in 0.16.
       if (!h || (LEGACY && name.startsWith("x:"))) { responses.push(["error", { type: "unknownMethod" }, id]); continue; }
       try {
-        const args = resolveRefs(rawArgs, responses);
+        const args = resolveRefs(rawArgs, responses, creations);
         enforceLimits(name, args);
         const r = h(args);
         responses.push([name, r as Obj, id]);
+        for (const [cid, obj] of Object.entries(((r as Obj).created as Obj) ?? {})) {
+          const newId = (obj as Obj)?.id;
+          if (typeof newId === "string") creations[cid] = newId;
+        }
         if (name.endsWith("/set") || name.endsWith("/import")) touched.add(name.split("/")[0]!);
       } catch (err) {
         if (err instanceof MethodError) responses.push(["error", { type: err.type, description: err.message }, id]);

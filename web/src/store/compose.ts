@@ -7,6 +7,8 @@ import { escapeHtml, htmlToText, quoteText, replySubject, textToHtml } from "@/l
 import { sanitizeEmailHtml, sanitizeEditorHtml } from "@/lib/html";
 import { toast } from "@/ui/toast";
 import { useMail, FULL_PROPS, BODY_PROPS } from "./mail";
+import { ensureScheduledMailbox, useScheduled } from "./scheduled";
+import { formatScheduleTime, holdUntil } from "@/lib/schedule";
 import { settings } from "./settings";
 
 export interface ComposeAttachment {
@@ -59,6 +61,8 @@ export interface Draft {
   signatureHtml: string;
   replyMode: "reply" | "replyAll" | "forward" | null;
   mailboxIdOnSend?: Id | null;
+  /** When set, hand the message to the server held until this instant. */
+  sendAt: number | null;
 }
 
 interface ComposeState {
@@ -116,6 +120,7 @@ function blankDraft(init: Partial<Draft> = {}): Draft {
     error: null,
     signatureHtml: "",
     replyMode: null,
+    sendAt: null,
     ...init,
   };
 }
@@ -378,6 +383,8 @@ export const useCompose = create<ComposeState>((set, get) => ({
     const d = get().drafts.find((x) => x.key === key);
     if (!d) return;
     const delay = settings().undoSendSeconds;
+    // A schedule the user left sitting until it passed is just a send now.
+    const scheduling = d.sendAt !== null && d.sendAt > Date.now();
     // Hide the composer immediately; actually send after the undo window.
     const t = autosaveTimers.get(key);
     if (t) window.clearTimeout(t);
@@ -390,7 +397,7 @@ export const useCompose = create<ComposeState>((set, get) => ({
       });
       try {
         await sendInternal(d, get);
-        toast.success("Message sent");
+        toast.success(scheduling ? `Send scheduled for ${formatScheduleTime(new Date(d.sendAt!))}` : "Message sent");
       } catch (err) {
         toast.error(`Send failed: ${(err as Error).message}`, {
           action: { label: "Open draft", onClick: () => set((s) => ({ drafts: [...s.drafts, { ...d, sending: false, error: (err as Error).message }], activeKey: d.key })) },
@@ -398,7 +405,10 @@ export const useCompose = create<ComposeState>((set, get) => ({
         });
       }
     };
-    if (delay <= 0) {
+    // A scheduled send is already delayed, and cancelling it is a server-side
+    // operation from the Scheduled folder -- holding it locally first would
+    // only add a second, different kind of undo.
+    if (delay <= 0 || scheduling) {
       await doSend();
       return;
     }
@@ -481,7 +491,7 @@ function scheduleAutosave(key: string, get: () => ComposeState) {
 }
 
 /** Build the JMAP Email creation object from a draft. */
-export async function buildEmailObject(d: Draft, opts: { forSend: boolean }): Promise<Record<string, unknown>> {
+export async function buildEmailObject(d: Draft, opts: { forSend: boolean; mailboxId?: Id | null }): Promise<Record<string, unknown>> {
   const mail = useMail.getState();
   const accountId = mail.accountId!;
   const ident = mail.identities.find((i) => i.id === d.identityId) ?? mail.identities[0];
@@ -591,7 +601,7 @@ export async function buildEmailObject(d: Draft, opts: { forSend: boolean }): Pr
     obj.mailboxIds = draftsId ? { [draftsId]: true } : { [mail.roleId("inbox")!]: true };
     obj.keywords = { $draft: true, $seen: true };
   } else {
-    const sentId = mail.roleId("sent") ?? mail.roleId("inbox");
+    const sentId = opts.mailboxId ?? mail.roleId("sent") ?? mail.roleId("inbox");
     obj.mailboxIds = { [sentId!]: true };
     obj.keywords = { $seen: true };
   }
@@ -628,29 +638,67 @@ async function saveDraftInternal(d: Draft, get: () => ComposeState, set: (fn: (s
   }
 }
 
+/**
+ * The `EmailSubmission/set` create for a message, and the `Email` patch that
+ * files it once the server accepts it.
+ *
+ * A scheduled send differs in two places: the envelope carries a
+ * `HOLDUNTIL` parameter (RFC 4865 FUTURERELEASE, which is how JMAP asks for a
+ * delay -- `sendAt` itself is read-only and server-derived), and the message is
+ * filed under Scheduled rather than Sent, because it has not been sent yet.
+ */
+export function buildSubmission(opts: {
+  identityId: Id;
+  fromEmail: string;
+  emailRef: string;
+  rcpts: { email: string }[];
+  sentId: Id | null;
+  draftsId: Id | null;
+  scheduledId: Id | null;
+  sendAt: number | null;
+}): { create: Record<string, unknown>; onSuccessUpdateEmail: Record<string, unknown> } {
+  const scheduled = opts.sendAt !== null;
+  const mailFrom: Record<string, unknown> = { email: opts.fromEmail };
+  if (scheduled) mailFrom.parameters = { HOLDUNTIL: holdUntil(new Date(opts.sendAt!)) };
+  const filedIn = scheduled ? opts.scheduledId : opts.sentId;
+  const onSuccess: Record<string, unknown> = { "keywords/$draft": null, "keywords/$seen": true };
+  if (filedIn) onSuccess[`mailboxIds/${filedIn}`] = true;
+  if (opts.draftsId && opts.draftsId !== filedIn) onSuccess[`mailboxIds/${opts.draftsId}`] = null;
+  if (scheduled && opts.sentId && opts.sentId !== filedIn) onSuccess[`mailboxIds/${opts.sentId}`] = null;
+  return {
+    create: { identityId: opts.identityId, emailId: opts.emailRef, envelope: { mailFrom, rcptTo: opts.rcpts } },
+    onSuccessUpdateEmail: onSuccess,
+  };
+}
+
 async function sendInternal(d: Draft, _get: () => ComposeState): Promise<void> {
   const mail = useMail.getState();
   const accountId = mail.accountId!;
   const ident = mail.identities.find((i) => i.id === d.identityId) ?? mail.identities[0];
   if (!ident) throw new Error("No sending identity available");
   if (d.attachments.some((a) => !a.blobId && !a.error)) throw new Error("Attachments are still uploading");
-  const email = await buildEmailObject(d, { forSend: true });
+  const scheduled = d.sendAt !== null && d.sendAt > Date.now();
+  const scheduledId = scheduled ? await ensureScheduledMailbox() : null;
+  const email = await buildEmailObject(d, { forSend: true, mailboxId: scheduledId });
   const sentId = mail.roleId("sent");
   const draftsId = mail.roleId("drafts");
-  const onSuccess: Record<string, unknown> = { "keywords/$draft": null, "keywords/$seen": true };
-  if (sentId) onSuccess[`mailboxIds/${sentId}`] = true;
-  if (draftsId) onSuccess[`mailboxIds/${draftsId}`] = null;
   const rcpts = uniqueAddresses([...d.to, ...d.cc, ...d.bcc]).map((a) => ({ email: a.email }));
   if (!rcpts.length) throw new Error("No recipients");
+  const sub = buildSubmission({
+    identityId: ident.id,
+    fromEmail: ident.email,
+    emailRef: "#m",
+    rcpts,
+    sentId,
+    draftsId,
+    scheduledId,
+    sendAt: scheduled ? d.sendAt : null,
+  });
   const calls: Array<[string, Record<string, unknown>, string]> = [
     ["Email/set", { accountId, create: { m: email }, ...(d.draftId ? { destroy: [d.draftId] } : {}) }, "e"],
     [
       "EmailSubmission/set",
-      {
-        accountId,
-        create: { s: { identityId: ident.id, emailId: "#m", envelope: { mailFrom: { email: ident.email }, rcptTo: rcpts } } },
-        onSuccessUpdateEmail: { "#s": onSuccess },
-      },
+      { accountId, create: { s: sub.create }, onSuccessUpdateEmail: { "#s": sub.onSuccessUpdateEmail } },
       "s",
     ],
   ];
@@ -675,6 +723,17 @@ async function sendInternal(d: Draft, _get: () => ComposeState): Promise<void> {
       const cur = st.emails[d.relatedEmailId!];
       return cur ? { emails: { ...st.emails, [d.relatedEmailId!]: { ...cur, keywords: { ...cur.keywords, [d.relatedKeyword!]: true } } } } : {};
     });
+  }
+  if (scheduled) {
+    // The server decides the release time, so take its word for it rather than
+    // ours -- and say so if the two disagree, which means the hold did not land
+    // the way we asked.
+    const created = (s.created?.s ?? {}) as { id?: Id; sendAt?: string; undoStatus?: string };
+    const settled = created.sendAt ? Date.parse(created.sendAt) : NaN;
+    if (!Number.isNaN(settled) && Math.abs(settled - d.sendAt!) > 60_000) {
+      toast.error(`The server scheduled this for ${formatScheduleTime(new Date(settled))}, not the time requested.`);
+    }
+    await useScheduled.getState().load();
   }
   void mail.loadMailboxes();
   void mail.refreshList();
