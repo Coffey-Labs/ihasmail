@@ -62,6 +62,11 @@ export interface Settings {
   fontSize: "small" | "medium" | "large";
   templates: Template[];
   labels: Array<{ keyword: string; name: string; color: string }>;
+  /**
+   * Folder colours, by mailbox id. Local to this browser, like every other
+   * colour here: JMAP has nowhere on a Mailbox to keep one.
+   */
+  folderColors: Record<string, string>;
   sidebarCollapsed: boolean;
   showHiddenFolders: boolean;
   trustedImageSenders: string[];
@@ -116,6 +121,7 @@ export const DEFAULT_SETTINGS: Settings = {
   fontSize: "medium",
   templates: [],
   labels: [],
+  folderColors: {},
   sidebarCollapsed: false,
   showHiddenFolders: false,
   trustedImageSenders: [],
