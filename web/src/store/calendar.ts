@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { CAP, client, setErrorMessage } from "@/jmap/client";
-import type { BusyPeriod, Calendar, CalendarEvent, GetResponse, Id, ParticipantIdentity, QueryResponse, SetResponse } from "@/jmap/types";
+import type { BusyPeriod, Calendar, CalendarEvent, GetResponse, Id, JSCalendarParticipant, JSCalendarRecurrenceRule, ParticipantIdentity, QueryResponse, SetResponse } from "@/jmap/types";
 import { toUTCDate, toLocalDateTime, zonedToDate, parseDuration, DAY_MS, browserTimeZone } from "@/lib/dates";
 import { settings } from "./settings";
 import { useSession } from "./session";
@@ -57,7 +57,7 @@ const EVENT_PROPS = [
   "id", "baseEventId", "calendarIds", "isDraft", "isOrigin", "utcStart", "utcEnd", "useDefaultAlerts", "mayInviteSelf", "mayInviteOthers", "hideAttendees",
   "uid", "relatedTo", "prodId", "created", "updated", "sequence", "title", "description", "descriptionContentType", "showWithoutTime",
   "locations", "virtualLocations", "links", "locale", "keywords", "categories", "color", "recurrenceId", "recurrenceIdTimeZone",
-  "recurrenceRules", "excludedRecurrenceRules", "recurrenceOverrides", "excluded", "priority", "freeBusyStatus", "privacy", "replyTo",
+  "recurrenceRules", "recurrenceRule", "excludedRecurrenceRules", "recurrenceOverrides", "excluded", "priority", "freeBusyStatus", "privacy", "replyTo", "organizerCalendarAddress",
   "sentBy", "participants", "requestStatus", "alerts", "timeZone", "start", "duration", "status",
 ];
 
@@ -338,6 +338,52 @@ export function toInstance(e: CalendarEvent, calendars: Record<Id, Calendar>): E
   return { key: e.id, event: e, start, end, allDay, calendar: calId ? calendars[calId] : undefined };
 }
 
+/**
+ * Every address a participant answers to, as lowercase `mailto:` URIs.
+ *
+ * Stalwart 0.16 keeps one address under `calendarAddress`; RFC 8984 spreads it
+ * over `sendTo` and `email`. Reading has to accept all three — a mailbox may
+ * hold events written by either, and by other clients besides.
+ */
+export function participantAddresses(p: JSCalendarParticipant): string[] {
+  return [p.calendarAddress ?? "", ...Object.values(p.sendTo ?? {}), p.email ? `mailto:${p.email}` : ""]
+    .filter(Boolean)
+    .map((a) => a.toLowerCase());
+}
+
+/** The address to show or write to, without the `mailto:`. */
+export function participantEmail(p: JSCalendarParticipant): string {
+  return (participantAddresses(p)[0] ?? "").replace(/^mailto:/i, "");
+}
+
+/** Whether this participant is attending, under any of the role names in use. */
+export function isAttendee(p: JSCalendarParticipant): boolean {
+  return Boolean(p.roles?.attendee || p.roles?.required || p.roles?.optional || p.roles?.chair);
+}
+
+/** The event's recurrence rule, under either spelling. */
+export function eventRule(ev: CalendarEvent): JSCalendarRecurrenceRule | undefined {
+  return ev.recurrenceRule ?? ev.recurrenceRules?.[0];
+}
+
+/**
+ * Builds a participant the way Stalwart 0.16 stores them: the address under
+ * `calendarAddress`. Sent under RFC 8984's `sendTo`/`email` instead, the server
+ * keeps the event and drops the whole participant map without saying so — which
+ * is how invitations came to vanish (#26).
+ */
+export function makeParticipant(email: string, name: string | null | undefined, role: "owner" | "attendee", status?: string): JSCalendarParticipant {
+  return {
+    "@type": "Participant",
+    name: name || undefined,
+    calendarAddress: `mailto:${email}`,
+    kind: "individual",
+    roles: role === "owner" ? { owner: true, attendee: true } : { attendee: true, required: true },
+    participationStatus: (status as JSCalendarParticipant["participationStatus"]) ?? (role === "owner" ? "accepted" : "needs-action"),
+    expectReply: role !== "owner",
+  };
+}
+
 export function myParticipantKeys(ev: CalendarEvent, identities: ParticipantIdentity[]): string[] {
   const mine = new Set<string>();
   for (const i of identities) {
@@ -348,8 +394,7 @@ export function myParticipantKeys(ev: CalendarEvent, identities: ParticipantIden
   if (session?.username?.includes("@")) mine.add(`mailto:${session.username.toLowerCase()}`);
   const keys: string[] = [];
   for (const [k, p] of Object.entries(ev.participants ?? {})) {
-    const addrs = [...Object.values(p.sendTo ?? {}), p.email ? `mailto:${p.email}` : ""].map((a) => a.toLowerCase());
-    if (addrs.some((a) => mine.has(a))) keys.push(k);
+    if (participantAddresses(p).some((a) => mine.has(a))) keys.push(k);
   }
   return keys;
 }
