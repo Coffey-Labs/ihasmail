@@ -324,6 +324,11 @@ img { max-width: 100%; }
 .nav-item.active.unread .nav-label, .nav-item.active.unread .nav-count { color: inherit; }
 .nav-item.drop-target { background: var(--accent-soft); outline: 2px dashed var(--accent); outline-offset: -2px; }
 .nav-item.folder-row.dragging { opacity: .45; }
+/* A folder colour tints its icon; the label keeps the sidebar's contrast. */
+.folder-row .folder-icon { display: inline-flex; align-items: center; }
+/* .nav-item svg sets colour on the svg itself, so inheriting from the span is
+   not enough -- the icon has to be targeted directly to win the cascade. */
+.folder-row .folder-icon[style*="--folder-color"] svg { color: var(--folder-color); }
 /* The Folders heading doubles as the way back to the top level while dragging. */
 .nav-section.drop-target { background: var(--accent-soft); outline: 2px dashed var(--accent); outline-offset: -2px; border-radius: var(--radius-sm); color: var(--accent-soft-fg); }
 .nav-item svg { flex: 0 0 auto; color: var(--fg-muted); }
