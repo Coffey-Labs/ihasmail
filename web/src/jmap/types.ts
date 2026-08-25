@@ -679,6 +679,8 @@ export interface JSCalendarEvent {
   recurrenceId?: LocalDate;
   recurrenceIdTimeZone?: string;
   recurrenceRules?: JSCalendarRecurrenceRule[];
+  /** Stalwart 0.16 stores a single rule under this name instead of the array above. */
+  recurrenceRule?: JSCalendarRecurrenceRule;
   excludedRecurrenceRules?: JSCalendarRecurrenceRule[];
   recurrenceOverrides?: Record<LocalDate, Record<string, unknown> | null>;
   excluded?: boolean;
