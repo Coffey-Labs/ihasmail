@@ -58,6 +58,7 @@ export const FULL_PROPS = [
   "header:X-Priority:asText",
   "header:Importance:asText",
   "header:Auto-Submitted:asText",
+  "header:Precedence:asText",
   "header:Authentication-Results:asText",
 ];
 
