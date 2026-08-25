@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { newRule, rulesToSieve, sieveToRules, testToSieve, sieveString, upsertRule } from "../sieve";
+import { newRule, reorderRules, rulesToSieve, sieveToRules, testToSieve, sieveString, upsertRule, type SieveRule } from "../sieve";
 
 describe("sieve codec", () => {
   it("escapes strings", () => {
@@ -35,5 +35,23 @@ describe("sieve codec", () => {
   it("reports hand-written scripts as raw", () => {
     expect(sieveToRules('require ["fileinto"];\nif true { keep; }')).toBeNull();
     expect(sieveToRules("")).toEqual([]);
+  });
+});
+
+describe("reordering rules", () => {
+  const ids = (rs: SieveRule[]) => rs.map((r) => r.id);
+  const list = ["a", "b", "c", "d"].map((id) => newRule({ id }));
+
+  it("drops a rule above or below the card it was dropped on", () => {
+    expect(ids(reorderRules(list, "a", "c", false))).toEqual(["b", "a", "c", "d"]);
+    expect(ids(reorderRules(list, "a", "c", true))).toEqual(["b", "c", "a", "d"]);
+    expect(ids(reorderRules(list, "d", "a", false))).toEqual(["d", "a", "b", "c"]);
+    expect(ids(reorderRules(list, "b", "d", true))).toEqual(["a", "c", "d", "b"]);
+  });
+  it("leaves the list alone when the drop goes nowhere", () => {
+    expect(reorderRules(list, "a", "a", true)).toBe(list);
+    expect(reorderRules(list, "a", "zz", true)).toBe(list);
+    expect(reorderRules(list, "zz", "a", true)).toBe(list);
+    expect(ids(list)).toEqual(["a", "b", "c", "d"]);
   });
 });
