@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { FolderRef } from "@/lib/sieveFolders";
 import { JmapMethodError, chunk, client, setErrorMessage } from "@/jmap/client";
 import type {
   Comparator,
@@ -668,18 +669,26 @@ export const useMail = create<MailState>((set, get) => ({
 
   async updateMailbox(id, patch) {
     const accountId = get().accountId!;
+    // Paths as the filter rules currently spell them, before the move.
+    const before = patch.name !== undefined || patch.parentId !== undefined ? folderRefs(get(), id) : [];
     const res = await client.call<SetResponse>("Mailbox/set", { accountId, update: { [id]: patch } });
     const err = res.notUpdated?.[id];
     if (err) throw new Error(setErrorMessage(err));
     await get().loadMailboxes();
+    // Awaited, not fired and forgotten: the folder operation is not really done
+    // until the rules pointing at it agree, and a page that navigates away
+    // mid-save would leave the script half-written.
+    if (before.length) await followFolders(before);
   },
 
   async destroyMailbox(id, removeEmails = true) {
     const accountId = get().accountId!;
+    const before = folderRefs(get(), id);
     const res = await client.call<SetResponse>("Mailbox/set", { accountId, destroy: [id], onDestroyRemoveEmails: removeEmails });
     const err = res.notDestroyed?.[id];
     if (err) throw new Error(setErrorMessage(err));
     await get().loadMailboxes();
+    await followFolders(before);
   },
 
   async loadIdentities() {
@@ -1010,3 +1019,69 @@ export function mailboxIcon(role: MailboxRole): string {
 }
 
 export const ROLE_ORDER: Record<string, number> = { inbox: 0, flagged: 1, important: 2, drafts: 3, sent: 4, archive: 5, all: 6, junk: 7, trash: 8 };
+
+/**
+ * A folder and everything under it, with the paths they have right now.
+ *
+ * Taken before a rename or a move, because renaming a parent silently rewrites
+ * the path of every folder beneath it, and the rules filing into those children
+ * name the old path just as much as the rules filing into the folder itself.
+ */
+function folderRefs(state: MailState, id: Id): FolderRef[] {
+  const all = Object.values(state.mailboxes);
+  const ids = new Set<Id>([id]);
+  // Walk down as far as the tree goes; depth is small and bounded by the server.
+  for (let pass = 0; pass < 20; pass++) {
+    const before = ids.size;
+    for (const m of all) if (m.parentId && ids.has(m.parentId)) ids.add(m.id);
+    if (ids.size === before) break;
+  }
+  return [...ids].map((i) => ({ id: i, path: state.mailboxPath(i) }));
+}
+
+/**
+ * Keeps the Sieve rules pointing at the folders they were aimed at.
+ *
+ * Called after the mailbox list has reloaded: anything in `before` that still
+ * exists has its rules retargeted to the new path, and anything that has gone
+ * takes its rules with it. Rules are server-side and invisible from here, so
+ * both outcomes are reported rather than done quietly.
+ *
+ * Deliberately never throws. The folder operation has already succeeded by this
+ * point, and failing to tidy the rules must not make it look otherwise.
+ */
+async function followFolders(before: FolderRef[]): Promise<void> {
+  try {
+    const { useSieve } = await import("./sieve");
+    const sieve = useSieve.getState();
+    if (!sieve.available) return;
+    if (!sieve.scripts.length) await sieve.load();
+    // Only the script the rule editor manages can be rewritten safely; a
+    // hand-written one is nobody's business but its author's.
+    const { rules } = useSieve.getState().rules();
+    if (!rules?.length) return;
+
+    const state = useMail.getState();
+    const moves: Array<FolderRef & { newPath: string }> = [];
+    const gone: FolderRef[] = [];
+    for (const ref of before) {
+      if (state.mailboxes[ref.id]) moves.push({ ...ref, newPath: state.mailboxPath(ref.id) });
+      else gone.push(ref);
+    }
+
+    const { retargetRules, dropRulesForFolders } = await import("@/lib/sieveFolders");
+    const retargeted = retargetRules(rules, moves);
+    const dropped = dropRulesForFolders(retargeted.rules, gone);
+    if (!retargeted.changed && !dropped.removed.length) return;
+
+    await useSieve.getState().saveRules(dropped.rules);
+    const { toast } = await import("@/ui/toast");
+    const said: string[] = [];
+    if (retargeted.changed) said.push(`${retargeted.changed} filter rule${retargeted.changed === 1 ? "" : "s"} updated`);
+    if (dropped.removed.length) said.push(`${dropped.removed.length} filter rule${dropped.removed.length === 1 ? "" : "s"} removed: ${dropped.removed.map((r) => `“${r.name}”`).join(", ")}`);
+    toast.show(said.join(" · "), { duration: 8000 });
+  } catch (err) {
+    const { toast } = await import("@/ui/toast");
+    toast.error(`Folder changed, but its filter rules could not be updated: ${(err as Error).message}`);
+  }
+}
