@@ -2,11 +2,19 @@
   <img src="web/public/img/logo.png" alt="ihasmail" width="180">
 </p>
 
+<p align="center">
+  <a href="https://github.com/LINUXexpert-org/ihasmail/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/LINUXexpert-org/ihasmail/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="LICENSE"><img alt="Licence: AGPL-3.0-or-later" src="https://img.shields.io/badge/licence-AGPL--3.0--or--later-2dd4bf?style=flat-square"></a>
+  <a href="https://stalw.art"><img alt="Tested against Stalwart 0.16.19 and 0.15.5" src="https://img.shields.io/badge/Stalwart-0.16.19%20%7C%200.15.5-6366f1?style=flat-square"></a>
+  <img alt="JMAP: RFC 8620 and 8621" src="https://img.shields.io/badge/JMAP-RFC%208620%20%2F%208621-0891b2?style=flat-square">
+  <img alt="Node 20.10 or newer" src="https://img.shields.io/badge/node-%E2%89%A5%2020.10-3c873a?style=flat-square&logo=node.js&logoColor=white">
+  <img alt="TypeScript, strict" src="https://img.shields.io/badge/TypeScript-strict-3178c6?style=flat-square&logo=typescript&logoColor=white">
+  <img alt="No IMAP, no SMTP, no database" src="https://img.shields.io/badge/no%20IMAP%20%C2%B7%20no%20SMTP%20%C2%B7%20no%20database-ea580c?style=flat-square">
+</p>
+
 # ihasmail
 
 **A fast, friendly, Gmail-class webmail for [Stalwart Mail Server](https://stalw.art) — built on JMAP, from the ground up.**
-
-[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 
 ihasmail is a JMAP-first web client: mail, calendars, contacts, files, filters and every other modern feature Stalwart exposes, in a responsive single-page app that works equally well on a desktop monitor and a phone. It talks only JMAP (plus Stalwart's blob/upload/EventSource endpoints) — no IMAP, no SMTP, no database.
 
