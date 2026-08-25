@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2, Users } from "lucide-react";
 import type { BusyPeriod, CalendarEvent, EmailAddress, JSCalendarAlert, JSCalendarParticipant, JSCalendarRecurrenceRule, JSCalendarNDay } from "@/jmap/types";
-import { useCalendar, myParticipantKeys, isRecurring } from "@/store/calendar";
+import { useCalendar, myParticipantKeys, isRecurring, eventRule, makeParticipant, participantEmail } from "@/store/calendar";
 import { useSettings } from "@/store/settings";
 import { useSession } from "@/store/session";
 import { useContacts } from "@/store/contacts";
@@ -67,8 +67,8 @@ function EventForm({ init, base, editing, onClose, settingsTz, defaultAlert, myE
   const [color, setColor] = useState<string | null>(ev?.color ?? null);
   const categories = useSettings((s) => s.settings.eventCategories);
   const [category, setCategory] = useState<string>(() => Object.keys(ev?.categories ?? {}).find((n) => categories.some((c) => c.name.toLowerCase() === n.toLowerCase())) ?? "");
-  const [rule, setRule] = useState<JSCalendarRecurrenceRule | undefined>(ev?.recurrenceRules?.[0]);
-  const [preset, setPreset] = useState<RecurrencePreset>(presetFor(ev?.recurrenceRules?.[0]));
+  const [rule, setRule] = useState<JSCalendarRecurrenceRule | undefined>(ev ? eventRule(ev) : undefined);
+  const [preset, setPreset] = useState<RecurrencePreset>(presetFor(ev ? eventRule(ev) : undefined));
   const [alerts, setAlerts] = useState<number[]>(() => {
     const a = Object.values(ev?.alerts ?? {}).map((x) => ("offset" in x.trigger ? -parseDuration(x.trigger.offset) / 60 : 0)).filter((n) => n >= 0);
     if (ev) return a;
@@ -78,7 +78,7 @@ function EventForm({ init, base, editing, onClose, settingsTz, defaultAlert, myE
   const [attendees, setAttendees] = useState<EmailAddress[]>(() =>
     Object.entries(ev?.participants ?? {})
       .filter(([k, p]) => !myKeys.includes(k) && !(p.roles?.owner && !p.roles?.attendee))
-      .map(([, p]) => ({ name: p.name ?? null, email: p.email ?? Object.values(p.sendTo ?? {})[0]?.replace(/^mailto:/i, "") ?? "" }))
+      .map(([, p]) => ({ name: p.name ?? null, email: participantEmail(p) }))
       .filter((a) => a.email),
   );
   const [sendInvites, setSendInvites] = useState(true);
@@ -142,11 +142,11 @@ function EventForm({ init, base, editing, onClose, settingsTz, defaultAlert, myE
       if (allDay && e <= s) e = new Date(s.getTime() + DAY_MS);
       const participants: Record<string, JSCalendarParticipant> = {};
       if (attendees.length && myAddress) {
-        participants.me = { "@type": "Participant", name: identity?.name || undefined, email: myPlainEmail, sendTo: { imip: myAddress }, kind: "individual", roles: { owner: true, attendee: true }, participationStatus: "accepted", expectReply: false };
+        participants.me = makeParticipant(myPlainEmail, identity?.name, "owner");
         for (const a of attendees) {
           // preserve existing status if the attendee was already there
-          const existing = Object.values(ev?.participants ?? {}).find((p) => (p.email ?? Object.values(p.sendTo ?? {})[0]?.replace(/^mailto:/i, ""))?.toLowerCase() === a.email.toLowerCase());
-          participants[newKey("p")] = { "@type": "Participant", name: a.name ?? undefined, email: a.email, sendTo: { imip: `mailto:${a.email}` }, kind: "individual", roles: { attendee: true }, participationStatus: existing?.participationStatus ?? "needs-action", expectReply: true };
+          const existing = Object.values(ev?.participants ?? {}).find((p) => participantEmail(p).toLowerCase() === a.email.toLowerCase());
+          participants[newKey("p")] = makeParticipant(a.email, a.name, "attendee", existing?.participationStatus);
         }
       }
       const alertObj: Record<string, JSCalendarAlert> = {};
@@ -161,10 +161,12 @@ function EventForm({ init, base, editing, onClose, settingsTz, defaultAlert, myE
         locations: location.trim() ? { [newKey("l")]: { "@type": "Location", name: location.trim() } } : undefined,
         virtualLocations: vurl.trim() ? { [newKey("v")]: { "@type": "VirtualLocation", uri: vurl.trim(), name: "Online meeting" } } : undefined,
         participants: Object.keys(participants).length ? participants : undefined,
-        replyTo: Object.keys(participants).length && myAddress ? { imip: myAddress } : undefined,
+        // Stalwart 0.16 names the organizer here; RFC 8984's replyTo is ignored.
+        organizerCalendarAddress: Object.keys(participants).length && myAddress ? myAddress : undefined,
         alerts: Object.keys(alertObj).length ? alertObj : undefined,
         useDefaultAlerts: false,
-        recurrenceRules: rule ? [rule] : undefined,
+        // Singular, and no array: Stalwart 0.16 rejects `recurrenceRules` outright (#30).
+        recurrenceRule: rule ?? undefined,
         status,
         privacy,
         freeBusyStatus: freeBusy,

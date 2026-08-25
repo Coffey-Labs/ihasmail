@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AlignLeft, Bell, Calendar as CalIcon, Check, Clock, HelpCircle, Link2, MapPin, Pencil, Repeat, Trash2, Users, X, Mail } from "lucide-react";
-import { useCalendar, myParticipantKeys, isRecurring, type EventInstance } from "@/store/calendar";
+import { useCalendar, myParticipantKeys, isRecurring, eventRule, participantEmail, type EventInstance } from "@/store/calendar";
 import { Popover, type Anchor } from "@/ui/popover";
 import { confirmDialog } from "@/ui/dialog";
 import { toast } from "@/ui/toast";
@@ -66,7 +66,7 @@ export function EventPopover({ inst, anchor, onClose, onEdit }: { inst: EventIns
       </div>
       <h3>{ev.title || "(untitled)"}</h3>
       <div className="ev-line"><Clock size={15} /><span>{formatTimeRange(inst.start, inst.end, inst.allDay)}{ev.timeZone && !inst.allDay ? <span className="hint"> · {ev.timeZone}</span> : null}</span></div>
-      {ev.recurrenceRules?.[0] && <div className="ev-line"><Repeat size={15} /><span>{describeRule(ev.recurrenceRules[0])}</span></div>}
+      {eventRule(ev) && <div className="ev-line"><Repeat size={15} /><span>{describeRule(eventRule(ev)!)}</span></div>}
       {location?.name && <div className="ev-line"><MapPin size={15} /><span>{location.name}</span></div>}
       {vloc?.uri && <div className="ev-line"><Link2 size={15} /><a href={vloc.uri} target="_blank" rel="noreferrer" className="truncate">{vloc.name || vloc.uri}</a></div>}
       {ev.description && <div className="ev-line"><AlignLeft size={15} /><span style={{ whiteSpace: "pre-wrap", maxHeight: 160, overflow: "auto" }}>{ev.description}</span></div>}
@@ -75,12 +75,12 @@ export function EventPopover({ inst, anchor, onClose, onEdit }: { inst: EventIns
       <div className="ev-line"><CalIcon size={15} /><span>{inst.calendar?.name ?? "Calendar"}{ev.status === "cancelled" ? " · cancelled" : ev.status === "tentative" ? " · tentative" : ""}{ev.privacy && ev.privacy !== "public" ? ` · ${ev.privacy}` : ""}{ev.freeBusyStatus === "free" ? " · shown as free" : ""}</span></div>
       {participants.length > 0 && (
         <div className="ev-line" style={{ flexDirection: "column", gap: 2 }}>
-          <div className="row gap-8"><Users size={15} /><span>{participants.length} participant{participants.length === 1 ? "" : "s"}</span><button className="icon-btn xs" title="Email everyone" onClick={() => openCompose({ to: participants.map(([, p]) => ({ name: p.name ?? null, email: p.email ?? Object.values(p.sendTo ?? {})[0]?.replace(/^mailto:/i, "") ?? "" })).filter((a) => a.email), subject: ev.title ?? "" })}><Mail size={13} /></button></div>
+          <div className="row gap-8"><Users size={15} /><span>{participants.length} participant{participants.length === 1 ? "" : "s"}</span><button className="icon-btn xs" title="Email everyone" onClick={() => openCompose({ to: participants.map(([, p]) => ({ name: p.name ?? null, email: participantEmail(p) })).filter((a) => a.email), subject: ev.title ?? "" })}><Mail size={13} /></button></div>
           <div style={{ paddingLeft: 24, maxHeight: 140, overflow: "auto", width: "100%" }}>
             {participants.map(([k, p]) => (
               <div key={k} className="participant-row">
                 <span className={`p-status ${p.participationStatus ?? "needs-action"}`} title={p.participationStatus ?? "needs-action"} />
-                <span className="truncate">{p.name || p.email || Object.values(p.sendTo ?? {})[0]?.replace(/^mailto:/i, "")}</span>
+                <span className="truncate">{p.name || participantEmail(p)}</span>
                 {p.roles?.owner && <span className="hint">organizer</span>}
                 {p.roles?.optional && <span className="hint">optional</span>}
               </div>

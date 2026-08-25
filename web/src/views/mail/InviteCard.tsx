@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Calendar, Check, HelpCircle, MapPin, X } from "lucide-react";
 import { useLocation } from "wouter";
 import type { CalendarEvent, Email, EmailBodyPart } from "@/jmap/types";
-import { useCalendar, toInstance, myParticipantKeys } from "@/store/calendar";
+import { useCalendar, toInstance, myParticipantKeys, isAttendee, participantEmail } from "@/store/calendar";
 import { formatTimeRange } from "@/lib/dates";
 import { toast } from "@/ui/toast";
 
@@ -41,7 +41,7 @@ export function InviteCard({ email, part }: { email: Email; part: EmailBodyPart 
   const organizer = Object.values(ev.participants ?? {}).find((p) => p.roles?.owner);
   const location = Object.values(ev.locations ?? {})[0]?.name;
   const myStatus = existing ? (myParticipantKeys(existing, cal.identities).map((k) => existing.participants?.[k]?.participationStatus)[0] ?? null) : null;
-  const attendees = Object.values(ev.participants ?? {}).filter((p) => p.roles?.attendee);
+  const attendees = Object.values(ev.participants ?? {}).filter(isAttendee);
 
   const respond = async (status: "accepted" | "tentative" | "declined") => {
     setBusy(status);
@@ -90,11 +90,11 @@ export function InviteCard({ email, part }: { email: Email; part: EmailBodyPart 
           <h4>{ev.title || "(untitled event)"}</h4>
           {inst && <div className="small">{formatTimeRange(inst.start, inst.end, inst.allDay)}{ev.timeZone ? ` (${ev.timeZone})` : ""}</div>}
           {location && <div className="small muted row gap-4"><MapPin size={13} /> {location}</div>}
-          {organizer && <div className="small muted">Organizer: {organizer.name || organizer.email || Object.values(organizer.sendTo ?? {})[0]?.replace("mailto:", "")}</div>}
+          {organizer && <div className="small muted">Organizer: {organizer.name || participantEmail(organizer)}</div>}
           {attendees.length > 0 && <div className="small muted">{attendees.length} attendee{attendees.length === 1 ? "" : "s"}</div>}
           {method === "REPLY" && (
             <div className="small" style={{ marginTop: 4 }}>
-              {attendees.map((a) => <div key={a.email ?? a.name}>{a.name || a.email}: <b>{a.participationStatus ?? "unknown"}</b></div>)}
+              {attendees.map((a) => <div key={participantEmail(a) || a.name}>{a.name || participantEmail(a)}: <b>{a.participationStatus ?? "unknown"}</b></div>)}
             </div>
           )}
         </div>
