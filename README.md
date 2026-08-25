@@ -6,6 +6,8 @@
 
 **A fast, friendly, Gmail-class webmail for [Stalwart Mail Server](https://stalw.art) — built on JMAP, from the ground up.**
 
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
+
 ihasmail is a JMAP-first web client: mail, calendars, contacts, files, filters and every other modern feature Stalwart exposes, in a responsive single-page app that works equally well on a desktop monitor and a phone. It talks only JMAP (plus Stalwart's blob/upload/EventSource endpoints) — no IMAP, no SMTP, no database.
 
 > Status: 2.0 rewrite, in QA against a live Stalwart server — **0.16.19**
@@ -222,6 +224,12 @@ the registry path is **awaiting live re-verification**.
 Copyright (C) 2026 LINUXexpert.org
 
 ihasmail is free software: you can redistribute it and/or modify it under the
-terms of the GNU General Public License as published by the Free Software
-Foundation, either version 3 of the License, or (at your option) any later
-version. See [LICENSE](LICENSE) for the full text.
+terms of the GNU Affero General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version. See [LICENSE](LICENSE) for the full text.
+
+ihasmail was relicensed from GPL-3.0 to AGPL-3.0 on 2026-08-25. Webmail is
+nearly always run as a network service rather than handed to anyone as a
+binary, and the AGPL's section 13 closes that gap: anyone running a modified
+ihasmail for other people has to offer them its source, which the GPL alone
+does not require.
