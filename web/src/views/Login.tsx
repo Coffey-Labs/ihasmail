@@ -1,10 +1,23 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Eye, EyeOff, LogIn, ShieldCheck } from "lucide-react";
 import { useSession } from "@/store/session";
 import { ApiError } from "@/jmap/client";
+import { DEFAULT_SOURCE_URL } from "@/lib/source";
 
 export function LoginPage() {
   const login = useSession((s) => s.login);
+  // The AGPL's offer has to reach everyone who interacts with the app over the
+  // network, and that includes whoever is looking at this form. The server says
+  // where its own source lives, so a modified deployment points at its own.
+  const [sourceUrl, setSourceUrl] = useState(DEFAULT_SOURCE_URL);
+  useEffect(() => {
+    let live = true;
+    fetch("/api/config")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((c) => { if (live && c?.sourceUrl) setSourceUrl(c.sourceUrl as string); })
+      .catch(() => { /* the default stands */ });
+    return () => { live = false; };
+  }, []);
   const [username, setUsername] = useState(() => localStorage.getItem("ihasmail:lastUser") ?? "");
   const [password, setPassword] = useState("");
   const [totp, setTotp] = useState("");
@@ -81,6 +94,8 @@ export function LoginPage() {
         </button>
         <p className="foot">
           ihasmail by <a href="https://linuxexpert.org" target="_blank" rel="noopener noreferrer">linuxexpert.org</a>
+          {" · "}
+          <a href={sourceUrl} target="_blank" rel="noopener noreferrer">AGPL-3.0 source</a>
         </p>
       </form>
     </div>

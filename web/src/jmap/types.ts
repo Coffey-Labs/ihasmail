@@ -25,6 +25,8 @@ export interface JmapSession {
   state: string;
   ihasmail?: {
     appName: string;
+    /** Where this instance's source can be had, for the AGPL's sake. */
+    sourceUrl?: string;
     imageProxy: boolean;
     maxUploadBytes: number;
     sessionId: string;
