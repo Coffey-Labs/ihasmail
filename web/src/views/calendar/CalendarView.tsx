@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { ChevronLeft, ChevronRight, Plus, Calendar as CalIcon } from "lucide-react";
-import { useCalendar, type EventInstance } from "@/store/calendar";
+import { useCalendar, participantAddresses, type EventInstance } from "@/store/calendar";
 import { useSettings } from "@/store/settings";
 import { addDays, addMonths, DAY_MS, endOfDay, isSameDay, isToday, monthGrid, roundToNext, startOfDay, startOfWeek, toLocalDateOnly, weekDays } from "@/lib/dates";
 import { formatMonthYear, formatTime } from "@/lib/format";
@@ -184,8 +184,7 @@ function statusClass(i: EventInstance): string {
   const ids = mine.flatMap((m) => [m.calendarAddress.toLowerCase(), ...Object.values(m.sendTo ?? {}).map((x) => x.toLowerCase())]);
   let my: string | undefined;
   for (const p of Object.values(ev.participants ?? {})) {
-    const addrs = [...Object.values(p.sendTo ?? {}), p.email ? `mailto:${p.email}` : ""].map((a) => a.toLowerCase());
-    if (addrs.some((a) => ids.includes(a))) my = p.participationStatus;
+    if (participantAddresses(p).some((a) => ids.includes(a))) my = p.participationStatus;
   }
   if (ev.status === "cancelled") return "cancelled";
   if (my === "declined") return "declined";
