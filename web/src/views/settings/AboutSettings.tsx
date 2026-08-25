@@ -12,7 +12,7 @@ export function AboutSettings() {
         <img src="/img/logo.png" alt="ihasmail" width={96} />
         <div>
           <div style={{ fontWeight: 700, fontSize: "1.2em" }}>ihasmail 2.0</div>
-          <div className="hint">GPL-3.0-or-later · <a href="https://github.com/LINUXexpert-org/ihasmail" target="_blank" rel="noreferrer">github.com/LINUXexpert-org/ihasmail</a></div>
+          <div className="hint">AGPL-3.0-or-later · <a href="https://github.com/LINUXexpert-org/ihasmail" target="_blank" rel="noreferrer">github.com/LINUXexpert-org/ihasmail</a></div>
         </div>
       </div>
       <h2>Server</h2>
