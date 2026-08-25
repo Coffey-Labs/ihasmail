@@ -615,6 +615,8 @@ export interface JSCalendarParticipant {
   email?: string;
   description?: string;
   sendTo?: Record<string, string>;
+  /** Where Stalwart 0.16 keeps the address, in place of `sendTo` / `email`. */
+  calendarAddress?: string;
   kind?: "individual" | "group" | "location" | "resource";
   roles: Record<string, boolean>;
   locationId?: string;
@@ -679,6 +681,8 @@ export interface JSCalendarEvent {
   recurrenceId?: LocalDate;
   recurrenceIdTimeZone?: string;
   recurrenceRules?: JSCalendarRecurrenceRule[];
+  /** Stalwart 0.16 stores a single rule under this name instead of the array above. */
+  recurrenceRule?: JSCalendarRecurrenceRule;
   excludedRecurrenceRules?: JSCalendarRecurrenceRule[];
   recurrenceOverrides?: Record<LocalDate, Record<string, unknown> | null>;
   excluded?: boolean;
@@ -686,6 +690,8 @@ export interface JSCalendarEvent {
   freeBusyStatus?: "free" | "busy";
   privacy?: "public" | "private" | "secret";
   replyTo?: Record<string, string>;
+  /** Where Stalwart 0.16 keeps the organizer, in place of `replyTo`. */
+  organizerCalendarAddress?: string;
   sentBy?: string;
   participants?: Record<string, JSCalendarParticipant>;
   requestStatus?: string;
