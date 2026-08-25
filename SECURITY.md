@@ -15,7 +15,7 @@ ihasmail is under active development. Security fixes are applied to the latest r
 
 Instead, report security issues privately by emailing:
 
-**johnellisATlinuxDOTcom**
+**johnellis<at>linux<dot>com**
 
 Please include as much of the following as you can:
 
