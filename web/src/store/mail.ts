@@ -1069,16 +1069,18 @@ async function followFolders(before: FolderRef[]): Promise<void> {
       else gone.push(ref);
     }
 
-    const { retargetRules, dropRulesForFolders } = await import("@/lib/sieveFolders");
+    const { retargetRules, detachFolders } = await import("@/lib/sieveFolders");
     const retargeted = retargetRules(rules, moves);
-    const dropped = dropRulesForFolders(retargeted.rules, gone);
-    if (!retargeted.changed && !dropped.removed.length) return;
+    const detached = detachFolders(retargeted.rules, gone);
+    if (!retargeted.changed && !detached.edited.length && !detached.removed.length) return;
 
-    await useSieve.getState().saveRules(dropped.rules);
+    await useSieve.getState().saveRules(detached.rules);
     const { toast } = await import("@/ui/toast");
+    const plural = (n: number) => (n === 1 ? "" : "s");
     const said: string[] = [];
-    if (retargeted.changed) said.push(`${retargeted.changed} filter rule${retargeted.changed === 1 ? "" : "s"} updated`);
-    if (dropped.removed.length) said.push(`${dropped.removed.length} filter rule${dropped.removed.length === 1 ? "" : "s"} removed: ${dropped.removed.map((r) => `“${r.name}”`).join(", ")}`);
+    if (retargeted.changed) said.push(`${retargeted.changed} filter rule${plural(retargeted.changed)} updated`);
+    if (detached.edited.length) said.push(`${detached.edited.length} filter rule${plural(detached.edited.length)} no longer file${detached.edited.length === 1 ? "s" : ""} there`);
+    if (detached.removed.length) said.push(`${detached.removed.length} filter rule${plural(detached.removed.length)} removed, having nothing left to do: ${detached.removed.map((r) => `“${r.name}”`).join(", ")}`);
     toast.show(said.join(" · "), { duration: 8000 });
   } catch (err) {
     const { toast } = await import("@/ui/toast");
