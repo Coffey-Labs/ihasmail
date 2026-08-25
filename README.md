@@ -233,3 +233,8 @@ nearly always run as a network service rather than handed to anyone as a
 binary, and the AGPL's section 13 closes that gap: anyone running a modified
 ihasmail for other people has to offer them its source, which the GPL alone
 does not require.
+
+That offer has to point at *your* source, not this one. If you run a modified
+ihasmail, set `SOURCE_URL` to your own repository: the sign-in page and
+Settings › About both show it, so the people using your instance are told where
+the code they are actually running can be found.

@@ -60,6 +60,14 @@ const stalwartUrl = env("STALWART_URL", "https://mail.example.com").replace(/\/+
 export const config = {
   isProd,
   appName: env("APP_NAME", "ihasmail"),
+  /**
+   * Where this instance's source can be had, shown to everyone who reaches it.
+   *
+   * The AGPL asks whoever *runs* a modified version to offer that version's
+   * source, not the one it was forked from -- so anyone deploying a patched
+   * ihasmail should point this at their own tree.
+   */
+  sourceUrl: env("SOURCE_URL", "https://github.com/LINUXexpert-org/ihasmail"),
   host: env("HOST", "0.0.0.0"),
   port: int("PORT", 8080),
   stalwartUrl,
