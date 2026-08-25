@@ -69,6 +69,30 @@ export function forgetUpstreamSession(sessionId: string): void {
 const STALWART_CAP = "urn:stalwart:jmap";
 const JMAP_CORE = "urn:ietf:params:jmap:core";
 
+/**
+ * Whether this server has Stalwart's JMAP registry — the `x:` objects that
+ * carry credentials, account settings and the newer FileNode shape.
+ *
+ * `urn:stalwart:jmap` is the marker, but **not** in the session-level
+ * `capabilities`, which is where a JMAP client would naturally look. Stalwart
+ * builds that list from a fixed set that has never included this capability;
+ * it hands it out per-account instead, so it turns up in `primaryAccounts` and
+ * in each account's `accountCapabilities`. Checking only the session level
+ * therefore reports every real 0.16 server as pre-0.16 — which routed
+ * self-service credentials to a REST endpoint 0.16 had removed, and told the
+ * About page the wrong thing. The session level is still checked last, in case
+ * a later release advertises it there as well.
+ */
+export function hasStalwartRegistry(session: Pick<UpstreamSession, "capabilities" | "accounts" | "primaryAccounts"> | undefined): boolean {
+  if (!session) return false;
+  if (session.primaryAccounts && STALWART_CAP in session.primaryAccounts) return true;
+  for (const account of Object.values(session.accounts ?? {})) {
+    const caps = (account as { accountCapabilities?: Record<string, unknown> } | null)?.accountCapabilities;
+    if (caps && STALWART_CAP in caps) return true;
+  }
+  return Boolean(session.capabilities && STALWART_CAP in session.capabilities);
+}
+
 export interface AccountInfo {
   /** BCP-47 tag configured for the account, or null if unreadable. */
   locale: string | null;
@@ -87,6 +111,7 @@ const INFO_CACHE_MS = 30 * 60_000;
 const EMPTY_INFO: AccountInfo = { locale: null, generation: null, edition: null };
 /** A server that has never heard of the registry: nothing to read, but dated. */
 const PRE_REGISTRY_INFO: AccountInfo = { locale: null, generation: "pre-0.16", edition: null };
+const REGISTRY_INFO: AccountInfo = { locale: null, generation: "0.16+", edition: null };
 
 /**
  * glibc modifiers that name a script rather than a dialect or a currency:
@@ -144,8 +169,9 @@ async function fetchAccountInfo(authorization: string, session: UpstreamSession)
   // at all, so its absence already answers the question — and asking anyway
   // would fail the whole request, since those servers reject a `using` naming
   // a capability they cannot parse.
+  // A session with no capabilities at all is not one we can read anything from.
   if (!session.capabilities) return EMPTY_INFO;
-  if (!(STALWART_CAP in session.capabilities)) return PRE_REGISTRY_INFO;
+  if (!hasStalwartRegistry(session)) return PRE_REGISTRY_INFO;
   const accountId =
     session.primaryAccounts?.[STALWART_CAP] ??
     session.primaryAccounts?.["urn:ietf:params:jmap:mail"] ??
@@ -163,9 +189,12 @@ async function fetchAccountInfo(authorization: string, session: UpstreamSession)
     }),
     signal: AbortSignal.timeout(config.upstreamTimeout),
   });
-  if (!res.ok) return EMPTY_INFO;
+  // The registry capability already settled the generation. A locale request
+  // that fails — a permission we lack, a hiccup upstream — can only cost us the
+  // locale; it must not talk us out of what we know.
+  if (!res.ok) return REGISTRY_INFO;
   const body = (await res.json()) as { methodResponses?: [string, Record<string, unknown>, string][] };
-  return interpretAccountInfo(body.methodResponses ?? []);
+  return interpretAccountInfo(body.methodResponses ?? [], "0.16+");
 }
 
 /**
@@ -173,16 +202,21 @@ async function fetchAccountInfo(authorization: string, session: UpstreamSession)
  * back to `x:Account` for servers (or permissions) where only that one works,
  * and note which generation answered.
  */
-export function interpretAccountInfo(responses: [string, Record<string, unknown>, string][]): AccountInfo {
+export function interpretAccountInfo(
+  responses: [string, Record<string, unknown>, string][],
+  known: AccountInfo["generation"] = null,
+): AccountInfo {
   const settings = responses.find((r) => r[2] === "s");
   const account = responses.find((r) => r[2] === "a");
   // Only 0.16+ knows the method at all; older builds cannot even parse the name.
+  // `known` is what the session capability already proved, and outranks a reply
+  // that merely refused us.
   const generation: AccountInfo["generation"] =
     settings && settings[0] !== "error"
       ? "0.16+"
       : (settings?.[1] as { type?: string } | undefined)?.type === "unknownMethod"
         ? "pre-0.16"
-        : null;
+        : known;
   return { locale: localeOf(settings) ?? localeOf(account), generation, edition: null };
 }
 

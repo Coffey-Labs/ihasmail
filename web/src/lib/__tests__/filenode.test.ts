@@ -17,6 +17,20 @@ function session(caps: string[]): JmapSession {
 const NEW_SERVER = ["urn:ietf:params:jmap:core", "urn:ietf:params:jmap:filenode", "urn:stalwart:jmap"];
 const OLD_SERVER = ["urn:ietf:params:jmap:core", "urn:ietf:params:jmap:filenode"];
 
+/**
+ * The session a real Stalwart 0.16 sends: `urn:stalwart:jmap` is handed out
+ * per-account and never appears in the session-level capabilities, so a client
+ * that only checks there drops every 0.16 server onto the older code path.
+ */
+function realStalwartSession(): JmapSession {
+  return {
+    capabilities: Object.fromEntries(OLD_SERVER.map((c) => [c, {}])),
+    accounts: { a1: { accountCapabilities: { "urn:ietf:params:jmap:filenode": {}, "urn:stalwart:jmap": {} } } },
+    primaryAccounts: { "urn:stalwart:jmap": "a1" },
+    state: "s",
+  } as unknown as JmapSession;
+}
+
 afterEach(() => {
   client.session = null;
 });
@@ -34,6 +48,16 @@ describe("on Stalwart 0.16 and newer", () => {
     client.session = session(NEW_SERVER);
     const nodes = [{ id: "1", name: "x", nodeType: "directory" }] as Partial<FileNode>[];
     expect(normalizeFileNodes(nodes)).toEqual(nodes);
+  });
+});
+
+describe("on a real 0.16 session, which advertises per-account only", () => {
+  it("is recognised as 0.16 even though the session capabilities do not say so", () => {
+    client.session = realStalwartSession();
+    expect(client.hasCapability("urn:stalwart:jmap")).toBe(false);
+    expect(supportsNodeType()).toBe(true);
+    expect(queryOmitsDirectories()).toBe(false);
+    expect(directoryCreate(null, "ihasmail")).toEqual({ parentId: null, name: "ihasmail", nodeType: "directory" });
   });
 });
 
