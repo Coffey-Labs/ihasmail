@@ -13,13 +13,15 @@ export interface RuleDialogProps {
   onSave: (r: SieveRule, applyNow: boolean) => void;
   /** When set, offers "Also apply to existing messages in <folder>". */
   applyMailbox?: { id: Id; name: string } | null;
+  /** Ticks that offer by default. Off unless applying is the point of the dialog. */
+  applyByDefault?: boolean;
   title?: string;
   saveLabel?: string;
 }
 
-export function RuleDialog({ rule, onClose, onSave, applyMailbox, title, saveLabel }: RuleDialogProps) {
+export function RuleDialog({ rule, onClose, onSave, applyMailbox, applyByDefault, title, saveLabel }: RuleDialogProps) {
   const [r, setR] = useState<SieveRule>(rule);
-  const [applyNow, setApplyNow] = useState(Boolean(applyMailbox));
+  const [applyNow, setApplyNow] = useState(Boolean(applyMailbox && applyByDefault));
   const mailboxes = useMail((s) => s.mailboxes);
   const mailboxPath = useMail((s) => s.mailboxPath);
   const folders = useMemo(() => Object.values(mailboxes).map((m) => ({ id: m.id, path: mailboxPath(m.id) })).sort((a, b) => a.path.localeCompare(b.path)), [mailboxes, mailboxPath]);

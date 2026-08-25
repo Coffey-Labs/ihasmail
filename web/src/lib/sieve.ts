@@ -202,6 +202,14 @@ export function newRule(partial: Partial<SieveRule> = {}): SieveRule {
   };
 }
 
+/**
+ * Replaces a rule with the same id in place, or appends it when it is new.
+ * Order is evaluation order in Sieve, so an edited rule has to keep its seat.
+ */
+export function upsertRule(rules: SieveRule[], rule: SieveRule): SieveRule[] {
+  return rules.some((x) => x.id === rule.id) ? rules.map((x) => (x.id === rule.id ? rule : x)) : [...rules, rule];
+}
+
 export function describeRule(r: SieveRule): string {
   const tests = r.tests
     .map((t) => {
