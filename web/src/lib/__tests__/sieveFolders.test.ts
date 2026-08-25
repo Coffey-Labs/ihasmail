@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { retargetRules, dropRulesForFolders } from "../sieveFolders";
+import { retargetRules, detachFolders } from "../sieveFolders";
 import { newRule, type SieveRule } from "../sieve";
 
 /**
@@ -56,30 +56,53 @@ describe("retargetRules", () => {
   });
 });
 
-describe("dropRulesForFolders", () => {
-  it("removes a rule whose destination is gone", () => {
+describe("detachFolders", () => {
+  it("removes only the filing action, leaving the rest of the rule doing its job", () => {
+    const rules = [rule("news", fileinto("Newsletters", "mb1", [{ type: "markread" }, { type: "stop" }]))];
+    const out = detachFolders(rules, [{ id: "mb1", path: "Newsletters" }]);
+    expect(out.removed).toEqual([]);
+    expect(out.edited).toHaveLength(1);
+    expect(out.rules[0]!.actions.map((a) => a.type)).toEqual(["markread", "stop"]);
+  });
+
+  it("removes the rule when filing was all it did", () => {
     const rules = [rule("news", fileinto("Newsletters", "mb1")), rule("keep", fileinto("Archive", "mb9"))];
-    const out = dropRulesForFolders(rules, [{ id: "mb1", path: "Newsletters" }]);
+    const out = detachFolders(rules, [{ id: "mb1", path: "Newsletters" }]);
     expect(out.removed.map((r) => r.name)).toEqual(["news"]);
     expect(out.rules.map((r) => r.name)).toEqual(["keep"]);
   });
 
-  it("removes rules for a deleted folder's children too", () => {
-    const rules = [rule("a", fileinto("Work", "mb1")), rule("b", fileinto("Work/Invoices", "mb2"))];
-    const out = dropRulesForFolders(rules, [{ id: "mb1", path: "Work" }, { id: "mb2", path: "Work/Invoices" }]);
-    expect(out.rules).toEqual([]);
-    expect(out.removed).toHaveLength(2);
+  it("handles a deleted folder's children too", () => {
+    const rules = [
+      rule("a", fileinto("Work", "mb1")),
+      rule("b", fileinto("Work/Invoices", "mb2", [{ type: "flag" }])),
+    ];
+    const out = detachFolders(rules, [{ id: "mb1", path: "Work" }, { id: "mb2", path: "Work/Invoices" }]);
+    expect(out.removed.map((r) => r.name)).toEqual(["a"]);
+    expect(out.rules.map((r) => r.name)).toEqual(["b"]);
+    expect(out.rules[0]!.actions.map((a) => a.type)).toEqual(["flag"]);
   });
 
   it("still finds the rule when only the path matches", () => {
     const rules = [rule("news", fileinto("Newsletters"))];
-    expect(dropRulesForFolders(rules, [{ id: "mb1", path: "NEWSLETTERS" }]).removed).toHaveLength(1);
+    expect(detachFolders(rules, [{ id: "mb1", path: "NEWSLETTERS" }]).removed).toHaveLength(1);
+  });
+
+  it("keeps a second filing action aimed somewhere that still exists", () => {
+    const rules = [rule("both", [
+      { type: "fileinto", mailbox: "Newsletters", mailboxId: "mb1" },
+      { type: "fileinto", mailbox: "Archive", mailboxId: "mb9", copy: true },
+    ])];
+    const out = detachFolders(rules, [{ id: "mb1", path: "Newsletters" }]);
+    expect(out.removed).toEqual([]);
+    expect(out.rules[0]!.actions).toEqual([{ type: "fileinto", mailbox: "Archive", mailboxId: "mb9", copy: true }]);
   });
 
   it("leaves the list untouched when nothing matches", () => {
     const rules = [rule("keep", fileinto("Archive", "mb9"))];
-    const out = dropRulesForFolders(rules, [{ id: "mb1", path: "Newsletters" }]);
+    const out = detachFolders(rules, [{ id: "mb1", path: "Newsletters" }]);
     expect(out.rules).toBe(rules);
+    expect(out.edited).toEqual([]);
     expect(out.removed).toEqual([]);
   });
 });
