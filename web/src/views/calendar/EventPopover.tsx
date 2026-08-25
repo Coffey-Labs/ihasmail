@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AlignLeft, Bell, Calendar as CalIcon, Check, Clock, HelpCircle, Link2, MapPin, Pencil, Repeat, Trash2, Users, X, Mail } from "lucide-react";
-import { useCalendar, myParticipantKeys, type EventInstance } from "@/store/calendar";
+import { useCalendar, myParticipantKeys, isRecurring, type EventInstance } from "@/store/calendar";
 import { Popover, type Anchor } from "@/ui/popover";
 import { confirmDialog } from "@/ui/dialog";
 import { toast } from "@/ui/toast";
@@ -29,7 +29,7 @@ export function EventPopover({ inst, anchor, onClose, onEdit }: { inst: EventIns
   const openCompose = useCompose((s) => s.open);
 
   const del = async () => {
-    const recurring = Boolean(ev.recurrenceRules?.length || ev.baseEventId);
+    const recurring = isRecurring(ev);
     const ok = await confirmDialog({ title: recurring ? "Delete all occurrences?" : "Delete this event?", message: recurring ? "This will delete the entire series." : undefined, confirmLabel: "Delete", danger: true });
     if (!ok) return;
     setBusy(true);
