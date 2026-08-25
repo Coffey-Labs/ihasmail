@@ -18,7 +18,7 @@ function draft(over: Partial<Draft> = {}): Draft {
     requestReceipt: false, priority: "normal",
     showCc: false, showBcc: false, showReplyTo: false,
     minimized: false, maximized: false, dirty: false, savedAt: null,
-    saving: false, sending: false, error: null, signatureHtml: "", replyMode: null,
+    saving: false, sending: false, error: null, signatureHtml: "", replyMode: null, sendAt: null,
     ...over,
   };
 }

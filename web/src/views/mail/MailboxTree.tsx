@@ -1,7 +1,8 @@
 import { useMemo, useState, type DragEvent, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { AlertOctagon, Archive, ChevronDown, ChevronRight, File, Folder, FolderPlus, Inbox, Mail, MoreVertical, Send, Star, Tag, Trash2, Plus, Pencil, Eye, EyeOff, CheckCheck, Eraser, Share2 } from "lucide-react";
+import { AlertOctagon, Archive, ChevronDown, Clock, ChevronRight, File, Folder, FolderPlus, Inbox, Mail, MoreVertical, Send, Star, Tag, Trash2, Plus, Pencil, Eye, EyeOff, CheckCheck, Eraser, Share2 } from "lucide-react";
 import { useMail } from "@/store/mail";
+import { isScheduledMailbox } from "@/store/scheduled";
 import { useSettings } from "@/store/settings";
 import type { Id, Mailbox } from "@/jmap/types";
 import { MenuItem, MenuSep, Popover, useMenu } from "@/ui/popover";
@@ -128,11 +129,14 @@ export function MailboxTree() {
 
 function FolderRow({ mailbox: m, label, depth, hasChildren, open, hiddenUnread, childUnread, onToggle, currentId, onMenu }: { mailbox: Mailbox; label: string; depth: number; hasChildren: boolean; open: boolean; hiddenUnread: number; childUnread: number; onToggle: () => void; currentId?: string; onMenu: (m: Mailbox, e: { currentTarget: Element }) => void }) {
   const [dropping, setDropping] = useState(false);
-  const own = m.role === "drafts" ? m.totalEmails : m.unreadEmails;
+  // Scheduled counts like Drafts: everything in it is already read, so the
+  // useful number is how many messages are waiting, not how many are unseen.
+  const scheduled = isScheduledMailbox(m);
+  const own = m.role === "drafts" || scheduled ? m.totalEmails : m.unreadEmails;
   const count = own + hiddenUnread;
   // Bold when this folder has unread mail, or any folder beneath it does (parent + child both bold).
-  const unread = m.role !== "drafts" && m.role !== "trash" && m.role !== "junk" && m.role !== "sent" ? m.unreadEmails + childUnread > 0 : m.unreadEmails > 0 && m.role !== "drafts";
-  const icon = m.role && ROLE_ICONS[m.role] ? ROLE_ICONS[m.role] : <Folder size={20} />;
+  const unread = m.role !== "drafts" && m.role !== "trash" && m.role !== "junk" && m.role !== "sent" && !scheduled ? m.unreadEmails + childUnread > 0 : m.unreadEmails > 0 && m.role !== "drafts" && !scheduled;
+  const icon = m.role && ROLE_ICONS[m.role] ? ROLE_ICONS[m.role] : scheduled ? <Clock size={20} /> : <Folder size={20} />;
 
   const onDragOver = (e: DragEvent) => {
     if (!e.dataTransfer.types.includes("application/x-ihasmail-emails")) return;
