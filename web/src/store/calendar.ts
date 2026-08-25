@@ -300,15 +300,15 @@ export const useCalendar = create<CalendarState>((set, get) => ({
 /**
  * Whether an event is part of a series.
  *
- * Not the same question as "does it have a baseEventId": `CalendarEvent/query`
- * runs with `expandRecurrences`, and Stalwart sets `baseEventId` on every event
- * it returns that way — a one-off event included, pointing at itself. Recurrence
- * rules are what make a series, so those are the question; a base that is some
- * *other* event means this is one occurrence of one, whether or not the expanded
- * instance carried the rules along with it.
+ * Not the same question as "does it have a baseEventId", nor "is that base some
+ * other event". `CalendarEvent/query` runs with `expandRecurrences`, and Stalwart
+ * hands back an instance id for everything it returns that way — a one-off event
+ * included, whose own id (`eaaaaai`) differs from its base (`i`), verified
+ * against a live 0.16.19. Recurrence rules are what make a series, so those are
+ * what we ask about.
  */
 export function isRecurring(ev: CalendarEvent): boolean {
-  return Boolean(ev.recurrenceRules?.length || ev.excludedRecurrenceRules?.length || (ev.baseEventId && ev.baseEventId !== ev.id));
+  return Boolean(ev.recurrenceRules?.length || ev.excludedRecurrenceRules?.length);
 }
 
 export function toInstance(e: CalendarEvent, calendars: Record<Id, Calendar>): EventInstance | null {
