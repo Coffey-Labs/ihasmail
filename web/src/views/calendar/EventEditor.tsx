@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2, Users } from "lucide-react";
 import type { BusyPeriod, CalendarEvent, EmailAddress, JSCalendarAlert, JSCalendarParticipant, JSCalendarRecurrenceRule, JSCalendarNDay } from "@/jmap/types";
-import { useCalendar, myParticipantKeys } from "@/store/calendar";
+import { useCalendar, myParticipantKeys, isRecurring } from "@/store/calendar";
 import { useSettings } from "@/store/settings";
 import { useSession } from "@/store/session";
 import { useContacts } from "@/store/contacts";
@@ -202,7 +202,7 @@ function EventForm({ init, base, editing, onClose, settingsTz, defaultAlert, myE
   return (
     <Dialog open onClose={onClose} title={editing ? "Edit event" : "New event"} size="lg" footer={<><button className="btn" onClick={onClose}>Cancel</button><button className="btn btn-primary" disabled={busy} onClick={() => void save()}>{busy ? "Saving…" : editing ? "Save" : attendees.length && sendInvites ? "Send invites" : "Create"}</button></>}>
       <div className="event-form">
-        {init.event?.baseEventId && <div className="info-box mb-16">This is a recurring event — changes apply to the whole series.</div>}
+        {ev && isRecurring(ev) && <div className="info-box mb-16">This is a recurring event — changes apply to the whole series.</div>}
         <div className="field"><input className="input" style={{ fontSize: "1.1em", height: 44 }} placeholder="Add title" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} /></div>
         <div className="time-row mb-8">
           {allDay ? (
