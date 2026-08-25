@@ -81,7 +81,7 @@ export function CalendarContextMenu({ ctx, onClose, onOpen, onEdit, onCreate }: 
   const duplicate = async () => {
     const { id: _i, baseEventId: _b, uid: _u, utcStart: _s, utcEnd: _e, isOrigin: _o, calendarIds, created: _c, updated: _up, sequence: _sq, recurrenceId: _ri, recurrenceIdTimeZone: _rt, ...rest } = ev as CalendarEvent & Record<string, unknown>;
     try {
-      await cal.createEvent({ ...rest, title: `Copy of ${ev.title ?? "event"}`, participants: undefined, replyTo: undefined } as Partial<CalendarEvent>, Object.keys(calendarIds)[0] ?? Object.keys(cal.calendars)[0]!, false);
+      await cal.createEvent({ ...rest, title: `Copy of ${ev.title ?? "event"}`, participants: undefined, replyTo: undefined, organizerCalendarAddress: undefined } as Partial<CalendarEvent>, Object.keys(calendarIds)[0] ?? Object.keys(cal.calendars)[0]!, false);
       toast.success("Event duplicated");
     } catch (err) {
       toast.error((err as Error).message);
