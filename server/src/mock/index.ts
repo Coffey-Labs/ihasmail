@@ -151,8 +151,8 @@ const events: Obj[] = [];
   const d = (dayOff: number, h: number) => { const x = new Date(now.getFullYear(), now.getMonth(), now.getDate() + dayOff, h, 0, 0); return x; };
   const local = (x: Date) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}T${String(x.getHours()).padStart(2, "0")}:00:00`;
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  events.push({ id: "ev1", calendarIds: { c1: true }, "@type": "Event", uid: "ev1", title: "Standup", start: local(d(0, 9)), timeZone: tz, duration: "PT30M", recurrenceRules: [{ "@type": "RecurrenceRule", frequency: "weekly", byDay: [{ day: "mo" }, { day: "tu" }, { day: "we" }, { day: "th" }, { day: "fr" }] }], showWithoutTime: false, status: "confirmed", freeBusyStatus: "busy", privacy: "public" });
-  events.push({ id: "ev2", calendarIds: { c2: true }, "@type": "Event", uid: "ev2", title: "Design review", start: local(d(1, 14)), timeZone: tz, duration: "PT1H30M", showWithoutTime: false, locations: { l: { "@type": "Location", name: "Room 2" } }, participants: { me: { "@type": "Participant", name: "Demo User", email: USER, sendTo: { imip: `mailto:${USER}` }, roles: { owner: true, attendee: true }, participationStatus: "accepted" }, p2: { "@type": "Participant", name: "Ada Lovelace", email: "ada@example.org", sendTo: { imip: "mailto:ada@example.org" }, roles: { attendee: true }, participationStatus: "needs-action", expectReply: true } }, replyTo: { imip: `mailto:${USER}` } });
+  events.push({ id: "ev1", calendarIds: { c1: true }, "@type": "Event", uid: "ev1", title: "Standup", start: local(d(0, 9)), timeZone: tz, duration: "PT30M", recurrenceRule: { "@type": "RecurrenceRule", frequency: "weekly", byDay: [{ day: "mo" }, { day: "tu" }, { day: "we" }, { day: "th" }, { day: "fr" }] }, showWithoutTime: false, status: "confirmed", freeBusyStatus: "busy", privacy: "public" });
+  events.push({ id: "ev2", calendarIds: { c2: true }, "@type": "Event", uid: "ev2", title: "Design review", start: local(d(1, 14)), timeZone: tz, duration: "PT1H30M", showWithoutTime: false, locations: { l: { "@type": "Location", name: "Room 2" } }, participants: { me: { "@type": "Participant", name: "Demo User", calendarAddress: `mailto:${USER}`, roles: { owner: true, attendee: true }, participationStatus: "accepted" }, p2: { "@type": "Participant", name: "Ada Lovelace", calendarAddress: "mailto:ada@example.org", roles: { attendee: true, required: true }, participationStatus: "needs-action", expectReply: true } }, organizerCalendarAddress: `mailto:${USER}` });
   events.push({ id: "ev3", calendarIds: { c1: true }, "@type": "Event", uid: "ev3", title: "Conference", start: local(d(3, 0)).slice(0, 10) + "T00:00:00", duration: "P2D", showWithoutTime: true, timeZone: null });
   events.push({ id: "ev4", calendarIds: { c1: true }, "@type": "Event", uid: "ev4", title: "Lunch with Grace", start: local(d(2, 12)), timeZone: tz, duration: "PT1H", showWithoutTime: false, color: "#db2777" });
 }
@@ -323,6 +323,12 @@ function genericGet(list: Obj[]) {
     return { accountId: ACCOUNT, state: String(state.n), list: found.map((x) => pick(x, a.properties as string[] | null)), notFound: ids ? ids.filter((id) => !list.some((x) => x.id === id)) : [] };
   };
 }
+/** Thrown from an onCreate hook to refuse a create the way a real server would. */
+class SetError extends Error {
+  constructor(readonly type: string, readonly description: string, readonly properties?: string[]) { super(description); }
+  toJSON(): Obj { return { type: this.type, description: this.description, ...(this.properties ? { properties: this.properties } : {}) }; }
+}
+
 function genericSet(list: Obj[], prefix: string, onCreate?: (o: Obj) => void) {
   return (a: Obj) => {
     const created: Obj = {};
@@ -332,7 +338,13 @@ function genericSet(list: Obj[], prefix: string, onCreate?: (o: Obj) => void) {
     for (const [cid, obj] of Object.entries((a.create as Obj) ?? {})) {
       const id = `${prefix}${randomUUID().slice(0, 6)}`;
       const o = { ...(obj as Obj), id };
-      onCreate?.(o);
+      try {
+        onCreate?.(o);
+      } catch (err) {
+        if (!(err instanceof SetError)) throw err;
+        notCreated[cid] = err.toJSON();
+        continue;
+      }
       list.push(o);
       created[cid] = { id };
     }
@@ -581,8 +593,17 @@ const handlers: Record<string, Handler> = {
   "Calendar/set": genericSet(calendars, "c", (o) => Object.assign(o, { color: "#0f766e", isSubscribed: true, isVisible: true, isDefault: false, includeInAvailability: "all", timeZone: null, shareWith: null, myRights: rightsCal(), description: null, sortOrder: 0, ...o })),
   "CalendarEvent/query": (a) => ({ accountId: ACCOUNT, queryState: "1", canCalculateChanges: false, position: 0, ids: events.filter((e) => !(a.filter as Obj)?.uid || e.uid === (a.filter as Obj).uid).map((e) => e.id), total: events.length }),
   "CalendarEvent/get": genericGet(events),
-  "CalendarEvent/set": genericSet(events, "ev", (o) => Object.assign(o, { uid: o.uid ?? randomUUID() })),
-  "CalendarEvent/parse": (a) => { const parsed: Obj = {}; for (const b of a.blobIds as string[]) { const blob = blobs.get(b); if (!blob) continue; const t = blob.data.toString(); const g = (k: string) => new RegExp(`^${k}[^:]*:(.*)$`, "m").exec(t)?.[1]?.trim(); const ds = g("DTSTART") ?? "20260101T000000Z"; const de = g("DTEND") ?? ds; const toLocal = (s: string) => `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}T${s.slice(9, 11)}:${s.slice(11, 13)}:00`; const start = new Date(`${toLocal(ds)}Z`); const end = new Date(`${toLocal(de)}Z`); parsed[b] = { "@type": "Event", uid: g("UID"), title: g("SUMMARY"), start: toLocal(ds), timeZone: "Etc/UTC", duration: `PT${Math.round((end.getTime() - start.getTime()) / 60000)}M`, method: g("METHOD"), locations: g("LOCATION") ? { l: { name: g("LOCATION") } } : undefined, participants: { org: { name: "Ada Lovelace", email: "ada@example.org", sendTo: { imip: "mailto:ada@example.org" }, roles: { owner: true } }, me: { name: "Demo User", email: USER, sendTo: { imip: `mailto:${USER}` }, roles: { attendee: true }, participationStatus: "needs-action" } } }; } return { accountId: ACCOUNT, parsed, notParsable: [] }; },
+  // Stalwart 0.16 rejects the RFC 8984 array outright and silently discards
+  // participants addressed the RFC 8984 way. The mock did neither, which is how
+  // #26 and #30 reached a live server unnoticed — so it now does both.
+  "CalendarEvent/set": genericSet(events, "ev", (o) => {
+    if (o.recurrenceRules) throw new SetError("invalidProperties", "Invalid property.", ["recurrenceRules"]);
+    const parts = o.participants as Record<string, Obj> | undefined;
+    if (parts && Object.values(parts).some((p) => !p.calendarAddress)) delete o.participants;
+    if (o.replyTo && !o.organizerCalendarAddress) delete o.replyTo;
+    return Object.assign(o, { uid: o.uid ?? randomUUID() });
+  }),
+  "CalendarEvent/parse": (a) => { const parsed: Obj = {}; for (const b of a.blobIds as string[]) { const blob = blobs.get(b); if (!blob) continue; const t = blob.data.toString(); const g = (k: string) => new RegExp(`^${k}[^:]*:(.*)$`, "m").exec(t)?.[1]?.trim(); const ds = g("DTSTART") ?? "20260101T000000Z"; const de = g("DTEND") ?? ds; const toLocal = (s: string) => `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}T${s.slice(9, 11)}:${s.slice(11, 13)}:00`; const start = new Date(`${toLocal(ds)}Z`); const end = new Date(`${toLocal(de)}Z`); parsed[b] = { "@type": "Event", uid: g("UID"), title: g("SUMMARY"), start: toLocal(ds), timeZone: "Etc/UTC", duration: `PT${Math.round((end.getTime() - start.getTime()) / 60000)}M`, method: g("METHOD"), locations: g("LOCATION") ? { l: { name: g("LOCATION") } } : undefined, participants: { org: { name: "Ada Lovelace", calendarAddress: "mailto:ada@example.org", roles: { owner: true } }, me: { name: "Demo User", calendarAddress: `mailto:${USER}`, roles: { attendee: true, required: true }, participationStatus: "needs-action" } } }; } return { accountId: ACCOUNT, parsed, notParsable: [] }; },
   "ParticipantIdentity/get": genericGet(participantIdentities),
   "Principal/query": () => ({ accountId: ACCOUNT, queryState: "1", canCalculateChanges: false, position: 0, ids: principals.map((p) => p.id) }),
   "Principal/get": genericGet(principals),
