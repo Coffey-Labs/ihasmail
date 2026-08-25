@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ArrowDown, ArrowUp, Code, Plus, Trash2, Wand2, Play, AlertTriangle, Power } from "lucide-react";
 import { useSieve } from "@/store/sieve";
 import { useMail } from "@/store/mail";
-import { describeRule, newRule, rulesToSieve, type SieveRule } from "@/lib/sieve";
+import { describeRule, newRule, rulesToSieve, upsertRule, type SieveRule } from "@/lib/sieve";
 import { RuleDialog } from "./RuleDialog";
 import { saveAndApply } from "../mail/FilterFromMessage";
 import { confirmDialog, promptDialog } from "@/ui/dialog";
@@ -110,14 +110,13 @@ function RulesEditor() {
           onClose={() => setEditing(null)}
           applyMailbox={inbox ? { id: inbox.id, name: inbox.name } : null}
           onSave={(r, applyNow) => {
-            const exists = list.some((x) => x.id === r.id);
-            const next = exists ? list.map((x) => (x.id === r.id ? r : x)) : [...list, r];
             setEditing(null);
             if (applyNow && inbox) {
               // Save immediately so the rule is live, then apply it to the Inbox.
+              // saveAndApply takes the list as it stands now: an edited rule keeps its place.
               setLocal(null);
-              void saveAndApply(r, next.filter((x) => x.id !== r.id), inbox.id);
-            } else setLocal(next);
+              void saveAndApply(r, list, inbox.id);
+            } else setLocal(upsertRule(list, r));
           }}
         />
       )}

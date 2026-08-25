@@ -3,7 +3,7 @@ import type { Email, Id } from "@/jmap/types";
 import { useSieve } from "@/store/sieve";
 import { useMail } from "@/store/mail";
 import { ruleFromEmail, applyRuleToMailbox } from "@/lib/sieveApply";
-import type { SieveRule } from "@/lib/sieve";
+import { upsertRule, type SieveRule } from "@/lib/sieve";
 import { RuleDialog } from "../settings/RuleDialog";
 import { toast } from "@/ui/toast";
 import { Spinner } from "@/ui/misc";
@@ -48,6 +48,7 @@ export function FilterFromMessageDialog({ email, mailboxId, onClose }: { email: 
       title="Filter messages like this"
       saveLabel="Create filter"
       applyMailbox={mailbox ? { id: mailbox.id, name: mailbox.name } : null}
+      applyByDefault
       onClose={onClose}
       onSave={(r, applyNow) => {
         onClose();
@@ -57,23 +58,30 @@ export function FilterFromMessageDialog({ email, mailboxId, onClose }: { email: 
   );
 }
 
+/**
+ * Saves `r` into `existing` — replacing it in place when it is already there,
+ * appending it when it is new — and optionally runs it over a folder.
+ * `existing` is the rule list as it stands *before* the edit.
+ */
 export async function saveAndApply(r: SieveRule, existing: SieveRule[], applyMailboxId: Id | null) {
   const sieve = useSieve.getState();
+  const created = !existing.some((x) => x.id === r.id);
+  const verb = created ? "created" : "saved";
   try {
-    await sieve.saveRules([...existing.filter((x) => x.id !== r.id), r]);
+    await sieve.saveRules(upsertRule(existing, r));
   } catch (err) {
     toast.error(`Could not save filter: ${(err as Error).message}`);
     return;
   }
   if (!applyMailboxId) {
-    toast.success("Filter created — it will run on new mail");
+    toast.success(`Filter ${verb} — it will run on new mail`);
     return;
   }
   const tid = toast.show("Applying filter to existing messages…", { duration: 0 });
   try {
     const res = await applyRuleToMailbox(r, applyMailboxId);
     toast.dismiss(tid);
-    toast.success(`Filter created · applied to ${res.matched} of ${res.scanned} message${res.scanned === 1 ? "" : "s"}${res.skippedActions.length ? ` (skipped: ${res.skippedActions.join("; ")})` : ""}`, { duration: 8000 });
+    toast.success(`Filter ${verb} · applied to ${res.matched} of ${res.scanned} message${res.scanned === 1 ? "" : "s"}${res.skippedActions.length ? ` (skipped: ${res.skippedActions.join("; ")})` : ""}`, { duration: 8000 });
   } catch (err) {
     toast.dismiss(tid);
     toast.error(`Filter saved, but applying it failed: ${(err as Error).message}`);
