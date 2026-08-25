@@ -183,7 +183,7 @@ export function MailboxTree() {
         )}
       </nav>
       <Popover anchor={menu.anchor} onClose={menu.close} width={300}>
-        {menuTarget && <MailboxMenu mailbox={menuTarget} onCreateChild={() => void createFolder(menuTarget.id)} onShare={() => setShareTarget(menuTarget)} />}
+        {menuTarget && <MailboxMenu mailbox={menuTarget} onClose={menu.close} onCreateChild={() => void createFolder(menuTarget.id)} onShare={() => setShareTarget(menuTarget)} />}
       </Popover>
       {shareTarget && <ShareDialog kind="Mailbox" id={shareTarget.id} name={shareTarget.name} shareWith={shareTarget.shareWith ?? null} onClose={() => setShareTarget(null)} />}
     </>
@@ -290,7 +290,7 @@ function FolderRow({ mailbox: m, label, depth, hasChildren, open, hiddenUnread, 
   );
 }
 
-function MailboxMenu({ mailbox: m, onCreateChild, onShare }: { mailbox: Mailbox; onCreateChild: () => void; onShare: () => void }) {
+function MailboxMenu({ mailbox: m, onClose, onCreateChild, onShare }: { mailbox: Mailbox; onClose: () => void; onCreateChild: () => void; onShare: () => void }) {
   const [, navigate] = useLocation();
   const colors = useSettings((s) => s.settings.folderColors);
   const update = useSettings((s) => s.update);
@@ -335,6 +335,7 @@ function MailboxMenu({ mailbox: m, onCreateChild, onShare }: { mailbox: Mailbox;
   const isSpecial = Boolean(m.role) && m.role !== "subscribed";
   const color = folderColor(colors, m.id);
   const setColor = (c: string | null) => {
+    onClose();
     const next = { ...colors };
     if (c) next[m.id] = c;
     else delete next[m.id];
