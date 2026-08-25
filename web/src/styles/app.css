@@ -302,8 +302,28 @@ img { max-width: 100%; }
 .search-panel .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; }
 .search-suggest { position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow-2); padding: 6px; z-index: 60; }
 .topbar-actions { display: flex; align-items: center; gap: 4px; }
-.push-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--fg-faint); }
-.push-dot.on { background: var(--success); box-shadow: 0 0 0 3px var(--success-soft); }
+/* Live-updates indicator. Three states, and a raised bead rather than a flat
+   speck: at 8px flat it was invisible against either theme. The gloss is a
+   highlight over a solid colour rather than a colour-mix, so it needs no
+   per-theme variant -- the same bead reads on light and dark alike. */
+.push-status { display: inline-flex; align-items: center; padding: 0 4px; }
+.push-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 34% 30%, rgba(255, 255, 255, .8), rgba(255, 255, 255, 0) 46%),
+    var(--dot);
+  box-shadow:
+    0 0 0 3px var(--dot-halo),
+    0 1px 2px rgba(0, 0, 0, .45),
+    inset 0 -1px 2px rgba(0, 0, 0, .3);
+}
+.push-dot.connected { --dot: #16a34a; --dot-halo: rgba(22, 163, 74, .25); }
+.push-dot.connecting { --dot: #eab308; --dot-halo: rgba(234, 179, 8, .25); animation: push-pulse 1.6s ease-in-out infinite; }
+.push-dot.disconnected { --dot: #dc2626; --dot-halo: rgba(220, 38, 38, .25); }
+@keyframes push-pulse { 50% { opacity: .45; } }
+@media (prefers-reduced-motion: reduce) { .push-dot.connecting { animation: none; } }
 
 .app-body { display: grid; grid-template-columns: var(--sidebar-w) 1fr; min-height: 0; transition: grid-template-columns .2s var(--ease); }
 .app-body.collapsed { grid-template-columns: var(--sidebar-w-collapsed) 1fr; }

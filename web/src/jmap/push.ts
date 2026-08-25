@@ -2,6 +2,9 @@ import type { Id, StateChange } from "./types";
 
 export type PushListener = (accountId: Id, type: string, newState: string) => void;
 
+/** Connected, trying to connect, or not trying. */
+export type PushState = "connected" | "connecting" | "disconnected";
+
 /**
  * JMAP push over Server-Sent Events (proxied through our server).
  * Emits per-type state changes so stores can refresh incrementally.
@@ -9,12 +12,17 @@ export type PushListener = (accountId: Id, type: string, newState: string) => vo
 class PushManager {
   private es: EventSource | null = null;
   private listeners = new Set<PushListener>();
-  private connectionListeners = new Set<(connected: boolean) => void>();
+  private connectionListeners = new Set<(state: PushState) => void>();
   private backoff = 1000;
   private reconnectTimer: number | null = null;
   private stopped = true;
   private lastStates = new Map<string, string>();
   connected = false;
+  /**
+   * Finer than `connected`, which cannot tell "trying" from "given up".
+   * "connecting" covers the first attempt and every backoff retry.
+   */
+  state: PushState = "disconnected";
 
   start(): void {
     this.stopped = false;
@@ -31,7 +39,7 @@ class PushManager {
     this.reconnectTimer = null;
     this.es?.close();
     this.es = null;
-    this.setConnected(false);
+    this.setState("disconnected");
   }
 
   subscribe(fn: PushListener): () => void {
@@ -39,14 +47,15 @@ class PushManager {
     return () => this.listeners.delete(fn);
   }
 
-  onConnection(fn: (connected: boolean) => void): () => void {
+  onConnection(fn: (state: PushState) => void): () => void {
     this.connectionListeners.add(fn);
     return () => this.connectionListeners.delete(fn);
   }
 
-  private setConnected(v: boolean) {
-    if (this.connected === v) return;
-    this.connected = v;
+  private setState(v: PushState) {
+    if (this.state === v) return;
+    this.state = v;
+    this.connected = v === "connected";
     for (const fn of this.connectionListeners) fn(v);
   }
 
@@ -60,12 +69,13 @@ class PushManager {
 
   private connect(): void {
     if (this.stopped || this.es) return;
+    if (this.state !== "connected") this.setState("connecting");
     const url = `/api/events?types=*&closeafter=no&ping=30`;
     const es = new EventSource(url, { withCredentials: true });
     this.es = es;
     es.onopen = () => {
       this.backoff = 1000;
-      this.setConnected(true);
+      this.setState("connected");
     };
     es.addEventListener("state", (ev) => {
       try {
@@ -89,8 +99,9 @@ class PushManager {
     es.onerror = () => {
       es.close();
       this.es = null;
-      this.setConnected(false);
-      if (this.stopped) return;
+      if (this.stopped) { this.setState("disconnected"); return; }
+      // A retry is already scheduled below, so this is "trying", not "given up".
+      this.setState("connecting");
       const delay = Math.min(this.backoff, 60_000);
       this.backoff = Math.min(this.backoff * 2, 60_000);
       this.reconnectTimer = window.setTimeout(() => {
