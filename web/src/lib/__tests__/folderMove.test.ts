@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canDropFolder, descendantIds, movable } from "../folderMove";
+import { canDropFolder, descendantIds, folderColor, movable } from "../folderMove";
 import type { Id, Mailbox } from "@/jmap/types";
 
 const mb = (id: string, name: string, parentId: string | null, role: Mailbox["role"] = null): Mailbox =>
@@ -65,5 +65,19 @@ describe("canDropFolder", () => {
   it("refuses a target that does not exist", () => {
     expect(canDropFolder(tree, "news", "gone")).toBe(false);
     expect(canDropFolder(tree, "gone", "work")).toBe(false);
+  });
+});
+
+describe("folderColor", () => {
+  it("returns the colour chosen for that folder, and null for the rest", () => {
+    const colors = { work: "#7c3aed" };
+    expect(folderColor(colors, "work")).toBe("#7c3aed");
+    expect(folderColor(colors, "news")).toBeNull();
+    expect(folderColor({}, "work")).toBeNull();
+  });
+
+  it("is keyed by id, so a renamed folder keeps its colour", () => {
+    // The id is stable across a rename; the name and path are not.
+    expect(folderColor({ mb1: "#0f766e" }, "mb1")).toBe("#0f766e");
   });
 });
