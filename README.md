@@ -214,7 +214,6 @@ the registry path is **awaiting live re-verification**.
 ## Roadmap / not yet
 
 - Snooze (nothing in JMAP or Stalwart supports it, and ihasmail never stores a password, so nothing could act on a mailbox while you are away)
-- S/MIME / OpenPGP
 - Translations (strings are English-only for now)
 
 ## License
