@@ -45,3 +45,8 @@ export function canDropFolder(mailboxes: Record<Id, Mailbox>, draggedId: Id, tar
   if (!mailboxes[targetId]) return false;
   return !descendantIds(mailboxes, draggedId).has(targetId);
 }
+
+/** The colour chosen for a folder, if any. Ids are used, so a rename keeps it. */
+export function folderColor(colors: Record<string, string>, id: Id): string | null {
+  return colors[id] ?? null;
+}
