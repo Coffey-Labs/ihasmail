@@ -241,6 +241,8 @@ export interface Email {
   "header:X-Priority:asText"?: string | null;
   "header:Importance:asText"?: string | null;
   "header:Auto-Submitted:asText"?: string | null;
+  /** Bulk/list mail marks itself here; read receipts for it only confirm the address. */
+  "header:Precedence:asText"?: string | null;
   "header:Return-Path:asText"?: string | null;
   "header:Authentication-Results:asText"?: string | null;
   "header:Received:asText:all"?: string[] | null;

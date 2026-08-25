@@ -1,4 +1,4 @@
-import { useSettings } from "@/store/settings";
+import { useSettings, type ReadReceiptPolicy } from "@/store/settings";
 import { Switch } from "@/ui/misc";
 import { browserTimeZone, listTimeZones } from "@/lib/dates";
 import { toast } from "@/ui/toast";
@@ -113,6 +113,18 @@ export function GeneralSettings() {
       <Switch checked={s.signatureAboveQuote} onChange={(v) => update({ signatureAboveQuote: v })} label="Place signature above quoted text" />
       <Switch checked={s.attachmentReminder} onChange={(v) => update({ attachmentReminder: v })} label="Attachment reminder" hint="Warn when the message mentions an attachment but none is attached." />
       <Switch checked={s.requestReadReceipt} onChange={(v) => update({ requestReadReceipt: v })} label="Always request read receipts" />
+      <div className="field">
+        <label>When someone requests a read receipt</label>
+        <select className="select" value={s.readReceiptPolicy} onChange={(e) => update({ readReceiptPolicy: e.target.value as ReadReceiptPolicy })}>
+          <option value="ask">Ask me on each message</option>
+          <option value="never">Never send one</option>
+        </select>
+        <p className="hint">
+          A receipt tells whoever asked that this address is live and when the message was read, and the sender
+          chooses where it goes — so there is no automatic option. Bulk mail, mailing lists and anything marked
+          auto-submitted are never offered one at all.
+        </p>
+      </div>
       <Switch checked={s.spellcheck} onChange={(v) => update({ spellcheck: v })} label="Spell check while typing" />
 
       <h2>Locale</h2>
