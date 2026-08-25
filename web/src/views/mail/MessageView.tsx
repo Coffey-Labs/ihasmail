@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronUp, Download, ExternalLink, Forward, MoreVertical, Printer, Reply, ReplyAll, Star, Trash2, Code, FileText, Image as ImageIcon, File, Eye, Calendar, UserPlus, ShieldAlert, Mail, Ban, Clock, Paperclip, FileArchive, FileSpreadsheet, Film, Music, Filter } from "lucide-react";
+import { ChevronDown, ChevronUp, Download, ExternalLink, Forward, MoreVertical, Printer, Reply, ReplyAll, Star, Trash2, Code, FileText, Image as ImageIcon, File, Eye, Calendar, UserPlus, ShieldAlert, Mail, Ban, Clock, CheckCheck, Paperclip, FileArchive, FileSpreadsheet, Film, Music, Filter } from "lucide-react";
 import { FilterFromMessageDialog } from "./FilterFromMessage";
 import type { Email, EmailAddress, EmailBodyPart, Id } from "@/jmap/types";
 import { useMail } from "@/store/mail";
@@ -22,6 +22,8 @@ import { AddressList, useAddressMenu } from "./AddressMenu";
 import { useSession } from "@/store/session";
 import { useScheduled } from "@/store/scheduled";
 import { formatScheduleTime } from "@/lib/schedule";
+import { mdnDecision, refusalText } from "@/lib/mdn";
+import { sendReadReceipt } from "@/store/mdn";
 
 interface Props {
   email: Email;
@@ -50,6 +52,8 @@ export const MessageView = memo(function MessageView({ email: e, expanded, onTog
   const remoteAllowed = allowRemote || settings.imagePolicy === "always" || senderTrusted || (settings.imagePolicy === "contacts" && inContacts);
   const imageProxy = useSession((s) => s.session?.ihasmail?.imageProxy ?? true);
   const scheduled = useScheduled((s) => s.pending[e.id]);
+  const receipt = useMemo(() => mdnDecision(e), [e]);
+  const [receiptDone, setReceiptDone] = useState<"sending" | "dismissed" | null>(null);
   const cancelScheduled = useScheduled((s) => s.cancel);
 
   const htmlPart = e.htmlBody?.[0];
@@ -201,8 +205,35 @@ export const MessageView = memo(function MessageView({ email: e, expanded, onTog
               {e.messageId?.[0] && <><dt>Message-ID</dt><dd className="mono small">{e.messageId[0]}</dd></>}
               {e["header:List-Id:asText"] && <><dt>List</dt><dd>{e["header:List-Id:asText"]}</dd></>}
               <dt>Size</dt><dd>{formatSize(e.size)}</dd>
-              {receiptRequested && <><dt>Receipt</dt><dd>The sender requested a read receipt (not sent automatically).</dd></>}
+              {receiptRequested && <><dt>Receipt</dt><dd>{receipt.offer ? `Requested, to ${receipt.to!.email}. Never sent automatically.` : refusalText(receipt.refusal!)}</dd></>}
             </dl>
+          )}
+          {receipt.offer && settings.readReceiptPolicy !== "never" && receiptDone !== "dismissed" && (
+            <div className="receipt-banner" style={{ margin: "0 16px 8px" }}>
+              <CheckCheck size={16} />
+              <span className="grow">
+                The sender asked for a read receipt.
+                {receipt.redirected && (
+                  <> It would go to <strong>{receipt.to!.email}</strong>, which is not where the message came from.</>
+                )}
+              </span>
+              <button
+                disabled={receiptDone === "sending"}
+                onClick={async () => {
+                  setReceiptDone("sending");
+                  try {
+                    await sendReadReceipt(e);
+                    toast.success("Read receipt sent");
+                  } catch (err) {
+                    setReceiptDone(null);
+                    toast.error(`Could not send the receipt: ${(err as Error).message}`);
+                  }
+                }}
+              >
+                {receiptDone === "sending" ? "Sending…" : "Send receipt"}
+              </button>
+              <button onClick={() => setReceiptDone("dismissed")}>Not this time</button>
+            </div>
           )}
           {scheduled && (
             <div className="scheduled-banner" style={{ margin: "0 16px 8px" }}>
