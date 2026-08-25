@@ -210,6 +210,20 @@ export function upsertRule(rules: SieveRule[], rule: SieveRule): SieveRule[] {
   return rules.some((x) => x.id === rule.id) ? rules.map((x) => (x.id === rule.id ? rule : x)) : [...rules, rule];
 }
 
+/**
+ * Moves the rule `fromId` to sit either side of `toId`. `below` says which,
+ * decided by which half of the target card the pointer was over.
+ */
+export function reorderRules(rules: SieveRule[], fromId: string, toId: string, below: boolean): SieveRule[] {
+  if (fromId === toId) return rules;
+  const moved = rules.find((r) => r.id === fromId);
+  const rest = rules.filter((r) => r.id !== fromId);
+  const target = rest.findIndex((r) => r.id === toId);
+  if (!moved || target < 0) return rules;
+  const at = below ? target + 1 : target;
+  return [...rest.slice(0, at), moved, ...rest.slice(at)];
+}
+
 export function describeRule(r: SieveRule): string {
   const tests = r.tests
     .map((t) => {
