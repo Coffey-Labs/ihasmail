@@ -137,6 +137,16 @@ export class JmapClient {
     return Object.values(this.session?.accounts ?? {}).some((a) => cap in (a.accountCapabilities ?? {}));
   }
 
+  /**
+   * The capability object itself, for the capabilities that carry limits.
+   * Stalwart puts the interesting half of `urn:ietf:params:jmap:submission`
+   * here and leaves the session-level copy empty.
+   */
+  accountCapability<T>(accountId: Id, cap: string): T | undefined {
+    const acc = this.session?.accounts[accountId];
+    return acc?.accountCapabilities[cap] as T | undefined;
+  }
+
   primaryAccount(cap: string): Id | null {
     return this.session?.primaryAccounts[cap] ?? null;
   }

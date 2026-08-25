@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronUp, Download, ExternalLink, Forward, MoreVertical, Printer, Reply, ReplyAll, Star, Trash2, Code, FileText, Image as ImageIcon, File, Eye, Calendar, UserPlus, ShieldAlert, Mail, Ban, Paperclip, FileArchive, FileSpreadsheet, Film, Music, Filter } from "lucide-react";
+import { ChevronDown, ChevronUp, Download, ExternalLink, Forward, MoreVertical, Printer, Reply, ReplyAll, Star, Trash2, Code, FileText, Image as ImageIcon, File, Eye, Calendar, UserPlus, ShieldAlert, Mail, Ban, Clock, Paperclip, FileArchive, FileSpreadsheet, Film, Music, Filter } from "lucide-react";
 import { FilterFromMessageDialog } from "./FilterFromMessage";
 import type { Email, EmailAddress, EmailBodyPart, Id } from "@/jmap/types";
 import { useMail } from "@/store/mail";
@@ -20,6 +20,8 @@ import { InviteCard } from "./InviteCard";
 import { VCardCard } from "./VCardCard";
 import { AddressList, useAddressMenu } from "./AddressMenu";
 import { useSession } from "@/store/session";
+import { useScheduled } from "@/store/scheduled";
+import { formatScheduleTime } from "@/lib/schedule";
 
 interface Props {
   email: Email;
@@ -47,6 +49,8 @@ export const MessageView = memo(function MessageView({ email: e, expanded, onTog
   const inContacts = useContacts((s) => Boolean(from && s.loaded && s.lookupByEmail(from.email)));
   const remoteAllowed = allowRemote || settings.imagePolicy === "always" || senderTrusted || (settings.imagePolicy === "contacts" && inContacts);
   const imageProxy = useSession((s) => s.session?.ihasmail?.imageProxy ?? true);
+  const scheduled = useScheduled((s) => s.pending[e.id]);
+  const cancelScheduled = useScheduled((s) => s.cancel);
 
   const htmlPart = e.htmlBody?.[0];
   const textPart = e.textBody?.[0];
@@ -199,6 +203,24 @@ export const MessageView = memo(function MessageView({ email: e, expanded, onTog
               <dt>Size</dt><dd>{formatSize(e.size)}</dd>
               {receiptRequested && <><dt>Receipt</dt><dd>The sender requested a read receipt (not sent automatically).</dd></>}
             </dl>
+          )}
+          {scheduled && (
+            <div className="scheduled-banner" style={{ margin: "0 16px 8px" }}>
+              <Clock size={16} />
+              <span className="grow">Waiting on the server — goes out {formatScheduleTime(new Date(scheduled.sendAt))}.</span>
+              <button
+                onClick={async () => {
+                  try {
+                    await cancelScheduled(e.id);
+                    toast.success("Send cancelled — the message is back in Drafts");
+                  } catch (err) {
+                    toast.error(`Could not cancel: ${(err as Error).message}`);
+                  }
+                }}
+              >
+                Cancel send
+              </button>
+            </div>
           )}
           {rendered && rendered.remoteCount > 0 && !remoteAllowed && (
             <div className="remote-banner" style={{ margin: "0 16px 8px" }}>

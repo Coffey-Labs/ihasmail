@@ -14,6 +14,9 @@ import { attachmentIcon } from "../mail/MessageView";
 import { keyboard } from "@/lib/keyboard";
 import { useIsMobile } from "@/ui/misc";
 import { toast } from "@/ui/toast";
+import { ScheduleDialog, ScheduleMenuItems } from "./SchedulePicker";
+import { scheduleSupported, scheduleWindowMs } from "@/store/scheduled";
+import { formatScheduleTime } from "@/lib/schedule";
 
 export function Composer({ draft }: { draft: Draft }) {
   const update = useCompose((s) => s.update);
@@ -36,6 +39,10 @@ export function Composer({ draft }: { draft: Draft }) {
   const sendMenu = useMenu();
   const templateMenu = useMenu();
   const [showToolbar, setShowToolbar] = useState(true);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  // Read once per render from the session; it cannot change while a composer is open.
+  const canSchedule = scheduleSupported();
+  const scheduleMax = canSchedule ? scheduleWindowMs() : 0;
   const d = draft;
   const key = d.key;
   // Where the caret starts, decided once when the composer opens: a blank
@@ -88,6 +95,12 @@ export function Composer({ draft }: { draft: Draft }) {
       if (!ok) return;
     }
     await send(key);
+  };
+
+  const scheduleFor = (at: Date) => {
+    sendMenu.close();
+    setScheduleOpen(false);
+    patch({ sendAt: at.getTime() });
   };
 
   const toggleFormat = () => {
@@ -173,6 +186,11 @@ export function Composer({ draft }: { draft: Draft }) {
             <input id={`${key}-subj`} className="plain" placeholder="Subject" value={d.subject} onChange={(e) => patch({ subject: e.target.value })} autoFocus={initialFocus === "subject"} />
             {d.priority !== "normal" && <span className="tag" style={{ background: d.priority === "high" ? "var(--danger)" : "var(--fg-faint)" }}>{d.priority === "high" ? "High priority" : "Low priority"}</span>}
             {d.requestReceipt && <span className="tag" style={{ background: "var(--accent)" }} title="Read receipt requested"><CheckCheck size={12} /></span>}
+            {d.sendAt !== null && (
+              <button type="button" className="tag" style={{ background: "var(--accent)" }} title="Scheduled — click to clear the schedule" onClick={() => patch({ sendAt: null })}>
+                <Clock size={12} /> {formatScheduleTime(new Date(d.sendAt))} <X size={12} />
+              </button>
+            )}
           </div>
         </div>
         {d.format === "html" ? (
@@ -197,13 +215,19 @@ export function Composer({ draft }: { draft: Draft }) {
         )}
         <div className="composer-foot">
           <span className="send-group">
-            <button className="btn btn-primary" onClick={() => void doSend()} disabled={d.sending} title="Send (Ctrl+Enter)"><Send size={16} /> Send</button>
+            <button className="btn btn-primary" onClick={() => void doSend()} disabled={d.sending} title={d.sendAt !== null ? `Hand to the server, held until ${formatScheduleTime(new Date(d.sendAt))} (Ctrl+Enter)` : "Send (Ctrl+Enter)"}>
+              {d.sendAt !== null ? <><Clock size={16} /> Schedule send</> : <><Send size={16} /> Send</>}
+            </button>
             <button className="btn btn-primary" onClick={sendMenu.open} aria-label="Send options"><ChevronDown size={16} /></button>
           </span>
-          <Popover anchor={sendMenu.anchor} onClose={sendMenu.close} side="top" width={240}>
-            <MenuItem icon={<Send size={16} />} label="Send" kbd="Ctrl+↵" onClick={() => void doSend()} />
+          <Popover anchor={sendMenu.anchor} onClose={sendMenu.close} side="top" width={280}>
+            <MenuItem icon={<Send size={16} />} label={d.sendAt !== null ? "Send now instead" : "Send"} kbd={d.sendAt !== null ? undefined : "Ctrl+↵"} onClick={() => { if (d.sendAt !== null) patch({ sendAt: null }); sendMenu.close(); void doSend(); }} />
             <MenuItem icon={<Clock size={16} />} label={`Undo window: ${settings.undoSendSeconds}s`} onClick={() => updateSettings({ undoSendSeconds: settings.undoSendSeconds >= 30 ? 0 : settings.undoSendSeconds + 5 })} />
+            {canSchedule && <ScheduleMenuItems maxMs={scheduleMax} onPick={scheduleFor} onCustom={() => { sendMenu.close(); setScheduleOpen(true); }} />}
           </Popover>
+          {canSchedule && scheduleOpen && (
+            <ScheduleDialog open maxMs={scheduleMax} initial={d.sendAt} onClose={() => setScheduleOpen(false)} onPick={scheduleFor} />
+          )}
           <span className="more-actions">
             <button className="icon-btn" title="Attach files" onClick={() => fileRef.current?.click()}><Paperclip size={18} /></button>
             <input ref={fileRef} type="file" multiple hidden onChange={(e) => { const files = Array.from(e.target.files ?? []); if (files.length) addFiles(key, files); e.target.value = ""; }} />
