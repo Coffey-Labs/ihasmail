@@ -1,21 +1,35 @@
 /**
- * Regenerates the README screenshots from the mock server.
+ * Regenerates most of the README screenshots from the mock server.
  *
- * Run the mock stack first (`npm run dev:mock`), then:
+ * Drives headless Chrome over CDP, so the viewport is exactly the size the
+ * images already use rather than whatever a window happens to be.
+ *
+ *   npm run dev:mock                       # in another terminal
  *   node docs/screenshots.mjs docs/screenshots
+ *   node docs/screenshots-light.mjs docs/screenshots
  *
- * Restart the mock before a run: the filters shot creates rules, and a second
- * run against the same mock would show them twice.
+ * Restart the mock before a run. The filters shot creates rules, so a second
+ * run against the same mock shows them twice.
  *
- * The mobile shot is not taken here. Run at the tail of this sequence it would
- * not render the message list at 500px within the wait, and chasing that down
- * was not worth it for a screenshot -- take it with a short run of its own.
+ * Two shots are deliberately not taken here:
  *
- * Drives headless Chrome over CDP rather than the extension, so the viewport is
- * exactly the size the existing images use (1420x703, mobile 500x703) instead of
- * whatever the window happens to be.
+ * - **mobile**, because at the tail of this sequence the app would not render
+ *   the message list at 500px within the wait. A short run of its own is
+ *   reliable, and it is a screenshot, not a mystery worth solving.
  *
- * Usage: node shots.mjs <out-dir>   (mock stack must be up on :5173)
+ * - **inbox-light**, because of setDeviceMetricsOverride. Swapping the theme
+ *   under the emulation layer captures a *mixed* frame: the panes that
+ *   re-rendered come out light while the rest of the chrome stays dark, with
+ *   the DOM and computed styles insisting the whole page is light. The app is
+ *   not at fault -- update() calls applyTheme() synchronously and the CSS does
+ *   flip --bg to #f6f8fa. The compositor simply does not repaint everything a
+ *   CSS-variable change touches while metrics are overridden. Launching Chrome
+ *   at --window-size and never calling setDeviceMetricsOverride renders it
+ *   correctly, which is what docs/screenshots-light.mjs does.
+ *
+ * assertTheme() stays either way: without it this script wrote a dark
+ * screenshot under a light caption and reported success, and that is how the
+ * README came to show the same theme twice for months.
  */
 import { spawn } from "node:child_process";
 import { writeFile, mkdir } from "node:fs/promises";
@@ -65,8 +79,26 @@ const cmd = (m, p) => send(m, p, sessionId);
 await cmd("Page.enable");
 await cmd("Runtime.enable");
 
-const metrics = (width, height, mobile = false) =>
-  cmd("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile });
+let current = { width: 1420, height: 703, mobile: false };
+const metrics = (width, height, mobile = false) => {
+  current = { width, height, mobile };
+  return cmd("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile });
+};
+
+/**
+ * Forces the whole page to repaint.
+ *
+ * Headless only repaints the layers that changed, and a theme swap changes CSS
+ * variables rather than any single element — so the capture came back with the
+ * message pane in the new theme and the rest of the app in the old one. Nudging
+ * the viewport by a pixel and back invalidates everything.
+ */
+const repaint = async () => {
+  // Detaching and reattaching the body invalidates every layer; nudging the
+  // viewport did not, and the capture kept coming back with mixed themes.
+  await evaluate(`(() => { const b = document.body; b.style.display = 'none'; void b.offsetHeight; b.style.display = ''; })()`);
+  await sleep(500);
+};
 
 const go = async (url) => { await cmd("Page.navigate", { url }); await sleep(1200); };
 const evaluate = async (expression) => {
@@ -82,6 +114,37 @@ const waitFor = async (jsExpr, what, ms = 15000) => {
     await sleep(200);
   }
   throw new Error(`timed out waiting for ${what}`);
+};
+/**
+ * Pins the theme, because setting it once is not enough.
+ *
+ * The app re-runs applyTheme() from its own setting whenever the settings store
+ * stirs, and that overwrote a plain attribute set during the settle before the
+ * capture — twice, silently, producing a "light" screenshot of the dark theme.
+ * A MutationObserver puts it back faster than anything can take it away.
+ *
+ * The check is the rendered background colour: the attribute is what lied.
+ */
+const themeTest = (want) => want === "light"
+  ? "parseInt(getComputedStyle(document.body).backgroundColor.match(/\\d+/)[0], 10) > 200"
+  : "parseInt(getComputedStyle(document.body).backgroundColor.match(/\\d+/)[0], 10) < 60";
+
+const setTheme = async (want) => {
+  await evaluate(`(() => {
+    const html = document.documentElement;
+    const want = ${JSON.stringify(want)};
+    if (window.__themePin) window.__themePin.disconnect();
+    window.__themePin = new MutationObserver(() => { if (html.dataset.theme !== want) html.dataset.theme = want; });
+    window.__themePin.observe(html, { attributes: true, attributeFilter: ['data-theme'] });
+    html.dataset.theme = want;
+  })()`);
+  await waitFor(themeTest(want), `the ${want} theme to actually render`);
+  await repaint();
+};
+
+/** Refuses to write the file unless the page still looks the way it should. */
+const assertTheme = async (want) => {
+  if (!(await evaluate(themeTest(want)))) throw new Error(`page is not rendering the ${want} theme at capture time`);
 };
 const shot = async (name) => {
   const { data } = await cmd("Page.captureScreenshot", { format: "jpeg", quality: 82 });
@@ -138,13 +201,8 @@ try {
   await evaluate(`(() => { const c = [...document.querySelectorAll('button')].find(b => /close|discard/i.test(b.getAttribute('aria-label')||'')); if (c) c.click(); })()`);
   await sleep(800);
 
-  // --- same inbox in the light theme ---
-  await evaluate(`(() => { const b = [...document.querySelectorAll('button')].find(x => /light mode/i.test(x.getAttribute('aria-label')||x.title||'')); if (b) b.click(); })()`);
-  await sleep(1200);
-  await shot("inbox-light.jpg");
-  // back to dark for the rest
-  await evaluate(`(() => { const b = [...document.querySelectorAll('button')].find(x => /dark mode/i.test(x.getAttribute('aria-label')||x.title||'')); if (b) b.click(); })()`);
-  await sleep(900);
+  // (inbox-light is captured by docs/screenshots-light.mjs -- see the header)
+
 
   // --- calendar ---
   await go("http://localhost:5173/calendar");
@@ -160,10 +218,12 @@ try {
   await waitFor("document.querySelector('[class*=contact]')", "the contact list");
   // Open someone, so the detail pane is not an empty "Select a contact".
   await evaluate(`(() => {
-    const row = [...document.querySelectorAll('[class*=contact-row], [class*=contact-item], li, div')]
-      .find(e => /ada@example\.org/.test(e.textContent || '') && e.querySelector('*') === null || /Ada Lovelace/.test((e.textContent||'').slice(0,40)));
-    if (row) row.click();
+    const hit = [...document.querySelectorAll('div, li, button, a')]
+      .filter(e => (e.textContent || '').trim().startsWith('Ada Lovelace'))
+      .sort((a, b) => a.textContent.length - b.textContent.length)[0];
+    if (hit) (hit.closest('li, button, a, [class*=row], [class*=item]') || hit).click();
   })()`);
+  await waitFor("!/Select a contact/.test(document.body.innerText)", "the contact detail pane", 8000);
   await sleep(1800);
   await shot("contacts.jpg");
 
