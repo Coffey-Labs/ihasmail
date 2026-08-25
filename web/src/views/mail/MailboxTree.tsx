@@ -10,6 +10,7 @@ import { confirmDialog, promptDialog } from "@/ui/dialog";
 import { toast } from "@/ui/toast";
 import { ShareDialog } from "../settings/ShareDialog";
 import { loadRaw, saveJson } from "@/lib/storage";
+import { canDropFolder, movable } from "@/lib/folderMove";
 
 const ROLE_ICONS: Record<string, ReactNode> = {
   inbox: <Inbox size={20} />,
@@ -23,6 +24,9 @@ const ROLE_ICONS: Record<string, ReactNode> = {
   important: <Tag size={20} />,
 };
 
+/** Its own drag type, so a folder can only be dropped where folders belong. */
+const FOLDER_MIME = "application/x-ihasmail-folder";
+
 export function MailboxTree() {
   const mailboxes = useMail((s) => s.mailboxes);
   const loaded = useMail((s) => s.mailboxesLoaded);
@@ -34,6 +38,32 @@ export function MailboxTree() {
   const menu = useMenu();
   const [menuTarget, setMenuTarget] = useState<Mailbox | null>(null);
   const [shareTarget, setShareTarget] = useState<Mailbox | null>(null);
+  /**
+   * The folder being dragged. Held here rather than read from the drag itself:
+   * dataTransfer.getData is blocked during dragover, so a row cannot ask what
+   * is over it, and every row needs to know whether it is a legal target.
+   */
+  const [draggingId, setDraggingId] = useState<Id | null>(null);
+  const [rootDrop, setRootDrop] = useState(false);
+  /** Whether the folder in flight may be dropped on this folder, or on the root. */
+  const canDropOn = (targetId: Id | null): boolean => Boolean(draggingId) && canDropFolder(mailboxes, draggingId!, targetId);
+
+  const moveFolder = async (id: Id, parentId: Id | null) => {
+    const m = mailboxes[id];
+    setDraggingId(null);
+    try {
+      await useMail.getState().updateMailbox(id, { parentId });
+      // Show where it landed rather than leaving it hidden in a closed parent.
+      if (parentId) {
+        const next = { ...expanded, [parentId]: true };
+        setExpanded(next);
+        saveJson("mbx-expanded", next);
+      }
+      toast.success(parentId ? `“${m?.name}” moved into “${mailboxes[parentId]?.name}”` : `“${m?.name}” moved to the top level`);
+    } catch (err) {
+      toast.error(`Could not move “${m?.name}”: ${(err as Error).message}`);
+    }
+  };
 
   // Tree: A–Z at every level (Inbox pinned to the top of the root), subfolders nested and
   // collapsed by default. Expansion state is remembered per folder.
@@ -93,14 +123,46 @@ export function MailboxTree() {
   return (
     <>
       <nav aria-label="Folders" style={{ marginTop: 6 }}>
-        <div className="nav-section">
-          <span>Folders</span>
+        <div
+          className={`nav-section${rootDrop ? " drop-target" : ""}`}
+          onDragOver={(e) => {
+            if (!e.dataTransfer.types.includes(FOLDER_MIME) || !canDropOn(null)) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+            if (!rootDrop) setRootDrop(true);
+          }}
+          onDragLeave={() => setRootDrop(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setRootDrop(false);
+            const id = e.dataTransfer.getData(FOLDER_MIME);
+            if (id) void moveFolder(id, null);
+          }}
+        >
+          <span>{draggingId && canDropOn(null) ? "Drop here for the top level" : "Folders"}</span>
           <button className="icon-btn" title="New folder" aria-label="New folder" onClick={() => void createFolder(null)}>
             <Plus size={16} />
           </button>
         </div>
         {rows.map(({ m, depth, hasChildren, open, hiddenUnread, childUnread }) => (
-          <FolderRow key={m.id} mailbox={m} label={m.name} depth={depth} hasChildren={hasChildren} open={open} hiddenUnread={hiddenUnread} childUnread={childUnread} onToggle={() => toggle(m.id)} currentId={currentId} onMenu={(mb, e) => { setMenuTarget(mb); menu.open(e); }} />
+          <FolderRow
+            key={m.id}
+            mailbox={m}
+            label={m.name}
+            depth={depth}
+            hasChildren={hasChildren}
+            open={open}
+            hiddenUnread={hiddenUnread}
+            childUnread={childUnread}
+            onToggle={() => toggle(m.id)}
+            currentId={currentId}
+            onMenu={(mb, e) => { setMenuTarget(mb); menu.open(e); }}
+            dragging={draggingId === m.id}
+            acceptsFolder={canDropOn(m.id)}
+            onFolderDragStart={() => setDraggingId(m.id)}
+            onFolderDragEnd={() => { setDraggingId(null); setRootDrop(false); }}
+            onFolderDrop={(id) => void moveFolder(id, m.id)}
+          />
         ))}
         {labelsSidebar && labels.length > 0 && (
           <>
@@ -127,7 +189,7 @@ export function MailboxTree() {
   );
 }
 
-function FolderRow({ mailbox: m, label, depth, hasChildren, open, hiddenUnread, childUnread, onToggle, currentId, onMenu }: { mailbox: Mailbox; label: string; depth: number; hasChildren: boolean; open: boolean; hiddenUnread: number; childUnread: number; onToggle: () => void; currentId?: string; onMenu: (m: Mailbox, e: { currentTarget: Element }) => void }) {
+function FolderRow({ mailbox: m, label, depth, hasChildren, open, hiddenUnread, childUnread, onToggle, currentId, onMenu, dragging, acceptsFolder, onFolderDragStart, onFolderDragEnd, onFolderDrop }: { mailbox: Mailbox; label: string; depth: number; hasChildren: boolean; open: boolean; hiddenUnread: number; childUnread: number; onToggle: () => void; currentId?: string; onMenu: (m: Mailbox, e: { currentTarget: Element }) => void; dragging: boolean; acceptsFolder: boolean; onFolderDragStart: () => void; onFolderDragEnd: () => void; onFolderDrop: (id: Id) => void }) {
   const [dropping, setDropping] = useState(false);
   // Scheduled counts like Drafts: everything in it is already read, so the
   // useful number is how many messages are waiting, not how many are unseen.
@@ -139,7 +201,8 @@ function FolderRow({ mailbox: m, label, depth, hasChildren, open, hiddenUnread, 
   const icon = m.role && ROLE_ICONS[m.role] ? ROLE_ICONS[m.role] : scheduled ? <Clock size={20} /> : <Folder size={20} />;
 
   const onDragOver = (e: DragEvent) => {
-    if (!e.dataTransfer.types.includes("application/x-ihasmail-emails")) return;
+    const folder = e.dataTransfer.types.includes(FOLDER_MIME);
+    if (folder ? !acceptsFolder : !e.dataTransfer.types.includes("application/x-ihasmail-emails")) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
     if (!dropping) setDropping(true);
@@ -147,6 +210,11 @@ function FolderRow({ mailbox: m, label, depth, hasChildren, open, hiddenUnread, 
   const onDrop = (e: DragEvent) => {
     e.preventDefault();
     setDropping(false);
+    const folderId = e.dataTransfer.getData(FOLDER_MIME);
+    if (folderId) {
+      if (acceptsFolder) onFolderDrop(folderId);
+      return;
+    }
     const raw = e.dataTransfer.getData("application/x-ihasmail-emails");
     if (!raw) return;
     try {
@@ -156,12 +224,22 @@ function FolderRow({ mailbox: m, label, depth, hasChildren, open, hiddenUnread, 
       /* ignore */
     }
   };
+  const onDragStart = (e: DragEvent) => {
+    e.dataTransfer.setData(FOLDER_MIME, m.id);
+    e.dataTransfer.effectAllowed = "move";
+    // A folder row is a link, and a link drag would otherwise carry its URL.
+    e.stopPropagation();
+    onFolderDragStart();
+  };
 
   return (
     <Link
       href={`/mail/${m.id}`}
-      className={`nav-item folder-row depth-${Math.min(depth, 4)} ${currentId === m.id ? "active" : ""} ${unread ? "unread" : ""} ${dropping ? "drop-target" : ""}`}
+      className={`nav-item folder-row depth-${Math.min(depth, 4)} ${currentId === m.id ? "active" : ""} ${unread ? "unread" : ""} ${dropping ? "drop-target" : ""} ${dragging ? "dragging" : ""}`}
       title={label}
+      draggable={movable(m)}
+      onDragStart={onDragStart}
+      onDragEnd={onFolderDragEnd}
       onDragOver={onDragOver}
       onDragLeave={() => setDropping(false)}
       onDrop={onDrop}
