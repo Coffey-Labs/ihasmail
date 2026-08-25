@@ -148,6 +148,7 @@ export function createApp(): Hono<Env> {
   api.get("/config", (c) =>
     c.json({
       appName: config.appName,
+      sourceUrl: config.sourceUrl,
       imageProxy: config.imageProxy,
       maxUploadBytes: config.maxUploadBytes,
     }),
@@ -581,6 +582,7 @@ function sessionExtras(session: LiveSession, info: AccountInfo = { locale: null,
   return {
     ihasmail: {
       appName: config.appName,
+      sourceUrl: config.sourceUrl,
       imageProxy: config.imageProxy,
       maxUploadBytes: config.maxUploadBytes,
       sessionId: session.id,
