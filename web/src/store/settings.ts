@@ -8,6 +8,7 @@ export type Density = "comfortable" | "cozy" | "compact";
 export type ReadingPane = "right" | "bottom" | "off";
 export type ImagePolicy = "ask" | "always" | "contacts";
 export type ComposeFormat = "html" | "text";
+export type ReadReceiptPolicy = "ask" | "never";
 
 export interface Template {
   id: string;
@@ -35,6 +36,13 @@ export interface Settings {
   signatureAboveQuote: boolean;
   includeQuote: boolean;
   requestReadReceipt: boolean;
+  /**
+   * What to do when a sender asks for a read receipt. There is deliberately no
+   * "always": an automatic receipt confirms to whoever asked that the address
+   * is live and when it was read, which is exactly what a sender who should
+   * not have that is fishing for. RFC 8098 asks that a person decide each one.
+   */
+  readReceiptPolicy: ReadReceiptPolicy;
   confirmDelete: boolean;
   desktopNotifications: boolean;
   notificationSound: boolean;
@@ -89,6 +97,7 @@ export const DEFAULT_SETTINGS: Settings = {
   signatureAboveQuote: true,
   includeQuote: true,
   requestReadReceipt: false,
+  readReceiptPolicy: "ask",
   confirmDelete: false,
   desktopNotifications: false,
   notificationSound: false,
