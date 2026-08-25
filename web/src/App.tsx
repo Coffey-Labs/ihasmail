@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from "react";
 import { Route, Switch, Redirect, useLocation } from "wouter";
 import { useSession } from "@/store/session";
 import { useMail } from "@/store/mail";
+import { scheduleSupported, useScheduled } from "@/store/scheduled";
 import { useContacts } from "@/store/contacts";
 import { useCalendar } from "@/store/calendar";
 import { useFiles } from "@/store/files";
@@ -57,6 +58,9 @@ function AuthedApp() {
     void mail.loadMailboxes();
     void mail.loadIdentities();
     void mail.loadQuota();
+    // So a held message shows its banner wherever it is opened from, not just
+    // after a visit to the Scheduled folder.
+    if (scheduleSupported()) void useScheduled.getState().load();
     void useContacts.getState().init();
     void useCalendar.getState().init();
     void useFiles.getState().init();
