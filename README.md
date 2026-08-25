@@ -137,7 +137,12 @@ older mode is not a smaller mock — it reproduces the specific ways that
 generation differs, none of which the server reports as an error:
 
 - `urn:stalwart:jmap` is not a capability it knows, and naming one it cannot
-  parse fails the **whole request**, not the one call that wanted it
+  parse fails the **whole request**, not the one call that wanted it. On 0.16
+  it *is* known — but advertised per-account, in `primaryAccounts` and each
+  account's `accountCapabilities`, never in the session-level `capabilities`.
+  Stalwart validates `using` by parsing the urn rather than looking it up in
+  the session, so naming it works regardless; a client that tests for it in
+  the obvious place, though, mistakes every 0.16 server for an older one
 - `x:` methods do not exist, so the registry — credentials, account settings —
   is unreachable, and self-service credentials live at `POST /api/account/auth`
 - `FileNode/query` masks its results to non-containers, so it returns files and
@@ -179,22 +184,25 @@ so both generations have been exercised against a real server. Everything
 below says which.
 
 Verified against a live **0.15.5**: the mail flows, self-service credentials
-over the REST path, Files, and signatures. Verified against a live
-**0.16.19** (2026-08-25): self-service credentials over the registry path —
-app passwords created and revoked, password changed, 2FA switched on and off
-with the browser session surviving — and Files end to end: folder creation,
-upload, rename, move and delete, with folders sorting and rendering as
-folders. Also on 0.16: server-generation detection, and the account locale,
-which is unreadable on 0.15.
+over the REST path, Files, and signatures.
 
-Both backends have now met a real server of their own generation.
+The 0.16 registry path was previously recorded here as verified live. That
+was wrong, and the entry below says why: ihasmail looked for
+`urn:stalwart:jmap` in the session-level capabilities, where Stalwart has
+never put it, so **every** real 0.16 server was taken for a pre-0.16 one.
+Self-service credentials went to a REST endpoint 0.16 had removed, About
+reported the wrong generation, and Files ran on the older code path. The mock
+advertised the capability in the wrong place too, which is why nothing caught
+it. Fixed, and the mock now advertises it where the real server does — but
+the registry path is **awaiting live re-verification**.
 
+- **Where 0.16 advertises `urn:stalwart:jmap`** — not where a JMAP client would look. Stalwart builds the session-level `capabilities` from a fixed list (`Session::new`, plus WebSocket) that has never contained this capability, in any 0.16.x from 0.16.0 to 0.16.19. It hands it out per-account instead, so it appears in `primaryAccounts` and in each account's `accountCapabilities`. ihasmail tested for it in `capabilities` alone, which made every real 0.16 server read as pre-0.16 — and that one check drove three things: self-service credentials fell back to `POST /api/account/auth`, which 0.16 removed, so password changes, 2FA and app passwords all failed with "this mail server does not offer self-service credential management"; About reported the wrong generation; and Files took the pre-0.16 code path. It now looks in all three places. Two related soft spots went with it: a transport error while probing the registry no longer downgrades a server to the legacy REST path (which would have posted the current password to an endpoint that is not there), and a locale request that is merely refused no longer discards a generation the capability had already settled.
 - **HTML signatures** — Stalwart caps a signature at 2047 **bytes** (`value.len() < 2048` on a Rust string, so UTF-8 bytes, not characters). ihasmail compacts pasted HTML, moves images to Files and, if still too large, keeps the full signature in Files behind a short marker; other clients see a text fallback. Confirmed live on 0.15.5 (2026-08-24): oversized, non-ASCII and inline-image signatures all save, and a test message arrived intact at Gmail with the logo inline.
-- **Files on Stalwart before 0.16** — three things differ there, none of which the server reports as an error. (Confirmed live on 0.15.5 before the upgrade. The live instance now runs 0.16.19, where folder creation, upload, rename, move and delete are also confirmed; the older path is kept for anyone still on 0.15.x and covered by `npm run dev:mock:legacy`.) `FileNode/query` masks its results to non-containers, so it returns files and **never folders**; `nodeType` does not exist, and sending it fails the create outright (a directory is instead a node with no file properties at all); and rights are only `mayRead`/`mayWrite`/`mayShare`, so the finer-grained `mayDelete`/`mayRename` the UI gates on are absent. ihasmail detects the older server by the absence of `urn:stalwart:jmap`, lists the tree through `FileNode/get` instead of query, shapes creates accordingly, and widens the old rights. Upload, folder creation, listing, rename, move and delete are all confirmed live on 0.15.5 (2026-08-24).
+- **Files on Stalwart before 0.16** — three things differ there, none of which the server reports as an error. (Confirmed live on 0.15.5 before the upgrade. The live instance now runs 0.16.19, where folder creation, upload, rename, move and delete are also confirmed; the older path is kept for anyone still on 0.15.x and covered by `npm run dev:mock:legacy`.) `FileNode/query` masks its results to non-containers, so it returns files and **never folders**; `nodeType` does not exist, and sending it fails the create outright (a directory is instead a node with no file properties at all); and rights are only `mayRead`/`mayWrite`/`mayShare`, so the finer-grained `mayDelete`/`mayRename` the UI gates on are absent. ihasmail detects the older server by the absence of `urn:stalwart:jmap` — looked for in `primaryAccounts` and `accountCapabilities` as well as the session capabilities, since that is where 0.16 actually advertises it — lists the tree through `FileNode/get` instead of query, shapes creates accordingly, and widens the old rights. Upload, folder creation, listing, rename, move and delete are all confirmed live on 0.15.5 (2026-08-24).
 - **Self-service credentials** — the **0.15.x REST path was confirmed live** against Stalwart 0.15.5 (2026-08-24): password change, app passwords, and enabling and disabling 2FA, on a real mailbox. The **0.16 registry path is confirmed live** against Stalwart 0.16.19 (2026-08-25): app passwords created and revoked, password changed, 2FA enabled and disabled, with the browser session surviving the switch to an app password. The mock enforces the same rules either way (current password required, password policy, a TOTP code on every request once 2FA is on, app passwords exempt from it). Password changes are refused by Stalwart for accounts backed by an external directory (LDAP/SQL/OIDC); the server's own message is shown when that happens.
 - Recurring events: colour/category/edit/delete apply to the whole series (per-occurrence overrides aren't supported by the server yet).
 - Editable date boxes are always Gregorian and in Latin digits, even for locales whose *display* uses another calendar or numbering system (`fa-IR`, `th-TH`, `ar-EG`) — they keep the locale's field order and separator, but a Buddhist-era year in a text box does not round-trip against the Gregorian calendar grid. Non-Gregorian calendar support is not implemented.
-- The account locale is read from `x:AccountSettings/get`, whose permission the built-in user role has, falling back to `x:Account/get` (which needs the admin-only `sysAccountGet`). Both are Stalwart 0.16 methods: **on older servers neither is reachable** — they do not implement the registry and reject a request that so much as names the `urn:stalwart:jmap` capability — so there the locale still falls back to the browser's and can be chosen by hand. Confirmed working on the live 0.16.19 instance, where the account locale now resolves for an ordinary user.
+- The account locale is read from `x:AccountSettings/get`, whose permission the built-in user role has, falling back to `x:Account/get` (which needs the admin-only `sysAccountGet`). Both are Stalwart 0.16 methods: **on older servers neither is reachable** — they do not implement the registry and reject a request that so much as names the `urn:stalwart:jmap` capability — so there the locale still falls back to the browser's and can be chosen by hand. Awaiting live re-verification, for the capability-placement reason above; a locale request that is merely refused no longer downgrades the detected generation.
 
 ## Roadmap / not yet
 

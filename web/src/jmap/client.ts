@@ -123,6 +123,20 @@ export class JmapClient {
     return Boolean(acc && cap in acc.accountCapabilities);
   }
 
+  /**
+   * Whether the server carries a capability at all, wherever it chose to
+   * advertise it.
+   *
+   * Stalwart hands `urn:stalwart:jmap` out per-account rather than putting it
+   * in the session-level `capabilities`, so `hasCapability` alone reports every
+   * real 0.16 server as though it were older. Look in all three places.
+   */
+  hasCapabilityAnywhere(cap: string): boolean {
+    if (this.hasCapability(cap)) return true;
+    if (this.session?.primaryAccounts && cap in this.session.primaryAccounts) return true;
+    return Object.values(this.session?.accounts ?? {}).some((a) => cap in (a.accountCapabilities ?? {}));
+  }
+
   primaryAccount(cap: string): Id | null {
     return this.session?.primaryAccounts[cap] ?? null;
   }
@@ -210,7 +224,9 @@ export class JmapClient {
    */
   private supportedUsing(using: string[]): string[] {
     if (!this.session?.capabilities) return using;
-    return using.filter((u) => u === CAP.core || this.hasCapability(u));
+    // Anywhere counts: a capability advertised per-account is one the server
+    // has, and Stalwart advertises its own that way and no other.
+    return using.filter((u) => u === CAP.core || this.hasCapabilityAnywhere(u));
   }
 
   /** Low-level request: send invocations verbatim, return raw response. */

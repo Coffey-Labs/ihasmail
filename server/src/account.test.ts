@@ -46,6 +46,21 @@ after(() => {
   (mock as { server?: { close(): void } }).server?.close();
 });
 
+/**
+ * What the About page reads. Stalwart advertises `urn:stalwart:jmap` only
+ * per-account, so a session that looks for it at the top level reports a real
+ * 0.16 server as older than 0.16 — the same mistake that sent credentials to
+ * the removed REST endpoint.
+ */
+test("the session reports the 0.16 generation the server actually is", async () => {
+  const res = await call("/api/auth/session");
+  assert.equal(res.status, 200);
+  assert.equal(res.body.ihasmail.server.generation, "0.16+");
+  assert.equal(res.body.ihasmail.server.edition, "oss");
+  assert.equal(res.body.capabilities["urn:stalwart:jmap"], undefined, "not where a client would first look");
+  assert.ok("urn:stalwart:jmap" in res.body.primaryAccounts, "but here, as on a real server");
+});
+
 test("the 0.16 registry backend is detected and reported empty", async () => {
   const res = await call("/api/account/security");
   assert.equal(res.status, 200);
