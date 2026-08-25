@@ -19,9 +19,15 @@ describe("isRecurring", () => {
     // and a base that is a different id. Neither makes it a series.
     expect(isRecurring(ev({ id: "eaaaaai", baseEventId: "i" }))).toBe(false);
   });
-  it("recognises a series by its recurrence rules", () => {
+  it("recognises a series by its rule, under either name", () => {
     expect(isRecurring(ev({ recurrenceRules: [{ "@type": "RecurrenceRule", frequency: "weekly" }] }))).toBe(true);
-    expect(isRecurring(ev({ baseEventId: "ev1", recurrenceRules: [{ "@type": "RecurrenceRule", frequency: "daily" }] }))).toBe(true);
     expect(isRecurring(ev({ excludedRecurrenceRules: [{ "@type": "RecurrenceRule", frequency: "monthly" }] }))).toBe(true);
+    // Stalwart 0.16 keeps a single rule under the singular name.
+    expect(isRecurring(ev({ recurrenceRule: { "@type": "RecurrenceRule", frequency: "weekly", count: 3 } }))).toBe(true);
+  });
+  it("recognises an occurrence, which arrives with no rule of its own", () => {
+    // A live 0.16.19 expands a weekly series into instances like this: an id
+    // per occurrence, a recurrenceId, and no rule attached.
+    expect(isRecurring(ev({ id: "iaaaaas", recurrenceId: "2030-03-11T10:00:00" }))).toBe(true);
   });
 });
