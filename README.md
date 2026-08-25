@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="web/public/img/logo.png" alt="ihasmail" width="180">
+  <img src="web/public/img/logo.png" alt="ihasmail" width="150">
 </p>
 
 <p align="center">
@@ -16,7 +16,9 @@ ihasmail is a JMAP-first web client: mail, calendars, contacts, files, filters a
 
 > Status: 2.0 rewrite, in QA against a live Stalwart server — **0.16.19**
 > since 2026-08-25, 0.15.5 before that. The previous FastAPI/HTMX prototype
-> has been removed entirely (only the logo survived).
+> has been removed entirely (only the logo survived, and it has since lost
+> the `.com` wordmark it used to carry — ihasmail is the software, not the
+> hosted instance).
 
 ihasmail supports both generations of Stalwart, which are less alike than the
 version numbers suggest: 0.16 replaced the REST management API with JMAP
