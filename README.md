@@ -8,7 +8,25 @@
 
 ihasmail is a JMAP-first web client: mail, calendars, contacts, files, filters and every other modern feature Stalwart exposes, in a responsive single-page app that works equally well on a desktop monitor and a phone. It talks only JMAP (plus Stalwart's blob/upload/EventSource endpoints) — no IMAP, no SMTP, no database.
 
-> Status: 2.0 rewrite, in QA against a live Stalwart 0.15.5 server. The previous FastAPI/HTMX prototype has been removed entirely (only the logo survived).
+> Status: 2.0 rewrite, in QA against a live Stalwart server — **0.16.19**
+> since 2026-08-25, 0.15.5 before that. The previous FastAPI/HTMX prototype
+> has been removed entirely (only the logo survived).
+
+ihasmail supports both generations of Stalwart, which are less alike than the
+version numbers suggest: 0.16 replaced the REST management API with JMAP
+registry objects, changed the shape of `FileNode`, split its rights up, and
+moved configuration into the store. Where the two differ, ihasmail detects
+which it is talking to rather than assuming — see [Known issues / pending
+QA](#known-issues--pending-qa) for what is verified on which.
+
+The live instance was moved from 0.15.5 to 0.16.19 with
+[stalwart-migrator](https://github.com/LINUXexpert-org/stalwart-migrator), a
+companion project: an in-place upgrade tool that checkpoints every phase,
+refuses to start on the things that cannot be fixed mid-migration, and
+validates the server afterwards. The upgrade is genuinely treacherous by hand
+— the store is migrated in place with no way back, and Stalwart's own
+converter drops settings without saying so — and that migration took eight
+seconds of downtime with nothing lost.
 
 ## Screenshots
 
@@ -156,14 +174,27 @@ Press `?` anywhere. Highlights: `c` compose · `/` search · `j`/`k` navigate ·
 
 ## Known issues / pending QA
 
-Verified against the mock server, and against a live Stalwart 0.15.5 for the mail flows, self-service credentials, Files and signatures.
+The live instance ran **0.15.5** until 2026-08-25 and runs **0.16.19** now,
+so both generations have been exercised against a real server. Everything
+below says which.
+
+Verified against a live **0.15.5**: the mail flows, self-service credentials
+over the REST path, Files, and signatures. Verified against a live
+**0.16.19** (2026-08-25): self-service credentials over the registry path —
+app passwords created and revoked, password changed, 2FA switched on and off
+with the browser session surviving — and Files end to end: folder creation,
+upload, rename, move and delete, with folders sorting and rendering as
+folders. Also on 0.16: server-generation detection, and the account locale,
+which is unreadable on 0.15.
+
+Both backends have now met a real server of their own generation.
 
 - **HTML signatures** — Stalwart caps a signature at 2047 **bytes** (`value.len() < 2048` on a Rust string, so UTF-8 bytes, not characters). ihasmail compacts pasted HTML, moves images to Files and, if still too large, keeps the full signature in Files behind a short marker; other clients see a text fallback. Confirmed live on 0.15.5 (2026-08-24): oversized, non-ASCII and inline-image signatures all save, and a test message arrived intact at Gmail with the logo inline.
-- **Files on Stalwart before 0.16** — three things differ there, none of which the server reports as an error. `FileNode/query` masks its results to non-containers, so it returns files and **never folders**; `nodeType` does not exist, and sending it fails the create outright (a directory is instead a node with no file properties at all); and rights are only `mayRead`/`mayWrite`/`mayShare`, so the finer-grained `mayDelete`/`mayRename` the UI gates on are absent. ihasmail detects the older server by the absence of `urn:stalwart:jmap`, lists the tree through `FileNode/get` instead of query, shapes creates accordingly, and widens the old rights. Upload, folder creation, listing, rename, move and delete are all confirmed live on 0.15.5 (2026-08-24).
-- **Self-service credentials** — the **0.15.x REST path is confirmed live** against Stalwart 0.15.5 (2026-08-24): password change, app passwords, and enabling and disabling 2FA, on a real mailbox. The **0.16 registry path has only been exercised against the mock**, which enforces the same rules a real server does (current password required, password policy, a TOTP code on every request once 2FA is on, app passwords exempt from it) — it still wants a pass against a real 0.16 server. Password changes are refused by Stalwart for accounts backed by an external directory (LDAP/SQL/OIDC); the server's own message is shown when that happens.
+- **Files on Stalwart before 0.16** — three things differ there, none of which the server reports as an error. (Confirmed live on 0.15.5 before the upgrade. The live instance now runs 0.16.19, where folder creation, upload, rename, move and delete are also confirmed; the older path is kept for anyone still on 0.15.x and covered by `npm run dev:mock:legacy`.) `FileNode/query` masks its results to non-containers, so it returns files and **never folders**; `nodeType` does not exist, and sending it fails the create outright (a directory is instead a node with no file properties at all); and rights are only `mayRead`/`mayWrite`/`mayShare`, so the finer-grained `mayDelete`/`mayRename` the UI gates on are absent. ihasmail detects the older server by the absence of `urn:stalwart:jmap`, lists the tree through `FileNode/get` instead of query, shapes creates accordingly, and widens the old rights. Upload, folder creation, listing, rename, move and delete are all confirmed live on 0.15.5 (2026-08-24).
+- **Self-service credentials** — the **0.15.x REST path was confirmed live** against Stalwart 0.15.5 (2026-08-24): password change, app passwords, and enabling and disabling 2FA, on a real mailbox. The **0.16 registry path is confirmed live** against Stalwart 0.16.19 (2026-08-25): app passwords created and revoked, password changed, 2FA enabled and disabled, with the browser session surviving the switch to an app password. The mock enforces the same rules either way (current password required, password policy, a TOTP code on every request once 2FA is on, app passwords exempt from it). Password changes are refused by Stalwart for accounts backed by an external directory (LDAP/SQL/OIDC); the server's own message is shown when that happens.
 - Recurring events: colour/category/edit/delete apply to the whole series (per-occurrence overrides aren't supported by the server yet).
 - Editable date boxes are always Gregorian and in Latin digits, even for locales whose *display* uses another calendar or numbering system (`fa-IR`, `th-TH`, `ar-EG`) — they keep the locale's field order and separator, but a Buddhist-era year in a text box does not round-trip against the Gregorian calendar grid. Non-Gregorian calendar support is not implemented.
-- The account locale is read from `x:AccountSettings/get`, whose permission the built-in user role has, falling back to `x:Account/get` (which needs the admin-only `sysAccountGet`). Both are Stalwart 0.16 methods: **on older servers neither is reachable** — they do not implement the registry and reject a request that so much as names the `urn:stalwart:jmap` capability — so there the locale still falls back to the browser's and can be chosen by hand.
+- The account locale is read from `x:AccountSettings/get`, whose permission the built-in user role has, falling back to `x:Account/get` (which needs the admin-only `sysAccountGet`). Both are Stalwart 0.16 methods: **on older servers neither is reachable** — they do not implement the registry and reject a request that so much as names the `urn:stalwart:jmap` capability — so there the locale still falls back to the browser's and can be chosen by hand. Confirmed working on the live 0.16.19 instance, where the account locale now resolves for an ordinary user.
 
 ## Roadmap / not yet
 
