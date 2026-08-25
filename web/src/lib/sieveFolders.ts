@@ -47,16 +47,35 @@ export function retargetRules(rules: SieveRule[], moves: Array<FolderRef & { new
 }
 
 /**
- * Drops rules that file into folders which no longer exist.
+ * Takes the deleted folders out of the rules that filed into them.
  *
- * The whole rule goes, not just its fileinto action: a rule whose destination
- * has been deleted has no destination, and leaving it behind to match mail and
- * do nothing is worse than removing it. Rules that merely mention the folder in
- * some other action are left alone.
+ * Only the `fileinto` action goes. A rule that also marks read, flags, or stops
+ * processing keeps doing those things — deleting a folder says nothing about
+ * whether the rest of the rule was still wanted. A rule left with no actions at
+ * all has nothing to do, so that one goes.
  */
-export function dropRulesForFolders(rules: SieveRule[], gone: FolderRef[]): { rules: SieveRule[]; removed: SieveRule[] } {
-  if (!gone.length) return { rules, removed: [] };
-  const removed = rules.filter((r) => gone.some((ref) => filesInto(r, ref)));
-  if (!removed.length) return { rules, removed: [] };
-  return { rules: rules.filter((r) => !removed.includes(r)), removed };
+export function detachFolders(rules: SieveRule[], gone: FolderRef[]): { rules: SieveRule[]; edited: SieveRule[]; removed: SieveRule[] } {
+  if (!gone.length) return { rules, edited: [], removed: [] };
+  const targets = (a: SieveRule["actions"][number]) =>
+    a.type === "fileinto" && gone.some((ref) => a.mailboxId === ref.id || a.mailbox.toLowerCase() === ref.path.toLowerCase());
+
+  const edited: SieveRule[] = [];
+  const removed: SieveRule[] = [];
+  const next: SieveRule[] = [];
+  for (const rule of rules) {
+    if (!rule.actions.some(targets)) {
+      next.push(rule);
+      continue;
+    }
+    const actions = rule.actions.filter((a) => !targets(a));
+    if (!actions.length) {
+      removed.push(rule);
+      continue;
+    }
+    const trimmed = { ...rule, actions };
+    edited.push(trimmed);
+    next.push(trimmed);
+  }
+  if (!edited.length && !removed.length) return { rules, edited: [], removed: [] };
+  return { rules: next, edited, removed };
 }
