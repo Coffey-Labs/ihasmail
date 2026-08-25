@@ -1,16 +1,17 @@
 import { useMemo, useState, type DragEvent, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { AlertOctagon, Archive, ChevronDown, Clock, ChevronRight, File, Folder, FolderPlus, Inbox, Mail, MoreVertical, Send, Star, Tag, Trash2, Plus, Pencil, Eye, EyeOff, CheckCheck, Eraser, Share2 } from "lucide-react";
+import { AlertOctagon, Archive, ChevronDown, Clock, ChevronRight, File, Folder, FolderPlus, Inbox, Mail, MoreVertical, Palette, Send, Star, Tag, Trash2, Plus, Pencil, Eye, EyeOff, CheckCheck, Eraser, Share2, X } from "lucide-react";
 import { useMail } from "@/store/mail";
 import { isScheduledMailbox } from "@/store/scheduled";
 import { useSettings } from "@/store/settings";
 import type { Id, Mailbox } from "@/jmap/types";
-import { MenuItem, MenuSep, Popover, useMenu } from "@/ui/popover";
+import { MenuItem, MenuSep, MenuTitle, Popover, useMenu } from "@/ui/popover";
+import { CALENDAR_COLORS } from "@/ui/misc";
 import { confirmDialog, promptDialog } from "@/ui/dialog";
 import { toast } from "@/ui/toast";
 import { ShareDialog } from "../settings/ShareDialog";
 import { loadRaw, saveJson } from "@/lib/storage";
-import { canDropFolder, movable } from "@/lib/folderMove";
+import { canDropFolder, folderColor, movable } from "@/lib/folderMove";
 
 const ROLE_ICONS: Record<string, ReactNode> = {
   inbox: <Inbox size={20} />,
@@ -199,6 +200,10 @@ function FolderRow({ mailbox: m, label, depth, hasChildren, open, hiddenUnread, 
   // Bold when this folder has unread mail, or any folder beneath it does (parent + child both bold).
   const unread = m.role !== "drafts" && m.role !== "trash" && m.role !== "junk" && m.role !== "sent" && !scheduled ? m.unreadEmails + childUnread > 0 : m.unreadEmails > 0 && m.role !== "drafts" && !scheduled;
   const icon = m.role && ROLE_ICONS[m.role] ? ROLE_ICONS[m.role] : scheduled ? <Clock size={20} /> : <Folder size={20} />;
+  // A chosen colour tints the icon only; the label keeps the tree's own
+  // contrast, which a dozen arbitrary colours would not reliably give it.
+  // Subscribed, not read once: picking a colour has to repaint the row.
+  const tint = useSettings((s) => folderColor(s.settings.folderColors, m.id));
 
   const onDragOver = (e: DragEvent) => {
     const folder = e.dataTransfer.types.includes(FOLDER_MIME);
@@ -266,7 +271,7 @@ function FolderRow({ mailbox: m, label, depth, hasChildren, open, hiddenUnread, 
       >
         {hasChildren ? open ? <ChevronDown size={14} /> : <ChevronRight size={14} /> : null}
       </span>
-      {icon}
+      <span className="folder-icon" style={tint ? ({ "--folder-color": tint } as React.CSSProperties) : undefined}>{icon}</span>
       <span className="nav-label">{label}</span>
       {count > 0 && <span className="nav-count" title={hiddenUnread ? `${own} here, ${hiddenUnread} in subfolders` : undefined}>{count > 9999 ? "9999+" : count}</span>}
       {count > 0 && <span className="nav-dot" />}
@@ -287,6 +292,8 @@ function FolderRow({ mailbox: m, label, depth, hasChildren, open, hiddenUnread, 
 
 function MailboxMenu({ mailbox: m, onCreateChild, onShare }: { mailbox: Mailbox; onCreateChild: () => void; onShare: () => void }) {
   const [, navigate] = useLocation();
+  const colors = useSettings((s) => s.settings.folderColors);
+  const update = useSettings((s) => s.update);
   const hasChildren = useMail((s) => Object.values(s.mailboxes).some((x) => (x.parentId ?? null) === m.id));
   const subUnread = useMail((s) => {
     const all = Object.values(s.mailboxes);
@@ -326,6 +333,13 @@ function MailboxMenu({ mailbox: m, onCreateChild, onShare }: { mailbox: Mailbox;
     if (ok) await useMail.getState().emptyMailbox(m.id);
   };
   const isSpecial = Boolean(m.role) && m.role !== "subscribed";
+  const color = folderColor(colors, m.id);
+  const setColor = (c: string | null) => {
+    const next = { ...colors };
+    if (c) next[m.id] = c;
+    else delete next[m.id];
+    update({ folderColors: next });
+  };
   return (
     <>
       <MenuItem icon={<CheckCheck size={16} />} label="Mark all as read" onClick={() => void useMail.getState().markMailboxRead(m.id)} disabled={!m.unreadEmails} />
@@ -342,6 +356,20 @@ function MailboxMenu({ mailbox: m, onCreateChild, onShare }: { mailbox: Mailbox;
       <MenuItem icon={<Pencil size={16} />} label="Rename" onClick={() => void rename()} disabled={isSpecial || !m.myRights.mayRename} />
       <MenuItem icon={m.isSubscribed ? <EyeOff size={16} /> : <Eye size={16} />} label={m.isSubscribed ? "Hide from list" : "Show in list"} onClick={() => void useMail.getState().updateMailbox(m.id, { isSubscribed: !m.isSubscribed })} disabled={m.role === "inbox"} />
       <MenuItem icon={<Share2 size={16} />} label="Share…" onClick={onShare} />
+      <MenuSep />
+      <MenuTitle><span className="row gap-4"><Palette size={12} /> Colour</span></MenuTitle>
+      <div className="color-grid" style={{ gridTemplateColumns: "repeat(6, 26px)", padding: "4px 10px 8px" }}>
+        {CALENDAR_COLORS.map((c) => (
+          <button
+            key={c}
+            type="button"
+            style={{ background: c, width: 26, height: 26, outline: color?.toLowerCase() === c ? "2px solid var(--fg)" : undefined, outlineOffset: 1 }}
+            aria-label={c}
+            onClick={() => setColor(c)}
+          />
+        ))}
+      </div>
+      {color && <MenuItem icon={<X size={16} />} label="Use the default colour" onClick={() => setColor(null)} />}
       <MenuSep />
       {m.role === "trash" && <MenuItem icon={<Eraser size={16} />} label="Empty folder" onClick={() => void empty()} danger />}
       <MenuItem icon={<Trash2 size={16} />} label="Delete folder" onClick={() => void remove()} danger disabled={isSpecial || !m.myRights.mayDelete} />
