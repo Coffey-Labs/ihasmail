@@ -52,7 +52,8 @@ export function LoginPage() {
     <div className="login-page">
       <form className="login-card" onSubmit={submit}>
         <div className="logo">
-          <img src="/img/logo.png" alt="" width={120} height={113} />
+          <img src="/img/logo.png" alt="" width={120} height={143} />
+          <h1>ihasmail</h1>
           <p className="tagline">Fast, friendly webmail. Your mailbox, your way.</p>
         </div>
         {error && (

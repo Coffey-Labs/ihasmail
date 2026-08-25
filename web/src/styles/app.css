@@ -811,7 +811,8 @@ img { max-width: 100%; }
 .login-card { width: 100%; max-width: 400px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-2); padding: 32px 28px 24px; animation: rise .25s var(--ease); }
 .login-card .logo { display: flex; flex-direction: column; align-items: center; gap: 6px; margin-bottom: 20px; }
 .login-card .logo img { width: 120px; height: auto; }
-.login-card h1 { margin: 0; font-size: 1.4em; font-weight: 700; }
+/* The logo is the mark alone, so the name is set here rather than baked in. */
+.login-card h1 { margin: 0; font-size: 1.6em; font-weight: 800; letter-spacing: -.02em; color: #14b8a6; }
 .login-card .sub { color: var(--fg-muted); font-size: .92em; margin: 0; }
 .login-card .tagline { color: var(--fg-muted); font-size: 1em; margin: 4px 0 0; text-align: center; }
 .login-card .foot a { color: var(--fg-muted); text-decoration: underline; }
