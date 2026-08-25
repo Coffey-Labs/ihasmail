@@ -544,8 +544,8 @@ function readBody(req: IncomingMessage): Promise<Buffer> {
 }
 
 const session = () => ({
-  capabilities: { "urn:ietf:params:jmap:core": { maxSizeUpload: 50000000, maxConcurrentUpload: 4, maxSizeRequest: 10000000, maxConcurrentRequests: 4, maxCallsInRequest: 16, maxObjectsInGet: MAX_OBJECTS, maxObjectsInSet: MAX_OBJECTS, collationAlgorithms: ["i;ascii-casemap"] }, "urn:ietf:params:jmap:mail": {}, "urn:ietf:params:jmap:submission": {}, "urn:ietf:params:jmap:vacationresponse": {}, "urn:ietf:params:jmap:sieve": { implementation: "mock" }, "urn:ietf:params:jmap:calendars": {}, "urn:ietf:params:jmap:calendars:parse": {}, "urn:ietf:params:jmap:contacts": {}, "urn:ietf:params:jmap:contacts:parse": {}, "urn:ietf:params:jmap:principals": {}, "urn:ietf:params:jmap:principals:availability": {}, "urn:ietf:params:jmap:quota": {}, "urn:ietf:params:jmap:blob": {}, "urn:ietf:params:jmap:filenode": {}, ...(LEGACY ? {} : { "urn:stalwart:jmap": {} }) },
-  accounts: { [ACCOUNT]: { name: USER, isPersonal: true, isReadOnly: false, accountCapabilities: { "urn:ietf:params:jmap:mail": {}, "urn:ietf:params:jmap:submission": {}, "urn:ietf:params:jmap:vacationresponse": {}, "urn:ietf:params:jmap:sieve": {}, "urn:ietf:params:jmap:calendars": {}, "urn:ietf:params:jmap:contacts": {}, "urn:ietf:params:jmap:principals": {}, "urn:ietf:params:jmap:quota": {}, "urn:ietf:params:jmap:filenode": {} } } },
+  capabilities: { "urn:ietf:params:jmap:core": { maxSizeUpload: 50000000, maxConcurrentUpload: 4, maxSizeRequest: 10000000, maxConcurrentRequests: 4, maxCallsInRequest: 16, maxObjectsInGet: MAX_OBJECTS, maxObjectsInSet: MAX_OBJECTS, collationAlgorithms: ["i;ascii-casemap"] }, "urn:ietf:params:jmap:mail": {}, "urn:ietf:params:jmap:submission": {}, "urn:ietf:params:jmap:vacationresponse": {}, "urn:ietf:params:jmap:sieve": { implementation: "mock" }, "urn:ietf:params:jmap:calendars": {}, "urn:ietf:params:jmap:calendars:parse": {}, "urn:ietf:params:jmap:contacts": {}, "urn:ietf:params:jmap:contacts:parse": {}, "urn:ietf:params:jmap:principals": {}, "urn:ietf:params:jmap:principals:availability": {}, "urn:ietf:params:jmap:quota": {}, "urn:ietf:params:jmap:blob": {}, "urn:ietf:params:jmap:filenode": {} },
+  accounts: { [ACCOUNT]: { name: USER, isPersonal: true, isReadOnly: false, accountCapabilities: { "urn:ietf:params:jmap:mail": {}, "urn:ietf:params:jmap:submission": {}, "urn:ietf:params:jmap:vacationresponse": {}, "urn:ietf:params:jmap:sieve": {}, "urn:ietf:params:jmap:calendars": {}, "urn:ietf:params:jmap:contacts": {}, "urn:ietf:params:jmap:principals": {}, "urn:ietf:params:jmap:quota": {}, "urn:ietf:params:jmap:filenode": {}, ...(LEGACY ? {} : { "urn:stalwart:jmap": {} }) } } },
   primaryAccounts: { ...Object.fromEntries(["mail", "submission", "vacationresponse", "sieve", "calendars", "contacts", "principals", "quota", "filenode", "blob"].map((c) => [`urn:ietf:params:jmap:${c}`, ACCOUNT])), ...(LEGACY ? {} : { "urn:stalwart:jmap": ACCOUNT }) },
   username: USER,
   apiUrl: `http://127.0.0.1:${PORT}/jmap/`,
@@ -607,7 +607,12 @@ export const server = createServer(async (req, res) => {
     const body = JSON.parse((await readBody(req)).toString()) as { methodCalls: [string, Obj, string][]; using?: string[] };
     // A capability the server cannot parse fails the whole request, not the one
     // call that wanted it - which is why an over-eager `using` is so damaging.
-    const unknown = (body.using ?? []).find((u) => !(u in session().capabilities));
+    // Stalwart decides this by parsing the urn, not by looking it up in the
+    // session, so a capability it hands out per-account is still usable here:
+    // `urn:stalwart:jmap` never appears in the session-level capabilities and
+    // the registry calls that name it work all the same.
+    const known = new Set([...Object.keys(session().capabilities), ...Object.keys(session().accounts[ACCOUNT]?.accountCapabilities ?? {})]);
+    const unknown = (body.using ?? []).find((u) => !known.has(u));
     if (unknown) {
       res.writeHead(400, { "content-type": "application/json" });
       return res.end(JSON.stringify({ type: "urn:ietf:params:jmap:error:unknownCapability", status: 400, detail: `Unknown capability: ${JSON.stringify(unknown)}` }));

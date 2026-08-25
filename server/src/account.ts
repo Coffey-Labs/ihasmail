@@ -1,5 +1,5 @@
 import { config } from "./config.js";
-import { absoluteUpstream, UpstreamError, type UpstreamSession } from "./upstream.js";
+import { absoluteUpstream, hasStalwartRegistry, UpstreamError, type UpstreamSession } from "./upstream.js";
 import { generateSecret, otpauthUrl, parseOtpauthUrl, verifyTotp } from "./totp.js";
 import { randomBytes } from "node:crypto";
 
@@ -82,7 +82,7 @@ export async function detectBackend(sessionId: string, ctx: Ctx): Promise<Backen
 async function probeBackend(ctx: Ctx): Promise<Backend> {
   // A server with the registry answers x:AccountPassword/get; one without it
   // fails to parse the method name at all and returns unknownMethod.
-  if (ctx.session.capabilities && STALWART_CAP in ctx.session.capabilities) {
+  if (hasStalwartRegistry(ctx.session)) {
     try {
       const res = await jmap(ctx, [["x:AccountPassword/get", { accountId: accountId(ctx), ids: [SINGLETON] }, "p"]]);
       const [name, args] = res.methodResponses?.[0] ?? [];
@@ -90,10 +90,14 @@ async function probeBackend(ctx: Ctx): Promise<Backend> {
       const type = (args as { type?: string } | undefined)?.type;
       if (type && type !== "unknownMethod") return "registry"; // present, but refused us
     } catch {
-      // Not an answer we can read - most likely a server too old to know the
-      // capability we named, which rejects the whole request rather than the
-      // one call. Fall through and try the endpoint such servers do have.
+      // The capability already told us this server has the registry, so a
+      // request we could not read is a fault to surface, not evidence of an
+      // older server. Falling back here would post the user's password to a
+      // REST endpoint 0.16 removed and report the feature as unsupported.
+      return "registry";
     }
+    // It named the capability and then disowned the method: nothing else to try.
+    return "registry";
   }
   return "legacy";
 }

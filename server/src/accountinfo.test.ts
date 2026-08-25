@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { getAccountInfo, interpretAccountInfo } from "./upstream.js";
+import { getAccountInfo, hasStalwartRegistry, interpretAccountInfo } from "./upstream.js";
 
 /**
  * The account locale used to be read only from `x:Account/get`, which needs
@@ -64,4 +64,68 @@ test("a server that never heard of the Stalwart capability is reported as pre-0.
 test("no capabilities at all leaves the generation unknown", async () => {
   const info = await getAccountInfo("session-no-caps", "Basic x", { accounts: {}, primaryAccounts: {} } as never);
   assert.equal(info.generation, null);
+});
+
+/**
+ * Where Stalwart actually advertises `urn:stalwart:jmap`.
+ *
+ * Not in the session-level `capabilities`: `Session::new` builds those from a
+ * fixed list that has never carried this capability, in any 0.16.x. It is
+ * handed out per-account instead, so it lands in `primaryAccounts` and in each
+ * account's `accountCapabilities`. Looking only at the session level called
+ * every real 0.16 server pre-0.16, which sent self-service credentials to a
+ * REST endpoint 0.16 had removed and made the About page report the wrong
+ * generation.
+ */
+const STALWART = "urn:stalwart:jmap";
+const baseCaps = { "urn:ietf:params:jmap:core": {}, "urn:ietf:params:jmap:mail": {} };
+
+test("a 0.16 server is recognised from primaryAccounts, where it advertises itself", () => {
+  assert.equal(
+    hasStalwartRegistry({ capabilities: baseCaps, accounts: {}, primaryAccounts: { [STALWART]: "a1" } }),
+    true,
+  );
+});
+
+test("a 0.16 server is recognised from an account's capabilities", () => {
+  assert.equal(
+    hasStalwartRegistry({
+      capabilities: baseCaps,
+      accounts: { a1: { accountCapabilities: { "urn:ietf:params:jmap:mail": {}, [STALWART]: {} } } },
+      primaryAccounts: {},
+    }),
+    true,
+  );
+});
+
+test("the session level still counts, for a server that ever advertises it there", () => {
+  assert.equal(hasStalwartRegistry({ capabilities: { ...baseCaps, [STALWART]: {} }, accounts: {}, primaryAccounts: {} }), true);
+});
+
+test("a server that advertises it nowhere is pre-0.16", () => {
+  assert.equal(hasStalwartRegistry({ capabilities: baseCaps, accounts: { a1: { accountCapabilities: baseCaps } }, primaryAccounts: { "urn:ietf:params:jmap:mail": "a1" } }), false);
+  assert.equal(hasStalwartRegistry(undefined), false);
+});
+
+test("a shared account carrying the capability is enough to recognise the server", () => {
+  assert.equal(
+    hasStalwartRegistry({
+      capabilities: baseCaps,
+      accounts: { a1: { accountCapabilities: baseCaps }, a2: { accountCapabilities: { [STALWART]: {} } } },
+      primaryAccounts: {},
+    }),
+    true,
+  );
+});
+
+test("a locale request that fails does not talk us out of a generation we proved", () => {
+  // The capability settled it. A forbidden reply costs the locale, nothing more.
+  const info = interpretAccountInfo([failed("s", "forbidden"), failed("a", "forbidden")], "0.16+");
+  assert.equal(info.generation, "0.16+");
+  assert.equal(info.locale, null);
+});
+
+test("a server that disowns the method is still older, whatever we came in believing", () => {
+  const info = interpretAccountInfo([failed("s", "unknownMethod")], "0.16+");
+  assert.equal(info.generation, "pre-0.16");
 });
