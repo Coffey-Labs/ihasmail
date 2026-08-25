@@ -43,41 +43,47 @@ export function RuleDialog({ rule, onClose, onSave, applyMailbox, title, saveLab
           <option value="anyof">any of the following match</option>
         </select>
       </div>
-      {r.tests.map((t, i) => (
-        <div key={i} className="rule-row">
-          <select className="select" value={t.type === "true" ? "true" : t.type === "size" ? "size" : t.type === "body" ? "body" : t.type === "address" ? "address" : HEADER_CHOICES.some((h) => h.value === t.header) ? t.header : "__custom__"} onChange={(e) => {
-            const v = e.target.value;
-            if (v === "size") setTest(i, { type: "size", op: "over", value: 1024 * 1024 });
-            else if (v === "body") setTest(i, { type: "body", op: "contains", value: "" });
-            else if (v === "true") setTest(i, { type: "true" });
-            else if (v === "address") setTest(i, { type: "address", header: "from", part: "domain", op: "is", value: "" });
-            else setTest(i, { type: "header", header: v === "__custom__" ? "" : v, op: "contains", value: "" });
-          }}>
-            {HEADER_CHOICES.map((h) => <option key={h.value} value={h.value}>{h.label}</option>)}
-            <option value="address">Sender domain</option>
-            <option value="size">Message size</option>
-            <option value="body">Body text</option>
-            <option value="true">Always (all messages)</option>
-          </select>
-          {t.type === "header" && !HEADER_CHOICES.some((h) => h.value === t.header && h.value !== "__custom__") ? (
-            <input className="input" placeholder="Header name" value={t.header} onChange={(e) => setTest(i, { ...t, header: e.target.value })} />
-          ) : t.type === "size" ? (
-            <select className="select" value={t.op} onChange={(e) => setTest(i, { ...t, op: e.target.value as "over" | "under" })}><option value="over">is larger than</option><option value="under">is smaller than</option></select>
-          ) : t.type === "body" ? (
-            <select className="select" value={t.op} onChange={(e) => setTest(i, { ...t, op: e.target.value as "contains" | "notcontains" })}><option value="contains">contains</option><option value="notcontains">does not contain</option></select>
-          ) : t.type === "true" ? <span /> : (
-            <select className="select" value={t.op} onChange={(e) => setTest(i, { ...t, op: e.target.value as SieveTest extends { op: infer O } ? O : never })}>
-              {HEADER_OPS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      {r.tests.map((t, i) => {
+        // A header the dropdown doesn't list needs a box to type its name in,
+        // which takes a column of its own — the comparator keeps its.
+        const customHeader = t.type === "header" && !HEADER_CHOICES.some((h) => h.value === t.header && h.value !== "__custom__");
+        return (
+          <div key={i} className={`rule-row${customHeader ? " named-header" : ""}`}>
+            <select className="select" value={t.type === "true" ? "true" : t.type === "size" ? "size" : t.type === "body" ? "body" : t.type === "address" ? "address" : HEADER_CHOICES.some((h) => h.value === t.header) ? t.header : "__custom__"} onChange={(e) => {
+              const v = e.target.value;
+              if (v === "size") setTest(i, { type: "size", op: "over", value: 1024 * 1024 });
+              else if (v === "body") setTest(i, { type: "body", op: "contains", value: "" });
+              else if (v === "true") setTest(i, { type: "true" });
+              else if (v === "address") setTest(i, { type: "address", header: "from", part: "domain", op: "is", value: "" });
+              else setTest(i, { type: "header", header: v === "__custom__" ? "" : v, op: "contains", value: "" });
+            }}>
+              {HEADER_CHOICES.map((h) => <option key={h.value} value={h.value}>{h.label}</option>)}
+              <option value="address">Sender domain</option>
+              <option value="size">Message size</option>
+              <option value="body">Body text</option>
+              <option value="true">Always (all messages)</option>
             </select>
-          )}
-          {t.type === "size" ? (
-            <div className="row"><input className="input" type="number" min={1} value={Math.round(t.value / 1024)} onChange={(e) => setTest(i, { ...t, value: Number(e.target.value) * 1024 })} /><span className="muted">KB</span></div>
-          ) : t.type === "true" ? <span /> : t.type === "header" && (t.op === "exists" || t.op === "notexists") ? <span /> : (
-            <input className="input" placeholder={t.type === "address" ? "example.com" : "value"} value={(t as { value: string }).value} onChange={(e) => setTest(i, { ...t, value: e.target.value } as SieveTest)} />
-          )}
-          <button className="icon-btn sm danger" aria-label="Remove condition" onClick={() => setR({ ...r, tests: r.tests.filter((_, j) => j !== i) })} disabled={r.tests.length <= 1}><Trash2 size={16} /></button>
-        </div>
-      ))}
+            {customHeader && t.type === "header" && (
+              <input className="input" placeholder="Header name" aria-label="Header name" value={t.header} onChange={(e) => setTest(i, { ...t, header: e.target.value })} />
+            )}
+            {t.type === "size" ? (
+              <select className="select" value={t.op} onChange={(e) => setTest(i, { ...t, op: e.target.value as "over" | "under" })}><option value="over">is larger than</option><option value="under">is smaller than</option></select>
+            ) : t.type === "body" ? (
+              <select className="select" value={t.op} onChange={(e) => setTest(i, { ...t, op: e.target.value as "contains" | "notcontains" })}><option value="contains">contains</option><option value="notcontains">does not contain</option></select>
+            ) : t.type === "true" ? <span /> : (
+              <select className="select" value={t.op} onChange={(e) => setTest(i, { ...t, op: e.target.value as SieveTest extends { op: infer O } ? O : never })}>
+                {HEADER_OPS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            )}
+            {t.type === "size" ? (
+              <div className="row"><input className="input" type="number" min={1} value={Math.round(t.value / 1024)} onChange={(e) => setTest(i, { ...t, value: Number(e.target.value) * 1024 })} /><span className="muted">KB</span></div>
+            ) : t.type === "true" ? <span /> : t.type === "header" && (t.op === "exists" || t.op === "notexists") ? <span /> : (
+              <input className="input" placeholder={t.type === "address" ? "example.com" : "value"} value={(t as { value: string }).value} onChange={(e) => setTest(i, { ...t, value: e.target.value } as SieveTest)} />
+            )}
+            <button className="icon-btn sm danger" aria-label="Remove condition" onClick={() => setR({ ...r, tests: r.tests.filter((_, j) => j !== i) })} disabled={r.tests.length <= 1}><Trash2 size={16} /></button>
+          </div>
+        );
+      })}
       <button className="btn btn-ghost btn-sm" onClick={() => setR({ ...r, tests: [...r.tests, { type: "header", header: "subject", op: "contains", value: "" }] })}><Plus size={14} /> Add condition</button>
 
       <div className="row" style={{ margin: "16px 0 8px" }}><span className="label">Then</span></div>
