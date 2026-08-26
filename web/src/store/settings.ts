@@ -4,7 +4,12 @@ import { loadJson, saveJson } from "@/lib/storage";
 import { queueSettingsPush } from "@/lib/settingsSync";
 import { setDateTimePrefs, type DateFormat, type TimeFormat } from "@/lib/datetime";
 
-export type Theme = "system" | "light" | "dark";
+/**
+ * "ihasmail" is a dark theme carrying the palette from ihasmail.org. It is a
+ * theme rather than an accent because it changes the backgrounds, borders and
+ * text as well as the highlight colour — an accent could not.
+ */
+export type Theme = "system" | "light" | "dark" | "ihasmail";
 export type Density = "comfortable" | "cozy" | "compact";
 export type ReadingPane = "right" | "bottom" | "off";
 export type ImagePolicy = "ask" | "always" | "contacts";
@@ -86,7 +91,14 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  theme: "system",
+  /**
+   * ihasmail's own palette is what a new account gets, so the app looks like
+   * itself before anyone has chosen anything. It is only a default: a stored
+   * theme always wins, so nobody who has picked one — including everyone
+   * already using ihasmail, whose choice is saved even if they never changed
+   * it — is moved off it.
+   */
+  theme: "ihasmail",
   accent: "teal",
   density: "cozy",
   readingPane: "right",
@@ -247,16 +259,28 @@ function applyDateTimePrefs(s: Settings): void {
   setDateTimePrefs({ locale: s.locale, dateFormat: s.dateFormat, timeFormat: s.timeFormat });
 }
 
+/** Background of each theme, for the browser chrome (`theme-color`). */
+const THEME_COLOR = { light: "#ffffff", dark: "#0b1220", ihasmail: "#0d2430" } as const;
+
 export function applyTheme(s: Settings = useSettings.getState().settings): void {
   const root = document.documentElement;
   const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches;
-  const dark = s.theme === "dark" || (s.theme === "system" && prefersDark);
+  const dark = isDarkTheme(s.theme, prefersDark);
+  // ihasmail keeps data-theme="dark" and adds a palette on top, so every
+  // dark-only rule in the stylesheet applies to it without being repeated.
   root.dataset.theme = dark ? "dark" : "light";
+  if (s.theme === "ihasmail") root.dataset.palette = "ihasmail";
+  else delete root.dataset.palette;
   root.dataset.density = s.density;
   root.dataset.accent = s.accent;
   root.dataset.fontsize = s.fontSize;
   const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]:not([media])');
-  if (meta) meta.content = dark ? "#0b1220" : "#ffffff";
+  if (meta) meta.content = s.theme === "ihasmail" ? THEME_COLOR.ihasmail : dark ? THEME_COLOR.dark : THEME_COLOR.light;
+}
+
+/** Whether a theme paints dark, resolving "system" against the OS. */
+export function isDarkTheme(theme: Theme, prefersDark = false): boolean {
+  return theme === "dark" || theme === "ihasmail" || (theme === "system" && prefersDark);
 }
 
 if (typeof window !== "undefined") {
@@ -278,7 +302,7 @@ export function useEffectiveTheme(): "light" | "dark" {
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
   }, []);
-  return theme === "dark" || (theme === "system" && systemDark) ? "dark" : "light";
+  return isDarkTheme(theme, systemDark) ? "dark" : "light";
 }
 
 export const settings = () => useSettings.getState().settings;

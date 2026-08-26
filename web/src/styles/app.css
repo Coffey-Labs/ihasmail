@@ -90,6 +90,59 @@
   color-scheme: dark;
 }
 
+/*
+ * The "ihasmail" theme: the palette from ihasmail.org, which is a teal-navy
+ * rather than the blue-slate of the plain dark theme, warmed by the orange the
+ * logo's cat is drawn in.
+ *
+ * It rides on data-theme="dark" rather than replacing it, so every dark-only
+ * rule further down this file -- tooltips, toasts, the message frame -- keeps
+ * applying without being duplicated. Only the palette is overridden.
+ *
+ * Specificity is doing deliberate work here. This block is [data-palette] plus
+ * :root, so 0,2,0; the accent variants below are :root[data-theme][data-accent],
+ * so 0,3,0 and they win. That is what makes the accent swatches keep working on
+ * top of this theme -- and because the default accent ("teal") has no rule of
+ * its own, ihasmail.org's own accent is what shows until someone picks another.
+ */
+:root[data-palette="ihasmail"] {
+  --bg: #0d2430;
+  --bg-elev: #12303e;
+  --bg-sunken: #0a1c26;
+  --bg-hover: rgba(70, 202, 195, 0.10);
+  --bg-active: rgba(70, 202, 195, 0.16);
+  --fg: #eaf6f6;
+  --fg-muted: #a3c3cb;
+  --fg-faint: #86aab4;
+  --border: #21505f;
+  --border-strong: #2e6a7a;
+  --accent: #46cac3;
+  --accent-fg: #062028;
+  --accent-soft: rgba(70, 202, 195, 0.16);
+  --accent-soft-fg: #9fe6e2;
+  --danger: #f87171;
+  --danger-soft: rgba(248, 113, 113, 0.15);
+  --warn: #f9a34b;
+  --warn-soft: rgba(249, 163, 75, 0.14);
+  --success: #4ade80;
+  --success-soft: rgba(74, 222, 128, 0.15);
+  --link: #6fdcd6;
+  --unread-bg: #163a4a;
+  --read-bg: #12303e;
+  --selected-bg: rgba(70, 202, 195, 0.18);
+  --focus-ring: 0 0 0 3px rgba(70, 202, 195, 0.4);
+  /* The cat is orange; so is the star. */
+  --star: #f9a34b;
+  --q1: #6fdcd6;
+  --q2: #4ade80;
+  --q3: #c084fc;
+  --scrollbar: rgba(163, 195, 203, 0.3);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow-2: 0 8px 24px rgba(0, 0, 0, 0.55);
+  --shadow-3: 0 22px 60px -28px rgba(0, 0, 0, 0.75);
+  color-scheme: dark;
+}
+
 /* Accent variants */
 :root[data-accent="blue"] { --accent: #2563eb; --accent-soft: #dbeafe; --accent-soft-fg: #1e3a8a; --selected-bg: #dbeafe; --focus-ring: 0 0 0 3px rgba(37,99,235,.35); --link:#1d4ed8; }
 :root[data-accent="purple"] { --accent: #7c3aed; --accent-soft: #ede9fe; --accent-soft-fg: #4c1d95; --selected-bg: #ede9fe; --focus-ring: 0 0 0 3px rgba(124,58,237,.35); --link:#6d28d9; }
