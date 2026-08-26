@@ -28,12 +28,14 @@ import { sendReadReceipt } from "@/store/mdn";
 interface Props {
   email: Email;
   expanded: boolean;
+  /** Unread when the conversation was opened, which is what the bar marks. */
+  wasUnread?: boolean;
   onToggle: () => void;
   isLast: boolean;
   actions: ListActions;
 }
 
-export const MessageView = memo(function MessageView({ email: e, expanded, onToggle, actions }: Props) {
+export const MessageView = memo(function MessageView({ email: e, expanded, wasUnread, onToggle, actions }: Props) {
   const accountId = useMail((s) => s.accountId)!;
   const settings = useSettings((s) => s.settings);
   const updateSettings = useSettings((s) => s.update);
@@ -134,7 +136,10 @@ export const MessageView = memo(function MessageView({ email: e, expanded, onTog
   };
 
   return (
-    <article className={`message ${expanded ? "" : "collapsed"} ${!e.keywords.$seen ? "unread-msg" : ""}`} data-msg-id={e.id} onClick={collapsedClick}>
+    /* `wasUnread` rather than `$seen`: the bar marks what was unread when the
+       conversation was opened, and keeps marking it after the auto-mark-read
+       timer has told the server otherwise. Losing it mid-read was half of #69. */
+    <article className={`message ${expanded ? "" : "collapsed"} ${wasUnread ?? !e.keywords.$seen ? "unread-msg" : ""}`} data-msg-id={e.id} onClick={collapsedClick}>
       <header className="message-head" onClick={(ev) => { if (expanded && !(ev.target as HTMLElement).closest("button,a,.message-details")) onToggle(); }}>
         <Avatar who={from ?? null} />
         <div className="who">
