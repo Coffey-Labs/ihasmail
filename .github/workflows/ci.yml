@@ -3,6 +3,14 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Lets CI be run by hand against any ref, including a specific commit.
+  # Without this there is no way to re-run a check that never started: a run
+  # GitHub queues and then orphans -- as it did to every run created during the
+  # Actions outage on 2026-08-26 -- can be neither rerun ("already running")
+  # nor cancelled ("already completed"), and the workflow has no other trigger
+  # to reach for. Useful too for putting a check on a commit that predates a CI
+  # change, without pushing an empty commit to move it.
+  workflow_dispatch:
 jobs:
   build:
     runs-on: ubuntu-latest
