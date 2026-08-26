@@ -5,7 +5,6 @@ import { useSession } from "@/store/session";
 import { formatFullDate } from "@/lib/format";
 import { toast } from "@/ui/toast";
 import { confirmDialog, Dialog } from "@/ui/dialog";
-import { QrCode } from "@/ui/qrcode";
 
 interface SessionRow {
   id: string;
@@ -68,11 +67,11 @@ export function SecuritySettings() {
         <PasswordForm otpEnabled={state?.otpEnabled ?? false} onChanged={() => { void load(); }} />
       )}
 
-      <h2>Two-factor authentication</h2>
-      {unsupported ? (
-        <p className="hint">Two-factor authentication is managed by your mail administrator.</p>
-      ) : (
-        <TwoFactor state={state} reload={async () => { await loadSecurity(); await load(); }} />
+      {!unsupported && state?.otpEnabled && (
+        <>
+          <h2>Two-factor authentication</h2>
+          <TwoFactorOff reload={async () => { await loadSecurity(); await load(); }} />
+        </>
       )}
 
       <h2>App passwords</h2>
@@ -168,45 +167,19 @@ function PasswordForm({ otpEnabled, onChanged }: { otpEnabled: boolean; onChange
 
 /* ------------------------------------------------------------------ */
 
-function TwoFactor({ state, reload }: { state: SecurityState | null; reload: () => Promise<void> }) {
-  const [setup, setSetup] = useState<{ secret: string; url: string } | null>(null);
+/**
+ * Only the way *out*. Setting two-factor authentication up is gone until
+ * signing in with a code works: Stalwart takes a TOTP code through an OAuth
+ * flow alone and offers no password grant, so ihasmail has nowhere to send one
+ * (#75). Turning it on here would lock the account out of webmail on its next
+ * sign-in. Turning it off is a plain registry write, works today, and has to
+ * stay — whoever is already enrolled needs a way back.
+ */
+function TwoFactorOff({ reload }: { reload: () => Promise<void> }) {
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [disabling, setDisabling] = useState(false);
-
-  if (!state) return <p className="hint">Loading…</p>;
-
-  const begin = async () => {
-    try {
-      setSetup(await apiFetch<{ secret: string; url: string }>("/api/account/2fa/begin", { method: "POST", body: "{}" }));
-      setCode(""); setPassword("");
-    } catch (err) {
-      toast.error((err as Error).message);
-    }
-  };
-
-  const enable = async () => {
-    if (!setup) return;
-    setBusy(true);
-    try {
-      const res = await apiFetch<{ sessionKept: boolean }>("/api/account/2fa/enable", {
-        method: "POST",
-        body: JSON.stringify({ url: setup.url, code, current: password }),
-      });
-      setSetup(null);
-      await reload();
-      if (res.sessionKept) {
-        toast.success("Two-factor authentication is on. This browser stays signed in.");
-      } else {
-        toast.success("Two-factor authentication is on. You'll need to sign in again with a code.");
-      }
-    } catch (err) {
-      toast.error((err as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const disable = async () => {
     setBusy(true);
@@ -225,50 +198,14 @@ function TwoFactor({ state, reload }: { state: SecurityState | null; reload: () 
   return (
     <div>
       <p className="hint" style={{ marginBottom: 12 }}>
-        {state.otpEnabled
-          ? "Signing in requires a code from your authenticator app as well as your password."
-          : "Add a one-time code from an authenticator app to your sign-in, so a stolen password isn't enough on its own."}
+        This account has two-factor authentication on. ihasmail can't sign you in with a code yet, so signing in on another
+        device needs an app password — or you can turn two-factor authentication off here.
       </p>
       <div className="row" style={{ alignItems: "center", gap: 10 }}>
-        <ShieldCheck size={18} className={state.otpEnabled ? "" : "muted"} />
-        <b>{state.otpEnabled ? "Enabled" : "Not enabled"}</b>
-        {state.otpEnabled
-          ? <button className="btn btn-sm" onClick={() => { setDisabling(true); setCode(""); setPassword(""); }}>Turn off</button>
-          : <button className="btn btn-sm btn-primary" onClick={() => void begin()}>Set up</button>}
+        <ShieldCheck size={18} />
+        <b>Enabled</b>
+        <button className="btn btn-sm" onClick={() => { setDisabling(true); setCode(""); setPassword(""); }}>Turn off</button>
       </div>
-
-      <Dialog open={Boolean(setup)} onClose={() => setSetup(null)} title="Set up two-factor authentication" size="md"
-        footer={<>
-          <button className="btn btn-ghost" onClick={() => setSetup(null)}>Cancel</button>
-          <button className="btn btn-primary" disabled={busy || code.length < 6 || !password} onClick={() => void enable()}>{busy ? "Verifying…" : "Turn on"}</button>
-        </>}>
-        {setup && (
-          <div>
-            <ol style={{ paddingLeft: 18, marginTop: 0 }}>
-              <li>Scan this with your authenticator app.</li>
-              <li>Enter the six-digit code it shows, and your password.</li>
-            </ol>
-            <div className="row" style={{ gap: 16, alignItems: "flex-start", flexWrap: "wrap" }}>
-              <QrCode value={setup.url} size={188} title="Two-factor setup code" />
-              <div style={{ minWidth: 220, flex: 1 }}>
-                <div className="field">
-                  <label>Can't scan? Enter this key by hand</label>
-                  <CopyableSecret value={setup.secret} />
-                </div>
-                <div className="field">
-                  <label htmlFor="tfa-code">Code from the app</label>
-                  <input id="tfa-code" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} placeholder="123456" />
-                </div>
-                <div className="field">
-                  <label htmlFor="tfa-pw">Your password</label>
-                  <input id="tfa-pw" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
-                </div>
-              </div>
-            </div>
-            <p className="hint">Codes are checked before anything is saved, so a mistyped key can't lock you out.</p>
-          </div>
-        )}
-      </Dialog>
 
       <Dialog open={disabling} onClose={() => setDisabling(false)} title="Turn off two-factor authentication" size="sm"
         footer={<>
