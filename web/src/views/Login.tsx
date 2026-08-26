@@ -96,12 +96,18 @@ export function LoginPage() {
         </button>
         <p className="foot">
           {/*
-            The version sits next to the source link on purpose: the AGPL's
-            offer is for the source of *this* build, and a version makes that
-            offer something a person can actually act on. It also means a bug
-            report names the build without anyone having to sign in to find it.
+            The version sits directly above the source link on purpose: the
+            AGPL's offer is for the source of *this* build, and naming the
+            build is what makes that offer something a person can act on. It
+            also means a bug report can name the build without anyone having
+            to sign in to find it.
+
+            One <p> with a break rather than two: .foot carries a 20px
+            margin-top, which a second paragraph would repeat as a gap.
           */}
-          ihasmail v{APP_VERSION} by <a href="https://linuxexpert.org" target="_blank" rel="noopener noreferrer">linuxexpert.org</a>
+          ihasmail v{APP_VERSION}
+          <br />
+          <a href="https://ihasmail.org" target="_blank" rel="noopener noreferrer">ihasmail.org</a>
           {" · "}
           <a href={sourceUrl} target="_blank" rel="noopener noreferrer">AGPL-3.0 source</a>
         </p>
