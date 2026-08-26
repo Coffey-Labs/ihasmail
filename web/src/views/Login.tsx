@@ -79,7 +79,19 @@ export function LoginPage() {
           <div className="field">
             <label htmlFor="t">Two-factor code</label>
             <input id="t" className="input" inputMode="numeric" autoComplete="one-time-code" placeholder="123456" value={totp} onChange={(e) => setTotp(e.target.value)} autoFocus />
-            <span className="hint">Enter the code from your authenticator app if your account uses 2FA.</span>
+            {/*
+              Kept, and honest about itself. Stalwart accepts a TOTP code only
+              through an OAuth flow, and offers no password grant, so no client
+              holding a username and password can pass one — the field cannot
+              work here today. It stays because someone with 2FA will look for
+              it, and finding nothing is worse than finding this; the hint sends
+              them somewhere that does work, and the server explains it again if
+              they try anyway.
+            */}
+            <span className="hint">
+              Most mail servers, Stalwart included, do not accept two-factor codes from webmail — use an app password instead, created in
+              your mail server's own settings. This field is here for servers that do.
+            </span>
           </div>
         ) : (
           <button type="button" className="btn btn-ghost btn-sm" style={{ marginBottom: 12, color: "var(--fg-muted)" }} onClick={() => setShowTotp(true)}>
