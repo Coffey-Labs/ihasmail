@@ -49,6 +49,27 @@ IMAGE_REPO="${IHASMAIL_IMAGE:-ihasmail}"
 # How long to wait for the new container to report healthy, in seconds.
 HEALTH_TIMEOUT="${IHASMAIL_HEALTH_TIMEOUT:-30}"
 
+# --- run from a copy, if this script lives in the checkout it resets ---------
+# `git reset --hard` below rewrites the working tree, and this script may be
+# part of it. Bash does not read a script all at once -- it reads as it goes,
+# by byte offset -- so a file replaced underneath it makes the shell stop
+# wherever it had reached. Silently, and with exit status 0: a deploy that
+# stopped halfway would report success. Re-exec from a copy outside the tree so
+# the file being run cannot change while it runs.
+SELF="$(readlink -f "$0")"
+APP_REAL="$(readlink -f "$APP" 2>/dev/null || printf '%s' "$APP")"
+if [ -z "${IHASMAIL_REEXEC:-}" ] && [ "${SELF#"$APP_REAL"/}" != "$SELF" ]; then
+  COPY="$(mktemp "${TMPDIR:-/tmp}/ihasmail-deploy.XXXXXX")"
+  cat "$SELF" > "$COPY"
+  chmod +x "$COPY"
+  IHASMAIL_REEXEC=1 exec "$COPY" "$@"
+fi
+# The copy has served its purpose once we exit; the shell has finished reading
+# it by then.
+if [ -n "${IHASMAIL_REEXEC:-}" ]; then
+  trap 'rm -f "$SELF"' EXIT
+fi
+
 REF=""
 ASSUME_YES=0
 DRY_RUN=0
