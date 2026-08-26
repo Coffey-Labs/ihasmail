@@ -143,7 +143,7 @@ export function createApp(): Hono<Env> {
   const api = new Hono<Env>();
   api.use("*", csrfGuard);
 
-  api.get("/health", (c) => c.json({ ok: true, name: config.appName, version: "2.0.0" }));
+  api.get("/health", (c) => c.json({ ok: true, name: config.appName, version: config.version }));
 
   api.get("/config", (c) =>
     c.json({
