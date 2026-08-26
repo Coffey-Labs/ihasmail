@@ -128,3 +128,50 @@ describe("availability", () => {
     expect(webPushAvailable()).toBe(false);
   });
 });
+
+describe("the emailPush filter", () => {
+  /**
+   * This is the bug that reached production: `inMailbox: null` read as "the
+   * inbox" and meant nothing to the server, which answered "Invalid filter"
+   * and refused the subscription outright. The original tests checked the
+   * property ordering and never looked at the filter at all.
+   */
+  const fakeSub = {
+    endpoint: "https://push.example/abc",
+    toJSON: () => ({ keys: { p256dh: "cGRoLWtleQ", auth: "YXV0aA" } }),
+    getKey: () => null,
+  } as unknown as PushSubscription;
+
+  const withEmailPush = () => {
+    client.session = session({
+      "urn:ietf:params:jmap:webpush-vapid": { applicationServerKey: LIVE_KEY },
+      "urn:ietf:params:jmap:emailpush": {},
+    });
+  };
+
+  it("never sends a condition with a null or undefined value", () => {
+    withEmailPush();
+    for (const inbox of ["mb1", null]) {
+      const body = subscriptionPayload(fakeSub, "a1", inbox) as Record<string, any>;
+      const filter = body.emailPush.a1.filter as Record<string, unknown>;
+      for (const [k, v] of Object.entries(filter)) {
+        expect(v, `${k} was ${String(v)} with inbox=${String(inbox)}`).not.toBeNull();
+        expect(v, k).not.toBeUndefined();
+      }
+    }
+  });
+
+  it("uses the real mailbox id when it knows one", () => {
+    withEmailPush();
+    const body = subscriptionPayload(fakeSub, "a1", "mbInbox") as Record<string, any>;
+    expect(body.emailPush.a1.filter.inMailbox).toBe("mbInbox");
+  });
+
+  it("leaves inMailbox out entirely when it does not, rather than sending null", () => {
+    withEmailPush();
+    const filter = (subscriptionPayload(fakeSub, "a1", null) as Record<string, any>).emailPush.a1.filter;
+    expect(filter).not.toHaveProperty("inMailbox");
+    // Still narrowed to unread: notifying more widely beats not notifying.
+    expect(filter.notKeyword).toBe("$seen");
+  });
+});

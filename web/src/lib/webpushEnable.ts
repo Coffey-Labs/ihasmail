@@ -7,6 +7,7 @@
  */
 import { CAP } from "@/jmap/client";
 import { useSession } from "@/store/session";
+import { useMail } from "@/store/mail";
 import {
   applicationServerKey,
   createSubscription,
@@ -78,7 +79,8 @@ export async function enableWebPush(): Promise<{ ok: true } | { ok: false; reaso
       applicationServerKey: decodeApplicationServerKey(key),
     }));
     const accountId = useSession.getState().accountFor(CAP.mail);
-    await createSubscription(subscriptionPayload(sub, accountId));
+    const inboxId = useMail.getState().roleId("inbox");
+    await createSubscription(subscriptionPayload(sub, accountId, inboxId));
     listenForVerification();
     return { ok: true };
   } catch (err) {
