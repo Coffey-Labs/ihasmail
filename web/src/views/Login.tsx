@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Eye, EyeOff, LogIn, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, LogIn } from "lucide-react";
 import { useSession } from "@/store/session";
 import { ApiError } from "@/jmap/client";
 import { DEFAULT_SOURCE_URL } from "@/lib/source";
@@ -21,8 +21,6 @@ export function LoginPage() {
   }, []);
   const [username, setUsername] = useState(() => localStorage.getItem("ihasmail:lastUser") ?? "");
   const [password, setPassword] = useState("");
-  const [totp, setTotp] = useState("");
-  const [showTotp, setShowTotp] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [remember, setRemember] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -34,13 +32,14 @@ export function LoginPage() {
     setBusy(true);
     setError(null);
     try {
-      await login(username.trim(), password, totp.trim(), remember);
+      // No two-factor code: the field is not on this form until the flow works
+      // end to end, and the server treats an absent code as none given.
+      await login(username.trim(), password, "", remember);
       localStorage.setItem("ihasmail:lastUser", username.trim());
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.code === "invalid_credentials") {
-          setError(showTotp ? "Invalid credentials or verification code." : "Invalid username or password.");
-          if (!showTotp && password) setShowTotp(true);
+          setError("Invalid username or password.");
         } else if (err.code === "rate_limited") setError("Too many attempts. Please wait a few minutes and try again.");
         else setError(err.message || "Could not sign in.");
       } else setError("Network error. Please check your connection.");
@@ -75,29 +74,6 @@ export function LoginPage() {
             </button>
           </div>
         </div>
-        {showTotp ? (
-          <div className="field">
-            <label htmlFor="t">Two-factor code</label>
-            <input id="t" className="input" inputMode="numeric" autoComplete="one-time-code" placeholder="123456" value={totp} onChange={(e) => setTotp(e.target.value)} autoFocus />
-            {/*
-              Kept, and honest about itself. Stalwart accepts a TOTP code only
-              through an OAuth flow, and offers no password grant, so no client
-              holding a username and password can pass one — the field cannot
-              work here today. It stays because someone with 2FA will look for
-              it, and finding nothing is worse than finding this; the hint sends
-              them somewhere that does work, and the server explains it again if
-              they try anyway.
-            */}
-            <span className="hint">
-              Most mail servers, Stalwart included, do not accept two-factor codes from webmail — use an app password instead, created in
-              your mail server's own settings. This field is here for servers that do.
-            </span>
-          </div>
-        ) : (
-          <button type="button" className="btn btn-ghost btn-sm" style={{ marginBottom: 12, color: "var(--fg-muted)" }} onClick={() => setShowTotp(true)}>
-            <ShieldCheck size={16} /> I have a two-factor code
-          </button>
-        )}
         <label className="check" style={{ marginBottom: 12 }}>
           <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
           <span>Keep me signed in on this device</span>
