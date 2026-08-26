@@ -3,6 +3,7 @@ import { Eye, EyeOff, LogIn, ShieldCheck } from "lucide-react";
 import { useSession } from "@/store/session";
 import { ApiError } from "@/jmap/client";
 import { DEFAULT_SOURCE_URL } from "@/lib/source";
+import { APP_VERSION } from "@/lib/version";
 
 export function LoginPage() {
   const login = useSession((s) => s.login);
@@ -94,7 +95,13 @@ export function LoginPage() {
           {busy ? "Signing in…" : "Sign in"}
         </button>
         <p className="foot">
-          ihasmail by <a href="https://linuxexpert.org" target="_blank" rel="noopener noreferrer">linuxexpert.org</a>
+          {/*
+            The version sits next to the source link on purpose: the AGPL's
+            offer is for the source of *this* build, and a version makes that
+            offer something a person can actually act on. It also means a bug
+            report names the build without anyone having to sign in to find it.
+          */}
+          ihasmail v{APP_VERSION} by <a href="https://linuxexpert.org" target="_blank" rel="noopener noreferrer">linuxexpert.org</a>
           {" · "}
           <a href={sourceUrl} target="_blank" rel="noopener noreferrer">AGPL-3.0 source</a>
         </p>

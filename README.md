@@ -153,7 +153,7 @@ Open http://localhost:5173 in dev (or http://localhost:8080 for the production b
 
 ### Version numbers
 
-`ihasmail v2.16.57`, as shown in Settings › About and by `/api/health`:
+`ihasmail v2.16.57`, shown on the sign-in page, in Settings › About, and by `/api/health`:
 
 | | |
 | --- | --- |
