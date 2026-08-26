@@ -1,3 +1,4 @@
+import { resolveVersion } from "../../scripts/version.mjs";
 import { randomBytes } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { existsSync, readFileSync } from "node:fs";
@@ -60,6 +61,13 @@ const stalwartUrl = env("STALWART_URL", "https://mail.example.com").replace(/\/+
 export const config = {
   isProd,
   appName: env("APP_NAME", "ihasmail"),
+  /**
+   * What this build calls itself: `2.16.57`. Set by the image build from
+   * `--build-arg IHASMAIL_VERSION`, since `.dockerignore` keeps `.git` out of
+   * the build context and nothing in there could work it out. A dev checkout
+   * has git, so it falls back to asking; see `scripts/version.mjs`.
+   */
+  version: resolveVersion(),
   /**
    * Where this instance's source can be had, shown to everyone who reaches it.
    *
