@@ -520,6 +520,18 @@ const handlers: Record<string, Handler> = {
         notCreated[cid] = { type: "invalidProperties", properties: ["url"], description: "Push endpoint must be https." };
         continue;
       }
+      // A filter condition with a null value is not a filter -- the real server
+      // answers "Invalid filter" and refuses the whole subscription. ihasmail
+      // shipped `inMailbox: null` meaning "the inbox", which meant nothing at
+      // all here, and the mock accepted it happily. It does not any more.
+      const badFilter = Object.entries((o.emailPush ?? {}) as Obj).find(([, cfg]) => {
+        const f = ((cfg as Obj)?.filter ?? {}) as Obj;
+        return Object.values(f).some((v) => v === null || v === undefined);
+      });
+      if (badFilter) {
+        notCreated[cid] = { type: "invalidArguments", properties: ["emailPush"], description: "Invalid filter." };
+        continue;
+      }
       // One per device: re-subscribing replaces rather than accumulates.
       const deviceId = String(o.deviceClientId ?? "");
       const clash = pushSubscriptions.findIndex((s) => s.deviceClientId === deviceId);
