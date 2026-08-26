@@ -1,5 +1,7 @@
-/* ihasmail service worker: app-shell caching for installability & fast loads.
-   API requests are never cached. */
+/* ihasmail service worker.
+   Two jobs: app-shell caching for installability and fast loads (API requests
+   are never cached), and Web Push, which is the only part of ihasmail that runs
+   when no tab is open. */
 const VERSION = "ihasmail-v2";
 const SHELL = ["/", "/manifest.webmanifest", "/img/logo.png", "/img/icon-192.png", "/favicon.ico"];
 
@@ -38,4 +40,96 @@ self.addEventListener("fetch", (event) => {
     return;
   }
   event.respondWith(fetch(req).catch(() => caches.match(req)));
+});
+
+
+/* ------------------------------------------------------------------ */
+/* Web Push                                                            */
+/* ------------------------------------------------------------------ */
+
+/*
+ * Stalwart signs with VAPID and pushes straight to the browser's push service;
+ * nothing here talks to ihasmail's server. The payload is an EmailPush object
+ * (draft-ietf-jmap-emailpush) carrying enough of the message to show a useful
+ * notification without a round-trip — which matters, because when this fires
+ * there may be no session to make one with.
+ *
+ * A JMAP subscription also delivers a PushVerification first, and stays silent
+ * until the client echoes its code back. That cannot be done from here (no
+ * credentials), so it is stashed for a tab to collect and confirm.
+ */
+
+const VERIFY_KEY = "ihasmail-push-verification";
+
+function textOf(email) {
+  const from = email?.from?.[0];
+  const who = from?.name || from?.email || "New message";
+  const what = email?.subject || "(no subject)";
+  return { title: who, body: what, preview: email?.preview || "" };
+}
+
+self.addEventListener("push", (event) => {
+  let data = null;
+  try {
+    data = event.data ? event.data.json() : null;
+  } catch {
+    /* not JSON: fall through to the generic notification below */
+  }
+
+  // The verification handshake. No credentials here, so hand it to a tab —
+  // an open one now, or the next one to start.
+  if (data && data["@type"] === "PushVerification") {
+    event.waitUntil((async () => {
+      const payload = { id: data.pushSubscriptionId, code: data.verificationCode };
+      const clients = await self.clients.matchAll({ includeUncontrolled: true, type: "window" });
+      if (clients.length) {
+        for (const c of clients) c.postMessage({ type: "push-verification", ...payload });
+      } else {
+        const cache = await caches.open(VERSION);
+        await cache.put(VERIFY_KEY, new Response(JSON.stringify(payload)));
+      }
+    })());
+    return;
+  }
+
+  const emails = (data && data["@type"] === "EmailPush" && Array.isArray(data.emails)) ? data.emails : [];
+  event.waitUntil((async () => {
+    if (!emails.length) {
+      // A StateChange, or a payload too large to carry the message. Say
+      // something true rather than inventing a sender.
+      await self.registration.showNotification("New mail", {
+        icon: "/img/icon-192.png", badge: "/img/favicon-64.png", tag: "ihasmail-mail", data: { url: "/mail" },
+      });
+      return;
+    }
+    // One notification per message, collapsing repeats of the same message by
+    // tag so a re-push does not stack.
+    for (const email of emails.slice(0, 5)) {
+      const { title, body, preview } = textOf(email);
+      await self.registration.showNotification(title, {
+        body: preview ? `${body}\n${preview}` : body,
+        icon: "/img/icon-192.png",
+        badge: "/img/favicon-64.png",
+        tag: `ihasmail-${email.id || body}`,
+        data: { url: email.id ? `/mail/inbox/${email.id}` : "/mail" },
+      });
+    }
+  })());
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || "/mail";
+  event.waitUntil((async () => {
+    const clients = await self.clients.matchAll({ includeUncontrolled: true, type: "window" });
+    // Reuse a tab if one is open rather than piling up windows.
+    for (const c of clients) {
+      if (new URL(c.url).origin === self.location.origin) {
+        await c.focus();
+        if ("navigate" in c) await c.navigate(url).catch(() => {});
+        return;
+      }
+    }
+    await self.clients.openWindow(url);
+  })());
 });

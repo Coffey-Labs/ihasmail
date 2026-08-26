@@ -53,6 +53,9 @@ const nextState = () => String(state.n++);
  * list no user has. The role is what the client branches on; the name is only
  * ever displayed, which is exactly why it has to look right.
  */
+/** Push subscriptions, as a fresh account has none. */
+const pushSubscriptions: Obj[] = [];
+
 const mailboxes: Obj[] = [
   mb("inbox", "Inbox", "inbox"),
   mb("drafts", "Drafts", "drafts"),
@@ -476,6 +479,73 @@ const handlers: Record<string, Handler> = {
     state.n++;
     return setResp({ updated: { singleton: null } });
   },
+  /*
+   * Push subscriptions. The JMAP half can be modelled; delivery cannot -- that
+   * runs through the browser vendor's real push service, so nothing local will
+   * ever make a notification appear.
+   *
+   * What is worth reproducing is the handshake, because it is the part that
+   * fails quietly: a subscription is created unverified and stays silent until
+   * the client echoes back a code the server pushed. A mock that marked one
+   * verified on creation would let a client ship without ever implementing
+   * that, and the symptom in production is "registered, and no notifications".
+   */
+  "PushSubscription/get": (a) => {
+    const ids = (a.ids as string[] | null) ?? pushSubscriptions.map((s) => s.id as string);
+    const list = pushSubscriptions.filter((s) => ids.includes(s.id as string));
+    // `keys` is write-only in JMAP: the server never hands it back.
+    return { accountId: ACCOUNT, state: String(state.n), list: list.map((s) => { const { keys: _drop, ...rest } = s; return rest; }), notFound: ids.filter((i) => !list.some((s) => s.id === i)) };
+  },
+  "PushSubscription/set": (a) => {
+    const created: Obj = {};
+    const notCreated: Obj = {};
+    const updated: Obj = {};
+    const notUpdated: Obj = {};
+    const destroyed: string[] = [];
+    for (const [cid, obj] of Object.entries((a.create as Obj) ?? {})) {
+      const o = obj as Obj;
+      const keys = (o.keys ?? {}) as Obj;
+      // Stalwart 0.16 was fixed to accept the unpadded base64url the W3C Push
+      // API produces; padding it would be the client inventing a shape.
+      for (const k of ["p256dh", "auth"]) {
+        const v = String(keys[k] ?? "");
+        if (!v) { notCreated[cid] = { type: "invalidProperties", properties: ["keys"], description: `Missing ${k}.` }; break; }
+        if (v.includes("=") || v.includes("+") || v.includes("/")) {
+          notCreated[cid] = { type: "invalidProperties", properties: ["keys"], description: `${k} must be unpadded base64url.` };
+          break;
+        }
+      }
+      if (notCreated[cid]) continue;
+      if (!String(o.url ?? "").startsWith("https://")) {
+        notCreated[cid] = { type: "invalidProperties", properties: ["url"], description: "Push endpoint must be https." };
+        continue;
+      }
+      // One per device: re-subscribing replaces rather than accumulates.
+      const deviceId = String(o.deviceClientId ?? "");
+      const clash = pushSubscriptions.findIndex((s) => s.deviceClientId === deviceId);
+      if (clash >= 0) pushSubscriptions.splice(clash, 1);
+      const id = `ps${randomUUID().slice(0, 6)}`;
+      pushSubscriptions.push({ id, deviceClientId: deviceId, url: o.url, types: o.types ?? null, emailPush: o.emailPush ?? null, expires: null, keys, verified: false, code: `v${randomUUID().slice(0, 8)}` });
+      created[cid] = { id, expires: null };
+      state.n++;
+    }
+    for (const [id, patch] of Object.entries((a.update as Obj) ?? {})) {
+      const s = pushSubscriptions.find((x) => x.id === id);
+      if (!s) { notUpdated[id] = { type: "notFound" }; continue; }
+      const code = (patch as Obj).verificationCode;
+      if (code !== undefined) {
+        if (code !== s.code) { notUpdated[id] = { type: "invalidProperties", properties: ["verificationCode"], description: "Verification code does not match." }; continue; }
+        s.verified = true;
+      }
+      updated[id] = null;
+      state.n++;
+    }
+    for (const id of (a.destroy as string[]) ?? []) {
+      const i = pushSubscriptions.findIndex((x) => x.id === id);
+      if (i >= 0) { pushSubscriptions.splice(i, 1); destroyed.push(id); state.n++; }
+    }
+    return setResp({ created, notCreated, updated, notUpdated, destroyed });
+  },
   "x:AppPassword/get": (a) => genericGet(account.appPasswords)(a),
   "x:AppPassword/set": (a) => {
     const created: Obj = {};
@@ -667,7 +737,9 @@ function readBody(req: IncomingMessage): Promise<Buffer> {
 }
 
 const session = () => ({
-  capabilities: { "urn:ietf:params:jmap:core": { maxSizeUpload: 50000000, maxConcurrentUpload: 4, maxSizeRequest: 10000000, maxConcurrentRequests: 4, maxCallsInRequest: 16, maxObjectsInGet: MAX_OBJECTS, maxObjectsInSet: MAX_OBJECTS, collationAlgorithms: ["i;ascii-casemap"] }, "urn:ietf:params:jmap:mail": {}, "urn:ietf:params:jmap:submission": {}, "urn:ietf:params:jmap:vacationresponse": {}, "urn:ietf:params:jmap:sieve": { implementation: "mock" }, "urn:ietf:params:jmap:calendars": {}, "urn:ietf:params:jmap:calendars:parse": {}, "urn:ietf:params:jmap:contacts": {}, "urn:ietf:params:jmap:contacts:parse": {}, "urn:ietf:params:jmap:principals": {}, "urn:ietf:params:jmap:principals:availability": {}, "urn:ietf:params:jmap:quota": {}, "urn:ietf:params:jmap:blob": {}, "urn:ietf:params:jmap:filenode": {} },
+  capabilities: { "urn:ietf:params:jmap:core": { maxSizeUpload: 50000000, maxConcurrentUpload: 4, maxSizeRequest: 10000000, maxConcurrentRequests: 4, maxCallsInRequest: 16, maxObjectsInGet: MAX_OBJECTS, maxObjectsInSet: MAX_OBJECTS, collationAlgorithms: ["i;ascii-casemap"] }, "urn:ietf:params:jmap:mail": {}, "urn:ietf:params:jmap:submission": {}, "urn:ietf:params:jmap:vacationresponse": {}, "urn:ietf:params:jmap:webpush-vapid": { applicationServerKey: "BBvig2GPmqohMJJHMzp6bTKviHibYiVCyAY8gdq2fPhS-9YfO9_0TnhMyZ0a0JxTsbCqd3zm1rEiXsXsL3jveJY" },
+  "urn:ietf:params:jmap:emailpush": {},
+  "urn:ietf:params:jmap:sieve": { implementation: "mock" }, "urn:ietf:params:jmap:calendars": {}, "urn:ietf:params:jmap:calendars:parse": {}, "urn:ietf:params:jmap:contacts": {}, "urn:ietf:params:jmap:contacts:parse": {}, "urn:ietf:params:jmap:principals": {}, "urn:ietf:params:jmap:principals:availability": {}, "urn:ietf:params:jmap:quota": {}, "urn:ietf:params:jmap:blob": {}, "urn:ietf:params:jmap:filenode": {} },
   accounts: { [ACCOUNT]: { name: USER, isPersonal: true, isReadOnly: false, accountCapabilities: { "urn:ietf:params:jmap:mail": {}, "urn:ietf:params:jmap:submission": { maxDelayedSend: MAX_DELAYED_SEND, submissionExtensions: { FUTURERELEASE: [], SIZE: [], DSN: [], DELIVERYBY: [], "MT-PRIORITY": ["MIXER"], REQUIRETLS: [] } }, "urn:ietf:params:jmap:vacationresponse": {}, "urn:ietf:params:jmap:sieve": {}, "urn:ietf:params:jmap:calendars": {}, "urn:ietf:params:jmap:contacts": {}, "urn:ietf:params:jmap:principals": {}, "urn:ietf:params:jmap:quota": {}, "urn:ietf:params:jmap:filenode": {}, ...(NO_REGISTRY ? {} : { "urn:stalwart:jmap": {} }) } } },
   primaryAccounts: { ...Object.fromEntries(["mail", "submission", "vacationresponse", "sieve", "calendars", "contacts", "principals", "quota", "filenode", "blob"].map((c) => [`urn:ietf:params:jmap:${c}`, ACCOUNT])), ...(NO_REGISTRY ? {} : { "urn:stalwart:jmap": ACCOUNT }) },
   username: USER,
