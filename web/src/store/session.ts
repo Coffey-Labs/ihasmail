@@ -3,6 +3,7 @@ import { apiFetch, ApiError, CAP, client } from "@/jmap/client";
 import type { Id, JmapSession } from "@/jmap/types";
 import { push, type PushState } from "@/jmap/push";
 import { setServerLocale } from "@/lib/datetime";
+import { flushSettingsPush, stopSettingsSync } from "@/lib/settingsSync";
 
 export type AuthStatus = "loading" | "anonymous" | "authenticated";
 
@@ -54,6 +55,14 @@ export const useSession = create<SessionState>((set, get) => ({
   async logout() {
     push.stop();
     setServerLocale(null);
+    // Anything still sitting in the debounce is written while the session can
+    // still write it; a setting changed seconds before signing out is not lost.
+    try {
+      await flushSettingsPush();
+    } catch {
+      /* ignore */
+    }
+    stopSettingsSync();
     try {
       await apiFetch("/api/auth/logout", { method: "POST" });
     } catch {
@@ -96,6 +105,7 @@ function applySession(s: JmapSession, set: (p: Partial<SessionState>) => void) {
 
 client.onUnauthenticated(() => {
   push.stop();
+  stopSettingsSync();
   client.session = null;
   useSession.setState({ status: "anonymous", session: null, accountId: null });
 });
