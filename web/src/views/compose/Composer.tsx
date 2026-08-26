@@ -3,6 +3,7 @@ import { AlertTriangle, ChevronDown, FileText, Maximize2, Minimize2, Minus, More
 import { useCompose, type Draft } from "@/store/compose";
 import { useMail } from "@/store/mail";
 import { useSettings } from "@/store/settings";
+import { visibleIdentities } from "@/lib/identityVisibility";
 import { RecipientInput } from "./RecipientInput";
 import { RichEditor, type RichEditorHandle } from "./RichEditor";
 import { MenuItem, MenuSep, MenuTitle, Popover, useMenu } from "@/ui/popover";
@@ -28,7 +29,10 @@ export function Composer({ draft }: { draft: Draft }) {
   const setIdentity = useCompose((s) => s.setIdentity);
   const insertTemplate = useCompose((s) => s.insertTemplate);
   const focus = useCompose((s) => s.focus);
-  const identities = useMail((s) => s.identities);
+  const allIdentities = useMail((s) => s.identities);
+  const mailAccountId = useMail((s) => s.accountId);
+  const hiddenIdentities = useSettings((s) => s.settings.hiddenIdentities);
+  const defaultIdentityId = useSettings((s) => (mailAccountId ? s.settings.defaultIdentityByAccount[mailAccountId] : undefined));
   const settings = useSettings((s) => s.settings);
   const updateSettings = useSettings((s) => s.update);
   const isMobile = useIsMobile();
@@ -118,6 +122,16 @@ export function Composer({ draft }: { draft: Draft }) {
     if (files.length) addFiles(key, files);
   };
 
+  /*
+   * The picker offers the visible identities, plus two that can never be
+   * hidden from it: the one this draft is already using, and the default a new
+   * draft starts on. Hiding either would leave the select with no matching
+   * option and silently move the From line. See lib/identityVisibility.
+   */
+  const identities = useMemo(
+    () => visibleIdentities(allIdentities, hiddenIdentities, [d.identityId, defaultIdentityId]),
+    [allIdentities, hiddenIdentities, d.identityId, defaultIdentityId],
+  );
   const ident = identities.find((i) => i.id === d.identityId) ?? identities[0];
   const title = d.subject || (d.replyMode ? (d.replyMode === "forward" ? "Forward" : "Reply") : "New message");
   const status = d.sending ? "Sending…" : d.saving ? "Saving…" : d.error ? "Error" : d.savedAt ? `Saved ${formatRelative(new Date(d.savedAt).toISOString())}` : d.dirty ? "Unsaved" : "";
