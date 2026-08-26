@@ -151,6 +151,40 @@ npm start              # serve the production build
 
 Open http://localhost:5173 in dev (or http://localhost:8080 for the production build).
 
+### Version numbers
+
+`ihasmail v2.16.57`, as shown in Settings › About and by `/api/health`:
+
+| | |
+| --- | --- |
+| `2` | ihasmail's own major |
+| `16` | the **Stalwart** generation this build targets — 0.16, the oldest it supports |
+| `57` | the pull request the commit came from |
+
+The first two live in the root `package.json`, so there is one place to bump
+them; `16` becomes `17` when ihasmail moves to Stalwart 0.17. The third comes
+from git at build time, because it does not exist until the pull request has
+merged — a version committed to the tree would always be describing a merge
+that had not happened yet, and every open branch would collide on the same
+line. Nothing writes one back.
+
+A commit that did not arrive through a pull request carries the last number
+plus its own short SHA — `2.16.57+g1fa6578` — which says plainly that the build
+is *past* that pull request rather than being it.
+
+`node scripts/version.mjs` prints the version for the current checkout.
+
+`.dockerignore` excludes `.git` deliberately, so an image build cannot work any
+of this out for itself. Pass it in:
+
+```bash
+docker build --build-arg IHASMAIL_VERSION="$(node scripts/version.mjs)" -t ihasmail:2.16 .
+```
+
+Left out, the build falls back to the base version from `package.json`
+(`2.16.0`) rather than failing — so a version with no PR number on it means
+whoever built the image did not pass one.
+
 ### The mock
 
 `npm run mock` is an in-memory fake Stalwart 0.16 — enough of JMAP to develop
