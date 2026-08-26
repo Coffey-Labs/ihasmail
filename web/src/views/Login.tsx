@@ -101,7 +101,7 @@ export function LoginPage() {
             offer something a person can actually act on. It also means a bug
             report names the build without anyone having to sign in to find it.
           */}
-          ihasmail v{APP_VERSION} by <a href="https://linuxexpert.org" target="_blank" rel="noopener noreferrer">linuxexpert.org</a>
+          ihasmail v{APP_VERSION} by <a href="https://ihasmail.org" target="_blank" rel="noopener noreferrer">ihasmail.org</a>
           {" · "}
           <a href={sourceUrl} target="_blank" rel="noopener noreferrer">AGPL-3.0 source</a>
         </p>
