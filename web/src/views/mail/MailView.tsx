@@ -115,6 +115,37 @@ export function MailView({ mailboxId, threadId, search }: { mailboxId?: string; 
     (removed: boolean) => {
       useMail.getState().clearSelection();
       if (!removed) return;
+
+      /*
+       * Move the focused row off the message that just went away.
+       *
+       * Nothing did this before, so `focusId` kept pointing at a row that was
+       * no longer in the list, and two separate complaints in #71 fell out of
+       * it. `targetIds()` falls back to the focused id, so the next `#`
+       * re-targeted the deleted message -- which the optimistic update had
+       * already marked as being in Deleted Items, making it look like a
+       * permanent delete and raising a confirmation the setting had turned
+       * off. And `moveFocus` reads `ids.indexOf(focusId)`, which was -1, which
+       * it treats as "before the start" -- so `k` clamped to the top of the
+       * list.
+       *
+       * Clicking a row was unaffected, because that sets focus to a row that
+       * exists, which is why it only ever happened from the keyboard.
+       *
+       * `currentRowIndex` here is the value from the render that started this
+       * action, so it is the index the message had *before* it was removed.
+       * The row that slid into that slot is the one to focus.
+       */
+      const wasAt = currentRowIndex;
+      const freshIds = useMail.getState().list?.ids ?? [];
+      if (!freshIds.length) {
+        setFocusId(null);
+      } else if (wasAt >= 0) {
+        const want = settings.autoAdvance === "newer" ? wasAt - 1 : wasAt;
+        const next = freshIds[Math.max(0, Math.min(want, freshIds.length - 1))];
+        if (next) setFocusId(next);
+      }
+
       // auto-advance
       if (threadId) {
         const idx = currentRowIndex;
@@ -128,7 +159,7 @@ export function MailView({ mailboxId, threadId, search }: { mailboxId?: string; 
         }
       }
     },
-    [threadId, currentRowIndex, settings.autoAdvance, ids, rowThreadId, openThread],
+    [threadId, currentRowIndex, settings.autoAdvance, ids, rowThreadId, openThread, setFocusId],
   );
 
   const actions = useMemo(
@@ -191,7 +222,11 @@ export function MailView({ mailboxId, threadId, search }: { mailboxId?: string; 
   focusRef.current = focusId;
   useEffect(() => {
     const moveFocus = (delta: number) => {
-      const cur = focusRef.current ? ids.indexOf(focusRef.current) : currentRowIndex;
+      // A focused id that is no longer in the list gives -1, which must not be
+      // read as "just before the first row" -- that is what sent `k` to the
+      // top. Fall back to where the list thinks we are instead.
+      const fromFocus = focusRef.current ? ids.indexOf(focusRef.current) : -1;
+      const cur = fromFocus >= 0 ? fromFocus : currentRowIndex;
       const next = Math.max(0, Math.min(ids.length - 1, (cur < 0 ? (delta > 0 ? -1 : 0) : cur) + delta));
       const id = ids[next];
       if (!id) return;
