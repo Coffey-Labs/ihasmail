@@ -209,6 +209,34 @@ session to find:
   for unsupported servers can be tested. That is all it does — the rest still
   behaves like 0.16. Emulating 0.15 properly went with the support for it
 
+### Deploying
+
+[`deploy.example.sh`](deploy.example.sh) is a single-host Docker deploy: it
+fetches, refuses anything held back, shows what is about to be introduced and
+asks, rebuilds the image with the right version baked in, replaces the
+container and waits for it to report healthy. Copy it, or run it as-is and set
+what differs in the environment — `IHASMAIL_APP`, `IHASMAIL_ENV`,
+`IHASMAIL_NAME`, `IHASMAIL_BIND`, `IHASMAIL_VOLUME`, `IHASMAIL_IMAGE`.
+
+```bash
+./deploy.sh                 # origin/main, asks before shipping new commits
+./deploy.sh --dry-run       # run the guards and stop
+./deploy.sh v2.16.57 --yes  # a named ref, no prompt (there is no tty over ssh)
+```
+
+Two guards, because a deploy script is exactly where a careless run does the
+most damage. `.deploy-hold` lists commits that must not reach production yet,
+one per line, and a target carrying one that production does not already have
+is refused outright — `--yes` does not override it, and clearing a hold means
+deleting its line. Separately, anything introducing new commits is listed and
+has to be confirmed; over SSH, with no terminal to answer on, that means
+passing `--yes` deliberately rather than a bare run shipping whatever `main`
+has picked up since.
+
+Each build is tagged with its own version as well as `:current`, so rolling
+back is running the previous tag rather than rebuilding it. The environment
+file is never read by the script, only handed to `docker run --env-file`.
+
 ## Configuration
 
 All configuration is via environment variables (see `.env.example`):
