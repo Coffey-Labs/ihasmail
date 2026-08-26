@@ -127,7 +127,7 @@ docker compose up --build -d
 # → http://localhost:8080  (put Caddy/nginx in front for TLS; see Caddyfile.example / nginx.example.conf)
 ```
 
-Users sign in with their Stalwart mailbox credentials (TOTP codes are supported via the "two-factor code" field, which Stalwart accepts as `password$code`).
+Users sign in with their Stalwart mailbox credentials. **An account with two-factor authentication needs an app password**, created in Stalwart's own settings: Stalwart accepts a TOTP code only through an OAuth flow — its web interface is an OAuth client, which is why signing in *there* works — and it offers no password grant, so no client holding a username and password can exchange them plus a code for a token. The concatenated `password$code` form this README used to claim was accepted is not a route the server has. App passwords bypass TOTP and are Stalwart's own answer for clients like this one; ihasmail already relies on that, since turning 2FA on moves the current session onto an app password for exactly this reason.
 
 ## Development
 
@@ -306,6 +306,7 @@ works the same way — and dropped where 0.15 was the whole subject. Support for
 
 - Snooze (nothing in JMAP or Stalwart supports it, and ihasmail never stores a password, so nothing could act on a mailbox while you are away)
 - Translations (strings are English-only for now)
+- **Two-factor sign-in.** Today an account with 2FA must use an app password (see Quick start). Supporting a TOTP code directly means implementing OAuth: Stalwart offers the authorization-code and device flows and no password grant, so ihasmail would hand sign-in to Stalwart's own login and come back with a token. That is a better security posture than the sealed password it holds now — a refresh token rather than a credential — but it replaces ihasmail's own sign-in page for those users and may need an OAuth client registered. Reported as [#75](https://github.com/LINUXexpert-org/ihasmail/issues/75)
 
 ## License
 
