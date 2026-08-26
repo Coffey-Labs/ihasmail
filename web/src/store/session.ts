@@ -4,6 +4,7 @@ import type { Id, JmapSession } from "@/jmap/types";
 import { push, type PushState } from "@/jmap/push";
 import { setServerLocale } from "@/lib/datetime";
 import { flushSettingsPush, stopSettingsSync } from "@/lib/settingsSync";
+import { unsubscribeThisDevice } from "@/lib/webpush";
 
 export type AuthStatus = "loading" | "anonymous" | "authenticated";
 
@@ -61,6 +62,14 @@ export const useSession = create<SessionState>((set, get) => ({
       await flushSettingsPush();
     } catch {
       /* ignore */
+    }
+    // A push subscription lives on the account, not the session, so signing out
+    // without removing it leaves this browser notifying for a mailbox nobody is
+    // signed into. On a shared machine that is somebody else's mail.
+    try {
+      await unsubscribeThisDevice();
+    } catch {
+      /* never block signing out over this */
     }
     stopSettingsSync();
     try {

@@ -19,6 +19,7 @@ import { ComposerDock } from "@/views/compose/ComposerDock";
 import { setUnreadBadge } from "@/lib/notify";
 import { useSettings, syncedPart } from "@/store/settings";
 import { armSettingsSync, loadRemoteSettings, queueSettingsPush, settingsSyncAvailable } from "@/lib/settingsSync";
+import { listenForVerification } from "@/lib/webpushEnable";
 
 const ContactsView = lazy(() => import("@/views/contacts/ContactsView").then((m) => ({ default: m.ContactsView })));
 const CalendarView = lazy(() => import("@/views/calendar/CalendarView").then((m) => ({ default: m.CalendarView })));
@@ -87,6 +88,9 @@ function AuthedApp() {
     void useFiles.getState().init();
     void useSieve.getState().init();
     push.start();
+    // A push subscription stays silent until its verification code is echoed
+    // back, and the code may have arrived while no tab was open.
+    listenForVerification();
     const pending = new Map<string, Set<string>>();
     let timer: number | null = null;
     const unsub = push.subscribe((acct, type) => {
