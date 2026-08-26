@@ -33,11 +33,21 @@ export function FilterFromMessageDialog({ email, mailboxId, onClose }: { email: 
   }
   if (!ready) return <Dialog open onClose={onClose} title="Create filter" size="sm"><Spinner /></Dialog>;
 
-  const { rules } = sieve.rules();
+  const { rules, loaded } = sieve.rules();
   if (rules === null) {
     return (
       <Dialog open onClose={onClose} title="Create filter" size="sm" footer={<button className="btn" onClick={onClose}>Close</button>}>
-        <p>Your active Sieve script was written by hand, so rules can't be added automatically. Open <b>Settings → Filters & rules</b> to edit the script or switch to managed rules.</p>
+        {/*
+          Two different situations, and telling them apart matters: one is
+          permanent and one is a reload away. Saying "written by hand" when the
+          script merely failed to fetch sends someone looking for a problem
+          they do not have.
+        */}
+        {loaded ? (
+          <p>Your active Sieve script was written by hand, so rules can't be added automatically. Open <b>Settings → Filters & rules</b> to edit the script or switch to managed rules.</p>
+        ) : (
+          <p>Your filter script couldn't be read just now, so adding a rule would risk overwriting it. Reload the page and try again.</p>
+        )}
       </Dialog>
     );
   }
