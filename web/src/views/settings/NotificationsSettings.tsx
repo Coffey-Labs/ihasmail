@@ -71,8 +71,8 @@ export function NotificationsSettings() {
           !canBackground
             ? "Needs a browser with the Push API and a mail server that publishes a push key."
             : supportsEmailPush()
-              ? "Your mail server delivers these directly to your browser, so they arrive with no tab open. The sender and subject travel in the notification."
-              : "Your mail server can wake this browser, but will not include the sender or subject."
+              ? "Your mail server delivers these straight to your browser, so they arrive with no ihasmail tab open, naming the sender and subject. Your browser still has to be running — if you quit it completely, notifications wait and arrive when you open it again."
+              : "Your mail server can wake this browser, but will not include the sender or subject. Your browser still has to be running."
         }
       />
       <Switch checked={s.notificationSound} onChange={(v) => update({ notificationSound: v })} label="Play a sound for new mail" />
