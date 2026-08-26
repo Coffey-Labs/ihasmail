@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_SETTINGS, isDarkTheme, toggleTarget, useSettings, type Theme } from "@/store/settings";
+import { DEFAULT_SETTINGS, DEVICE_KEYS, acceptRemote, isDarkTheme, syncedPart, toggleTarget, useSettings, type Theme } from "@/store/settings";
 import { loadJson, saveJson } from "@/lib/storage";
 
 /**
@@ -142,5 +142,24 @@ describe("remembering which dark theme you were on", () => {
     expect(away.theme).toBe("light");
     const back = setTheme(toggleTarget("light", away.lastDarkTheme));
     expect(back.theme).toBe("ihasmail");
+  });
+});
+
+describe("where the theme settings live", () => {
+  it("follows the account, not the browser", () => {
+    // Both of these ride in the account's settings.json, so a theme chosen on
+    // one machine — and the toggle's way back to it — are the same everywhere.
+    // Named explicitly rather than derived from DEVICE_KEYS: the test that
+    // does derive it would still pass if one of these were moved there, since
+    // its expectation would move too.
+    const synced = syncedPart(DEFAULT_SETTINGS);
+    expect(synced).toHaveProperty("theme");
+    expect(synced).toHaveProperty("lastDarkTheme");
+    expect(DEVICE_KEYS.has("theme")).toBe(false);
+    expect(DEVICE_KEYS.has("lastDarkTheme")).toBe(false);
+  });
+
+  it("is applied from a settings file another device wrote", () => {
+    expect(acceptRemote({ theme: "dark", lastDarkTheme: "dark" })).toEqual({ theme: "dark", lastDarkTheme: "dark" });
   });
 });
