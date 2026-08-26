@@ -53,6 +53,9 @@ const nextState = () => String(state.n++);
  * list no user has. The role is what the client branches on; the name is only
  * ever displayed, which is exactly why it has to look right.
  */
+/** Registered public keys. Empty to start, like a fresh account. */
+const publicKeys: Obj[] = [];
+
 const mailboxes: Obj[] = [
   mb("inbox", "Inbox", "inbox"),
   mb("drafts", "Drafts", "drafts"),
@@ -476,6 +479,65 @@ const handlers: Record<string, Handler> = {
     state.n++;
     return setResp({ updated: { singleton: null } });
   },
+  /*
+   * Public keys, as 0.16.19 actually behaves -- established against a live
+   * server, because the documentation disagrees on both counts:
+   *
+   *   - an ordinary user may read AND write their own keys. The docs list the
+   *     sysPublicKey* permissions as administrative; the server granted them.
+   *
+   *   - the server parses the key. A malformed one comes back invalidProperties
+   *     naming `key`, with the parser's own complaint in the description --
+   *     not a bland "invalid". A mock that took any string would let a client
+   *     ship without ever handling the rejection, which is the shape of every
+   *     bug this mock has been taught to reproduce since.
+   */
+  "x:PublicKey/get": (a) => genericGet(publicKeys)(a),
+  "x:PublicKey/query": (a) => ({ accountId: ACCOUNT, queryState: String(state.n), canCalculateChanges: false, position: 0, ids: publicKeys.map((k) => k.id as string), total: publicKeys.length, ...(a.limit ? {} : {}) }),
+  "x:PublicKey/set": (a) => {
+    const created: Obj = {};
+    const notCreated: Obj = {};
+    const updated: Obj = {};
+    const notUpdated: Obj = {};
+    const destroyed: string[] = [];
+    for (const [cid, obj] of Object.entries((a.create as Obj) ?? {})) {
+      const o = obj as Obj;
+      const complaint = pgpComplaint(String(o.key ?? ""));
+      if (complaint) {
+        notCreated[cid] = { type: "invalidProperties", properties: ["key"], description: complaint };
+        continue;
+      }
+      const id = `pk${randomUUID().slice(0, 6)}`;
+      publicKeys.push({
+        id,
+        key: o.key,
+        description: o.description ?? "Key",
+        createdAt: new Date().toISOString(),
+        expiresAt: o.expiresAt ?? null,
+        emailAddresses: Array.isArray(o.emailAddresses) ? o.emailAddresses : [],
+      });
+      created[cid] = { id, createdAt: publicKeys[publicKeys.length - 1]!.createdAt };
+      state.n++;
+    }
+    for (const [id, patch] of Object.entries((a.update as Obj) ?? {})) {
+      const k = publicKeys.find((x) => x.id === id);
+      if (!k) { notUpdated[id] = { type: "notFound" }; continue; }
+      // ihasmail never patches `key`, and the mock refuses it so that stays
+      // true: replacing a key means adding one and removing the old, which
+      // keeps createdAt meaningful. Whether the real server would allow the
+      // patch is untested -- being stricter than it costs nothing, and being
+      // laxer would let a client ship a path nobody had tried.
+      if ("key" in (patch as Obj)) { notUpdated[id] = { type: "invalidProperties", properties: ["key"], description: "Property cannot be changed." }; continue; }
+      Object.assign(k, patch);
+      updated[id] = null;
+      state.n++;
+    }
+    for (const id of (a.destroy as string[]) ?? []) {
+      const i = publicKeys.findIndex((x) => x.id === id);
+      if (i >= 0) { publicKeys.splice(i, 1); destroyed.push(id); state.n++; }
+    }
+    return setResp({ created, notCreated, updated, notUpdated, destroyed });
+  },
   "x:AppPassword/get": (a) => genericGet(account.appPasswords)(a),
   "x:AppPassword/set": (a) => {
     const created: Obj = {};
@@ -633,6 +695,25 @@ const handlers: Record<string, Handler> = {
     })(a);
   },
 };
+
+/**
+ * What Stalwart says when it cannot read a key. The wording of the first case
+ * is the server's own, verbatim from a live 0.16.19 rejecting a block whose
+ * body was not OpenPGP at all -- a client that only ever saw "invalid key"
+ * would show something less useful than what the server was already offering.
+ */
+function pgpComplaint(key: string): string | null {
+  const k = key.trim();
+  if (!k) return "Failed to decode OpenPGP public key: no key data.";
+  const pgp = k.startsWith("-----BEGIN PGP PUBLIC KEY BLOCK-----") && k.includes("-----END PGP PUBLIC KEY BLOCK-----");
+  const x509 = k.startsWith("-----BEGIN CERTIFICATE-----") && k.includes("-----END CERTIFICATE-----");
+  if (!pgp && !x509) return "Failed to decode OpenPGP public key: Malformed packet: Malformed CTB: MSB of ptag not set.";
+  const body = k.split(/\r?\n/).filter((l) => l && !l.startsWith("-----") && !l.startsWith("=") && !l.includes(":")).join("");
+  // Enough base64 to be a key rather than a placeholder; the real parser is
+  // stricter still, which is the point of surfacing its message and not ours.
+  if (body.length < 64) return "Failed to decode OpenPGP public key: Malformed packet: unexpected EOF.";
+  return null;
+}
 
 /* ---------- http ---------- */
 function unauthorized(res: ServerResponse) {
