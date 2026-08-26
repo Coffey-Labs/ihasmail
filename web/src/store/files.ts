@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { CAP, JmapMethodError, client, setErrorMessage } from "@/jmap/client";
 import { directoryCreate, fileCreate, fileNodeProps, normalizeFileNodes, queryOmitsDirectories } from "@/lib/filenode";
+import { isAppFolder } from "@/lib/appFolder";
 import type { FileNode, GetResponse, Id, QueryResponse, SetResponse } from "@/jmap/types";
 import { useSession } from "./session";
 
@@ -30,6 +31,31 @@ let filtersSupported = true;
 
 const byName = (a: FileNode, b: FileNode) => (a.nodeType === b.nodeType ? a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" }) : a.nodeType === "directory" ? -1 : 1);
 
+/**
+ * Drop the client's own `ihasmail` folder, and everything inside it, from a
+ * listing. It holds signature images and the synced settings file — real nodes
+ * in the account, but housekeeping rather than anything the user filed.
+ *
+ * The contents have to go too: the tree attaches a node whose parent is missing
+ * to the root, so hiding the folder alone would spill its files into the top
+ * level, which is worse than showing the folder.
+ */
+export function withoutAppFolder(nodes: FileNode[]): FileNode[] {
+  const hidden = new Set<Id>();
+  for (const n of nodes) if (isAppFolder(n)) hidden.add(n.id);
+  if (!hidden.size) return nodes;
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const n of nodes) {
+      if (!hidden.has(n.id) && n.parentId && hidden.has(n.parentId)) {
+        hidden.add(n.id);
+        grew = true;
+      }
+    }
+  }
+  return nodes.filter((n) => !hidden.has(n.id));
+}
+
 /** Fetch all nodes (paged, no filter) and rebuild the full children map. */
 async function loadAllNodes(accountId: Id, set: (fn: (s: FilesState) => Partial<FilesState>) => void): Promise<void> {
   const all: FileNode[] = [];
@@ -52,14 +78,17 @@ async function loadAllNodes(accountId: Id, set: (fn: (s: FilesState) => Partial<
       if (!q.ids.length || (q.total != null && position >= q.total)) break;
     }
   }
+  // After the whole collection, not per page: the folder and its contents can
+  // land in different pages, and a half-filtered pass would spill the rest.
+  const visible = withoutAppFolder(all);
   const nodes: Record<Id, FileNode> = {};
   const children: Record<string, Id[]> = { root: [] };
-  for (const n of all) nodes[n.id] = n;
-  for (const n of all.sort(byName)) {
+  for (const n of visible) nodes[n.id] = n;
+  for (const n of visible.sort(byName)) {
     const key = n.parentId && nodes[n.parentId] ? n.parentId : "root";
     (children[key] ??= []).push(n.id);
   }
-  for (const n of all) children[n.id] ??= [];
+  for (const n of visible) children[n.id] ??= [];
   set(() => ({ nodes, children, loading: false, error: null }));
 }
 
@@ -95,10 +124,12 @@ export const useFiles = create<FilesState>((set, get) => ({
       ]);
       const q = res.get("q")?.[0] as unknown as QueryResponse;
       const g = res.get("g")?.[0] as unknown as GetResponse<FileNode>;
+      const listed = withoutAppFolder(normalizeFileNodes(g.list));
+      const keep = new Set(listed.map((n) => n.id));
       set((s) => {
         const nodes = { ...s.nodes };
-        for (const n of normalizeFileNodes(g.list)) nodes[n.id] = n;
-        return { nodes, children: { ...s.children, [parentId ?? "root"]: q.ids }, loading: false, error: null };
+        for (const n of listed) nodes[n.id] = n;
+        return { nodes, children: { ...s.children, [parentId ?? "root"]: q.ids.filter((id) => keep.has(id)) }, loading: false, error: null };
       });
     } catch (err) {
       // Older Stalwart releases don't support parentId / isTopLevel filters: fall back to
