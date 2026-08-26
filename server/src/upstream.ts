@@ -78,10 +78,14 @@ const JMAP_CORE = "urn:ietf:params:jmap:core";
  * builds that list from a fixed set that has never included this capability;
  * it hands it out per-account instead, so it turns up in `primaryAccounts` and
  * in each account's `accountCapabilities`. Checking only the session level
- * therefore reports every real 0.16 server as pre-0.16 — which routed
+ * therefore reported every real 0.16 server as older than 0.16 — which routed
  * self-service credentials to a REST endpoint 0.16 had removed, and told the
  * About page the wrong thing. The session level is still checked last, in case
  * a later release advertises it there as well.
+ *
+ * This is now what sign-in tests to decide whether a server is supported at
+ * all, so the same mistake would lock every user out of a working server
+ * rather than merely misroute them.
  */
 export function hasStalwartRegistry(session: Pick<UpstreamSession, "capabilities" | "accounts" | "primaryAccounts"> | undefined): boolean {
   if (!session) return false;
@@ -96,22 +100,13 @@ export function hasStalwartRegistry(session: Pick<UpstreamSession, "capabilities
 export interface AccountInfo {
   /** BCP-47 tag configured for the account, or null if unreadable. */
   locale: string | null;
-  /**
-   * Which generation of Stalwart's API answered: "0.16+" has the registry
-   * (`x:AccountSettings`), older builds only have `x:Account`. Null when the
-   * server is not Stalwart or told us nothing.
-   */
-  generation: "0.16+" | "pre-0.16" | null;
   /** "oss" | "community" | "enterprise", where the server reports it. */
   edition: string | null;
 }
 
 const infoCache = new Map<string, { info: AccountInfo; fetchedAt: number }>();
 const INFO_CACHE_MS = 30 * 60_000;
-const EMPTY_INFO: AccountInfo = { locale: null, generation: null, edition: null };
-/** A server that has never heard of the registry: nothing to read, but dated. */
-const PRE_REGISTRY_INFO: AccountInfo = { locale: null, generation: "pre-0.16", edition: null };
-const REGISTRY_INFO: AccountInfo = { locale: null, generation: "0.16+", edition: null };
+const EMPTY_INFO: AccountInfo = { locale: null, edition: null };
 
 /**
  * glibc modifiers that name a script rather than a dialect or a currency:
@@ -165,13 +160,9 @@ export function normalizeLocale(raw: unknown): string | null {
  * tells us which generation we are talking to.
  */
 async function fetchAccountInfo(authorization: string, session: UpstreamSession): Promise<AccountInfo> {
-  // Every 0.16 build advertises urn:stalwart:jmap, and no earlier one knows it
-  // at all, so its absence already answers the question — and asking anyway
-  // would fail the whole request, since those servers reject a `using` naming
-  // a capability they cannot parse.
-  // A session with no capabilities at all is not one we can read anything from.
-  if (!session.capabilities) return EMPTY_INFO;
-  if (!hasStalwartRegistry(session)) return PRE_REGISTRY_INFO;
+  // Sign-in refuses a server without the registry, so this should not happen —
+  // but a session we cannot read capabilities from is not one to ask.
+  if (!session.capabilities || !hasStalwartRegistry(session)) return EMPTY_INFO;
   const accountId =
     session.primaryAccounts?.[STALWART_CAP] ??
     session.primaryAccounts?.["urn:ietf:params:jmap:mail"] ??
@@ -189,35 +180,23 @@ async function fetchAccountInfo(authorization: string, session: UpstreamSession)
     }),
     signal: AbortSignal.timeout(config.upstreamTimeout),
   });
-  // The registry capability already settled the generation. A locale request
-  // that fails — a permission we lack, a hiccup upstream — can only cost us the
-  // locale; it must not talk us out of what we know.
-  if (!res.ok) return REGISTRY_INFO;
+  // A locale request that fails — a permission we lack, a hiccup upstream —
+  // costs us the locale and nothing else.
+  if (!res.ok) return EMPTY_INFO;
   const body = (await res.json()) as { methodResponses?: [string, Record<string, unknown>, string][] };
-  return interpretAccountInfo(body.methodResponses ?? [], "0.16+");
+  return interpretAccountInfo(body.methodResponses ?? []);
 }
 
 /**
- * Read the pair of replies: prefer the locale from `x:AccountSettings`, fall
- * back to `x:Account` for servers (or permissions) where only that one works,
- * and note which generation answered.
+ * Read the pair of replies: prefer the locale from `x:AccountSettings`, whose
+ * permission the built-in user role has, and fall back to `x:Account` for the
+ * accounts allowed the admin-only `sysAccountGet` instead. Both are 0.16
+ * methods; this is a permissions fallback, not a version one.
  */
-export function interpretAccountInfo(
-  responses: [string, Record<string, unknown>, string][],
-  known: AccountInfo["generation"] = null,
-): AccountInfo {
+export function interpretAccountInfo(responses: [string, Record<string, unknown>, string][]): AccountInfo {
   const settings = responses.find((r) => r[2] === "s");
   const account = responses.find((r) => r[2] === "a");
-  // Only 0.16+ knows the method at all; older builds cannot even parse the name.
-  // `known` is what the session capability already proved, and outranks a reply
-  // that merely refused us.
-  const generation: AccountInfo["generation"] =
-    settings && settings[0] !== "error"
-      ? "0.16+"
-      : (settings?.[1] as { type?: string } | undefined)?.type === "unknownMethod"
-        ? "pre-0.16"
-        : known;
-  return { locale: localeOf(settings) ?? localeOf(account), generation, edition: null };
+  return { locale: localeOf(settings) ?? localeOf(account), edition: null };
 }
 
 function localeOf(call: [string, Record<string, unknown>, string] | undefined): string | null {
@@ -251,7 +230,7 @@ export async function getAccountInfo(sessionId: string, authorization: string, s
   let info = EMPTY_INFO;
   try {
     info = await fetchAccountInfo(authorization, session);
-    if (info.generation === "0.16+") info = { ...info, edition: await fetchEdition(authorization) };
+    info = { ...info, edition: await fetchEdition(authorization) };
   } catch {
     /* all of this is a nicety - never fail the session over it */
   }

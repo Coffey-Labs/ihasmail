@@ -12,6 +12,7 @@ import {
   absoluteUpstream,
   expandTemplate,
   fetchUpstreamSession,
+  hasStalwartRegistry,
   forgetUpstreamSession,
   getAccountInfo,
   getUpstreamSession,
@@ -25,7 +26,6 @@ import {
   createAppPassword,
   disableOtp,
   enableOtp,
-  forgetBackend,
   getState,
   revokeAppPassword,
 } from "./account.js";
@@ -180,6 +180,20 @@ export function createApp(): Hono<Env> {
     const authorization = `Basic ${Buffer.from(`${username}:${effectivePassword}`, "utf8").toString("base64")}`;
     try {
       const upstream = await fetchUpstreamSession(authorization);
+      // ihasmail requires Stalwart 0.16 or newer. Refuse here, once and
+      // clearly, rather than signing someone in and letting Files, the account
+      // locale and self-service credentials each fail in their own way with
+      // nothing to connect them. The credentials were good, so say so.
+      if (!hasStalwartRegistry(upstream)) {
+        return c.json(
+          {
+            error: "unsupported_server",
+            message:
+              "Your credentials are fine, but this mail server is older than Stalwart 0.16, which ihasmail needs. Upgrade the server, or run the release tagged stalwart-0.15-support.",
+          },
+          501,
+        );
+      }
       loginLimiter.reset(limitKey);
       const { cookie, session } = sessions.create({
         username,
@@ -236,9 +250,8 @@ export function createApp(): Hono<Env> {
   // ---------- Self-service credentials ----------
   /**
    * Password, app passwords and 2FA. These live on the server rather than in
-   * the browser because the pre-0.16 API is REST rather than JMAP (the browser
-   * only ever sees /api/jmap), and because changing a credential means
-   * re-sealing the session cookie that holds it.
+   * the browser because changing a credential means re-sealing the session
+   * cookie that holds it, and because the browser only ever sees /api/jmap.
    */
   const accountCtx = async (c: Context<Env>) => {
     const session = c.get("session");
@@ -264,7 +277,7 @@ export function createApp(): Hono<Env> {
   api.get("/account/security", requireSession, async (c) => {
     const session = c.get("session");
     try {
-      return c.json(await getState(session.id, await accountCtx(c)));
+      return c.json(await getState(await accountCtx(c)));
     } catch (err) {
       return accountFailure(c, err);
     }
@@ -284,7 +297,7 @@ export function createApp(): Hono<Env> {
       return c.json({ error: "unchanged", message: "The new password matches the old one." }, 400);
     }
     try {
-      await changePassword(session.id, await accountCtx(c), { current, next, otpCode: body.otpCode?.trim() || undefined });
+      await changePassword(await accountCtx(c), { current, next, otpCode: body.otpCode?.trim() || undefined });
     } catch (err) {
       return accountFailure(c, err);
     }
@@ -300,8 +313,8 @@ export function createApp(): Hono<Env> {
   api.get("/account/app-passwords", requireSession, async (c) => {
     const session = c.get("session");
     try {
-      const state = await getState(session.id, await accountCtx(c));
-      return c.json({ appPasswords: state.appPasswords, keyedByName: state.appPasswordsKeyedByName });
+      const state = await getState(await accountCtx(c));
+      return c.json({ appPasswords: state.appPasswords });
     } catch (err) {
       return accountFailure(c, err);
     }
@@ -314,7 +327,7 @@ export function createApp(): Hono<Env> {
     const description = (body.description ?? "").trim().slice(0, 120);
     if (!description) return c.json({ error: "missing_fields", message: "Give the app password a name." }, 400);
     try {
-      return c.json(await createAppPassword(session.id, await accountCtx(c), { description }));
+      return c.json(await createAppPassword(await accountCtx(c), { description }));
     } catch (err) {
       return accountFailure(c, err);
     }
@@ -325,7 +338,7 @@ export function createApp(): Hono<Env> {
     const body = await readJson<{ id?: string }>(c);
     if (!body?.id) return c.json({ error: "bad_request" }, 400);
     try {
-      await revokeAppPassword(session.id, await accountCtx(c), body.id);
+      await revokeAppPassword(await accountCtx(c), body.id);
       return c.json({ ok: true });
     } catch (err) {
       return accountFailure(c, err);
@@ -366,18 +379,18 @@ export function createApp(): Hono<Env> {
     }
     let app: { id: string; secret: string } | null = null;
     try {
-      app = await createAppPassword(session.id, ctx, { description: appPasswordName(c) });
+      app = await createAppPassword(ctx, { description: appPasswordName(c) });
     } catch (err) {
       // Out of app-password quota, say. 2FA is still worth having; the user
       // just has to sign in again afterwards.
       console.warn("[ihasmail] could not mint a session app password:", (err as Error).message);
     }
     try {
-      await enableOtp(session.id, ctx, { url: body.url, code, current: body.current });
+      await enableOtp(ctx, { url: body.url, code, current: body.current });
     } catch (err) {
       if (app) {
         // Don't leave a credential behind for a change that never happened.
-        await revokeAppPassword(session.id, ctx, app.id).catch(() => {});
+        await revokeAppPassword(ctx, app.id).catch(() => {});
       }
       return accountFailure(c, err);
     }
@@ -398,7 +411,7 @@ export function createApp(): Hono<Env> {
     const body = await readJson<{ current?: string; code?: string }>(c);
     if (!body?.current || !body.code) return c.json({ error: "bad_request" }, 400);
     try {
-      await disableOtp(session.id, await accountCtx(c), { current: body.current, code: body.code.trim() });
+      await disableOtp(await accountCtx(c), { current: body.current, code: body.code.trim() });
     } catch (err) {
       return accountFailure(c, err);
     }
@@ -406,7 +419,6 @@ export function createApp(): Hono<Env> {
     // the plain password works again now, so put it back.
     sessions.reseal(getCookie(c, config.cookieName), body.current);
     forgetUpstreamSession(session.id);
-    forgetBackend(session.id);
     return c.json({ ok: true });
   });
 
@@ -578,7 +590,7 @@ function appPasswordName(c: Context): string {
   return `${config.appName} (${browser})`;
 }
 
-function sessionExtras(session: LiveSession, info: AccountInfo = { locale: null, generation: null, edition: null }) {
+function sessionExtras(session: LiveSession, info: AccountInfo = { locale: null, edition: null }) {
   return {
     ihasmail: {
       appName: config.appName,
@@ -591,7 +603,7 @@ function sessionExtras(session: LiveSession, info: AccountInfo = { locale: null,
       /** Locale configured for the account in Stalwart's directory, if readable. */
       userLocale: info.locale,
       /** What the upstream server would tell us about itself. */
-      server: { generation: info.generation, edition: info.edition },
+      server: { edition: info.edition },
     },
   };
 }

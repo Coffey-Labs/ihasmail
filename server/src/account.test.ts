@@ -47,27 +47,25 @@ after(() => {
 });
 
 /**
- * What the About page reads. Stalwart advertises `urn:stalwart:jmap` only
- * per-account, so a session that looks for it at the top level reports a real
- * 0.16 server as older than 0.16 — the same mistake that sent credentials to
- * the removed REST endpoint.
+ * Stalwart advertises `urn:stalwart:jmap` only per-account, never in the
+ * session-level capabilities. Looking for it at the top level alone reported
+ * every real 0.16 server as older than 0.16 — and now that the same check
+ * decides whether a sign-in is allowed at all, that mistake would lock
+ * everyone out rather than merely misroute credentials.
  */
-test("the session reports the 0.16 generation the server actually is", async () => {
+test("the session is accepted on a server that advertises the registry per-account", async () => {
   const res = await call("/api/auth/session");
   assert.equal(res.status, 200);
-  assert.equal(res.body.ihasmail.server.generation, "0.16+");
   assert.equal(res.body.ihasmail.server.edition, "oss");
   assert.equal(res.body.capabilities["urn:stalwart:jmap"], undefined, "not where a client would first look");
   assert.ok("urn:stalwart:jmap" in res.body.primaryAccounts, "but here, as on a real server");
 });
 
-test("the 0.16 registry backend is detected and reported empty", async () => {
+test("the registry reports an account with nothing set up yet", async () => {
   const res = await call("/api/account/security");
   assert.equal(res.status, 200);
-  assert.equal(res.body.backend, "registry");
   assert.equal(res.body.otpEnabled, false);
   assert.deepEqual(res.body.appPasswords, []);
-  assert.equal(res.body.appPasswordsKeyedByName, false);
 });
 
 test("app passwords are created, listed once with their secret, and revoked", async () => {
