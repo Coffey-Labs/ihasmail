@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { create } from "zustand";
 import { loadJson, saveJson } from "@/lib/storage";
+import { queueSettingsPush } from "@/lib/settingsSync";
 import { setDateTimePrefs, type DateFormat, type TimeFormat } from "@/lib/datetime";
 
 export type Theme = "system" | "light" | "dark";
@@ -141,12 +142,59 @@ export const DEFAULT_SETTINGS: Settings = {
   defaultIdentityByAccount: {},
 };
 
+/**
+ * Settings that describe *this screen or this browser*, and so stay in
+ * localStorage: a list-pane width picked on a 27" monitor is wrong on a
+ * laptop, and the notification toggles track a permission the browser grants
+ * per-device, so syncing them would claim something untrue elsewhere.
+ *
+ * Everything else follows the account (issue #54). The list is written as the
+ * exceptions rather than the rule so that a setting added later syncs by
+ * default, which is what someone adding one almost always wants.
+ */
+export const DEVICE_KEYS: ReadonlySet<keyof Settings> = new Set<keyof Settings>([
+  "density",
+  "fontSize",
+  "sidebarCollapsed",
+  "desktopNotifications",
+  "notificationSound",
+  "listPaneWidth",
+  "listPaneHeight",
+]);
+
+/** The part of the settings that is written to the account's settings file. */
+export function syncedPart(s: Settings): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const key of Object.keys(s) as Array<keyof Settings>) {
+    if (!DEVICE_KEYS.has(key)) out[key] = s[key];
+  }
+  return out;
+}
+
+/**
+ * What of a settings file we are willing to apply: known keys only, and never
+ * a device one — an older ihasmail wrote the whole object up, and that file
+ * should not now drag another machine's pane width across.
+ */
+export function acceptRemote(remote: Record<string, unknown>): Partial<Settings> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(remote)) {
+    if (!(key in DEFAULT_SETTINGS)) continue;
+    if (DEVICE_KEYS.has(key as keyof Settings)) continue;
+    if (value === undefined) continue;
+    out[key] = value;
+  }
+  return out as Partial<Settings>;
+}
+
 interface SettingsState {
   settings: Settings;
   update(patch: Partial<Settings>): void;
   reset(): void;
   exportJson(): string;
   importJson(json: string): boolean;
+  /** Apply the account's settings file over the cached ones. */
+  hydrate(remote: Record<string, unknown>): void;
 }
 
 const initialSettings = loadJson<Settings>("settings", DEFAULT_SETTINGS);
@@ -160,12 +208,18 @@ export const useSettings = create<SettingsState>((set, get) => ({
     set({ settings });
     applyTheme(settings);
     applyDateTimePrefs(settings);
+    // Dragging a splitter changes a device key on every frame and must not put
+    // a request in the air; anything else is queued and coalesced.
+    if (Object.keys(patch).some((k) => !DEVICE_KEYS.has(k as keyof Settings))) {
+      queueSettingsPush(syncedPart(settings));
+    }
   },
   reset() {
     saveJson("settings", DEFAULT_SETTINGS);
     set({ settings: DEFAULT_SETTINGS });
     applyTheme(DEFAULT_SETTINGS);
     applyDateTimePrefs(DEFAULT_SETTINGS);
+    queueSettingsPush(syncedPart(DEFAULT_SETTINGS));
   },
   exportJson() {
     return JSON.stringify(get().settings, null, 2);
@@ -178,6 +232,14 @@ export const useSettings = create<SettingsState>((set, get) => ({
     } catch {
       return false;
     }
+  },
+  hydrate(remote) {
+    const settings = { ...get().settings, ...acceptRemote(remote) };
+    // Cache it, so the next first frame on this browser is already right.
+    saveJson("settings", settings);
+    set({ settings });
+    applyTheme(settings);
+    applyDateTimePrefs(settings);
   },
 }));
 
