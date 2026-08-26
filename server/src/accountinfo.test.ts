@@ -7,7 +7,8 @@ import { getAccountInfo, hasStalwartRegistry, interpretAccountInfo } from "./ups
  * the `sysAccountGet` permission — one the built-in `user` role is not given.
  * Ordinary users therefore silently fell back to the browser locale. Stalwart
  * 0.16 exposes the same field on `x:AccountSettings`, which users *can* read,
- * so both are asked for and whichever answers wins.
+ * so both are asked for and whichever answers wins. Both are 0.16 methods:
+ * this is a permissions fallback, not a version one.
  */
 
 type Responses = [string, Record<string, unknown>, string][];
@@ -19,7 +20,6 @@ const failed = (id: string, type: string): Responses[number] => ["error", { type
 test("prefers the locale a regular user is allowed to read", () => {
   const info = interpretAccountInfo([settingsOk("de_DE.UTF-8"), accountOk("fr_FR")]);
   assert.equal(info.locale, "de-DE");
-  assert.equal(info.generation, "0.16+");
 });
 
 test("falls back to x:Account when the settings object is forbidden", () => {
@@ -27,22 +27,14 @@ test("falls back to x:Account when the settings object is forbidden", () => {
   assert.equal(info.locale, "sr-Latn-RS");
 });
 
-test("an older server is recognised by its unknownMethod, and still yields a locale", () => {
-  const info = interpretAccountInfo([failed("s", "unknownMethod"), accountOk("en_GB")]);
-  assert.equal(info.generation, "pre-0.16");
-  assert.equal(info.locale, "en-GB");
-});
-
-test("a server answering the new method is 0.16+ even with no locale set", () => {
+test("an account with no locale set yields none, rather than a guess", () => {
   const info = interpretAccountInfo([["x:AccountSettings/get", { list: [] }, "s"], failed("a", "forbidden")]);
-  assert.equal(info.generation, "0.16+");
   assert.equal(info.locale, null);
 });
 
-test("neither answering leaves everything unknown rather than guessing", () => {
-  const info = interpretAccountInfo([failed("s", "forbidden"), failed("a", "forbidden")]);
-  assert.deepEqual(info, { locale: null, generation: null, edition: null });
-  assert.deepEqual(interpretAccountInfo([]), { locale: null, generation: null, edition: null });
+test("neither answering leaves the locale unknown", () => {
+  assert.deepEqual(interpretAccountInfo([failed("s", "forbidden"), failed("a", "forbidden")]), { locale: null, edition: null });
+  assert.deepEqual(interpretAccountInfo([]), { locale: null, edition: null });
 });
 
 test("locales that carry no language are dropped, not passed through", () => {
@@ -50,20 +42,18 @@ test("locales that carry no language are dropped, not passed through", () => {
   assert.equal(interpretAccountInfo([settingsOk("POSIX")]).locale, null);
 });
 
-test("a server that never heard of the Stalwart capability is reported as pre-0.16", async () => {
-  // 0.16 always advertises urn:stalwart:jmap and nothing older knows it at all,
-  // so its absence is the answer - and asking anyway would fail the whole
-  // request on those servers. This is what the live 0.15.5 box hits.
+test("a server without the registry is not asked for anything", async () => {
+  // Sign-in refuses these, so getAccountInfo should never reach the wire for
+  // one - and must not, since a server that cannot parse `urn:stalwart:jmap`
+  // fails the whole request rather than the one call.
   const session = { capabilities: { "urn:ietf:params:jmap:core": {}, "urn:ietf:params:jmap:mail": {} }, accounts: {}, primaryAccounts: {} };
-  const info = await getAccountInfo("session-pre-016", "Basic x", session as never);
-  assert.equal(info.generation, "pre-0.16");
-  assert.equal(info.locale, null);
-  assert.equal(info.edition, null);
+  const info = await getAccountInfo("session-unsupported", "Basic x", session as never);
+  assert.deepEqual(info, { locale: null, edition: null });
 });
 
-test("no capabilities at all leaves the generation unknown", async () => {
+test("no capabilities at all is treated the same way", async () => {
   const info = await getAccountInfo("session-no-caps", "Basic x", { accounts: {}, primaryAccounts: {} } as never);
-  assert.equal(info.generation, null);
+  assert.equal(info.locale, null);
 });
 
 /**
@@ -73,9 +63,12 @@ test("no capabilities at all leaves the generation unknown", async () => {
  * fixed list that has never carried this capability, in any 0.16.x. It is
  * handed out per-account instead, so it lands in `primaryAccounts` and in each
  * account's `accountCapabilities`. Looking only at the session level called
- * every real 0.16 server pre-0.16, which sent self-service credentials to a
+ * every real 0.16 server too old, which sent self-service credentials to a
  * REST endpoint 0.16 had removed and made the About page report the wrong
- * generation.
+ * thing.
+ *
+ * This check now decides whether a sign-in is allowed at all, so getting it
+ * wrong would lock every user out of a perfectly good server.
  */
 const STALWART = "urn:stalwart:jmap";
 const baseCaps = { "urn:ietf:params:jmap:core": {}, "urn:ietf:params:jmap:mail": {} };
@@ -102,7 +95,7 @@ test("the session level still counts, for a server that ever advertises it there
   assert.equal(hasStalwartRegistry({ capabilities: { ...baseCaps, [STALWART]: {} }, accounts: {}, primaryAccounts: {} }), true);
 });
 
-test("a server that advertises it nowhere is pre-0.16", () => {
+test("a server that advertises it nowhere is one we do not support", () => {
   assert.equal(hasStalwartRegistry({ capabilities: baseCaps, accounts: { a1: { accountCapabilities: baseCaps } }, primaryAccounts: { "urn:ietf:params:jmap:mail": "a1" } }), false);
   assert.equal(hasStalwartRegistry(undefined), false);
 });
@@ -116,16 +109,4 @@ test("a shared account carrying the capability is enough to recognise the server
     }),
     true,
   );
-});
-
-test("a locale request that fails does not talk us out of a generation we proved", () => {
-  // The capability settled it. A forbidden reply costs the locale, nothing more.
-  const info = interpretAccountInfo([failed("s", "forbidden"), failed("a", "forbidden")], "0.16+");
-  assert.equal(info.generation, "0.16+");
-  assert.equal(info.locale, null);
-});
-
-test("a server that disowns the method is still older, whatever we came in believing", () => {
-  const info = interpretAccountInfo([failed("s", "unknownMethod")], "0.16+");
-  assert.equal(info.generation, "pre-0.16");
 });
