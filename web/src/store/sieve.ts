@@ -18,7 +18,8 @@ interface SieveState {
   load(): Promise<void>;
   getContent(id: Id): Promise<string>;
   /** Rules derived from the "ihasmail" script (null = the active script is hand-written). */
-  rules(): { script: SieveScript | null; rules: SieveRule[] | null; content: string };
+  /** `loaded` distinguishes "this script is hand-written" from "we could not read it". */
+  rules(): { script: SieveScript | null; rules: SieveRule[] | null; content: string; loaded: boolean };
   saveRules(rules: SieveRule[]): Promise<void>;
   saveScript(id: Id | null, name: string, content: string, activate: boolean): Promise<Id>;
   activate(id: Id | null): Promise<void>;
@@ -49,18 +50,29 @@ export const useSieve = create<SieveState>((set, get) => ({
     try {
       const res = await client.call<GetResponse<SieveScript>>("SieveScript/get", { accountId, ids: null });
       set({ scripts: res.list, loading: false, error: null });
-      // Preload contents
-      const contents: Record<Id, string> = {};
+      // Preload contents.
+      //
+      // A fetch that fails must not be recorded as "". An empty script parses
+      // to an empty rule list, which reads as "this script has no rules" and is
+      // indistinguishable from "we could not read this script" -- and the next
+      // save then writes the whole script out from that empty baseline,
+      // destroying every rule in it. That is issue #76.
+      //
+      // Leaving the key absent instead means `rules()` reports the content as
+      // unknown, and `saveRules` refuses rather than guessing.
+      const fetched: Record<Id, string> = {};
       await Promise.all(
         res.list.map(async (s) => {
           try {
-            contents[s.id] = await client.fetchBlobText(accountId, s.blobId, "application/sieve");
+            fetched[s.id] = await client.fetchBlobText(accountId, s.blobId, "application/sieve");
           } catch {
-            contents[s.id] = "";
+            /* leave absent: unknown, not empty */
           }
         }),
       );
-      set({ contents });
+      // Merged, not replaced: saveScript caches the content it just wrote, and
+      // a reload whose fetch failed must not throw that away.
+      set((st) => ({ contents: { ...st.contents, ...fetched } }));
     } catch (err) {
       set({ loading: false, error: (err as Error).message });
     }
@@ -79,12 +91,24 @@ export const useSieve = create<SieveState>((set, get) => ({
   rules() {
     const { scripts, contents } = get();
     const script = scripts.find((s) => s.name === IHASMAIL_SCRIPT) ?? scripts.find((s) => s.isActive) ?? null;
-    const content = script ? (contents[script.id] ?? "") : "";
-    return { script, rules: script ? sieveToRules(content) : [], content };
+    if (!script) return { script: null, rules: [], content: "", loaded: true };
+    const content = contents[script.id];
+    // Not loaded, or the fetch failed. `null` means "cannot say", which every
+    // caller already treats as "do not edit this script" -- as opposed to `[]`,
+    // which means "this script genuinely has no rules" and invites a save that
+    // would overwrite whatever is really in it.
+    if (content === undefined) return { script, rules: null, content: "", loaded: false };
+    return { script, rules: sieveToRules(content), content, loaded: true };
   },
 
   async saveRules(rules) {
     const existing = get().scripts.find((s) => s.name === IHASMAIL_SCRIPT) ?? null;
+    // The last line of defence. Writing rules replaces the whole script, so
+    // doing it from a baseline we never managed to read deletes whatever was
+    // there. Refusing is recoverable; overwriting is not.
+    if (existing && get().contents[existing.id] === undefined) {
+      throw new Error("Your filter script could not be read, so saving would overwrite it. Reload and try again.");
+    }
     await get().saveScript(existing?.id ?? null, IHASMAIL_SCRIPT, rulesToSieve(rules), true);
   },
 
