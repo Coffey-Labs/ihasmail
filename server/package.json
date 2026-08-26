@@ -12,7 +12,6 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "tsx --test src/*.test.ts src/**/*.test.ts",
     "mock": "tsx src/mock/index.ts",
-    "mock:legacy": "MOCK_STALWART=0.15 tsx src/mock/index.ts",
     "mock:no-future-release": "MOCK_NO_FUTURE_RELEASE=1 tsx src/mock/index.ts"
   },
   "dependencies": {

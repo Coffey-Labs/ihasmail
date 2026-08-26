@@ -28,7 +28,7 @@ export function AboutSettings() {
           <tr><td>Image privacy proxy</td><td>{session?.ihasmail?.imageProxy ? "enabled" : "disabled"}</td></tr>
         </tbody>
       </table>
-      <p className="hint" style={{ marginTop: 6 }}>Stalwart does not publish its version number to mail clients, so ihasmail reports the API generation it detected instead.</p>
+      <p className="hint" style={{ marginTop: 6 }}>Stalwart does not publish its version number to mail clients, so ihasmail reports the edition where the server gives one. ihasmail requires 0.16 or newer, and sign-in refuses anything older.</p>
       <h2>Server capabilities</h2>
       <div className="row wrap gap-4">
         {caps.map((c) => <span key={c} className="chip mono" style={{ fontSize: ".78em" }}>{c.replace("urn:ietf:params:jmap:", "")}</span>)}
@@ -39,12 +39,11 @@ export function AboutSettings() {
 
 /**
  * Stalwart deliberately withholds its version from clients (it reports a fixed
- * "1.0.0" wherever it publishes one at all), so the most honest thing we can
- * show is which generation of its API answered us, plus the edition where the
- * server reports it.
+ * "1.0.0" wherever it publishes one at all), so the edition is all there is to
+ * show. The generation used to be reported here too, back when ihasmail spoke
+ * to both 0.15 and 0.16; it requires 0.16 now, so signing in at all is the
+ * answer to that question.
  */
-function describeServer(server: { generation?: "0.16+" | "pre-0.16" | null; edition?: string | null } | undefined): string {
-  if (!server?.generation) return "not detected";
-  const generation = server.generation === "0.16+" ? "0.16 or newer" : "older than 0.16";
-  return server.edition ? `${generation} (${server.edition})` : generation;
+function describeServer(server: { edition?: string | null } | undefined): string {
+  return server?.edition ? `0.16 or newer (${server.edition})` : "0.16 or newer";
 }

@@ -26,17 +26,15 @@ interface AppPasswordRow {
 }
 
 interface SecurityState {
-  backend: "registry" | "legacy";
   otpEnabled: boolean;
   appPasswords: AppPasswordRow[];
-  appPasswordsKeyedByName: boolean;
 }
 
 export function SecuritySettings() {
   const [rows, setRows] = useState<SessionRow[] | null>(null);
   const [current, setCurrent] = useState<string>("");
   const [state, setState] = useState<SecurityState | null>(null);
-  /** Set when the server has no self-service API at all (pre-0.15 or a proxy). */
+  /** Set when the server has no self-service API at all (a proxy, say). */
   const [unsupported, setUnsupported] = useState<string | null>(null);
   const session = useSession((s) => s.session);
   const logout = useSession((s) => s.logout);
@@ -342,12 +340,12 @@ function AppPasswords({ state, reload }: { state: SecurityState | null; reload: 
       </p>
       {state.appPasswords.length > 0 && (
         <table className="sessions-table">
-          <thead><tr><th>Name</th>{!state.appPasswordsKeyedByName && <th>Created</th>}<th /></tr></thead>
+          <thead><tr><th>Name</th><th>Created</th><th /></tr></thead>
           <tbody>
             {state.appPasswords.map((row) => (
               <tr key={row.id}>
                 <td><KeyRound size={14} style={{ verticalAlign: "-2px", marginRight: 6 }} />{row.description}</td>
-                {!state.appPasswordsKeyedByName && <td>{row.createdAt ? formatFullDate(row.createdAt) : "—"}</td>}
+                <td>{row.createdAt ? formatFullDate(row.createdAt) : "—"}</td>
                 <td style={{ textAlign: "right" }}><button className="btn btn-sm btn-ghost" onClick={() => void revoke(row)}>Revoke</button></td>
               </tr>
             ))}
@@ -361,7 +359,6 @@ function AppPasswords({ state, reload }: { state: SecurityState | null; reload: 
         </div>
         <button className="btn" disabled={busy || !name.trim()}>{busy ? "Creating…" : "Create"}</button>
       </form>
-      {state.appPasswordsKeyedByName && <p className="hint mt-8">This mail server identifies app passwords by name, so give each one a different name.</p>}
 
       <Dialog open={Boolean(issued)} onClose={() => setIssued(null)} title="Your new app password" size="sm"
         footer={<button className="btn btn-primary" onClick={() => setIssued(null)}>Done</button>}>
