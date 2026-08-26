@@ -44,12 +44,21 @@ const state = { n: 1 };
 const nextState = () => String(state.n++);
 
 /* ---------- data ---------- */
+/*
+ * The names are Stalwart's own defaults, which follow the Exchange convention:
+ * "Deleted Items" and "Sent Items", not "Trash" and "Sent". The mock used the
+ * short forms, so anything built from a folder's name read differently here
+ * than in production -- "Empty Trash" against the mock, "Empty Deleted Items"
+ * against a real server -- and every screenshot in the README showed a folder
+ * list no user has. The role is what the client branches on; the name is only
+ * ever displayed, which is exactly why it has to look right.
+ */
 const mailboxes: Obj[] = [
   mb("inbox", "Inbox", "inbox"),
   mb("drafts", "Drafts", "drafts"),
-  mb("sent", "Sent", "sent"),
+  mb("sent", "Sent Items", "sent"),
   mb("junk", "Junk Mail", "junk"),
-  mb("trash", "Trash", "trash"),
+  mb("trash", "Deleted Items", "trash"),
   mb("archive", "Archive", "archive"),
   mb("work", "Work", null),
   mb("work-inv", "Invoices", null, "work"),

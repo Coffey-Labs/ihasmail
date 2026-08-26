@@ -447,7 +447,12 @@ export const useMail = create<MailState>((set, get) => ({
     try {
       await setEmails(accountId, update);
       if (!opts.silent) {
-        const name = opts.label ?? mailboxes[toMailboxId]?.name ?? "folder";
+        // The folder's own name, because that is what the user is looking at
+        // in the sidebar. A hardcoded word here told people their mail had
+        // moved to "Trash" or "Spam" on a server whose folders are called
+        // "Deleted Items" and "Junk Mail" -- naming somewhere that does not
+        // exist, in the one message whose job is saying where it went.
+        const name = mailboxes[toMailboxId]?.name ?? opts.label ?? "folder";
         toast.show(`${ids.length === 1 ? "Conversation" : `${ids.length} conversations`} moved to ${name}`, {
           action: {
             label: "Undo",
@@ -506,7 +511,7 @@ export const useMail = create<MailState>((set, get) => ({
     const inTrash = ids.filter((id) => (trashId && emails[id]?.mailboxIds[trashId]) || (roleId("junk") && emails[id]?.mailboxIds[roleId("junk")!]));
     const toMove = ids.filter((id) => !inTrash.includes(id));
     if (inTrash.length) await get().destroy(inTrash);
-    if (toMove.length && trashId) await get().move(toMove, trashId, { label: "Trash" });
+    if (toMove.length && trashId) await get().move(toMove, trashId, { label: "Deleted Items" });
     else if (toMove.length) await get().destroy(toMove);
   },
 
@@ -552,17 +557,22 @@ export const useMail = create<MailState>((set, get) => ({
     } catch {
       /* keyword may be rejected; still move */
     }
-    await get().move(ids, target, { label: isSpam ? "Spam" : "Inbox" });
+    await get().move(ids, target, { label: isSpam ? "Junk Mail" : "Inbox" });
   },
 
   async emptyMailbox(mailboxId) {
     const accountId = get().accountId;
     if (!accountId) return;
     // Emptying is permanent and covers the whole folder at once, so it is
-    // offered for Deleted Items alone. The menus hide it elsewhere; this is
-    // the guard that makes that true of the action itself.
-    if (mailboxId !== get().roleId("trash")) {
-      toast.error("Only Deleted Items can be emptied.");
+    // offered only for the two folders whose whole purpose is holding what you
+    // did not want. The menus hide it elsewhere; this is the guard that makes
+    // that true of the action itself, whatever calls it.
+    //
+    // Junk Mail is destroyed outright rather than moved to Deleted Items —
+    // there is no point routing spam through the bin on its way out, and it is
+    // what "delete all spam" means everywhere else. The dialogs say so.
+    if (mailboxId !== get().roleId("trash") && mailboxId !== get().roleId("junk")) {
+      toast.error("Only Deleted Items and Junk Mail can be emptied.");
       return;
     }
     // A folder can hold far more messages than the server will destroy in one
