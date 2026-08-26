@@ -62,7 +62,7 @@ seconds of downtime with nothing lost.
 ## Features
 
 **Mail**
-- Gmail-style three-pane layout (reading pane right/bottom/off, **drag-to-resize splitter** in both orientations, quick layout switch in the list menu), conversation view with collapsed messages and "show quoted text", dense/cozy/comfortable density, light/dark/system theme with accent colours
+- Gmail-style three-pane layout (reading pane right/bottom/off, **drag-to-resize splitter** in both orientations, quick layout switch in the list menu), conversation view with collapsed messages and "show quoted text", dense/cozy/comfortable density, light/dark/system themes plus **ihasmail** — the palette from ihasmail.org, and what a new account starts on — each with accent colours over the top
 - Virtualised, infinitely-scrolling message list; multi-select (click, ⇧-click, ⌃-click), drag & drop to folders, right-click context menus, hover actions, Gmail keyboard shortcuts (`j/k`, `e`, `#`, `r/a/f`, `g i`, `/`, `?` …)
 - Archive / delete / spam / star / mark read / move / labels (IMAP keywords with colours) with **Undo**
 - **"Filter messages like this…"** from the message context menu: creates a Sieve rule pre-filled from the sender/list (target folders can be created on the fly), and can **apply it immediately to the existing messages in the folder** (evaluated client-side, actions applied via JMAP)

@@ -1,6 +1,20 @@
 import { useSettings } from "@/store/settings";
 import { Switch } from "@/ui/misc";
 
+/**
+ * The theme cards, each previewing the background it actually paints. Kept as
+ * data rather than three inline ternaries so a fourth does not mean editing a
+ * conditional in three places.
+ */
+const THEMES = [
+  { id: "system", label: "Match system", preview: "linear-gradient(90deg,#f6f8fa 50%,#0b1220 50%)" },
+  { id: "light", label: "Light", preview: "#f6f8fa" },
+  { id: "dark", label: "Dark", preview: "#0b1220" },
+  // The ihasmail.org palette: its background, with its teal and the logo's
+  // orange showing, so the card looks like what picking it does.
+  { id: "ihasmail", label: "ihasmail", preview: "linear-gradient(135deg,#0d2430 0%,#12303e 55%,#46cac3 55%,#46cac3 78%,#f9a34b 78%)" },
+] as const;
+
 const ACCENTS = [
   { id: "teal", color: "#0f766e" },
   { id: "blue", color: "#2563eb" },
@@ -19,13 +33,16 @@ export function AppearanceSettings() {
       <p className="lead">Make ihasmail yours.</p>
       <h2>Theme</h2>
       <div className="theme-grid">
-        {(["system", "light", "dark"] as const).map((t) => (
-          <button key={t} className={`theme-card ${s.theme === t ? "active" : ""}`} onClick={() => update({ theme: t })}>
-            <div className="preview" style={{ background: t === "dark" ? "#0b1220" : t === "light" ? "#f6f8fa" : "linear-gradient(90deg,#f6f8fa 50%,#0b1220 50%)" }} />
-            {t === "system" ? "Match system" : t === "light" ? "Light" : "Dark"}
+        {THEMES.map((t) => (
+          <button key={t.id} className={`theme-card ${s.theme === t.id ? "active" : ""}`} onClick={() => update({ theme: t.id })}>
+            <div className="preview" style={{ background: t.preview }} />
+            {t.label}
           </button>
         ))}
       </div>
+      <p className="hint" style={{ marginTop: 10 }}>
+        <strong>ihasmail</strong> is the palette from <a href="https://ihasmail.org" target="_blank" rel="noopener noreferrer">ihasmail.org</a>, and what a new account starts on. It is a dark theme, so it counts as dark wherever that matters, and the accent colour below still applies on top of it.
+      </p>
       <Switch
         checked={s.themeMessageBody}
         onChange={(v) => update({ themeMessageBody: v })}

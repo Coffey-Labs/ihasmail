@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { Calendar, ChevronsUpDown, FolderOpen, HelpCircle, Mail, Menu as MenuIcon, Moon, PenSquare, Settings, Sun, Users, LogOut, Plus, RefreshCw } from "lucide-react";
 import { useSession } from "@/store/session";
-import { useEffectiveTheme, useSettings } from "@/store/settings";
+import { toggleTarget, useEffectiveTheme, useSettings } from "@/store/settings";
 import { useMail } from "@/store/mail";
 import { draftFromMailto, useCompose } from "@/store/compose";
 import { Avatar, useIsMobile } from "@/ui/misc";
@@ -205,22 +205,31 @@ function QuotaBar() {
 }
 
 /**
- * Flip between light and dark from the top bar.
+ * Flip to light and back from the top bar.
  *
- * The stored setting has a third value, "system", so the button acts on what
- * is actually on screen rather than on the setting: whichever theme you can
- * see, one click gives you the other one. Choosing "match system" again lives
- * in Settings › Appearance, where the three-way choice belongs.
+ * The setting has four values and only two of them are "light", so the button
+ * acts on what is actually on screen rather than on the setting: if you can
+ * see a dark theme, one click gives you light.
+ *
+ * Coming back is the part that needs remembering. There is more than one way
+ * to be dark — "dark", "ihasmail", or "system" while the OS is — so the way
+ * back is whichever you were on, kept in `lastDarkTheme`, rather than plain
+ * "dark" for everyone. Without that, two clicks would quietly move an
+ * ihasmail user onto a theme they never chose.
  */
 function ThemeToggle() {
   const effective = useEffectiveTheme();
+  const lastDarkTheme = useSettings((s) => s.settings.lastDarkTheme);
   const update = useSettings((s) => s.update);
-  const next = effective === "dark" ? "light" : "dark";
+  const next = toggleTarget(effective, lastDarkTheme);
+  // The label names where you are going, and going back is not always "dark"
+  // any more -- it is whichever theme you were on before flipping to light.
+  const label = next === "light" ? "light mode" : next === "system" ? "your system theme" : next === "ihasmail" ? "the ihasmail theme" : "dark mode";
   return (
     <button
       className="icon-btn"
-      aria-label={`Switch to ${next} mode`}
-      title={`Switch to ${next} mode`}
+      aria-label={`Switch to ${label}`}
+      title={`Switch to ${label}`}
       onClick={() => update({ theme: next })}
     >
       {effective === "dark" ? <Sun size={21} /> : <Moon size={21} />}
