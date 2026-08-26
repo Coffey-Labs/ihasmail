@@ -7,53 +7,39 @@
  * is what makes this state travel between devices without ihasmail storing
  * anything server-side of its own — but it is housekeeping rather than
  * something anyone filed there, so the Files view hides it. See `isAppFolder`.
+ *
+ * Both lookups below filter on `parentId`/`isTopLevel` alone and match the name
+ * here rather than asking the server to. Those are the filters Files itself
+ * relies on; `name` is not one Stalwart is known to implement, and a filter it
+ * does not know fails the whole query rather than being ignored.
  */
 import { client, setErrorMessage } from "@/jmap/client";
 import type { FileNode, GetResponse, Id, SetResponse } from "@/jmap/types";
-import { directoryCreate, normalizeFileNodes, queryOmitsDirectories, supportsNodeType } from "@/lib/filenode";
+import { directoryCreate } from "@/lib/filenode";
 
 export const APP_FOLDER = "ihasmail";
 
-/** Just enough to find the folder, asking for nodeType only where it exists. */
-export const folderProps = (): string[] =>
-  supportsNodeType() ? ["id", "name", "nodeType", "parentId"] : ["id", "name", "parentId", "blobId", "size", "type"];
+/** Just enough to find the folder. */
+export const folderProps = (): string[] => ["id", "name", "nodeType", "parentId"];
 
 /** The client's own folder, which the Files view does not show. */
 export function isAppFolder(n: Pick<FileNode, "name" | "parentId" | "nodeType">): boolean {
   return n.name === APP_FOLDER && !n.parentId && n.nodeType === "directory";
 }
 
-/** Every node in the account, for servers whose query cannot see directories. */
-async function allNodes(accountId: Id, properties: string[]): Promise<FileNode[]> {
-  const res = await client.call<GetResponse<FileNode>>("FileNode/get", { accountId, ids: null, properties });
-  return normalizeFileNodes(res.list);
+/** List one level of the tree: the top level, or the children of a folder. */
+async function children(accountId: Id, parentId: Id | null, properties: string[]): Promise<FileNode[]> {
+  const filter = parentId ? { parentId } : { isTopLevel: true };
+  const res = await client.chain([
+    ["FileNode/query", { accountId, filter, limit: 1000 }, "q"],
+    ["FileNode/get", { accountId, "#ids": { resultOf: "q", name: "FileNode/query", path: "/ids" }, properties }, "g"],
+  ]);
+  return (res.get("g")?.[0] as unknown as GetResponse<FileNode>).list;
 }
 
 /** Find the app folder, or make it. Returns its node id. */
 export async function ensureFolder(accountId: Id): Promise<Id> {
-  const props = folderProps();
-  let list: FileNode[] = [];
-  if (queryOmitsDirectories()) {
-    // Query cannot see a directory on these servers, so it would never find the
-    // folder and we would make a fresh one on every save. Ask get for the lot.
-    list = await allNodes(accountId, props);
-  } else {
-    try {
-      const res = await client.chain([
-        ["FileNode/query", { accountId, filter: { isTopLevel: true, nodeType: "directory", name: APP_FOLDER }, limit: 5 }, "q"],
-        ["FileNode/get", { accountId, "#ids": { resultOf: "q", name: "FileNode/query", path: "/ids" }, properties: props }, "g"],
-      ]);
-      list = normalizeFileNodes((res.get("g")?.[0] as unknown as GetResponse<FileNode>).list);
-    } catch {
-      // Filters unsupported: scan everything and pick it out here.
-      const res = await client.chain([
-        ["FileNode/query", { accountId, limit: 1000 }, "q"],
-        ["FileNode/get", { accountId, "#ids": { resultOf: "q", name: "FileNode/query", path: "/ids" }, properties: props }, "g"],
-      ]);
-      list = normalizeFileNodes((res.get("g")?.[0] as unknown as GetResponse<FileNode>).list);
-    }
-  }
-  const existing = list.find(isAppFolder);
+  const existing = (await children(accountId, null, folderProps())).find(isAppFolder);
   if (existing) return existing.id;
   const set = await client.call<SetResponse<FileNode>>("FileNode/set", { accountId, create: { d: directoryCreate(null, APP_FOLDER) } });
   const err = set.notCreated?.d;
@@ -61,7 +47,10 @@ export async function ensureFolder(accountId: Id): Promise<Id> {
   return set.created!.d!.id;
 }
 
-/** A node's persistent blobId, for servers that do not return one on create. */
+/**
+ * A node's persistent blobId. `FileNode/set` does not return one on create, so
+ * anything that needs the blob straight after making the node has to ask.
+ */
 export async function nodeBlobId(accountId: Id, id?: Id): Promise<Id | undefined> {
   if (!id) return undefined;
   try {
@@ -74,18 +63,7 @@ export async function nodeBlobId(accountId: Id, id?: Id): Promise<Id | undefined
 
 /** Find a file by name inside the app folder. */
 export async function findInFolder(accountId: Id, folderId: Id, name: string): Promise<FileNode | undefined> {
-  const props = ["id", "name", "parentId", "blobId", "size", "type", ...(supportsNodeType() ? ["nodeType"] : [])];
-  try {
-    const res = await client.chain([
-      ["FileNode/query", { accountId, filter: { parentId: folderId, name }, limit: 5 }, "q"],
-      ["FileNode/get", { accountId, "#ids": { resultOf: "q", name: "FileNode/query", path: "/ids" }, properties: props }, "g"],
-    ]);
-    const list = normalizeFileNodes((res.get("g")?.[0] as unknown as GetResponse<FileNode>).list);
-    const hit = list.find((n) => n.name === name && n.parentId === folderId);
-    if (hit) return hit;
-  } catch {
-    /* filters unsupported: fall through to the full scan */
-  }
-  const list = await allNodes(accountId, props);
+  const props = ["id", "name", "parentId", "blobId", "size", "type", "nodeType"];
+  const list = await children(accountId, folderId, props);
   return list.find((n) => n.name === name && n.parentId === folderId);
 }

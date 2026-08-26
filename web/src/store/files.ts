@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import { CAP, JmapMethodError, client, setErrorMessage } from "@/jmap/client";
-import { directoryCreate, fileCreate, fileNodeProps, normalizeFileNodes, queryOmitsDirectories } from "@/lib/filenode";
+import { CAP, client, setErrorMessage } from "@/jmap/client";
+import { directoryCreate, fileCreate, fileNodeProps } from "@/lib/filenode";
 import { isAppFolder } from "@/lib/appFolder";
 import type { FileNode, GetResponse, Id, QueryResponse, SetResponse } from "@/jmap/types";
 import { useSession } from "./session";
@@ -26,10 +26,6 @@ interface FilesState {
 }
 
 
-/** Whether the server supports parentId/isTopLevel query filters (detected at runtime). */
-let filtersSupported = true;
-
-const byName = (a: FileNode, b: FileNode) => (a.nodeType === b.nodeType ? a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" }) : a.nodeType === "directory" ? -1 : 1);
 
 /**
  * Drop the client's own `ihasmail` folder, and everything inside it, from a
@@ -56,42 +52,6 @@ export function withoutAppFolder(nodes: FileNode[]): FileNode[] {
   return nodes.filter((n) => !hidden.has(n.id));
 }
 
-/** Fetch all nodes (paged, no filter) and rebuild the full children map. */
-async function loadAllNodes(accountId: Id, set: (fn: (s: FilesState) => Partial<FilesState>) => void): Promise<void> {
-  const all: FileNode[] = [];
-  if (queryOmitsDirectories()) {
-    // Query would hand back files only, so every folder — including one just
-    // created — would be missing with nothing to say why. Ask get for the lot.
-    const res = await client.call<GetResponse<FileNode>>("FileNode/get", { accountId, ids: null, properties: fileNodeProps() });
-    all.push(...normalizeFileNodes(res.list));
-  } else {
-    let position = 0;
-    for (let guard = 0; guard < 100; guard++) {
-      const res = await client.chain([
-        ["FileNode/query", { accountId, position, limit: 500, calculateTotal: true }, "q"],
-        ["FileNode/get", { accountId, "#ids": { resultOf: "q", name: "FileNode/query", path: "/ids" }, properties: fileNodeProps() }, "g"],
-      ]);
-      const q = res.get("q")?.[0] as unknown as QueryResponse;
-      const g = res.get("g")?.[0] as unknown as GetResponse<FileNode>;
-      all.push(...normalizeFileNodes(g.list));
-      position += q.ids.length;
-      if (!q.ids.length || (q.total != null && position >= q.total)) break;
-    }
-  }
-  // After the whole collection, not per page: the folder and its contents can
-  // land in different pages, and a half-filtered pass would spill the rest.
-  const visible = withoutAppFolder(all);
-  const nodes: Record<Id, FileNode> = {};
-  const children: Record<string, Id[]> = { root: [] };
-  for (const n of visible) nodes[n.id] = n;
-  for (const n of visible.sort(byName)) {
-    const key = n.parentId && nodes[n.parentId] ? n.parentId : "root";
-    (children[key] ??= []).push(n.id);
-  }
-  for (const n of visible) children[n.id] ??= [];
-  set(() => ({ nodes, children, loading: false, error: null }));
-}
-
 export const useFiles = create<FilesState>((set, get) => ({
   accountId: null,
   available: false,
@@ -113,10 +73,6 @@ export const useFiles = create<FilesState>((set, get) => ({
     if (!accountId) return;
     set({ loading: true });
     try {
-      if (!filtersSupported || queryOmitsDirectories()) {
-        await loadAllNodes(accountId, set);
-        return;
-      }
       const filter = parentId ? { parentId } : { isTopLevel: true };
       const res = await client.chain([
         ["FileNode/query", { accountId, filter, sort: [{ property: "nodeType", isAscending: false }, { property: "name", isAscending: true }], limit: 1000 }, "q"],
@@ -124,7 +80,7 @@ export const useFiles = create<FilesState>((set, get) => ({
       ]);
       const q = res.get("q")?.[0] as unknown as QueryResponse;
       const g = res.get("g")?.[0] as unknown as GetResponse<FileNode>;
-      const listed = withoutAppFolder(normalizeFileNodes(g.list));
+      const listed = withoutAppFolder(g.list);
       const keep = new Set(listed.map((n) => n.id));
       set((s) => {
         const nodes = { ...s.nodes };
@@ -132,18 +88,10 @@ export const useFiles = create<FilesState>((set, get) => ({
         return { nodes, children: { ...s.children, [parentId ?? "root"]: q.ids.filter((id) => keep.has(id)) }, loading: false, error: null };
       });
     } catch (err) {
-      // Older Stalwart releases don't support parentId / isTopLevel filters: fall back to
-      // fetching every node and building the tree client-side.
-      if (err instanceof JmapMethodError && (err.type === "unsupportedFilter" || err.type === "unsupportedSort")) {
-        filtersSupported = false;
-        try {
-          await loadAllNodes(accountId, set);
-          return;
-        } catch (err2) {
-          set({ loading: false, error: (err2 as Error).message });
-          return;
-        }
-      }
+      // There used to be a fallback here that abandoned filters and fetched
+      // every node in the account, because 0.15 refused parentId/isTopLevel.
+      // 0.16 supports them, and quietly loading the whole tree instead would
+      // hide a real fault behind a performance cliff nobody would notice.
       set({ loading: false, error: (err as Error).message });
     }
   },

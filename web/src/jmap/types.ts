@@ -36,8 +36,7 @@ export interface JmapSession {
     userLocale?: string | null;
     /** What the upstream server was willing to say about itself. */
     server?: {
-      /** Which API generation answered: Stalwart publishes no version number. */
-      generation?: "0.16+" | "pre-0.16" | null;
+      /** "oss" | "community" | "enterprise". Stalwart publishes no version. */
       edition?: string | null;
     };
   };

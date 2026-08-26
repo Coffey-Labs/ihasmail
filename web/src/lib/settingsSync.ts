@@ -15,15 +15,11 @@
  * and the file overwrites it once it lands. A browser with no cache (a private
  * window) therefore shows defaults for one frame before the account's real
  * settings arrive.
- *
- * Requires Stalwart 0.16: `FileNode/query` before that cannot see directories
- * and the rights model differs. On an older server the settings simply stay
- * local, exactly as they were.
  */
 import { CAP, client, setErrorMessage } from "@/jmap/client";
 import type { FileNode, Id, SetResponse } from "@/jmap/types";
 import { ensureFolder, findInFolder, nodeBlobId } from "@/lib/appFolder";
-import { fileCreate, supportsNodeType } from "@/lib/filenode";
+import { fileCreate } from "@/lib/filenode";
 import { useSession } from "@/store/session";
 
 const FILE = "settings.json";
@@ -40,7 +36,7 @@ let armed = false;
 let listenersBound = false;
 
 export function settingsSyncAvailable(): boolean {
-  return supportsNodeType() && client.hasCapability(CAP.filenode) && Boolean(useSession.getState().accountFor(CAP.filenode));
+  return client.hasCapability(CAP.filenode) && Boolean(useSession.getState().accountFor(CAP.filenode));
 }
 
 /**
