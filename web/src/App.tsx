@@ -17,7 +17,8 @@ import { AppShell } from "@/views/AppShell";
 import { MailView } from "@/views/mail/MailView";
 import { ComposerDock } from "@/views/compose/ComposerDock";
 import { setUnreadBadge } from "@/lib/notify";
-import { useSettings } from "@/store/settings";
+import { useSettings, syncedPart } from "@/store/settings";
+import { armSettingsSync, loadRemoteSettings, queueSettingsPush, settingsSyncAvailable } from "@/lib/settingsSync";
 
 const ContactsView = lazy(() => import("@/views/contacts/ContactsView").then((m) => ({ default: m.ContactsView })));
 const CalendarView = lazy(() => import("@/views/calendar/CalendarView").then((m) => ({ default: m.CalendarView })));
@@ -50,6 +51,26 @@ export function App() {
 function AuthedApp() {
   const accountId = useSession((s) => s.accountId);
   const [location] = useLocation();
+
+  // Settings that live with the account rather than the browser. The cached
+  // ones have already painted, so this only has to correct them (issue #54).
+  useEffect(() => {
+    if (!accountId) return;
+    let cancelled = false;
+    void (async () => {
+      const remote = await loadRemoteSettings();
+      if (cancelled) return;
+      if (remote) useSettings.getState().hydrate(remote);
+      // Pushes were held back until now so they could not race the load.
+      armSettingsSync();
+      // No file yet — seed one from what this browser has, so the next device
+      // to sign in starts from these rather than from the defaults.
+      if (!remote && settingsSyncAvailable()) queueSettingsPush(syncedPart(useSettings.getState().settings));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [accountId]);
 
   // Initial data + push wiring
   useEffect(() => {
