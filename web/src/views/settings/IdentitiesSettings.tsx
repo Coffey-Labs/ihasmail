@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { Plus, Trash2, Star } from "lucide-react";
+import { Plus, Trash2, Star, Eye, EyeOff } from "lucide-react";
 import { useSettings } from "@/store/settings";
 import { useMail } from "@/store/mail";
 import type { Identity } from "@/jmap/types";
+import { isAlwaysVisible } from "@/lib/identityVisibility";
 import { Dialog, confirmDialog } from "@/ui/dialog";
 import { RichEditor, type RichEditorHandle } from "../compose/RichEditor";
 import { toast } from "@/ui/toast";
@@ -19,6 +20,10 @@ export function IdentitiesSettings() {
   const setDefault = useMail((s) => s.setDefaultIdentity);
   const defaultId = useSettings((s) => (accountId ? s.settings.defaultIdentityByAccount[accountId] : undefined)) ?? identities[0]?.id;
   const [editing, setEditing] = useState<Partial<Identity> | null>(null);
+  const hidden = useSettings((s) => s.settings.hiddenIdentities);
+  const updateSettings = useSettings((s) => s.update);
+  const toggleHidden = (id: string) =>
+    updateSettings({ hiddenIdentities: hidden.includes(id) ? hidden.filter((x) => x !== id) : [...hidden, id] });
   useEffect(() => {
     void load();
   }, [load]);
@@ -34,16 +39,36 @@ export function IdentitiesSettings() {
             {i.id !== defaultId && (
               <button className="btn btn-sm btn-ghost" onClick={(e) => { e.stopPropagation(); setDefault(i.id); toast.success(`${i.email} is now your default identity`); }}><Star size={14} /> Make default</button>
             )}
+            {/*
+              Hiding is presentation only -- the identity still exists and still
+              receives, like an unsubscribed folder. The default cannot be
+              hidden, because it is what a new draft starts on.
+            */}
+            <button
+              className="btn btn-sm btn-ghost"
+              disabled={isAlwaysVisible(i.id, [defaultId])}
+              title={isAlwaysVisible(i.id, [defaultId]) ? "The default identity is always offered when composing" : hidden.includes(i.id) ? "Show this in the compose picker" : "Hide this from the compose picker"}
+              onClick={(e) => { e.stopPropagation(); toggleHidden(i.id); }}
+            >
+              {hidden.includes(i.id) ? <><Eye size={14} /> Show when composing</> : <><EyeOff size={14} /> Hide when composing</>}
+            </button>
             {i.mayDelete && (
               <button className="icon-btn sm danger" aria-label="Delete identity" onClick={async (e) => { e.stopPropagation(); if (await confirmDialog({ title: "Delete this identity?", confirmLabel: "Delete", danger: true })) { try { await useMail.getState().destroyIdentity(i.id); } catch (err) { toast.error((err as Error).message); } } }}><Trash2 size={16} /></button>
             )}
           </div>
+          {hidden.includes(i.id) && <div className="hint" style={{ marginTop: 4 }}>Not offered when composing. It still receives mail, and you can still send from it by showing it again.</div>}
           {(i.htmlSignature || i.textSignature) && <div className="hint" style={{ marginTop: 4 }}>{htmlToText(i.htmlSignature || i.textSignature).slice(0, 120)}</div>}
           {i.replyTo?.length ? <div className="hint">Reply-To: {formatAddressList(i.replyTo)}</div> : null}
         </div>
       ))}
       <button className="btn" onClick={() => setEditing({ name: "", email: identities[0]?.email ?? "", textSignature: "", htmlSignature: "", replyTo: null, bcc: null })}><Plus size={16} /> Add identity</button>
       <p className="hint mt-8">New identities must use an address this account is allowed to send from (aliases configured on the server).</p>
+      {hidden.length > 0 && (
+        <p className="hint">
+          {hidden.length} {hidden.length === 1 ? "identity is" : "identities are"} hidden from the compose picker. Hiding every one of them would leave nothing to
+          choose from, so in that case they are all offered again.
+        </p>
+      )}
       {editing && <IdentityDialog identity={editing} onClose={() => setEditing(null)} />}
     </div>
   );

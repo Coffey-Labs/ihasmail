@@ -89,6 +89,19 @@ export interface Settings {
   /** Default sending identity per account (JMAP has no such flag). */
   defaultIdentityByAccount: Record<string, string>;
   /**
+   * Identities kept out of the compose picker, by id.
+   *
+   * An account with alias domains can have every address twice over while only
+   * a handful are ever sent from, which makes the picker useless (#73). This
+   * hides them from the picker only — the identity still exists on the server,
+   * still receives, and is still listed and editable in Settings, exactly as an
+   * unsubscribed folder still exists.
+   *
+   * A flat list rather than keyed by account: identity ids are unique, and an
+   * id belonging to another account simply never matches.
+   */
+  hiddenIdentities: string[];
+  /**
    * The theme the top-bar toggle goes back to from light. Remembered rather
    * than assumed, so flipping to light and back returns you to the theme you
    * were on — "ihasmail", "system" or plain "dark" — instead of dropping
@@ -160,6 +173,7 @@ export const DEFAULT_SETTINGS: Settings = {
     { name: "Family", color: "#9333ea" },
   ],
   defaultIdentityByAccount: {},
+  hiddenIdentities: [],
   lastDarkTheme: "ihasmail",
 };
 
