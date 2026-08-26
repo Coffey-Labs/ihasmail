@@ -88,6 +88,14 @@ export interface Settings {
   eventCategories: Array<{ name: string; color: string }>;
   /** Default sending identity per account (JMAP has no such flag). */
   defaultIdentityByAccount: Record<string, string>;
+  /**
+   * The theme the top-bar toggle goes back to from light. Remembered rather
+   * than assumed, so flipping to light and back returns you to the theme you
+   * were on — "ihasmail", "system" or plain "dark" — instead of dropping
+   * everyone onto the same one. Never "light": that is the side being
+   * toggled away from.
+   */
+  lastDarkTheme: Exclude<Theme, "light">;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -152,6 +160,7 @@ export const DEFAULT_SETTINGS: Settings = {
     { name: "Family", color: "#9333ea" },
   ],
   defaultIdentityByAccount: {},
+  lastDarkTheme: "ihasmail",
 };
 
 /**
@@ -215,14 +224,18 @@ applyDateTimePrefs(initialSettings);
 export const useSettings = create<SettingsState>((set, get) => ({
   settings: initialSettings,
   update(patch) {
-    const settings = { ...get().settings, ...patch };
+    // Picking a theme anywhere — the toggle, Appearance, an imported file —
+    // is what teaches the toggle where to come back to. Doing it here rather
+    // than at the call sites means a fourth way to set a theme cannot forget.
+    const next = patch.theme && patch.theme !== "light" ? { ...patch, lastDarkTheme: patch.theme } : patch;
+    const settings = { ...get().settings, ...next };
     saveJson("settings", settings);
     set({ settings });
     applyTheme(settings);
     applyDateTimePrefs(settings);
     // Dragging a splitter changes a device key on every frame and must not put
     // a request in the air; anything else is queued and coalesced.
-    if (Object.keys(patch).some((k) => !DEVICE_KEYS.has(k as keyof Settings))) {
+    if (Object.keys(next).some((k) => !DEVICE_KEYS.has(k as keyof Settings))) {
       queueSettingsPush(syncedPart(settings));
     }
   },
@@ -276,6 +289,15 @@ export function applyTheme(s: Settings = useSettings.getState().settings): void 
   root.dataset.fontsize = s.fontSize;
   const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]:not([media])');
   if (meta) meta.content = s.theme === "ihasmail" ? THEME_COLOR.ihasmail : dark ? THEME_COLOR.dark : THEME_COLOR.light;
+}
+
+/**
+ * Where the top-bar toggle goes next. Away from dark is always light; back
+ * from light is wherever you last were, which is the whole point of
+ * remembering it.
+ */
+export function toggleTarget(effective: "light" | "dark", lastDarkTheme: Settings["lastDarkTheme"]): Theme {
+  return effective === "dark" ? "light" : lastDarkTheme;
 }
 
 /** Whether a theme paints dark, resolving "system" against the OS. */

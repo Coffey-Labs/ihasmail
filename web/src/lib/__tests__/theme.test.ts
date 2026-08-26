@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_SETTINGS, isDarkTheme, type Theme } from "@/store/settings";
+import { DEFAULT_SETTINGS, isDarkTheme, toggleTarget, useSettings, type Theme } from "@/store/settings";
 import { loadJson, saveJson } from "@/lib/storage";
 
 /**
@@ -88,5 +88,59 @@ describe("the default theme", () => {
     withStorage(() => {
       expect(loadJson("theme-test-absent", DEFAULT_SETTINGS).theme).toBe("ihasmail");
     });
+  });
+});
+
+describe("the top-bar toggle", () => {
+  it("goes to light from anything dark", () => {
+    expect(toggleTarget("dark", "ihasmail")).toBe("light");
+    expect(toggleTarget("dark", "dark")).toBe("light");
+    expect(toggleTarget("dark", "system")).toBe("light");
+  });
+
+  it("comes back to the theme you were actually on", () => {
+    // The whole point: two clicks from ihasmail must return to ihasmail, not
+    // deposit you on plain dark.
+    expect(toggleTarget("light", "ihasmail")).toBe("ihasmail");
+    expect(toggleTarget("light", "dark")).toBe("dark");
+  });
+
+  it("can bring back \"match system\", which the toggle used to strand", () => {
+    expect(toggleTarget("light", "system")).toBe("system");
+  });
+
+  it("round-trips every dark theme there is", () => {
+    for (const t of ["dark", "ihasmail", "system"] as const) {
+      expect(toggleTarget(toggleTarget("light", t) === "light" ? "light" : "dark", t), t).toBe("light");
+      expect(toggleTarget("light", t), t).toBe(t);
+    }
+  });
+});
+
+describe("remembering which dark theme you were on", () => {
+  const setTheme = (t: Theme) => {
+    useSettings.getState().update({ theme: t });
+    return useSettings.getState().settings;
+  };
+
+  it("records a dark theme chosen from Settings, not just from the toggle", () => {
+    // update() is the single path every way of choosing a theme goes through,
+    // which is why the remembering lives there rather than at the call sites.
+    expect(setTheme("dark").lastDarkTheme).toBe("dark");
+    expect(setTheme("ihasmail").lastDarkTheme).toBe("ihasmail");
+    expect(setTheme("system").lastDarkTheme).toBe("system");
+  });
+
+  it("does not let light overwrite it — that is the theme being toggled away from", () => {
+    setTheme("ihasmail");
+    expect(setTheme("light").lastDarkTheme).toBe("ihasmail");
+  });
+
+  it("survives a there-and-back through the toggle", () => {
+    setTheme("ihasmail");
+    const away = setTheme(toggleTarget("dark", useSettings.getState().settings.lastDarkTheme));
+    expect(away.theme).toBe("light");
+    const back = setTheme(toggleTarget("light", away.lastDarkTheme));
+    expect(back.theme).toBe("ihasmail");
   });
 });
