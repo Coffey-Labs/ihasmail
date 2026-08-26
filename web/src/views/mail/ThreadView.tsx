@@ -65,15 +65,41 @@ export function ThreadView({ threadId, mailboxId, onBack, actions, onNavigate, h
     return (filtered.length ? filtered : all).sort((a, b) => a.receivedAt.localeCompare(b.receivedAt));
   }, [thread, emails, fullIds, mailboxId]);
 
-  // Default expansion: unread + last message expanded, others collapsed
+  /*
+   * Which messages were unread when this conversation was opened.
+   *
+   * Expansion and the unread bar used to read `$seen` directly, so the moment
+   * the auto-mark-read timer fired, every message expanded *because* it was
+   * unread collapsed again -- all but the last -- and the only record of which
+   * ones they were disappeared with them (#69). Opening a thread with several
+   * unread messages gave you a few seconds before the view rearranged itself
+   * underneath you.
+   *
+   * Marking read on the server is still right: opening the thread is the signal
+   * that you are reading it. What was wrong was letting that change the shape
+   * of what you are looking at. The set only ever grows while a thread is open
+   * -- a message that arrives unread joins it -- and is discarded on the way to
+   * another thread.
+   *
+   * Accumulated during render rather than in an effect because it is derived
+   * purely from `messages`, and adding an id twice does nothing. An effect
+   * would repaint a frame later, which is the flicker this exists to remove.
+   */
+  const threadKey = thread?.id ?? null;
+  const unreadAtOpen = useRef<{ key: Id | null; ids: Set<Id> }>({ key: null, ids: new Set() });
+  if (unreadAtOpen.current.key !== threadKey) unreadAtOpen.current = { key: threadKey, ids: new Set() };
+  for (const m of messages) if (!m.keywords.$seen) unreadAtOpen.current.ids.add(m.id);
+  const wasUnread = unreadAtOpen.current.ids;
+
+  // Default expansion: unread when opened + last message expanded, others collapsed
   const lastId = messages[messages.length - 1]?.id;
   const isExpanded = useCallback(
     (e: Email) => {
       if (e.id in expanded) return expanded[e.id]!;
       if (allExpanded) return true;
-      return !e.keywords.$seen || e.id === lastId || messages.length === 1;
+      return wasUnread.has(e.id) || e.id === lastId || messages.length === 1;
     },
-    [expanded, allExpanded, lastId, messages.length],
+    [expanded, allExpanded, lastId, messages.length, wasUnread],
   );
 
   // Mark as read after delay
@@ -190,6 +216,7 @@ export function ThreadView({ threadId, mailboxId, onBack, actions, onNavigate, h
             key={e.id}
             email={e}
             expanded={isExpanded(e)}
+            wasUnread={wasUnread.has(e.id)}
             onToggle={() => setExpanded((x) => ({ ...x, [e.id]: !isExpanded(e) }))}
             isLast={i === messages.length - 1}
             actions={actions}
