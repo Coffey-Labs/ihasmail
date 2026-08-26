@@ -48,6 +48,11 @@ VOLUME="${IHASMAIL_VOLUME:-ihasmail-data}"
 IMAGE_REPO="${IHASMAIL_IMAGE:-ihasmail}"
 # How long to wait for the new container to report healthy, in seconds.
 HEALTH_TIMEOUT="${IHASMAIL_HEALTH_TIMEOUT:-30}"
+# How many past versions to keep as images, for rolling back to. Each is around
+# 650 MB, and a deploy adds one, so left alone they accumulate a gigabyte every
+# couple of releases -- and `docker image prune` will not touch them, because
+# they are tagged. 0 keeps every version.
+KEEP_VERSIONS="${IHASMAIL_KEEP_VERSIONS:-3}"
 
 # --- run from a copy, if this script lives in the checkout it resets ---------
 # `git reset --hard` below rewrites the working tree, and this script may be
@@ -153,6 +158,29 @@ git reset --hard --quiet "$TARGET"
 # cannot: .dockerignore keeps .git out of the build context. Without this the
 # build falls back to the base version in package.json and every deployment
 # reports the same number -- see "Version numbers" in the README.
+# Drop the oldest versioned images, keeping the newest KEEP_VERSIONS of them.
+#
+# Only ever runs after the new container reports healthy, so a rollback target
+# is never removed while the thing replacing it is still unproven. The image in
+# use is excluded outright rather than relied on to sort newest -- docker
+# refuses to remove an image a container is using, but being refused is not the
+# same as not having tried.
+prune_old_images() {
+  [ "$KEEP_VERSIONS" -gt 0 ] || return 0
+  local in_use stale
+  in_use="$(docker inspect "$NAME" --format '{{.Config.Image}}' 2>/dev/null || true)"
+  # Newest first, tags only, skipping the moving ":current" pointer.
+  stale="$(docker images "$IMAGE_REPO" --format '{{.Repository}}:{{.Tag}}\t{{.CreatedAt}}' \
+    | grep -v ":current" \
+    | sort -k2 -r \
+    | cut -f1 \
+    | grep -vxF "$in_use" \
+    | tail -n +"$((KEEP_VERSIONS + 1))")"
+  [ -n "$stale" ] || return 0
+  echo "==> removing $(printf '%s\n' "$stale" | wc -l) old image(s), keeping the newest $KEEP_VERSIONS"
+  printf '%s\n' "$stale" | xargs -r docker rmi >/dev/null 2>&1 || true
+}
+
 VERSION="$(node scripts/version.mjs)"
 # A Docker tag may not contain "+", which a version for a commit that did not
 # come through a pull request does: 2.16.57+g1fa6578. The image is tagged with
@@ -174,6 +202,7 @@ docker run -d --name "$NAME" --restart unless-stopped \
 for _ in $(seq 1 "$HEALTH_TIMEOUT"); do
   if health=$(curl -sf "http://$BIND/api/health"); then
     echo "==> healthy: $health"
+    prune_old_images
     exit 0
   fi
   sleep 1
