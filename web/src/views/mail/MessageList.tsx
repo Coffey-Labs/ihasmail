@@ -6,10 +6,10 @@ import { useMail, type ListState } from "@/store/mail";
 import { dateTimeKey, useSettings } from "@/store/settings";
 import type { Email, Id } from "@/jmap/types";
 import { formatListDate } from "@/lib/format";
+import { canEmpty, confirmAndEmpty, emptyLabel } from "@/lib/emptyFolder";
 import { displayName, shortName } from "@/lib/address";
 import { Avatar, Empty, useIsMobile } from "@/ui/misc";
 import { MenuItem, MenuSep, MenuTitle, Popover, useMenu } from "@/ui/popover";
-import { confirmDialog } from "@/ui/dialog";
 import { useCompose } from "@/store/compose";
 import { FilterFromMessageDialog } from "./FilterFromMessage";
 
@@ -74,8 +74,6 @@ export function MessageList({ title, list, openThreadId, focusId, setFocusId, on
   const selCount = Object.keys(selected).length;
   const mailbox = mailboxId ? mailboxes[mailboxId] : undefined;
   const isTrashOrJunk = mailbox?.role === "trash" || mailbox?.role === "junk";
-  // Emptying in one action is for Deleted Items only; Junk is cleared by hand.
-  const isTrash = mailbox?.role === "trash";
   const isDrafts = mailbox?.role === "drafts";
 
   const rowHeight = twoLine ? (settings.density === "compact" ? 56 : settings.density === "comfortable" ? 78 : 66) : settings.density === "compact" ? 36 : settings.density === "comfortable" ? 52 : 44;
@@ -200,16 +198,15 @@ export function MessageList({ title, list, openThreadId, focusId, setFocusId, on
               <MenuSep />
               <MenuItem icon={<CheckSquare size={16} />} label="Select all" onClick={selectAll} />
               <MenuItem icon={<MailOpen size={16} />} label="Mark all as read" onClick={() => mailboxId && void useMail.getState().markMailboxRead(mailboxId)} disabled={!mailboxId} />
-              {isTrash && (
+              {mailbox && canEmpty(mailbox.role) && (
                 <>
                   <MenuSep />
                   <MenuItem
                     danger
                     icon={<Eraser size={16} />}
-                    label={`Empty ${mailbox?.name}`}
-                    onClick={async () => {
-                      if (await confirmDialog({ title: `Empty ${mailbox?.name}?`, message: "All messages will be permanently deleted.", confirmLabel: "Empty", danger: true })) void useMail.getState().emptyMailbox(mailboxId!);
-                    }}
+                    label={emptyLabel(mailbox)}
+                    disabled={!mailbox.totalEmails}
+                    onClick={() => void confirmAndEmpty(mailbox)}
                   />
                 </>
               )}
@@ -221,6 +218,23 @@ export function MessageList({ title, list, openThreadId, focusId, setFocusId, on
         <div className="list-hint">
           <span className="grow" style={{ color: "var(--danger)" }}>{list.error}</span>
           <button onClick={() => void doRefresh()}>Retry</button>
+        </div>
+      )}
+      {/*
+        Junk Mail's own banner, the way every other mail client offers it:
+        clearing spam is the one thing people come to this folder to do, and
+        making them find it in a menu is making them hunt for it.
+
+        Only here, and only with something to delete. It says "permanently"
+        because that is the part worth knowing before clicking — these do not
+        pass through Deleted Items on the way out.
+      */}
+      {mailbox?.role === "junk" && !!mailbox.totalEmails && !selCount && (
+        <div className="list-hint">
+          <span className="grow">
+            Deleting spam is permanent — it does not go to Deleted Items first.
+          </span>
+          <button onClick={() => void confirmAndEmpty(mailbox)}>Delete all spam now</button>
         </div>
       )}
       <div ref={parentRef} className={`mail-list ${selCount ? "has-selection" : ""} ${twoLine ? "two-line" : ""} ${settings.density === "compact" ? "compact" : ""}`} tabIndex={-1}>
