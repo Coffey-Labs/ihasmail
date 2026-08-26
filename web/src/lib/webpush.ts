@@ -105,8 +105,17 @@ export function deviceClientId(): string {
   }
 }
 
-/** What to send Stalwart for a browser subscription. */
-export function subscriptionPayload(sub: PushSubscription, accountId: Id | null): Record<string, unknown> {
+/**
+ * What to send Stalwart for a browser subscription.
+ *
+ * `inboxId` is the Inbox's mailbox id. It is a parameter rather than something
+ * looked up here because an `inMailbox` condition needs a real id: the first
+ * version of this passed `null`, meaning "the inbox" in the author's head and
+ * nothing at all to the server, which answered "Invalid filter" and refused the
+ * whole subscription. Without an id the filter simply leaves `inMailbox` out
+ * and notifies more widely, which is a worse default but a working one.
+ */
+export function subscriptionPayload(sub: PushSubscription, accountId: Id | null, inboxId: Id | null = null): Record<string, unknown> {
   const json = sub.toJSON();
   const body: Record<string, unknown> = {
     deviceClientId: deviceClientId(),
@@ -121,7 +130,10 @@ export function subscriptionPayload(sub: PushSubscription, accountId: Id | null)
       [accountId]: {
         // Only mail that actually lands in the inbox. Filtering here rather
         // than in the service worker means spam never leaves the server.
-        filter: { inMailbox: null, notKeyword: "$seen" },
+        // Unread mail only, and only in the Inbox when we know which it is.
+        // Filtering here rather than in the service worker means spam and
+        // filed mail never leave the server at all.
+        filter: { ...(inboxId ? { inMailbox: inboxId } : {}), notKeyword: "$seen" },
         properties: PAYLOAD_PROPS,
         urgency: "normal",
       },
