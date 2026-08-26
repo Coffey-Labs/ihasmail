@@ -626,7 +626,22 @@ img { max-width: 100%; }
 .composer-field .field-extra button { color: var(--fg-muted); padding: 2px 6px; border-radius: 4px; }
 .composer-field .field-extra button:hover { background: var(--bg-hover); color: var(--fg); }
 .composer-field input.plain { flex: 1; border: 0; background: transparent; outline: none; min-width: 80px; height: 30px; }
-.composer-field .from-select { flex: 1; border: 0; background: transparent; padding: 0; height: 30px; cursor: pointer; }
+.composer-field .from-select { flex: 1; border: 0; background: transparent; color: var(--fg); padding: 0; height: 30px; cursor: pointer; }
+
+/*
+ * A native <select>'s dropdown is painted by the browser from the element's own
+ * colours, not the page's. `.from-select` is deliberately transparent so it
+ * sits flush in the composer's From line -- which left its popup with no
+ * background of its own, so the browser drew a light one while the text kept
+ * the app's light foreground: light on light, unreadable in any dark theme.
+ *
+ * Styling `option` fixes the popup without giving the closed control a box.
+ * Scoped to every select rather than this one, because nothing else in the app
+ * styled options either -- the next transparent select would have arrived with
+ * the same bug.
+ */
+select option,
+select optgroup { background-color: var(--bg-elev); color: var(--fg); }
 .recipients { flex: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; position: relative; }
 .recipients .chip { height: 24px; }
 .recipients input { flex: 1; min-width: 120px; border: 0; background: transparent; outline: none; height: 28px; }
