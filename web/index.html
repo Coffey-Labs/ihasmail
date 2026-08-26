@@ -4,8 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" content="#0f766e" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#0b1220" media="(prefers-color-scheme: dark)" />
+    <!--
+      One tag, no media query: applyTheme() keeps it in step with the chosen
+      theme, which a media query cannot do — it only knows what the OS prefers,
+      not what the user picked here. There used to be two, both with media
+      attributes, which meant the selector in applyTheme (:not([media])) matched
+      neither and the colour never moved off whatever the OS implied.
+
+      The initial value is the default theme's background, so the browser chrome
+      is right from the first paint rather than only once JS has run.
+    -->
+    <meta name="theme-color" content="#0d2430" />
     <meta name="description" content="ihasmail - fast, friendly JMAP webmail for Stalwart" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
