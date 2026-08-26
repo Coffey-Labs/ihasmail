@@ -174,3 +174,33 @@ test("credential endpoints reject unauthenticated callers", async () => {
   assert.equal((await post("/api/account/2fa/begin", {})).status, 401);
   cookie = saved;
 });
+
+/**
+ * A sign-in carrying a two-factor code that the server rejects is almost never
+ * "wrong password". Stalwart accepts TOTP only through an OAuth flow and offers
+ * no password grant, so the concatenated form ihasmail sends cannot work — and
+ * saying "invalid credentials" sends the user to check a password that is fine.
+ *
+ * Reported as #75: 2FA sign-in failed with a bare 401 while an app password
+ * worked, which is Stalwart's documented route and gave no hint of itself.
+ */
+test("a rejected sign-in carrying a TOTP code explains itself", async () => {
+  const saved = cookie;
+  cookie = "";
+  const res = await post("/api/auth/login", { username: "demo@example.com", password: "demo-password", totp: "123456" });
+  cookie = saved;
+  assert.equal(res.status, 401);
+  assert.equal(res.body.error, "totp_unsupported", "not the generic invalid_credentials");
+  assert.match(res.body.message, /app password/i, "points at the route that does work");
+  assert.match(res.body.message, /probably fine/i, "does not blame the password");
+});
+
+test("a rejected sign-in without a code is still a plain credential failure", async () => {
+  // The explanation must not leak onto ordinary typos.
+  const saved = cookie;
+  cookie = "";
+  const res = await post("/api/auth/login", { username: "demo@example.com", password: "wrong" });
+  cookie = saved;
+  assert.equal(res.status, 401);
+  assert.equal(res.body.error, "invalid_credentials");
+});

@@ -206,6 +206,32 @@ export function createApp(): Hono<Env> {
       const info = await getAccountInfo(session.id, session.authorization, upstream);
       return c.json(localizeSession(upstream, sessionExtras(session, info)));
     } catch (err) {
+      // A rejected sign-in that carried a two-factor code is worth explaining
+      // rather than calling "invalid credentials", because the credentials are
+      // very likely fine.
+      //
+      // Stalwart accepts a TOTP code only through an OAuth flow -- its own web
+      // interface is an OAuth client, which is why signing in there works. It
+      // offers no password grant, so a client holding a username and password
+      // cannot exchange them plus a code for a token, and the concatenated
+      // `password$code` form ihasmail sent is not a route the server has. Its
+      // documented answer for clients like this one is an app password, which
+      // bypasses TOTP entirely.
+      //
+      // ihasmail already relies on that elsewhere: turning 2FA *on* mints an
+      // app password and moves the session onto it, precisely because a plain
+      // password stops working from that moment. The sign-in page was the one
+      // place still pretending otherwise.
+      if (totp && err instanceof UpstreamError && err.status === 401) {
+        return c.json(
+          {
+            error: "totp_unsupported",
+            message:
+              "This mail server does not accept two-factor codes from webmail. Sign in with an app password instead — create one in Stalwart's own settings, under app passwords. Your password and code are probably fine.",
+          },
+          401,
+        );
+      }
       return upstreamFailure(c, err);
     }
   });
