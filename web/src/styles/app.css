@@ -504,7 +504,7 @@ img { max-width: 100%; }
 .msg-row .msg-important { color: var(--warn); }
 .list-footer { padding: 12px; text-align: center; color: var(--fg-muted); font-size: .9em; }
 .list-hint { padding: 8px 12px; font-size: .85em; color: var(--fg-muted); background: var(--bg-sunken); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
-.list-hint button { color: var(--link); font-weight: 600; }
+.list-hint button { color: var(--link); font-weight: 600; white-space: nowrap; }
 .drag-ghost { position: fixed; top: -1000px; left: -1000px; padding: 8px 12px; background: var(--accent); color: var(--accent-fg); border-radius: 999px; font-weight: 600; box-shadow: var(--shadow-2); pointer-events: none; z-index: 5000; }
 
 /* Splitter between list and reading pane */

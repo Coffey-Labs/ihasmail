@@ -2,6 +2,7 @@ import { useMemo, useState, type DragEvent, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { AlertOctagon, Archive, ChevronDown, Clock, ChevronRight, File, Folder, FolderPlus, Inbox, Mail, MoreVertical, Palette, Send, Star, Tag, Trash2, Plus, Pencil, Eye, EyeOff, CheckCheck, Eraser, Share2, X } from "lucide-react";
 import { useMail } from "@/store/mail";
+import { canEmpty, confirmAndEmpty, emptyLabel } from "@/lib/emptyFolder";
 import { isScheduledMailbox } from "@/store/scheduled";
 import { useSettings } from "@/store/settings";
 import type { Id, Mailbox } from "@/jmap/types";
@@ -328,10 +329,7 @@ function MailboxMenu({ mailbox: m, onClose, onCreateChild, onShare }: { mailbox:
       toast.error((err as Error).message);
     }
   };
-  const empty = async () => {
-    const ok = await confirmDialog({ title: `Empty “${m.name}”?`, message: `All ${m.totalEmails} messages will be permanently deleted.`, confirmLabel: "Empty folder", danger: true });
-    if (ok) await useMail.getState().emptyMailbox(m.id);
-  };
+  const empty = () => confirmAndEmpty({ id: m.id, name: m.name, role: m.role, totalEmails: m.totalEmails });
   const isSpecial = Boolean(m.role) && m.role !== "subscribed";
   const color = folderColor(colors, m.id);
   const setColor = (c: string | null) => {
@@ -372,7 +370,7 @@ function MailboxMenu({ mailbox: m, onClose, onCreateChild, onShare }: { mailbox:
       </div>
       {color && <MenuItem icon={<X size={16} />} label="Use the default colour" onClick={() => setColor(null)} />}
       <MenuSep />
-      {m.role === "trash" && <MenuItem icon={<Eraser size={16} />} label="Empty folder" onClick={() => void empty()} danger />}
+      {canEmpty(m.role) && <MenuItem icon={<Eraser size={16} />} label={emptyLabel(m)} onClick={() => void empty()} danger disabled={!m.totalEmails} />}
       <MenuItem icon={<Trash2 size={16} />} label="Delete folder" onClick={() => void remove()} danger disabled={isSpecial || !m.myRights.mayDelete} />
     </>
   );

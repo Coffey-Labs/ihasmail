@@ -12,6 +12,7 @@ import type { JmapSession } from "@/jmap/types";
  */
 
 const TRASH = "mbTrash";
+const JUNK = "mbJunk";
 const MAX = 500;
 
 interface Call {
@@ -21,13 +22,13 @@ interface Call {
 }
 
 /** A server that holds `count` messages and enforces MAX objects per call. */
-function server(count: number, opts: { refuseDestroy?: boolean } = {}) {
+function server(count: number, opts: { refuseDestroy?: boolean; mailbox?: string } = {}) {
   const live = new Set(Array.from({ length: count }, (_, i) => `e${i}`));
   const destroyBatches: number[] = [];
   const fetchMock = vi.fn(async (_url: string, init: RequestInit) => {
     const body = JSON.parse(init.body as string) as { methodCalls: [string, Record<string, unknown>, string][] };
     const methodResponses = body.methodCalls.map(([name, args, id]: [string, Record<string, unknown>, string]) => {
-      if (name === "Email/query" && (args.filter as { inMailbox?: string })?.inMailbox === TRASH) {
+      if (name === "Email/query" && (args.filter as { inMailbox?: string })?.inMailbox === (opts.mailbox ?? TRASH)) {
         const limit = Math.min((args.limit as number) ?? 50, MAX);
         return [name, { accountId: "a1", queryState: "q", canCalculateChanges: false, position: 0, ids: [...live].slice(0, limit), total: live.size }, id];
       }
@@ -57,7 +58,16 @@ beforeEach(() => {
     primaryAccounts: {},
     state: "s1",
   } as unknown as JmapSession;
-  useMail.setState({ accountId: "a1", mailboxes: { [TRASH]: { id: TRASH, role: "trash", name: "Deleted Items" } } as never, list: null, emails: {} });
+  useMail.setState({
+    accountId: "a1",
+    mailboxes: {
+      [TRASH]: { id: TRASH, role: "trash", name: "Deleted Items" },
+      [JUNK]: { id: JUNK, role: "junk", name: "Junk Mail" },
+      mbArchive: { id: "mbArchive", role: "archive", name: "Archive" },
+    } as never,
+    list: null,
+    emails: {},
+  });
   useToasts.setState({ toasts: [] });
 });
 
@@ -82,13 +92,35 @@ describe("emptyMailbox", () => {
     expect(messages()).toContain("Deleted 12 messages");
   });
 
-  it("refuses any folder that is not Deleted Items", async () => {
-    const s = server(5192);
-    useMail.setState({ mailboxes: { ...useMail.getState().mailboxes, mbJunk: { id: "mbJunk", role: "junk", name: "Junk" } } as never });
-    await useMail.getState().emptyMailbox("mbJunk");
+  /**
+   * Junk Mail is emptiable too, and the messages are destroyed rather than
+   * moved to Deleted Items — routing spam through the bin on its way out
+   * would leave the user with the same problem in a different folder.
+   */
+  it("empties Junk Mail, destroying rather than moving to Deleted Items", async () => {
+    const s = server(1200, { mailbox: JUNK });
+    await useMail.getState().emptyMailbox(JUNK);
+    expect(s.live.size).toBe(0);
+    expect(Math.max(...s.destroyBatches)).toBeLessThanOrEqual(MAX);
+    expect(messages()).toContain("Deleted 1200 messages");
+    // Nothing was moved anywhere: every mutating call was a destroy.
+    const sets = s.fetchMock.mock.calls.flatMap(([, init]) => {
+      const body = JSON.parse((init as RequestInit).body as string) as { methodCalls: [string, Record<string, unknown>, string][] };
+      return body.methodCalls.filter(([n]) => n === "Email/set").map(([, a]) => a);
+    });
+    expect(sets.length).toBeGreaterThan(0);
+    for (const a of sets) {
+      expect(Array.isArray(a.destroy)).toBe(true);
+      expect(a.update).toBeUndefined();
+    }
+  });
+
+  it("refuses a folder that is neither Deleted Items nor Junk Mail", async () => {
+    const s = server(5192, { mailbox: "mbArchive" });
+    await useMail.getState().emptyMailbox("mbArchive");
     expect(s.destroyBatches).toEqual([]);
     expect(s.live.size).toBe(5192);
-    expect(messages()).toContain("Only Deleted Items can be emptied.");
+    expect(messages()).toContain("Only Deleted Items and Junk Mail can be emptied.");
   });
 
   it("stops instead of looping when the server destroys nothing", async () => {
