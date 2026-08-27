@@ -78,7 +78,7 @@ export async function enableWebPush(): Promise<{ ok: true } | { ok: false; reaso
       userVisibleOnly: true,
       applicationServerKey: decodeApplicationServerKey(key),
     }));
-    const accountId = useSession.getState().accountFor(CAP.mail);
+    const accountId = useSession.getState().ownAccountFor(CAP.mail);
     const inboxId = useMail.getState().roleId("inbox");
     await createSubscription(subscriptionPayload(sub, accountId, inboxId));
     listenForVerification();

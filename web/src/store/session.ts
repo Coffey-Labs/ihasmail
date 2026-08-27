@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { apiFetch, ApiError, CAP, client } from "@/jmap/client";
 import type { Id, JmapSession } from "@/jmap/types";
 import { push, type PushState } from "@/jmap/push";
+import { accountForCapability, ownAccountForCapability } from "@/lib/accountRouting";
 import { setServerLocale } from "@/lib/datetime";
 import { flushSettingsPush, stopSettingsSync } from "@/lib/settingsSync";
 import { unsubscribeThisDevice } from "@/lib/webpush";
@@ -22,8 +23,10 @@ interface SessionState {
   logout(): Promise<void>;
   refresh(): Promise<void>;
   setAccount(id: Id): void;
-  /** Returns the accountId for a capability (primary), falling back to the selected mail account. */
+  /** The account to read and write for a capability, honouring the account switcher. */
   accountFor(cap: string): Id | null;
+  /** The user's own account for a capability, whatever they are looking at. */
+  ownAccountFor(cap: string): Id | null;
 }
 
 export const useSession = create<SessionState>((set, get) => ({
@@ -97,11 +100,11 @@ export const useSession = create<SessionState>((set, get) => ({
   },
 
   accountFor(cap) {
-    const s = get().session;
-    if (!s) return null;
-    const selected = get().accountId;
-    if (selected && s.accounts[selected] && cap in (s.accounts[selected]?.accountCapabilities ?? {})) return selected;
-    return s.primaryAccounts[cap] ?? selected ?? null;
+    return accountForCapability(get().session, get().accountId, cap);
+  },
+
+  ownAccountFor(cap) {
+    return ownAccountForCapability(get().session, cap);
   },
 }));
 
