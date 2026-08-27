@@ -41,7 +41,7 @@ describe("makeParticipant", () => {
     expect(guest.expectReply).toBe(true);
   });
   it("marks the organizer as owner and keeps a status already given", () => {
-    const me = makeParticipant("john@example.org", "John Doe", "owner");
+    const me = makeParticipant("john@example.org", "John Coffey", "owner");
     expect(me.roles).toEqual({ owner: true, attendee: true });
     expect(me.participationStatus).toBe("accepted");
     expect(me.expectReply).toBe(false);
