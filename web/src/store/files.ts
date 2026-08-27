@@ -75,6 +75,22 @@ export function withoutAppFolder(nodes: FileNode[]): FileNode[] {
   return nodes.filter((n) => !hidden.has(n.id));
 }
 
+/**
+ * The state that belongs to one account, emptied when the selection moves.
+ *
+ * Every field here describes somebody's files, so none of it survives a switch
+ * to somebody else's. `treeLoaded` is the one that bites: leave it true and the
+ * sidebar never asks the new account for its folders, while `dirIds` still
+ * names the old account's, which no longer resolve -- so the tree is simply
+ * empty, with nothing to say why. That shipped, and is what this exists to stop
+ * happening again: the test asserts the whole set, so a field added to the
+ * store and forgotten here fails rather than quietly persisting across
+ * accounts.
+ */
+export function emptyForAccount(accountId: Id | null) {
+  return { accountId, nodes: {}, children: {}, dirIds: [], treeLoaded: false, draggingId: null, error: null };
+}
+
 export const useFiles = create<FilesState>((set, get) => ({
   accountId: null,
   available: false,
@@ -90,7 +106,7 @@ export const useFiles = create<FilesState>((set, get) => ({
   async init() {
     const accountId = useSession.getState().accountFor(CAP.filenode);
     const available = Boolean(accountId && client.hasCapability(CAP.filenode));
-    if (accountId !== get().accountId) set({ accountId, nodes: {}, children: {} });
+    if (accountId !== get().accountId) set(emptyForAccount(accountId));
     set({ available });
   },
 
