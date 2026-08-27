@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Book, BookOpen, Download, Pencil, Plus, RefreshCw, Share2, Trash2, Upload, Users, X } from "lucide-react";
 import { useContacts } from "@/store/contacts";
 import { useSession } from "@/store/session";
+import { useSettings } from "@/store/settings";
 import type { AddressBook } from "@/jmap/types";
 import { MenuItem, MenuSep, Popover, useMenu } from "@/ui/popover";
 import { confirmDialog, promptDialog } from "@/ui/dialog";
@@ -44,6 +45,7 @@ export function ContactsSidebar() {
   const onImport = (file: File) => window.dispatchEvent(new CustomEvent("ihm:contacts-import", { detail: file }));
   const onExport = () => window.dispatchEvent(new CustomEvent("ihm:contacts-export"));
   const contacts = useContacts();
+  const settings = useSettings((s) => s.settings);
   const [menuBook, setMenuBook] = useState<AddressBook | null>(null);
   const [share, setShare] = useState<AddressBook | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -58,8 +60,12 @@ export function ContactsSidebar() {
   const own = Object.values(contacts.books).sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
   const sel = contacts.selection;
   const isOn = (accountId: string | null, bookId: string) => sel.accountId === accountId && sel.bookId === bookId;
-  const subscribed = contacts.sharedBooks.filter((b) => b.book.isSubscribed);
-  const available = contacts.sharedBooks.filter((b) => !b.book.isSubscribed);
+  /* Added if the server says so or the reader's settings do -- Stalwart will
+     not take the flag on a book shared read-only, so the settings carry it. */
+  const added = new Set(settings.addedShares);
+  const isAdded = (accountId: string, bookId: string) => added.has(`${accountId}:${bookId}`);
+  const subscribed = contacts.sharedBooks.filter((b) => b.book.isSubscribed || isAdded(b.accountId, b.book.id));
+  const available = contacts.sharedBooks.filter((b) => !(b.book.isSubscribed || isAdded(b.accountId, b.book.id)));
 
   return (
     <>
