@@ -64,6 +64,25 @@ on the first call.
 - Still on 0.15? The last release that runs on it is tagged [`stalwart-0.15-support`](https://github.com/LINUXexpert-org/ihasmail/releases/tag/stalwart-0.15-support).
 - Upgrading? [stalwart-migrator](https://github.com/LINUXexpert-org/stalwart-migrator) does it in place, checkpointing every phase and validating afterwards. The live instance moved 0.15.5 → 0.16.19 with eight seconds of downtime and nothing lost.
 
+## Quick start (Docker)
+
+```bash
+cp .env.example .env
+# edit: STALWART_URL=https://mail.example.com  and  APP_SECRET=$(openssl rand -base64 48)
+docker compose up --build -d
+# → http://localhost:8080  (put Caddy/nginx in front for TLS; see Caddyfile.example / nginx.example.conf)
+```
+
+Users sign in with their Stalwart mailbox credentials. **An account with
+two-factor authentication needs an app password**, created in Stalwart's own
+settings — Stalwart accepts a TOTP code only through an OAuth flow and offers no
+password grant, so no client holding a username and password can exchange them
+plus a code for a token.
+
+Full instructions, TLS, and every environment variable:
+[Installing](https://docs.ihasmail.org/install/) ·
+[Configuring](https://docs.ihasmail.org/configure/).
+
 ## Architecture
 
 ```
