@@ -137,6 +137,25 @@ addEmail({ from: ["Demo User", USER], to: "ada@example.org", subject: "Draft: id
 addEmail({ from: ["Spammy", "win@lottery.example"], subject: "You have WON!!!", daysAgo: 2, mailbox: "junk", unread: true });
 addEmail({ from: ["Finance Team", "finance@example.org"], subject: "Invoice 2201 approved", daysAgo: 1, mailbox: "work-inv", unread: true });
 addEmail({ from: ["Finance Team", "finance@example.org"], subject: "Invoice 2202 pending", daysAgo: 2, mailbox: "work-inv", unread: true });
+// A thread whose unread message is not the last one: someone's server queued
+// their reply for hours, so it landed after messages that answer it and sits in
+// the middle of the conversation. Opening this thread at the newest message
+// left that reply above the fold until the mark-read timer swept it (#87).
+{
+  const subj = "Compiler timings for the release";
+  const t = addEmail({ from: ["Grace Hopper", "grace@example.org"], subject: subj, daysAgo: 6, mailbox: "inbox", html: true });
+  const tid = t.threadId as string;
+  const reply = (o: { from: [string, string]; daysAgo: number; mailbox: string; to?: string; unread?: boolean; html?: boolean }) =>
+    addEmail({ ...o, subject: `Re: ${subj}`, threadId: tid, inReplyTo: `${t.id}@mock` });
+  reply({ from: ["Alan Turing", "alan@example.org"], daysAgo: 5.5, mailbox: "inbox", unread: true });
+  // Long enough after the unread one that the thread scrolls: opening at the
+  // bottom put four messages between the reader and the mail they had not read.
+  reply({ from: ["Demo User", USER], to: "grace@example.org", daysAgo: 5, mailbox: "sent", html: true });
+  reply({ from: ["Grace Hopper", "grace@example.org"], daysAgo: 4.5, mailbox: "inbox" });
+  reply({ from: ["Margaret Hamilton", "margaret@example.org"], daysAgo: 4, mailbox: "inbox", html: true });
+  reply({ from: ["Demo User", USER], to: "margaret@example.org", daysAgo: 3.5, mailbox: "sent" });
+  reply({ from: ["Grace Hopper", "grace@example.org"], daysAgo: 3, mailbox: "inbox", html: true });
+}
 // Invitation email
 {
   const ics = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//mock//EN\r\nMETHOD:REQUEST\r\nBEGIN:VEVENT\r\nUID:inv-1@mock\r\nDTSTAMP:20260820T100000Z\r\nDTSTART:20260825T140000Z\r\nDTEND:20260825T150000Z\r\nSUMMARY:Project kickoff\r\nORGANIZER;CN=Ada Lovelace:mailto:ada@example.org\r\nATTENDEE;CN=Demo User;RSVP=TRUE;PARTSTAT=NEEDS-ACTION:mailto:${USER}\r\nLOCATION:Room 4B\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n`;

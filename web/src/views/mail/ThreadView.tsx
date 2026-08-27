@@ -10,6 +10,7 @@ import { MenuItem, MenuSep, Popover, useMenu } from "@/ui/popover";
 import { Spinner } from "@/ui/misc";
 import { client } from "@/jmap/client";
 import { LabelPicker } from "./LabelPicker";
+import { threadScrollTarget } from "@/lib/threadScroll";
 
 interface Props {
   threadId: Id;
@@ -115,11 +116,13 @@ export function ThreadView({ threadId, mailboxId, onBack, actions, onNavigate, h
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.map((m) => m.id + (m.keywords.$seen ? "1" : "0")).join(","), settings.markReadDelay]);
 
-  // Scroll last expanded into view on load
+  // Open on the first unread message rather than the newest one (#87).
   useEffect(() => {
     if (!messages.length || !scrollRef.current) return;
-    const el = scrollRef.current.querySelector<HTMLElement>(`[data-msg-id="${CSS.escape(lastId ?? "")}"]`);
-    if (el && messages.length > 1) el.scrollIntoView({ block: "start" });
+    const target = threadScrollTarget(messages, wasUnread);
+    if (!target) return;
+    const el = scrollRef.current.querySelector<HTMLElement>(`[data-msg-id="${CSS.escape(target)}"]`);
+    el?.scrollIntoView({ block: "start" });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threadId, messages.length > 0]);
 
