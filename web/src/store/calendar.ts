@@ -15,6 +15,37 @@ export interface EventInstance {
   calendar: Calendar | undefined;
 }
 
+/*
+ * Asked for by name, because `shareWith` is not among the properties Stalwart
+ * returns by default.
+ *
+ * A `Calendar/get` with no `properties` comes back without it -- not null, not
+ * empty, absent -- confirmed against 0.16.19 on 2026-08-27 with a calendar that
+ * was genuinely shared: omit the list and there is no `shareWith`; name it and
+ * the sharee is right there. So the client believed nothing was ever shared.
+ * The badge never appeared, "Stop sharing" never appeared, and the share dialog
+ * opened on "not shared with anyone yet" over a live share.
+ *
+ * Files had this right already, for the same reason and after the same
+ * surprise; calendars and address books did not.
+ */
+export const CALENDAR_PROPS = [
+  "id",
+  "name",
+  "description",
+  "color",
+  "sortOrder",
+  "isSubscribed",
+  "isVisible",
+  "isDefault",
+  "includeInAvailability",
+  "defaultAlertsWithTime",
+  "defaultAlertsWithoutTime",
+  "timeZone",
+  "shareWith",
+  "myRights",
+];
+
 /** A calendar somebody else shared, and the account it lives in. */
 export interface SharedCalendar {
   accountId: Id;
@@ -131,7 +162,7 @@ export const useCalendar = create<CalendarState>((set, get) => ({
     const found: SharedCalendar[] = [];
     for (const [accountId, account] of accounts) {
       try {
-        const res = await client.call<GetResponse<Calendar>>("Calendar/get", { accountId, ids: null });
+        const res = await client.call<GetResponse<Calendar>>("Calendar/get", { accountId, ids: null, properties: CALENDAR_PROPS });
         for (const calendar of res.list) found.push({ accountId, accountName: account.name, calendar });
       } catch {
         continue;
@@ -216,7 +247,7 @@ export const useCalendar = create<CalendarState>((set, get) => ({
     const accountId = get().accountId;
     if (!accountId) return;
     try {
-      const res = await client.call<GetResponse<Calendar>>("Calendar/get", { accountId, ids: null });
+      const res = await client.call<GetResponse<Calendar>>("Calendar/get", { accountId, ids: null, properties: CALENDAR_PROPS });
       const calendars: Record<Id, Calendar> = {};
       for (const c of res.list) calendars[c.id] = c;
       set({ calendars, error: null });

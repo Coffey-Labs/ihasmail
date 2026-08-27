@@ -14,6 +14,15 @@ export interface Suggestion {
   photo?: string | null;
 }
 
+/*
+ * Asked for by name: `shareWith` is not returned by default.
+ *
+ * An `AddressBook/get` with no `properties` omits it entirely -- confirmed
+ * against 0.16.19 on 2026-08-27 on a book that really was shared. See the note
+ * on CALENDAR_PROPS; both had the same hole and Files did not.
+ */
+export const ADDRESS_BOOK_PROPS = ["id", "name", "description", "sortOrder", "isDefault", "isSubscribed", "shareWith", "myRights"];
+
 /** A book somebody else shared, and the account it lives in. */
 export interface SharedBook {
   accountId: Id;
@@ -132,7 +141,7 @@ export const useContacts = create<ContactsState>((set, get) => ({
     const cards: Record<string, ContactCard> = {};
     for (const [accountId, account] of accounts) {
       try {
-        const res = await client.call<GetResponse<AddressBook>>("AddressBook/get", { accountId, ids: null });
+        const res = await client.call<GetResponse<AddressBook>>("AddressBook/get", { accountId, ids: null, properties: ADDRESS_BOOK_PROPS });
         for (const book of res.list) books.push({ accountId, accountName: account.name, book });
         /*
          * Cards come only from books the reader has added.
@@ -223,7 +232,7 @@ export const useContacts = create<ContactsState>((set, get) => ({
     const accountId = get().accountId;
     if (!accountId) return;
     try {
-      const res = await client.call<GetResponse<AddressBook>>("AddressBook/get", { accountId, ids: null });
+      const res = await client.call<GetResponse<AddressBook>>("AddressBook/get", { accountId, ids: null, properties: ADDRESS_BOOK_PROPS });
       const books: Record<Id, AddressBook> = {};
       for (const b of res.list) books[b.id] = b;
       set({ books, error: null });
