@@ -25,6 +25,15 @@ export interface ComposeAttachment {
   abort?: AbortController;
 }
 
+/** A file in Files, enough of it to attach. */
+export interface AttachableFile {
+  accountId: Id;
+  name: string;
+  type: string | null;
+  size: number | null;
+  blobId: Id;
+}
+
 export type Priority = "high" | "normal" | "low";
 
 export interface Draft {
@@ -76,6 +85,8 @@ interface ComposeState {
   close(key: string, opts?: { discard?: boolean }): Promise<void>;
   focus(key: string): void;
   addFiles(key: string, files: File[]): void;
+  /** Attach files already in Files, by reference where the account allows it. */
+  addFromFiles(key: string, nodes: AttachableFile[]): Promise<void>;
   removeAttachment(key: string, attId: string): void;
   saveDraft(key: string, opts?: { silent?: boolean }): Promise<Id | null>;
   send(key: string): Promise<void>;
@@ -358,6 +369,47 @@ export const useCompose = create<ComposeState>((set, get) => ({
         })
         .then((res) => patchAtt(key, a.id, { blobId: res.blobId, progress: 100, type: res.type || a.type, size: res.size }, set))
         .catch((err) => patchAtt(key, a.id, { error: (err as Error).message || "Upload failed" }, set));
+    }
+  },
+
+  /*
+   * Attach something already in Files.
+   *
+   * A blob the account can already see needs no upload: an attachment carrying
+   * a `blobId` is exactly what a forward produces, so the send path already
+   * knows what to do with one. Attaching a 20 MB file the server is holding
+   * anyway then costs nothing and takes no time.
+   *
+   * A file in an account somebody *shared* is a different matter. Blobs belong
+   * to the account they were uploaded to, so a draft in your account cannot
+   * reference one in theirs; it is fetched and uploaded to yours. Slower, and
+   * unavoidable, but it happens without the reader having to know any of this.
+   */
+  async addFromFiles(key, nodes) {
+    const accountId = useMail.getState().accountId;
+    if (!accountId || !nodes.length) return;
+    const max = client.maxSizeUpload;
+    const atts: ComposeAttachment[] = nodes.map((n) => ({
+      id: uid("a"),
+      name: n.name,
+      type: n.type || "application/octet-stream",
+      size: n.size ?? 0,
+      blobId: n.accountId === accountId ? n.blobId : null,
+      progress: n.accountId === accountId ? 100 : 0,
+      error: (n.size ?? 0) > max ? `Larger than ${Math.round(max / 1048576)} MB limit` : null,
+    }));
+    get().update(key, { attachments: [...(get().drafts.find((d) => d.key === key)?.attachments ?? []), ...atts] });
+
+    for (const [i, a] of atts.entries()) {
+      if (a.error || a.blobId) continue;
+      const node = nodes[i]!;
+      try {
+        const blob = await client.fetchBlob(node.accountId, node.blobId, a.type);
+        const up = await client.upload(accountId, blob, { type: a.type });
+        patchAtt(key, a.id, { blobId: up.blobId, progress: 100, size: up.size || a.size }, set);
+      } catch (err) {
+        patchAtt(key, a.id, { error: (err as Error).message || "Could not attach" }, set);
+      }
     }
   },
 

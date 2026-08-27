@@ -34,7 +34,7 @@ export function FoldersSettings() {
   return (
     <div>
       <h1>Folders</h1>
-      <p className="lead">Create, rename, hide and share folders. {q && q.hardLimit ? `Storage: ${formatSize(q.used)} of ${formatSize(q.hardLimit)} used.` : ""}</p>
+      <p className="lead">Create, rename and hide folders. {q && q.hardLimit ? `Storage: ${formatSize(q.used)} of ${formatSize(q.hardLimit)} used.` : ""}</p>
       <button className="btn mb-16" onClick={() => void create()}><Plus size={16} /> New folder</button>
       <table className="sessions-table">
         <thead><tr><th>Folder</th><th>Messages</th><th>Unread</th><th /></tr></thead>
@@ -48,7 +48,7 @@ export function FoldersSettings() {
                 <div className="row" style={{ justifyContent: "flex-end", gap: 0 }}>
                   <button className="icon-btn sm" title="Rename" disabled={Boolean(m.role) && m.role !== "subscribed"} onClick={async () => { const n = await promptDialog({ title: "Rename folder", defaultValue: m.name }); if (n?.trim() && n !== m.name) { try { await useMail.getState().updateMailbox(m.id, { name: n.trim() }); } catch (err) { toast.error((err as Error).message); } } }}><Pencil size={16} /></button>
                   <button className="icon-btn sm" title={m.isSubscribed ? "Hide" : "Show"} disabled={m.role === "inbox"} onClick={() => void useMail.getState().updateMailbox(m.id, { isSubscribed: !m.isSubscribed })}>{m.isSubscribed ? <EyeOff size={16} /> : <Eye size={16} />}</button>
-                  <button className="icon-btn sm" title="Share" onClick={() => setShare(m)}><Share2 size={16} /></button>
+                  {Object.keys(m.shareWith ?? {}).length > 0 && <button className="icon-btn sm" title="Stop sharing" onClick={() => setShare(m)}><Share2 size={16} /></button>}
                   <button className="icon-btn sm danger" title="Delete" disabled={Boolean(m.role) && m.role !== "subscribed"} onClick={async () => { if (await confirmDialog({ title: `Delete “${m.name}”?`, message: `${m.totalEmails} message(s) will be permanently deleted.`, confirmLabel: "Delete", danger: true })) { try { await useMail.getState().destroyMailbox(m.id, true); } catch (err) { toast.error((err as Error).message); } } }}><Trash2 size={16} /></button>
                 </div>
               </td>
