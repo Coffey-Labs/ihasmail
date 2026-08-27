@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { ChevronDown, ChevronRight, Folder, FolderOpen, FolderPlus, HardDrive, Pencil, Share2, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Folder, FolderOpen, FolderPlus, HardDrive, Pencil, RefreshCw, Share2, Trash2, Users } from "lucide-react";
 import { useFiles } from "@/store/files";
+import { useSession } from "@/store/session";
 import type { FileNode, Id } from "@/jmap/types";
 import { canDropFileNode, isShared } from "@/lib/filenode";
 import { entriesFromDrop, hasDirectory, planUpload } from "@/lib/dropUpload";
@@ -10,6 +11,27 @@ import { confirmDialog, promptDialog } from "@/ui/dialog";
 import { toast } from "@/ui/toast";
 import { loadRaw, saveJson } from "@/lib/storage";
 import { ShareDialog } from "../settings/ShareDialog";
+
+/**
+ * Re-read the session, so the shared accounts on offer are current.
+ *
+ * Throttled because Files is navigated to often and this is a round trip that
+ * tells the reader nothing new most times it runs.
+ */
+let lastShareRefresh = 0;
+async function refreshShares(force = false): Promise<void> {
+  const now = Date.now();
+  if (!force && now - lastShareRefresh < 30_000) return;
+  lastShareRefresh = now;
+  try {
+    await useSession.getState().refresh();
+  } catch {
+    // The tree still lists whatever the last session said; a failed refresh is
+    // not worth an error over something the reader did not ask for.
+    return;
+  }
+  await useFiles.getState().init();
+}
 
 /** The MIME a dragged node is offered under, so a target can recognise it. */
 export const NODE_MIME = "application/x-ihasmail-filenode";
@@ -28,6 +50,11 @@ export function FilesTree() {
   const treeLoaded = useFiles((s) => s.treeLoaded);
   const available = useFiles((s) => s.available);
   const loadTree = useFiles((s) => s.loadTree);
+  const accountId = useFiles((s) => s.accountId);
+  const ownAccountId = useFiles((s) => s.ownAccountId);
+  const sharedAccounts = useFiles((s) => s.sharedAccounts);
+  const [refreshing, setRefreshing] = useState(false);
+  const viewingShare = Boolean(accountId && accountId !== ownAccountId);
   // Kept across sessions, the way the mailbox tree keeps its own.
   const [expanded, setExpandedState] = useState<Record<Id, boolean>>(() => loadRaw("files-expanded", {}));
   const setExpanded = (fn: (x: Record<Id, boolean>) => Record<Id, boolean>) => setExpandedState((x) => { const next = fn(x); saveJson("files-expanded", next); return next; });
@@ -44,6 +71,21 @@ export function FilesTree() {
   useEffect(() => {
     if (available && !treeLoaded) void loadTree();
   }, [available, treeLoaded, loadTree]);
+
+  /*
+   * Ask the server what is shared, on the way in.
+   *
+   * Shared accounts arrive in the JMAP session, which is fetched at sign-in and
+   * refreshed only when a session-state change is pushed to this tab. A share
+   * granted while the tab was open therefore stayed invisible until the next
+   * sign-in -- and a share removed stayed on offer, which is why two browsers
+   * disagreed about whether an account still existed. Opening Files is the
+   * moment the answer matters, so that is when it is asked for.
+   */
+  useEffect(() => {
+    void refreshShares();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const currentId = location.startsWith("/files/") ? location.slice("/files/".length) : null;
 
@@ -139,7 +181,7 @@ export function FilesTree() {
 
   return (
     <>
-      <div className="nav-section"><span>Files</span></div>
+      <div className="nav-section"><span>{viewingShare ? "Shared folder" : "Files"}</span></div>
       <div
         className={`nav-item ${currentId === null ? "active" : ""} ${rootDrop ? "drop-target" : ""}`}
         onClick={() => navigate("/files")}
@@ -150,10 +192,49 @@ export function FilesTree() {
       >
         <span className="nav-twisty" aria-hidden="true" />
         <HardDrive size={17} />
-        <span className="grow truncate">All files</span>
+        <span className="grow truncate">{viewingShare ? sharedAccounts.find((a) => a.id === accountId)?.name ?? "Shared files" : "All files"}</span>
       </div>
       {childrenOf(null).map((d) => row(d, 1))}
-      {treeLoaded && !dirs.length && <p className="hint" style={{ padding: "4px 12px" }}>No folders yet.</p>}
+      {treeLoaded && !dirs.length && <p className="hint" style={{ padding: "4px 12px" }}>{viewingShare ? "Nothing shared here." : "No folders yet."}</p>}
+
+      {/* Reaching a share used to mean switching the whole app to the other
+          account from the profile menu, which pointed mail, calendar and
+          contacts at them as well. Shared folders belong here, beside your
+          own. */}
+      {(viewingShare || sharedAccounts.length > 0) && (
+        <>
+          <div className="nav-section">
+            <span>Shared with me</span>
+            <button
+              className="icon-btn sm"
+              title="Check for new shares"
+              aria-label="Check for new shares"
+              onClick={async () => { setRefreshing(true); await refreshShares(true); setRefreshing(false); }}
+            >
+              <RefreshCw size={14} className={refreshing ? "spin" : ""} />
+            </button>
+          </div>
+          {viewingShare && (
+            <div className="nav-item" onClick={() => { useFiles.getState().openAccount(ownAccountId); navigate("/files"); }}>
+              <span className="nav-twisty" aria-hidden="true" />
+              <HardDrive size={17} />
+              <span className="grow truncate">Back to my files</span>
+            </div>
+          )}
+          {sharedAccounts.map((a) => (
+            <div
+              key={a.id}
+              className={`nav-item ${accountId === a.id ? "active" : ""}`}
+              onClick={() => { useFiles.getState().openAccount(a.id); navigate("/files"); }}
+            >
+              <span className="nav-twisty" aria-hidden="true" />
+              <Users size={17} />
+              <span className="grow truncate">{a.name}</span>
+            </div>
+          ))}
+          {!sharedAccounts.length && <p className="hint" style={{ padding: "4px 12px" }}>Nothing is shared with you.</p>}
+        </>
+      )}
 
       <Popover anchor={menu.anchor} onClose={menu.close} width={210}>
         <MenuItem
