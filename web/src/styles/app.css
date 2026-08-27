@@ -282,6 +282,11 @@ img { max-width: 100%; }
 .menu-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border-radius: var(--radius-sm); text-align: left; color: var(--fg); white-space: nowrap; }
 .menu-item:hover, .menu-item.active { background: var(--bg-hover); }
 .menu-item:disabled { opacity: .5; cursor: default; }
+/* A menu entry that is a link still looks like a menu entry. The global rule
+   for `a` would otherwise colour and underline the one item that leaves the
+   app, which reads as a mistake rather than a distinction. */
+a.menu-item { text-decoration: none; color: var(--fg); cursor: pointer; }
+a.menu-item:hover { color: var(--fg); }
 .menu-item.danger { color: var(--danger); }
 .menu-item .menu-kbd { margin-left: auto; color: var(--fg-faint); font-size: .85em; }
 .menu-item svg { color: var(--fg-muted); flex: 0 0 auto; }
