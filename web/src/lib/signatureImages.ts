@@ -13,7 +13,7 @@ import { toast } from "@/ui/toast";
 
 /** Upload an image for use in a signature; returns a same-origin blob URL. */
 export async function uploadSignatureImage(file: File): Promise<string> {
-  const accountId = useSession.getState().accountFor(CAP.filenode);
+  const accountId = useSession.getState().ownAccountFor(CAP.filenode);
   if (!accountId || !client.hasCapability(CAP.filenode)) {
     toast.error("Images in signatures need the Files feature, which this account doesn't have.");
     throw new Error("filenode unavailable");
@@ -42,7 +42,7 @@ export async function uploadSignatureImage(file: File): Promise<string> {
 
 /** Store the full HTML of an over-sized signature in Files; returns the blob id. */
 export async function storeSignatureHtml(html: string): Promise<string> {
-  const accountId = useSession.getState().accountFor(CAP.filenode);
+  const accountId = useSession.getState().ownAccountFor(CAP.filenode);
   if (!accountId || !client.hasCapability(CAP.filenode)) throw new Error("This signature is too long for the server and the Files feature (needed to store long signatures) is not available.");
   const up = await client.upload(accountId, new Blob([html], { type: "text/html" }), { type: "text/html" });
   const folderId = await ensureFolder(accountId);
@@ -77,7 +77,9 @@ export async function externalizeDataImages(html: string): Promise<string> {
 
 /** Load the full HTML of a marker signature. */
 export async function loadStoredSignature(blobId: string, type = "text/html"): Promise<string> {
-  const accountId = useSession.getState().accountFor(CAP.filenode) ?? useSession.getState().accountId;
+  // No `?? accountId` fallback: a signature is the reader's own, and the
+  // selected account may be somebody else's shared one.
+  const accountId = useSession.getState().ownAccountFor(CAP.filenode);
   if (!accountId) throw new Error("no account");
   return client.fetchBlobText(accountId, blobId, type);
 }
