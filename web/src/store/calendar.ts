@@ -48,6 +48,8 @@ interface CalendarState {
   /** Calendars from accounts that shared with the reader, and their events. */
   loadSharedCalendars(): Promise<void>;
   loadSharedRange(start: Date, end: Date): Promise<void>;
+  /** Add a shared calendar to, or remove it from, the reader's own view. */
+  setSharedSubscribed(accountId: Id, calendarId: Id, subscribed: boolean): Promise<void>;
   loadRange(start: Date, end: Date, force?: boolean): Promise<void>;
   instancesIn(start: Date, end: Date): EventInstance[];
   getEvent(id: Id): Promise<CalendarEvent | null>;
@@ -137,6 +139,26 @@ export const useCalendar = create<CalendarState>((set, get) => ({
     }
     set({ sharedCalendars: found });
     // Fill in whatever windows are already on screen.
+    for (const key of Object.keys(get().ranges)) {
+      const [from, to] = key.split("|").map((n) => new Date(Number(n)));
+      if (from && to) void get().loadSharedRange(from, to);
+    }
+  },
+
+  async setSharedSubscribed(accountId, calendarId, subscribed) {
+    try {
+      await client.call("Calendar/set", { accountId, update: { [calendarId]: { isSubscribed: subscribed } } });
+    } catch (err) {
+      set({ error: (err as Error).message });
+      return;
+    }
+    set((s) => ({
+      sharedCalendars: s.sharedCalendars.map((c) =>
+        c.accountId === accountId && c.calendar.id === calendarId ? { ...c, calendar: { ...c.calendar, isSubscribed: subscribed } } : c,
+      ),
+    }));
+    // Its events are only fetched for calendars in view, so the windows on
+    // screen have to be asked again either way.
     for (const key of Object.keys(get().ranges)) {
       const [from, to] = key.split("|").map((n) => new Date(Number(n)));
       if (from && to) void get().loadSharedRange(from, to);
@@ -248,8 +270,14 @@ export const useCalendar = create<CalendarState>((set, get) => ({
       const accountId = k.slice(0, k.length - e.id.length - 1);
       const calId = Object.keys(e.calendarIds ?? {})[0];
       if (calId && hidden[sharedKey(accountId, calId)]) continue;
+      /* Stalwart hands back every calendar in an account the reader can reach,
+         with full rights on each, whether or not anybody meant to share it --
+         an account linked for its files offered its calendar too. `isSubscribed`
+         is the only thing separating "shared with me" from "reachable", so
+         nothing unsubscribed is drawn. */
       const theirs: Record<Id, Calendar> = {};
-      for (const c of sharedCalendars) if (c.accountId === accountId) theirs[c.calendar.id] = c.calendar;
+      for (const c of sharedCalendars) if (c.accountId === accountId && c.calendar.isSubscribed) theirs[c.calendar.id] = c.calendar;
+      if (calId && !theirs[calId]) continue;
       const inst = toInstance(e, theirs);
       if (!inst) continue;
       if (inst.end > start && inst.start < end) out.push(inst);

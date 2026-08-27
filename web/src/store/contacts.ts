@@ -53,6 +53,8 @@ interface ContactsState {
   /** Books and cards from accounts that shared with the reader. */
   loadShared(): Promise<void>;
   select(selection: BookSelection): void;
+  /** Add a shared address book to, or remove it from, the reader's own view. */
+  setBookSubscribed(accountId: Id, bookId: Id, subscribed: boolean): Promise<void>;
   /** The account a card belongs to, null for the reader's own. */
   accountOfCard(id: Id): Id | null;
   getCard(id: Id): Promise<ContactCard | null>;
@@ -131,6 +133,18 @@ export const useContacts = create<ContactsState>((set, get) => ({
       try {
         const res = await client.call<GetResponse<AddressBook>>("AddressBook/get", { accountId, ids: null });
         for (const book of res.list) books.push({ accountId, accountName: account.name, book });
+        /*
+         * Cards come only from books the reader has added.
+         *
+         * Stalwart hands back every book in a reachable account with full
+         * rights on each, shared or not -- an account linked for its files
+         * offered its address book too -- so `isSubscribed` is the only thing
+         * separating "shared with me" from "reachable". Loading the rest would
+         * put a stranger's contacts in the To field, which is the one place
+         * this must not guess.
+         */
+        const wanted = new Set(res.list.filter((b) => b.isSubscribed).map((b) => b.id));
+        if (!wanted.size) continue;
         // One page. A shared book is a colleague's contacts, not an archive,
         // and the alternative is holding the reader's own list hostage to it.
         const cardsRes = await client.chain([
@@ -138,7 +152,10 @@ export const useContacts = create<ContactsState>((set, get) => ({
           ["ContactCard/get", { accountId, "#ids": { resultOf: "q", name: "ContactCard/query", path: "/ids" } }, "g"],
         ]);
         const g = cardsRes.get("g")?.[0] as unknown as GetResponse<ContactCard>;
-        for (const c of g.list) cards[sharedKey(accountId, c.id)] = c;
+        for (const c of g.list) {
+          if (!Object.keys(c.addressBookIds ?? {}).some((id) => wanted.has(id))) continue;
+          cards[sharedKey(accountId, c.id)] = c;
+        }
       } catch {
         // An account that refuses is one that shared nothing here. Not an
         // error to show: the reader did not ask for it and cannot act on it.
@@ -146,6 +163,19 @@ export const useContacts = create<ContactsState>((set, get) => ({
       }
     }
     set({ sharedBooks: books, sharedCards: cards, sharedLoaded: true });
+  },
+
+  async setBookSubscribed(accountId, bookId, subscribed) {
+    try {
+      await client.call("AddressBook/set", { accountId, update: { [bookId]: { isSubscribed: subscribed } } });
+    } catch (err) {
+      set({ error: (err as Error).message });
+      return;
+    }
+    if (!subscribed && get().selection.accountId === accountId && get().selection.bookId === bookId) {
+      set({ selection: { accountId: null, bookId: "all" } });
+    }
+    await get().loadShared();
   },
 
   select(selection) {
