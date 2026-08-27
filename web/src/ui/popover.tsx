@@ -120,14 +120,44 @@ export interface MenuItemProps {
   kbd?: string;
   active?: boolean;
   checked?: boolean;
+  /** Renders the item as a link. An external one gets a new tab. */
+  href?: string;
+  external?: boolean;
 }
 
-export function MenuItem({ icon, label, onClick, disabled, danger, kbd, active, checked }: MenuItemProps) {
-  return (
-    <button type="button" className={`menu-item ${danger ? "danger" : ""} ${active ? "active" : ""}`} onClick={onClick} disabled={disabled} role="menuitem">
+export function MenuItem({ icon, label, onClick, disabled, danger, kbd, active, checked, href, external }: MenuItemProps) {
+  const inner = (
+    <>
       {checked !== undefined ? <span style={{ width: 16, display: "inline-flex" }}>{checked ? "✓" : ""}</span> : icon}
       <span className="grow truncate">{label}</span>
       {kbd && <span className="menu-kbd">{kbd}</span>}
+    </>
+  );
+  const className = `menu-item ${danger ? "danger" : ""} ${active ? "active" : ""}`;
+  /*
+   * A real anchor when there is somewhere to go, rather than a button that
+   * calls window.open. The browser's own handling of a link comes with it --
+   * middle-click, a modifier-click, "open in new tab", the address on hover,
+   * copying it -- none of which a button offers however carefully it is
+   * scripted, and all of which someone expects from a menu entry that leaves
+   * the app.
+   */
+  if (href) {
+    return (
+      <a
+        className={className}
+        href={href}
+        role="menuitem"
+        onClick={onClick}
+        {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+      >
+        {inner}
+      </a>
+    );
+  }
+  return (
+    <button type="button" className={className} onClick={onClick} disabled={disabled} role="menuitem">
+      {inner}
     </button>
   );
 }

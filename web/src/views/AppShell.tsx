@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { Calendar, ChevronsUpDown, FolderOpen, HelpCircle, LogOut, Mail, Menu as MenuIcon, Moon, PenSquare, Plus, RefreshCw, Settings, Sun, Upload, Users } from "lucide-react";
+import { BookOpen, Calendar, ChevronsUpDown, FolderOpen, HelpCircle, LogOut, Mail, Menu as MenuIcon, Moon, PenSquare, Plus, RefreshCw, Settings, Sun, Upload, Users } from "lucide-react";
 import { useSession } from "@/store/session";
 import { toggleTarget, useEffectiveTheme, useSettings } from "@/store/settings";
 import { useMail } from "@/store/mail";
@@ -101,6 +101,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               </div>
             </div>
             <MenuSep />
+            <MenuItem icon={<BookOpen size={16} />} label="Documentation" href="https://docs.ihasmail.org" external />
             <MenuItem icon={<Settings size={16} />} label="Settings" onClick={() => navigate("/settings")} />
             <MenuItem icon={<RefreshCw size={16} />} label="Refresh" onClick={() => window.location.reload()} />
             <MenuItem icon={<LogOut size={16} />} label="Sign out" onClick={() => void logout()} />
