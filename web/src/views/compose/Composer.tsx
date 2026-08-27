@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ChevronDown, FileText, Maximize2, Minimize2, Minus, MoreVertical, Paperclip, Send, Trash2, X, Type, Clock, CheckCheck, ChevronsDown } from "lucide-react";
+import { AlertTriangle, ChevronDown, FileText, FolderOpen, Maximize2, Minimize2, Minus, MoreVertical, Paperclip, Send, Trash2, X, Type, Clock, CheckCheck, ChevronsDown } from "lucide-react";
 import { useCompose, type Draft } from "@/store/compose";
 import { useMail } from "@/store/mail";
 import { useSettings } from "@/store/settings";
@@ -12,6 +12,8 @@ import { formatSize, formatRelative } from "@/lib/format";
 import { htmlToText, textToHtml } from "@/lib/text";
 import { isValidEmail } from "@/lib/address";
 import { attachmentIcon } from "../mail/MessageView";
+import { FilePicker } from "./FilePicker";
+import { useFiles } from "@/store/files";
 import { keyboard } from "@/lib/keyboard";
 import { useIsMobile } from "@/ui/misc";
 import { toast } from "@/ui/toast";
@@ -25,6 +27,9 @@ export function Composer({ draft }: { draft: Draft }) {
   const send = useCompose((s) => s.send);
   const saveDraft = useCompose((s) => s.saveDraft);
   const addFiles = useCompose((s) => s.addFiles);
+  const addFromFiles = useCompose((s) => s.addFromFiles);
+  const filesAvailable = useFiles((s) => s.available);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const removeAttachment = useCompose((s) => s.removeAttachment);
   const setIdentity = useCompose((s) => s.setIdentity);
   const insertTemplate = useCompose((s) => s.insertTemplate);
@@ -239,11 +244,13 @@ export function Composer({ draft }: { draft: Draft }) {
             <MenuItem icon={<Clock size={16} />} label={`Undo window: ${settings.undoSendSeconds}s`} onClick={() => updateSettings({ undoSendSeconds: settings.undoSendSeconds >= 30 ? 0 : settings.undoSendSeconds + 5 })} />
             {canSchedule && <ScheduleMenuItems maxMs={scheduleMax} onPick={scheduleFor} onCustom={() => { sendMenu.close(); setScheduleOpen(true); }} />}
           </Popover>
+          {pickerOpen && <FilePicker onPick={(picked) => void addFromFiles(key, picked)} onClose={() => setPickerOpen(false)} />}
           {canSchedule && scheduleOpen && (
             <ScheduleDialog open maxMs={scheduleMax} initial={d.sendAt} onClose={() => setScheduleOpen(false)} onPick={scheduleFor} />
           )}
           <span className="more-actions">
             <button className="icon-btn" title="Attach files" onClick={() => fileRef.current?.click()}><Paperclip size={18} /></button>
+            {filesAvailable && <button className="icon-btn" title="Attach from Files" onClick={() => setPickerOpen(true)}><FolderOpen size={18} /></button>}
             <input ref={fileRef} type="file" multiple hidden onChange={(e) => { const files = Array.from(e.target.files ?? []); if (files.length) addFiles(key, files); e.target.value = ""; }} />
             {d.format === "html" && <button className={`icon-btn ${showToolbar ? "active" : ""}`} title="Formatting options" onClick={() => setShowToolbar((v) => !v)}><Type size={18} /></button>}
             {settings.templates.length > 0 && <button className="icon-btn" title="Insert template" onClick={templateMenu.open}><FileText size={18} /></button>}
