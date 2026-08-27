@@ -9,6 +9,7 @@ import { Avatar, useIsMobile } from "@/ui/misc";
 import { MenuItem, MenuSep, MenuTitle, Popover, useMenu } from "@/ui/popover";
 import { SearchBar } from "./SearchBar";
 import { MailboxTree } from "./mail/MailboxTree";
+import { FilesTree } from "./files/FilesTree";
 import { CalendarSidebar } from "./calendar/CalendarSidebar";
 import { ShortcutsDialog, useGlobalShortcuts } from "./Shortcuts";
 import { formatSize } from "@/lib/format";
@@ -128,7 +129,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             {(section === "mail" || section === "search") && <MailboxTree />}
             {section === "calendar" && <CalendarSidebar />}
             {section === "contacts" && <div className="nav-section"><span>Contacts</span></div>}
-            {section === "files" && <div className="nav-section"><span>Files</span></div>}
+            {section === "files" && <FilesTree />}
             {section === "settings" && <div className="nav-section"><span>Settings</span></div>}
           </div>
           {(section === "mail" || section === "search") && <QuotaBar />}

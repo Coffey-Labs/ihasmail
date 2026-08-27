@@ -9,6 +9,7 @@
  * so a node has one shape and there is nothing left to detect.
  */
 import type { FileNode, Id } from "@/jmap/types";
+import { descendantIds } from "./folderMove";
 
 /** Properties to request for a node. */
 export function fileNodeProps(): string[] {
@@ -35,4 +36,32 @@ export function fileCreate(parentId: Id | null, name: string, blobId: Id, type: 
  */
 export function isShared(node: Pick<FileNode, "shareWith">): boolean {
   return Object.keys(node.shareWith ?? {}).length > 0;
+}
+
+/**
+ * Whether the node being dragged may be dropped on `targetId`, null being the
+ * top level.
+ *
+ * The same four refusals as folders: onto itself, into its own subtree, onto
+ * the parent it already has, or -- for the top level -- when it is already
+ * there. `descendantIds` is shared with the mailbox tree, since both are the
+ * same shape of tree asking the same question.
+ *
+ * Rights are deliberately only half-checked. A target that will not take
+ * children is refused here, because that is unambiguous. Whether the node may
+ * leave the parent it is in is not: JMAP models a move as an update of
+ * `parentId` and does not say which right covers it, and guessing would hide
+ * legal moves behind a disabled drop. The server refuses those with a message
+ * of its own, which is a better answer than a silent one.
+ */
+export function canDropFileNode(nodes: Record<Id, FileNode>, draggedId: Id, targetId: Id | null): boolean {
+  const dragged = nodes[draggedId];
+  if (!dragged) return false;
+  if (targetId === null) return dragged.parentId != null;
+  if (targetId === draggedId) return false;
+  if (dragged.parentId === targetId) return false;
+  const target = nodes[targetId];
+  if (!target || target.nodeType !== "directory") return false;
+  if (target.myRights && !target.myRights.mayAddChildren) return false;
+  return !descendantIds(nodes, draggedId).has(targetId);
 }
