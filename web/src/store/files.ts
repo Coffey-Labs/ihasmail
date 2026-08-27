@@ -6,8 +6,26 @@ import { isAppFolder } from "@/lib/appFolder";
 import type { FileNode, GetResponse, Id, QueryResponse, SetResponse } from "@/jmap/types";
 import { useSession } from "./session";
 
+interface SharedAccount {
+  id: Id;
+  name: string;
+}
+
 interface FilesState {
+  /**
+   * The account being browsed, which is not always the reader's own.
+   *
+   * Files is the one module that opens somebody else's account in place: a
+   * folder shared with you is reached from "Shared with me" in the tree, not by
+   * switching the whole app over. So this moves and `ownAccountId` does not,
+   * and anything belonging to the reader -- their settings, their signatures --
+   * goes through `ownAccountFor` rather than either of them.
+   */
   accountId: Id | null;
+  /** The reader's own file account, wherever they happen to be looking. */
+  ownAccountId: Id | null;
+  /** Accounts someone else has shared, from the session. */
+  sharedAccounts: SharedAccount[];
   available: boolean;
   nodes: Record<Id, FileNode>;
   children: Record<string, Id[]>; // parentId ("root" for null) → ids
@@ -32,6 +50,8 @@ interface FilesState {
   draggingId: Id | null;
 
   init(): Promise<void>;
+  /** Browse an account: the reader's own, or one shared with them. */
+  openAccount(accountId: Id | null): void;
   loadChildren(parentId: Id | null): Promise<void>;
   mkdir(parentId: Id | null, name: string): Promise<Id>;
   upload(parentId: Id | null, files: File[]): Promise<void>;
@@ -93,6 +113,8 @@ export function emptyForAccount(accountId: Id | null) {
 
 export const useFiles = create<FilesState>((set, get) => ({
   accountId: null,
+  ownAccountId: null,
+  sharedAccounts: [],
   available: false,
   nodes: {},
   children: {},
@@ -104,10 +126,31 @@ export const useFiles = create<FilesState>((set, get) => ({
   draggingId: null,
 
   async init() {
-    const accountId = useSession.getState().accountFor(CAP.filenode);
-    const available = Boolean(accountId && client.hasCapability(CAP.filenode));
-    if (accountId !== get().accountId) set(emptyForAccount(accountId));
-    set({ available });
+    const session = useSession.getState();
+    const ownAccountId = session.ownAccountFor(CAP.filenode);
+    const available = Boolean(ownAccountId && client.hasCapability(CAP.filenode));
+    /*
+     * Which accounts hold shared files cannot be worked out from capabilities:
+     * Stalwart advertises the whole set on a shared account -- mail, calendars,
+     * contacts and the rest -- identical to a personal one, whatever was
+     * actually shared (checked on 0.16.19, 2026-08-27). So every account that
+     * is not the reader's own is offered, and what it really holds is settled
+     * by asking it for its folders and showing what comes back.
+     */
+    const s = session.session;
+    const sharedAccounts = Object.entries(s?.accounts ?? {})
+      .filter(([, a]) => a.isPersonal === false)
+      .map(([id, a]) => ({ id, name: a.name }));
+    // Stay where the reader is if they are reading a share that still exists.
+    const browsing = get().accountId;
+    const keep = browsing && (browsing === ownAccountId || sharedAccounts.some((a) => a.id === browsing));
+    if (!keep) set(emptyForAccount(ownAccountId));
+    set({ available, ownAccountId, sharedAccounts });
+  },
+
+  openAccount(accountId) {
+    if (accountId === get().accountId) return;
+    set(emptyForAccount(accountId));
   },
 
   /*
