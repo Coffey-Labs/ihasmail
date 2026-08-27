@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Book, BookOpen, Download, Pencil, Plus, RefreshCw, Share2, Trash2, Upload, Users } from "lucide-react";
+import { Book, BookOpen, Download, Pencil, Plus, RefreshCw, Share2, Trash2, Upload, Users, X } from "lucide-react";
 import { useContacts } from "@/store/contacts";
 import { useSession } from "@/store/session";
 import type { AddressBook } from "@/jmap/types";
@@ -58,6 +58,8 @@ export function ContactsSidebar() {
   const own = Object.values(contacts.books).sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
   const sel = contacts.selection;
   const isOn = (accountId: string | null, bookId: string) => sel.accountId === accountId && sel.bookId === bookId;
+  const subscribed = contacts.sharedBooks.filter((b) => b.book.isSubscribed);
+  const available = contacts.sharedBooks.filter((b) => !b.book.isSubscribed);
 
   return (
     <>
@@ -110,7 +112,7 @@ export function ContactsSidebar() {
           <RefreshCw size={14} className={refreshing ? "spin" : ""} />
         </button>
       </div>
-      {contacts.sharedBooks.map(({ accountId, accountName, book }) => (
+      {subscribed.map(({ accountId, accountName, book }) => (
         <div
           key={`${accountId}:${book.id}`}
           className={`nav-item ${isOn(accountId, book.id) ? "active" : ""}`}
@@ -119,12 +121,43 @@ export function ContactsSidebar() {
         >
           <BookOpen size={17} />
           <span className="grow truncate">{book.name}</span>
+          <button
+            className="icon-btn sm"
+            title="Remove from my contacts"
+            aria-label="Remove from my contacts"
+            onClick={(e) => { e.stopPropagation(); void contacts.setBookSubscribed(accountId, book.id, false); }}
+          >
+            <X size={13} />
+          </button>
         </div>
       ))}
-      {!contacts.sharedBooks.length && (
+      {!subscribed.length && (
         <p className="hint" style={{ padding: "4px 12px" }}>
-          {contacts.sharedLoaded ? "Nothing is shared with you." : "Looking…"}
+          {contacts.sharedLoaded ? "Nothing added yet." : "Looking…"}
         </p>
+      )}
+
+      {/* Stalwart returns every book in a reachable account with full rights,
+          shared or not, so adding one is the reader's decision rather than a
+          guess made on their behalf. */}
+      {available.length > 0 && (
+        <>
+          <div className="nav-section"><span>Available to add</span></div>
+          {available.map(({ accountId, accountName, book }) => (
+            <div key={`${accountId}:${book.id}`} className="nav-item" title={`${book.name} — from ${accountName}`}>
+              <BookOpen size={17} className="faint" />
+              <span className="grow truncate faint">{book.name}</span>
+              <button
+                className="icon-btn sm"
+                title="Add to my contacts"
+                aria-label="Add to my contacts"
+                onClick={(e) => { e.stopPropagation(); void contacts.setBookSubscribed(accountId, book.id, true); }}
+              >
+                <Plus size={13} />
+              </button>
+            </div>
+          ))}
+        </>
       )}
 
       {/* Import and export lived in the pane this replaced. */}
