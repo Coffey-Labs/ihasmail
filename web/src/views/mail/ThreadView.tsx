@@ -12,6 +12,9 @@ import { client } from "@/jmap/client";
 import { LabelPicker } from "./LabelPicker";
 import { threadScrollTarget } from "@/lib/threadScroll";
 
+/** How long the opening scroll keeps its place while bodies and images land. */
+const HOLD_MS = 2000;
+
 interface Props {
   threadId: Id;
   mailboxId: Id | null;
@@ -116,13 +119,54 @@ export function ThreadView({ threadId, mailboxId, onBack, actions, onNavigate, h
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.map((m) => m.id + (m.keywords.$seen ? "1" : "0")).join(","), settings.markReadDelay]);
 
-  // Open on the first unread message rather than the newest one (#87).
+  /*
+   * Open on the first unread message rather than the newest one (#87).
+   *
+   * Scrolling once is not enough. Message bodies are written into shadow roots
+   * by child effects, and the images in them load later still, so the pane goes
+   * on growing after the scroll -- and `scrollIntoView` clamps to the scroll
+   * range as it stands the moment it is called. The read-thread fallback always
+   * aims at the last message, which no thread has the room to lift to the top,
+   * so that clamp is the whole of the range: measuring it before the images
+   * landed stopped 39px short of the bottom, every time (#89).
+   *
+   * So the target is held against the top of the pane while the thread settles,
+   * and let go the moment the reader touches it. A pane that re-scrolls under
+   * someone who has started reading is worse than one that lands short, which
+   * is why the hold ends on the first sign of them rather than when the content
+   * stops changing.
+   */
   useEffect(() => {
-    if (!messages.length || !scrollRef.current) return;
+    const sc = scrollRef.current;
+    if (!messages.length || !sc) return;
     const target = threadScrollTarget(messages, wasUnread);
     if (!target) return;
-    const el = scrollRef.current.querySelector<HTMLElement>(`[data-msg-id="${CSS.escape(target)}"]`);
-    el?.scrollIntoView({ block: "start" });
+
+    let held = true;
+    const align = () => {
+      if (held) sc.querySelector<HTMLElement>(`[data-msg-id="${CSS.escape(target)}"]`)?.scrollIntoView({ block: "start" });
+    };
+    const release = () => {
+      held = false;
+    };
+
+    align();
+
+    // The messages and the reply box: what grows is one of their heights.
+    const ro = new ResizeObserver(align);
+    for (const child of sc.children) ro.observe(child);
+    // `scroll` is not in here: the aligning does that itself.
+    for (const ev of ["wheel", "pointerdown", "touchstart"]) sc.addEventListener(ev, release, { passive: true });
+    window.addEventListener("keydown", release);
+    const settled = window.setTimeout(release, HOLD_MS);
+
+    return () => {
+      release();
+      ro.disconnect();
+      for (const ev of ["wheel", "pointerdown", "touchstart"]) sc.removeEventListener(ev, release);
+      window.removeEventListener("keydown", release);
+      window.clearTimeout(settled);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threadId, messages.length > 0]);
 
