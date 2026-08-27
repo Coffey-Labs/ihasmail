@@ -77,7 +77,7 @@ describe("what it refuses to acknowledge", () => {
 });
 
 const OPTS = {
-  from: { name: "John Ellis", email: "john@example.org" } as EmailAddress,
+  from: { name: "John Coffey", email: "john@example.org" } as EmailAddress,
   to: { name: null, email: "ann@example.com" } as EmailAddress,
   finalRecipient: "john@example.org",
   reportingUa: "mail.example.org; ihasmail 2.0",
