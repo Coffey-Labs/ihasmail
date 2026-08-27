@@ -1,7 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Book, BookOpen, Search, Users, X } from "lucide-react";
+import { Spinner } from "@/ui/misc";
 import { Dialog } from "@/ui/dialog";
 import { useContacts } from "@/store/contacts";
+import { useSettings } from "@/store/settings";
 import { contactDisplayName, contactEmails } from "@/lib/contacts";
 import type { ContactCard, EmailAddress } from "@/jmap/types";
 
@@ -37,7 +39,26 @@ export function RecipientPicker({ onPick, onClose }: { onPick: (field: Field, ad
   const [bookKey, setBookKey] = useState<string>("all");
   const [picked, setPicked] = useState<Record<string, Row>>({});
 
-  const subscribed = contacts.sharedBooks.filter((b) => b.book.isSubscribed);
+  /*
+   * Contacts are fetched on demand, and nothing had demanded them.
+   *
+   * `loadAll` runs when the Contacts view mounts, and `suggest` kicks it off
+   * itself so autocomplete works from anywhere. This did neither, so opening a
+   * composer without having visited Contacts first showed an empty picker over
+   * a full address book -- "no contacts in this address book", about a book
+   * with contacts in it.
+   */
+  useEffect(() => {
+    if (contacts.available && !contacts.loaded && !contacts.loading) void contacts.loadAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contacts.available, contacts.loaded]);
+
+  /* Added counts whether the server remembered it or the settings did --
+     Stalwart refuses the flag on a book shared read-only, so for those the
+     settings are the only record and filtering on `isSubscribed` alone would
+     leave every shared book out of the picker. */
+  const addedShares = new Set(useSettings((s) => s.settings).addedShares);
+  const subscribed = contacts.sharedBooks.filter((b) => b.book.isSubscribed || addedShares.has(`${b.accountId}:${b.book.id}`));
   const ownBooks = Object.values(contacts.books).sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
 
   const rows = useMemo(() => {
@@ -136,7 +157,9 @@ export function RecipientPicker({ onPick, onClose }: { onPick: (field: Field, ad
       )}
 
       <div style={{ maxHeight: "48vh", overflowY: "auto" }}>
-        {!rows.length ? (
+        {contacts.loading && !rows.length ? (
+          <Spinner label="Loading contacts…" />
+        ) : !rows.length ? (
           <p className="hint">{q ? "Nobody matches that." : "No contacts in this address book."}</p>
         ) : (
           rows.map((r) => (
