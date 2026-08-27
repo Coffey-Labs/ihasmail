@@ -4,11 +4,13 @@ import { Dialog } from "@/ui/dialog";
 import { useContacts } from "@/store/contacts";
 import { useMail } from "@/store/mail";
 import { useCalendar } from "@/store/calendar";
+import { useFiles } from "@/store/files";
 import { client, setErrorMessage } from "@/jmap/client";
 import { toast } from "@/ui/toast";
 import type { Id, Principal } from "@/jmap/types";
 
-type Kind = "Mailbox" | "Calendar" | "AddressBook";
+/* The JMAP type name, used verbatim as the `/set` method prefix. */
+type Kind = "Mailbox" | "Calendar" | "AddressBook" | "FileNode";
 
 const RIGHTS: Record<Kind, Array<{ key: string; label: string }>> = {
   Mailbox: [
@@ -38,15 +40,27 @@ const RIGHTS: Record<Kind, Array<{ key: string; label: string }>> = {
     { key: "mayShare", label: "Share" },
     { key: "mayDelete", label: "Delete" },
   ],
+  // Stalwart 0.16.19 returns all six on a node of your own (2026-08-27).
+  FileNode: [
+    { key: "mayRead", label: "Read" },
+    { key: "mayAddChildren", label: "Add files" },
+    { key: "mayModifyContent", label: "Edit contents" },
+    { key: "mayRename", label: "Rename" },
+    { key: "mayDelete", label: "Delete" },
+    { key: "mayShare", label: "Share" },
+  ],
 };
 
 const PRESETS: Record<Kind, { reader: string[]; editor: string[] }> = {
   Mailbox: { reader: ["mayReadItems"], editor: ["mayReadItems", "mayAddItems", "mayRemoveItems", "maySetSeen", "maySetKeywords", "mayCreateChild"] },
   Calendar: { reader: ["mayReadFreeBusy", "mayReadItems"], editor: ["mayReadFreeBusy", "mayReadItems", "mayWriteAll", "mayRSVP"] },
   AddressBook: { reader: ["mayRead"], editor: ["mayRead", "mayWrite"] },
+  // An editor can fill a folder and change what is in it, but not rename or
+  // delete the folder they were given -- those stay with whoever shared it.
+  FileNode: { reader: ["mayRead"], editor: ["mayRead", "mayAddChildren", "mayModifyContent"] },
 };
 
-/** Share a mailbox / calendar / address book with other principals (JMAP Sharing, RFC 9670). */
+/** Share a mailbox / calendar / address book / file node with other principals (JMAP Sharing, RFC 9670). */
 export function ShareDialog({ kind, id, name, shareWith, onClose }: { kind: Kind; id: Id; name: string; shareWith: Record<Id, object> | null; onClose: () => void }) {
   const principals = useContacts((s) => s.principals);
   const loadPrincipals = useContacts((s) => s.loadPrincipals);
@@ -67,7 +81,11 @@ export function ShareDialog({ kind, id, name, shareWith, onClose }: { kind: Kind
   const save = async () => {
     setBusy(true);
     try {
-      const accountId = kind === "Mailbox" ? useMail.getState().accountId : kind === "Calendar" ? useCalendar.getState().accountId : useContacts.getState().accountId;
+      const accountId =
+        kind === "Mailbox" ? useMail.getState().accountId
+        : kind === "Calendar" ? useCalendar.getState().accountId
+        : kind === "FileNode" ? useFiles.getState().accountId
+        : useContacts.getState().accountId;
       const res = await client.call<{ notUpdated?: Record<string, { type: string; description?: string }> }>(`${kind}/set`, { accountId, update: { [id]: { shareWith: Object.keys(rights).length ? rights : null } } });
       const err = res.notUpdated?.[id];
       if (err) throw new Error(setErrorMessage(err));
@@ -75,6 +93,7 @@ export function ShareDialog({ kind, id, name, shareWith, onClose }: { kind: Kind
       if (kind === "Mailbox") void useMail.getState().loadMailboxes();
       if (kind === "Calendar") void useCalendar.getState().loadCalendars();
       if (kind === "AddressBook") void useContacts.getState().loadBooks();
+      if (kind === "FileNode") void useFiles.getState().refresh([id]);
       onClose();
     } catch (err) {
       toast.error((err as Error).message);
