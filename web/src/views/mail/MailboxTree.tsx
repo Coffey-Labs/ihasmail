@@ -292,6 +292,7 @@ function FolderRow({ mailbox: m, label, depth, hasChildren, open, hiddenUnread, 
 }
 
 function MailboxMenu({ mailbox: m, onClose, onCreateChild, onShare }: { mailbox: Mailbox; onClose: () => void; onCreateChild: () => void; onShare: () => void }) {
+  const shared = Object.keys(m.shareWith ?? {}).length > 0;
   const [, navigate] = useLocation();
   const colors = useSettings((s) => s.settings.folderColors);
   const update = useSettings((s) => s.update);
@@ -354,7 +355,13 @@ function MailboxMenu({ mailbox: m, onClose, onCreateChild, onShare }: { mailbox:
       <MenuItem icon={<FolderPlus size={16} />} label="New subfolder" onClick={onCreateChild} disabled={!m.myRights.mayCreateChild} />
       <MenuItem icon={<Pencil size={16} />} label="Rename" onClick={() => void rename()} disabled={isSpecial || !m.myRights.mayRename} />
       <MenuItem icon={m.isSubscribed ? <EyeOff size={16} /> : <Eye size={16} />} label={m.isSubscribed ? "Hide from list" : "Show in list"} onClick={() => void useMail.getState().updateMailbox(m.id, { isSubscribed: !m.isSubscribed })} disabled={m.role === "inbox"} />
-      <MenuItem icon={<Share2 size={16} />} label="Share…" onClick={onShare} />
+      {/* Sharing a mail folder is withdrawn, not removed: Stalwart accepts and
+          stores the share, and it never reaches the other account -- its own
+          docs list calendars, address books and files as shareable and not mail
+          folders. Offering it produced shares that looked real and did nothing.
+          One that already exists can still be cleared here, which is the only
+          reason this entry survives at all. */}
+      {shared && <MenuItem icon={<Share2 size={16} />} label="Stop sharing" onClick={onShare} />}
       <MenuSep />
       <MenuTitle><span className="row gap-4"><Palette size={12} /> Colour</span></MenuTitle>
       <div className="color-grid" style={{ gridTemplateColumns: "repeat(6, 26px)", padding: "4px 10px 8px" }}>

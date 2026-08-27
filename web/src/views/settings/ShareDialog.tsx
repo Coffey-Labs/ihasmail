@@ -104,9 +104,17 @@ export function ShareDialog({ kind, id, name, shareWith, onClose }: { kind: Kind
 
   return (
     <Dialog open onClose={onClose} title={`Share “${name}”`} size="lg" footer={<><button className="btn" onClick={onClose}>Cancel</button><button className="btn btn-primary" disabled={busy} onClick={() => void save()}>Save</button></>}>
-      {!principals.length ? (
-        <p className="hint">No other users found in the directory, or sharing is not enabled on this server.</p>
-      ) : (
+      {/* The list of who it is shared with is rendered whether or not anybody
+          can be *added*. It used to sit inside the branch below, so a server
+          with directory queries switched off -- which is the default, and which
+          returns no principals -- showed nothing but the hint, and an existing
+          share could not be seen, let alone removed. */}
+      {!principals.length && (
+        <p className="hint" style={{ marginBottom: 12 }}>
+          No other users found in the directory, so nobody new can be added. Sharing already in place is listed below and can still be removed.
+        </p>
+      )}
+      {principals.length > 0 && (
         <>
           <div className="row" style={{ marginBottom: 12 }}>
             <select className="select" value={pick} onChange={(e) => setPick(e.target.value)}>
@@ -118,7 +126,9 @@ export function ShareDialog({ kind, id, name, shareWith, onClose }: { kind: Kind
             <button className="btn" disabled={!pick} onClick={() => { const p = principals.find((x) => x.id === pick); if (p) add(p, "reader"); }}>Viewer</button>
             <button className="btn btn-primary" disabled={!pick} onClick={() => { const p = principals.find((x) => x.id === pick); if (p) add(p, "editor"); }}>Editor</button>
           </div>
-          {Object.entries(rights).map(([pid, r]) => {
+        </>
+      )}
+      {Object.entries(rights).map(([pid, r]) => {
             const p = principals.find((x) => x.id === pid);
             return (
               <div key={pid} className="card">
@@ -136,10 +146,8 @@ export function ShareDialog({ kind, id, name, shareWith, onClose }: { kind: Kind
                 </div>
               </div>
             );
-          })}
-          {!Object.keys(rights).length && <p className="hint">Not shared with anyone yet.</p>}
-        </>
-      )}
+      })}
+      {!Object.keys(rights).length && <p className="hint">Not shared with anyone yet.</p>}
     </Dialog>
   );
 }
