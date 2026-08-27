@@ -751,7 +751,20 @@ const handlers: Record<string, Handler> = {
   "Principal/get": genericGet(principals),
   "Principal/getAvailability": (a) => ({ accountId: ACCOUNT, list: [{ utcStart: String(a.utcStart).slice(0, 11) + "13:00:00Z", utcEnd: String(a.utcStart).slice(0, 11) + "14:30:00Z", busyStatus: "confirmed", event: null }] }),
   "AddressBook/get": (a) => genericGet(booksFor(a.accountId))(a),
-  "AddressBook/set": (a) => genericSet(booksFor(a.accountId), "ab", (o) => Object.assign(o, { description: null, sortOrder: 0, isDefault: false, isSubscribed: true, shareWith: {}, myRights: abRights(), ...o }))(a),
+  "AddressBook/set": (a) => {
+    /* Stalwart refuses any update to a book shared read-only, `isSubscribed`
+       included -- "You are not allowed to modify this address book", confirmed
+       live on 0.16.19 (2026-08-27) from the account holding the share. A mock
+       that accepted it would have agreed that subscribing works, which is
+       exactly the belief that shipped. Calendars accept the same write; the
+       difference is the server's, not ours. */
+    if (a.accountId === SHARED_ACCOUNT && a.update) {
+      const notUpdated: Obj = {};
+      for (const id of Object.keys(a.update as Obj)) notUpdated[id] = { type: "forbidden", description: "You are not allowed to modify this address book." };
+      return { accountId: a.accountId, oldState: String(state.n), newState: String(state.n), updated: null, notUpdated };
+    }
+    return genericSet(booksFor(a.accountId), "ab", (o) => Object.assign(o, { description: null, sortOrder: 0, isDefault: false, isSubscribed: true, shareWith: {}, myRights: abRights(), ...o }))(a);
+  },
   "ContactCard/query": (a) => { const list = a.accountId === SHARED_ACCOUNT ? sharedCards : cards; return { accountId: a.accountId ?? ACCOUNT, queryState: "1", canCalculateChanges: false, position: 0, ids: list.map((c) => c.id), total: list.length }; },
   "ContactCard/get": (a) => genericGet(a.accountId === SHARED_ACCOUNT ? sharedCards : cards)(a),
   "ContactCard/set": genericSet(cards, "cc"),

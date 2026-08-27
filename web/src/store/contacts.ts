@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { CAP, client, setErrorMessage } from "@/jmap/client";
 import type { AddressBook, ContactCard, EmailAddress, GetResponse, Id, Principal, QueryResponse, SetResponse } from "@/jmap/types";
 import { contactDisplayName, contactEmails, sortKey } from "@/lib/contacts";
-import { toast } from "@/ui/toast";
+import { useSettings } from "./settings";
 import { useSession } from "./session";
 import { useMail } from "./mail";
 
@@ -144,7 +144,8 @@ export const useContacts = create<ContactsState>((set, get) => ({
          * put a stranger's contacts in the To field, which is the one place
          * this must not guess.
          */
-        const wanted = new Set(res.list.filter((b) => b.isSubscribed).map((b) => b.id));
+        const added = new Set(useSettings.getState().settings.addedShares);
+        const wanted = new Set(res.list.filter((b) => b.isSubscribed || added.has(sharedKey(accountId, b.id))).map((b) => b.id));
         if (!wanted.size) continue;
         // One page. A shared book is a colleague's contacts, not an archive,
         // and the alternative is holding the reader's own list hostage to it.
@@ -175,13 +176,32 @@ export const useContacts = create<ContactsState>((set, get) => ({
      * failure, not as a thrown error. Ignoring it made a refused subscribe look
      * exactly like a button that does nothing.
      */
+    /*
+     * Ask the server to remember it, and remember it here when it will not.
+     *
+     * Subscribing writes to the owner's account, and Stalwart 0.16.19 refuses
+     * that for a book shared read-only -- "You are not allowed to modify this
+     * address book" -- while accepting the same write on a shared calendar. The
+     * server's own flag is still preferred when it takes it, because then every
+     * client agrees; a refusal is an ordinary answer here rather than a
+     * failure, and the preference goes in the reader's own synced settings.
+     */
+    const key = sharedKey(accountId, bookId);
+    let stored = false;
     try {
       const res = await client.call<SetResponse>("AddressBook/set", { accountId, update: { [bookId]: { isSubscribed: subscribed } } });
       const err = res.notUpdated?.[bookId];
       if (err) throw new Error(setErrorMessage(err));
-    } catch (err) {
-      toast.error(`Could not ${subscribed ? "add" : "remove"} that address book: ${(err as Error).message}`);
-      return;
+      stored = true;
+    } catch {
+      stored = false;
+    }
+    if (!stored) {
+      const { settings, update } = useSettings.getState();
+      const added = new Set(settings.addedShares);
+      if (subscribed) added.add(key);
+      else added.delete(key);
+      update({ addedShares: [...added] });
     }
     if (!subscribed && get().selection.accountId === accountId && get().selection.bookId === bookId) {
       set({ selection: { accountId: null, bookId: "all" } });
