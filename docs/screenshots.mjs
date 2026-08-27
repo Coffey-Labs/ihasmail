@@ -203,6 +203,26 @@ try {
   })()`);
   await sleep(1800);
   await shot("compose.jpg");
+
+  // The recipient picker, taken here because the composer is already open. The
+  // site claims you can pick recipients by reading the address books rather
+  // than remembering a name, and this is that claim photographed. Doing it from
+  // a later step meant navigating back to the mail list, which turned out not
+  // to be reliable once the run had been through Files.
+  await evaluate(`(() => {
+    const b = [...document.querySelectorAll('button')].find(x => x.getAttribute('aria-label') === 'Choose from address books');
+    if (b) b.click();
+  })()`);
+  await waitFor("/Choose recipients/.test(document.body.innerText)", "the recipient picker");
+  await evaluate(`(() => {
+    // Two ticked, so the shot shows a selection rather than an empty list.
+    for (const b of [...document.querySelectorAll('.menu-item input[type=checkbox]')].slice(0, 2)) b.click();
+  })()`);
+  await sleep(1500);
+  await shot("recipients.jpg");
+  await evaluate(`(() => { const c = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Cancel'); if (c) c.click(); })()`);
+  await sleep(600);
+
   await evaluate(`(() => { const c = [...document.querySelectorAll('button')].find(b => /close|discard/i.test(b.getAttribute('aria-label')||'')); if (c) c.click(); })()`);
   await sleep(800);
 
