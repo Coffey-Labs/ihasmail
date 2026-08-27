@@ -193,7 +193,17 @@ const events: Obj[] = [];
   events.push({ id: "ev4", calendarIds: { c1: true }, "@type": "Event", uid: "ev4", title: "Lunch with Grace", start: local(d(2, 12)), timeZone: tz, duration: "PT1H", showWithoutTime: false, color: "#db2777" });
 }
 const participantIdentities: Obj[] = [{ id: "pi1", name: "Demo User", calendarAddress: `mailto:${USER}`, sendTo: { imip: `mailto:${USER}` }, isDefault: true }];
-const addressBooks: Obj[] = [{ id: "ab1", name: "Personal", description: null, sortOrder: 0, isDefault: true, isSubscribed: true, shareWith: null, myRights: { mayRead: true, mayWrite: true, mayShare: true, mayDelete: true } }];
+const abRights = (write = true) => ({ mayRead: true, mayWrite: write, mayShare: write, mayDelete: write });
+const addressBooks: Obj[] = [{ id: "ab1", name: "Personal", description: null, sortOrder: 0, isDefault: true, isSubscribed: true, shareWith: {}, myRights: abRights() }];
+/* A book in the shared account, so "Shared with me" and addressing a message
+   from somebody else's contacts can be exercised at all. Read-only, which is
+   what a share usually is. */
+const sharedAddressBooks: Obj[] = [{ id: "ab9", name: "Team contacts", description: null, sortOrder: 0, isDefault: true, isSubscribed: true, shareWith: {}, myRights: abRights(false) }];
+const sharedCards: Obj[] = [
+  { id: "sc1", addressBookIds: { ab9: true }, name: { full: "Katherine Johnson" }, emails: { e1: { address: "katherine@example.org", contexts: {} } }, phones: {}, organizations: {}, nicknames: {}, addresses: {}, notes: {}, updated: new Date().toISOString() },
+  { id: "sc2", addressBookIds: { ab9: true }, name: { full: "Dorothy Vaughan" }, emails: { e1: { address: "dorothy@example.org", contexts: {} } }, phones: {}, organizations: {}, nicknames: {}, addresses: {}, notes: {}, updated: new Date().toISOString() },
+];
+const booksFor = (accountId: unknown): Obj[] => (accountId === SHARED_ACCOUNT ? sharedAddressBooks : addressBooks);
 const cards: Obj[] = people.slice(0, 6).map((p, i) => {
   const [given, surname] = p[0]!.split(" ");
   return { id: `cc${i}`, addressBookIds: { ab1: true }, "@type": "Card", version: "1.0", uid: `uid-cc${i}`, kind: "individual", name: { components: [{ kind: "given", value: given }, { kind: "surname", value: surname ?? "" }], isOrdered: true }, emails: { e1: { address: p[1], contexts: { work: true } } }, phones: i % 2 ? { p1: { number: `+1 555 010${i}`, features: { mobile: true } } } : undefined, organizations: i % 3 ? { o1: { name: "Example Corp" } } : undefined };
@@ -731,10 +741,10 @@ const handlers: Record<string, Handler> = {
   "Principal/query": () => ({ accountId: ACCOUNT, queryState: "1", canCalculateChanges: false, position: 0, ids: principals.map((p) => p.id) }),
   "Principal/get": genericGet(principals),
   "Principal/getAvailability": (a) => ({ accountId: ACCOUNT, list: [{ utcStart: String(a.utcStart).slice(0, 11) + "13:00:00Z", utcEnd: String(a.utcStart).slice(0, 11) + "14:30:00Z", busyStatus: "confirmed", event: null }] }),
-  "AddressBook/get": genericGet(addressBooks),
+  "AddressBook/get": (a) => genericGet(booksFor(a.accountId))(a),
   "AddressBook/set": genericSet(addressBooks, "ab", (o) => Object.assign(o, { description: null, sortOrder: 0, isDefault: false, isSubscribed: true, shareWith: null, myRights: { mayRead: true, mayWrite: true, mayShare: true, mayDelete: true }, ...o })),
-  "ContactCard/query": () => ({ accountId: ACCOUNT, queryState: "1", canCalculateChanges: false, position: 0, ids: cards.map((c) => c.id), total: cards.length }),
-  "ContactCard/get": genericGet(cards),
+  "ContactCard/query": (a) => { const list = a.accountId === SHARED_ACCOUNT ? sharedCards : cards; return { accountId: a.accountId ?? ACCOUNT, queryState: "1", canCalculateChanges: false, position: 0, ids: list.map((c) => c.id), total: list.length }; },
+  "ContactCard/get": (a) => genericGet(a.accountId === SHARED_ACCOUNT ? sharedCards : cards)(a),
   "ContactCard/set": genericSet(cards, "cc"),
   "ContactCard/parse": (a) => { const parsed: Obj = {}; for (const b of a.blobIds as string[]) { const t = blobs.get(b)?.data.toString() ?? ""; const fn = /^FN:(.*)$/m.exec(t)?.[1]?.trim() ?? "Imported"; const em = /^EMAIL[^:]*:(.*)$/m.exec(t)?.[1]?.trim(); parsed[b] = [{ "@type": "Card", version: "1.0", uid: randomUUID(), kind: "individual", name: { full: fn }, emails: em ? { e1: { address: em } } : undefined }]; } return { accountId: ACCOUNT, parsed, notParsable: [] }; },
   "FileNode/query": (a) => {
