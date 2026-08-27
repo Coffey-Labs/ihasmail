@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
-import { ChevronLeft, ChevronRight, MoreVertical, Pencil, Plus, Share2, Trash2, Eye, EyeOff, Star, Users } from "lucide-react";
+import { ChevronLeft, ChevronRight, MoreVertical, Pencil, Plus, Share2, Trash2, Eye, EyeOff, Star, X } from "lucide-react";
 import { useCalendar } from "@/store/calendar";
 import { dateTimeKey, useSettings } from "@/store/settings";
 import { addMonths, isSameDay, isToday, monthGrid, startOfDay, toLocalDateOnly } from "@/lib/dates";
@@ -25,6 +25,8 @@ export function CalendarSidebar() {
   const [anchor, setAnchor] = useState(() => startOfDay(selected));
   const grid = useMemo(() => monthGrid(anchor, weekStart), [anchor, weekStart]);
   const menu = useMenu();
+  const sharedSubscribed = cal.sharedCalendars.filter((c) => c.calendar.isSubscribed);
+  const sharedAvailable = cal.sharedCalendars.filter((c) => !c.calendar.isSubscribed);
   const [menuCal, setMenuCal] = useState<Calendar | null>(null);
   const [editCal, setEditCal] = useState<Partial<Calendar> | null>(null);
   const [share, setShare] = useState<Calendar | null>(null);
@@ -63,24 +65,50 @@ export function CalendarSidebar() {
           <button className="icon-btn xs nav-more" onClick={(e) => { e.stopPropagation(); setMenuCal(c); menu.open(e); }} aria-label="Calendar options"><MoreVertical size={14} /></button>
         </div>
       ))}
-      {/* Calendars other people shared. Separate from the reader's own, the way
-          Files and Contacts separate theirs: you cannot edit these, and which
-          of them you can see at all is somebody else's decision. Hiding one is
-          remembered under an account-qualified key, since a calendar id means
-          nothing outside the account holding it. */}
-      {cal.sharedCalendars.length > 0 && (
+      {/* Calendars other people shared, split by whether the reader has added
+          them. Stalwart returns every calendar in a reachable account with full
+          rights, so "shared with me" and "there is an account here at all" look
+          identical -- `isSubscribed` is the only thing that tells them apart,
+          and adding one is a deliberate act rather than a guess on our part. */}
+      {sharedSubscribed.length > 0 && (
         <>
           <div className="nav-section"><span>Shared with me</span></div>
-          {cal.sharedCalendars.map(({ accountId, accountName, calendar: c }) => {
+          {sharedSubscribed.map(({ accountId, accountName, calendar: c }) => {
             const key = `${accountId}:${c.id}`;
             return (
               <div key={key} className={`cal-list-item ${cal.hidden[key] ? "hidden-cal" : ""}`} onClick={() => cal.toggleHidden(key)} title={`${c.name} — shared by ${accountName}`}>
                 <span className="cal-color" style={{ background: c.color ?? "var(--accent)", borderColor: c.color ?? "var(--accent)" }} />
                 <span className="cal-name">{c.name}</span>
-                <Users size={12} className="faint" />
+                <button
+                  className="icon-btn xs nav-more"
+                  title="Remove from my calendar"
+                  aria-label="Remove from my calendar"
+                  onClick={(e) => { e.stopPropagation(); void cal.setSharedSubscribed(accountId, c.id, false); }}
+                >
+                  <X size={14} />
+                </button>
               </div>
             );
           })}
+        </>
+      )}
+      {sharedAvailable.length > 0 && (
+        <>
+          <div className="nav-section"><span>Available to add</span></div>
+          {sharedAvailable.map(({ accountId, accountName, calendar: c }) => (
+            <div key={`${accountId}:${c.id}`} className="cal-list-item" title={`${c.name} — from ${accountName}`}>
+              <span className="cal-color" style={{ background: "transparent", borderColor: c.color ?? "var(--border-strong)" }} />
+              <span className="cal-name faint">{c.name}</span>
+              <button
+                className="icon-btn xs nav-more"
+                title="Add to my calendar"
+                aria-label="Add to my calendar"
+                onClick={(e) => { e.stopPropagation(); void cal.setSharedSubscribed(accountId, c.id, true); }}
+              >
+                <Plus size={14} />
+              </button>
+            </div>
+          ))}
         </>
       )}
 
