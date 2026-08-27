@@ -45,6 +45,10 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
   const [showHeaders, setShowHeaders] = useState(false);
   const [source, setSource] = useState<string | null>(null);
   const [allowRemote, setAllowRemote] = useState(false);
+  /* Stable, so the body's click handler keeps its identity between renders.
+     Passing an inline arrow here is what made the handler change on every
+     render in the first place. */
+  const showImages = useCallback(() => setAllowRemote(true), []);
   const [filterOpen, setFilterOpen] = useState(false);
   const moreMenu = useMenu();
   const addrMenu = useAddressMenu();
@@ -269,7 +273,7 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
           {icsPart && <InviteCard email={e} part={icsPart} />}
           {vcfParts.map((p) => <VCardCard key={p.blobId ?? p.partId ?? ""} part={p} accountId={accountId} />)}
           <div className="message-body">
-            {showHtml && rendered ? <HtmlBody html={rendered.html} bodyStyle={rendered.bodyStyle} themed={themed} onShowImages={() => setAllowRemote(true)} /> : <TextBody text={textRaw ?? ""} />}
+            {showHtml && rendered ? <HtmlBody html={rendered.html} bodyStyle={rendered.bodyStyle} themed={themed} onShowImages={showImages} /> : <TextBody text={textRaw ?? ""} />}
           </div>
           {attachments.length > 0 && <AttachmentList attachments={attachments} accountId={accountId} email={e} />}
           {unsubscribe && (
@@ -405,9 +409,32 @@ function HtmlBody({ html, bodyStyle, themed, onShowImages }: { html: string; bod
     }
     setHasQuote(found);
     setQuoteOpen(false);
+    /*
+     * `onClick` is deliberately not a dependency of this effect.
+     *
+     * This is the effect that writes the body into the shadow root, so anything
+     * in its dependencies rebuilds the entire message. The click handler used
+     * to be in here, and it changes identity on every render -- it closes over
+     * a prop the parent recreates inline -- so every render of the message
+     * threw the rendered body away and built it again. Marking as read does
+     * exactly that: the store hands back a new email object, the thread
+     * re-renders, and the reader watched the message vanish and come back,
+     * white to dark to white on an unstyled HTML mail, half a second after they
+     * started reading it (#100). The quoted-text toggle reset with it.
+     *
+     * The listener lives in its own effect below. It is attached to the shadow
+     * root rather than to its contents, which survives this rewriting anyway,
+     * so a changing handler now costs a listener swap and nothing else.
+     */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [html, bodyStyle, themed]);
+
+  useEffect(() => {
+    const root = hostRef.current?.shadowRoot;
+    if (!root) return;
     root.addEventListener("click", onClick);
     return () => root.removeEventListener("click", onClick);
-  }, [html, bodyStyle, themed, onClick]);
+  }, [onClick]);
 
   useEffect(() => {
     const root = hostRef.current?.shadowRoot;
