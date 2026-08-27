@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Book, BookOpen, Download, Pencil, Plus, RefreshCw, Share2, Trash2, Upload, Users, X } from "lucide-react";
+import { Book, BookOpen, Download, Pencil, Plus, RefreshCw, Share2, Trash2, Upload, UserMinus, Users, X } from "lucide-react";
 import { useContacts } from "@/store/contacts";
 import { useSession } from "@/store/session";
 import { useSettings } from "@/store/settings";
@@ -192,6 +192,30 @@ export function ContactsSidebar() {
               }}
             />
             <MenuItem icon={<Share2 size={16} />} label="Share…" disabled={!menuBook.myRights?.mayShare} onClick={() => setShare(menuBook)} />
+            {/* Revoking the lot, rather than removing people one at a time in
+                the dialog. Only shown when there is something to revoke. */}
+            {Object.keys(menuBook.shareWith ?? {}).length > 0 && (
+              <MenuItem
+                icon={<UserMinus size={16} />}
+                label="Stop sharing"
+                disabled={!menuBook.myRights?.mayShare}
+                onClick={async () => {
+                  const who = Object.keys(menuBook.shareWith ?? {}).length;
+                  if (!(await confirmDialog({
+                    title: `Stop sharing “${menuBook.name}”?`,
+                    message: `${who === 1 ? "One person" : `${who} people`} will lose access. The contacts in it are not affected.`,
+                    confirmLabel: "Stop sharing",
+                    danger: true,
+                  }))) return;
+                  try {
+                    await contacts.updateBook(menuBook.id, { shareWith: null });
+                    toast.success("No longer shared");
+                  } catch (err) {
+                    toast.error((err as Error).message);
+                  }
+                }}
+              />
+            )}
             <MenuSep />
             <MenuItem
               danger
