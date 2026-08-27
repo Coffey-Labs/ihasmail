@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { CAP, client, setErrorMessage } from "@/jmap/client";
 import type { AddressBook, ContactCard, EmailAddress, GetResponse, Id, Principal, QueryResponse, SetResponse } from "@/jmap/types";
 import { contactDisplayName, contactEmails, sortKey } from "@/lib/contacts";
+import { toast } from "@/ui/toast";
 import { useSession } from "./session";
 import { useMail } from "./mail";
 
@@ -166,10 +167,20 @@ export const useContacts = create<ContactsState>((set, get) => ({
   },
 
   async setBookSubscribed(accountId, bookId, subscribed) {
+    /*
+     * `notUpdated` matters more here than anywhere else this pattern is used.
+     * Subscribing is a write to somebody *else's* account, so it is the one
+     * call in the app that a perfectly healthy server is entitled to refuse --
+     * and a refusal arrives as a successful response carrying a per-object
+     * failure, not as a thrown error. Ignoring it made a refused subscribe look
+     * exactly like a button that does nothing.
+     */
     try {
-      await client.call("AddressBook/set", { accountId, update: { [bookId]: { isSubscribed: subscribed } } });
+      const res = await client.call<SetResponse>("AddressBook/set", { accountId, update: { [bookId]: { isSubscribed: subscribed } } });
+      const err = res.notUpdated?.[bookId];
+      if (err) throw new Error(setErrorMessage(err));
     } catch (err) {
-      set({ error: (err as Error).message });
+      toast.error(`Could not ${subscribed ? "add" : "remove"} that address book: ${(err as Error).message}`);
       return;
     }
     if (!subscribed && get().selection.accountId === accountId && get().selection.bookId === bookId) {
