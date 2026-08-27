@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ChevronDown, FileText, FolderOpen, Maximize2, Minimize2, Minus, MoreVertical, Paperclip, Send, Trash2, X, Type, Clock, CheckCheck, ChevronsDown } from "lucide-react";
+import { AlertTriangle, BookUser, ChevronDown, FileText, FolderOpen, Maximize2, Minimize2, Minus, MoreVertical, Paperclip, Send, Trash2, X, Type, Clock, CheckCheck, ChevronsDown } from "lucide-react";
 import { useCompose, type Draft } from "@/store/compose";
 import { useMail } from "@/store/mail";
 import { useSettings } from "@/store/settings";
@@ -13,6 +13,7 @@ import { htmlToText, textToHtml } from "@/lib/text";
 import { isValidEmail } from "@/lib/address";
 import { attachmentIcon } from "../mail/MessageView";
 import { FilePicker } from "./FilePicker";
+import { RecipientPicker, type Field } from "./RecipientPicker";
 import { useFiles } from "@/store/files";
 import { keyboard } from "@/lib/keyboard";
 import { useIsMobile } from "@/ui/misc";
@@ -30,6 +31,7 @@ export function Composer({ draft }: { draft: Draft }) {
   const addFromFiles = useCompose((s) => s.addFromFiles);
   const filesAvailable = useFiles((s) => s.available);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [addressBookOpen, setAddressBookOpen] = useState(false);
   const removeAttachment = useCompose((s) => s.removeAttachment);
   const setIdentity = useCompose((s) => s.setIdentity);
   const insertTemplate = useCompose((s) => s.insertTemplate);
@@ -174,9 +176,17 @@ export function Composer({ draft }: { draft: Draft }) {
             </div>
           )}
           <div className="composer-field">
-            <label htmlFor={`${key}-to`}>To</label>
+            <label htmlFor={`${key}-to`}>
+              {/* Opens the address books. Autocomplete only helps someone who
+                  already knows the name they are half-way through typing. */}
+              <button type="button" className="link-btn" onClick={() => setAddressBookOpen(true)} title="Choose from address books">To</button>
+            </label>
             <RecipientInput id={`${key}-to`} value={d.to} onChange={(to) => patch({ to })} placeholder="Recipients" autoFocus={initialFocus === "to"} />
             <span className="field-extra">
+              {/* Beside Cc and Bcc, because that is where someone looks when
+                  they are thinking about who the message goes to. The label
+                  opens it too, for anyone who tries that first. */}
+              <button type="button" onClick={() => setAddressBookOpen(true)} title="Choose from address books" aria-label="Choose from address books"><BookUser size={15} /></button>
               {!d.showCc && <button type="button" onClick={() => patch({ showCc: true })}>Cc</button>}
               {!d.showBcc && <button type="button" onClick={() => patch({ showBcc: true })}>Bcc</button>}
               {!d.showReplyTo && <button type="button" onClick={() => patch({ showReplyTo: true })} title="Set a Reply-To address">Reply-To</button>}
@@ -244,6 +254,20 @@ export function Composer({ draft }: { draft: Draft }) {
             <MenuItem icon={<Clock size={16} />} label={`Undo window: ${settings.undoSendSeconds}s`} onClick={() => updateSettings({ undoSendSeconds: settings.undoSendSeconds >= 30 ? 0 : settings.undoSendSeconds + 5 })} />
             {canSchedule && <ScheduleMenuItems maxMs={scheduleMax} onPick={scheduleFor} onCustom={() => { sendMenu.close(); setScheduleOpen(true); }} />}
           </Popover>
+          {addressBookOpen && (
+            <RecipientPicker
+              onPick={(field: Field, addresses) => {
+                // Added to whatever is already there, and the field is opened if
+                // it was hidden -- picking a Bcc should not put one somewhere
+                // the writer cannot see it.
+                const existing = field === "to" ? d.to : field === "cc" ? d.cc : d.bcc;
+                const merged = [...existing];
+                for (const a of addresses) if (!merged.some((x) => x.email.toLowerCase() === a.email.toLowerCase())) merged.push(a);
+                patch({ [field]: merged, ...(field === "cc" ? { showCc: true } : field === "bcc" ? { showBcc: true } : {}) });
+              }}
+              onClose={() => setAddressBookOpen(false)}
+            />
+          )}
           {pickerOpen && <FilePicker onPick={(picked) => void addFromFiles(key, picked)} onClose={() => setPickerOpen(false)} />}
           {canSchedule && scheduleOpen && (
             <ScheduleDialog open maxMs={scheduleMax} initial={d.sendAt} onClose={() => setScheduleOpen(false)} onPick={scheduleFor} />
