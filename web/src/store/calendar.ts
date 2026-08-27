@@ -15,10 +15,26 @@ export interface EventInstance {
   calendar: Calendar | undefined;
 }
 
+/** A calendar somebody else shared, and the account it lives in. */
+export interface SharedCalendar {
+  accountId: Id;
+  accountName: string;
+  calendar: Calendar;
+}
+
+/** Shared events are keyed by account too: ids only differ within an account. */
+export const sharedKey = (accountId: Id, id: Id): string => `${accountId}:${id}`;
+
 interface CalendarState {
   accountId: Id | null;
   available: boolean;
   calendars: Record<Id, Calendar>;
+  /** Calendars shared with the reader, from every non-personal account. */
+  sharedCalendars: SharedCalendar[];
+  /** Their events, keyed by account and id. See `sharedKey`. */
+  sharedEvents: Record<string, CalendarEvent>;
+  /** Which shared keys each loaded window holds, alongside `ranges`. */
+  sharedRanges: Record<string, string[]>;
   events: Record<Id, CalendarEvent>;
   /** Loaded ranges keyed "start|end" → event ids */
   ranges: Record<string, Id[]>;
@@ -29,6 +45,9 @@ interface CalendarState {
 
   init(): Promise<void>;
   loadCalendars(): Promise<void>;
+  /** Calendars from accounts that shared with the reader, and their events. */
+  loadSharedCalendars(): Promise<void>;
+  loadSharedRange(start: Date, end: Date): Promise<void>;
   loadRange(start: Date, end: Date, force?: boolean): Promise<void>;
   instancesIn(start: Date, end: Date): EventInstance[];
   getEvent(id: Id): Promise<CalendarEvent | null>;
@@ -65,6 +84,9 @@ export const useCalendar = create<CalendarState>((set, get) => ({
   accountId: null,
   available: false,
   calendars: {},
+  sharedCalendars: [],
+  sharedEvents: {},
+  sharedRanges: {},
   events: {},
   ranges: {},
   loading: false,
@@ -73,18 +95,81 @@ export const useCalendar = create<CalendarState>((set, get) => ({
   hidden: {},
 
   async init() {
-    const accountId = useSession.getState().accountFor(CAP.calendars);
+    // The reader's own: a shared calendar is shown beside theirs, not instead.
+    const accountId = useSession.getState().ownAccountFor(CAP.calendars);
     const available = Boolean(accountId && client.hasCapability(CAP.calendars));
     if (accountId !== get().accountId) set({ accountId, calendars: {}, events: {}, ranges: {} });
     set({ available });
     if (!available) return;
     await get().loadCalendars();
+    void get().loadSharedCalendars();
     try {
       const res = await client.call<GetResponse<ParticipantIdentity>>("ParticipantIdentity/get", { accountId, ids: null });
       set({ identities: res.list });
     } catch {
       set({ identities: [] });
     }
+  },
+
+  /*
+   * Calendars other people shared, and the events in them.
+   *
+   * Kept apart from the reader's own and keyed by account, for the reason ids
+   * force: they are unique only within an account. Loaded from the same window
+   * the reader is looking at, so a colleague's calendar fills in beside their
+   * own rather than after a separate wait.
+   *
+   * An account that answers with no calendars is simply not listed. Sharing a
+   * file does not make somebody's calendar worth a heading.
+   */
+  async loadSharedCalendars() {
+    const session = useSession.getState();
+    const own = session.ownAccountFor(CAP.calendars);
+    const accounts = Object.entries(session.session?.accounts ?? {}).filter(([id, a]) => a.isPersonal === false && id !== own);
+    const found: SharedCalendar[] = [];
+    for (const [accountId, account] of accounts) {
+      try {
+        const res = await client.call<GetResponse<Calendar>>("Calendar/get", { accountId, ids: null });
+        for (const calendar of res.list) found.push({ accountId, accountName: account.name, calendar });
+      } catch {
+        continue;
+      }
+    }
+    set({ sharedCalendars: found });
+    // Fill in whatever windows are already on screen.
+    for (const key of Object.keys(get().ranges)) {
+      const [from, to] = key.split("|").map((n) => new Date(Number(n)));
+      if (from && to) void get().loadSharedRange(from, to);
+    }
+  },
+
+  /** The same window, from every account that shared a calendar. */
+  async loadSharedRange(start, end) {
+    const shared = get().sharedCalendars;
+    if (!shared.length) return;
+    const key = `${start.getTime()}|${end.getTime()}`;
+    const tz = settings().timeZone ?? browserTimeZone;
+    const accounts = [...new Set(shared.map((c) => c.accountId))];
+    const ids: string[] = [];
+    const events: Record<string, CalendarEvent> = {};
+    for (const accountId of accounts) {
+      try {
+        const res = await client.chain([
+          ["CalendarEvent/query", { accountId, filter: { after: toLocalDateTime(start), before: toLocalDateTime(end) }, timeZone: tz, sort: [{ property: "start", isAscending: true }], expandRecurrences: true, limit: 2000 }, "q"],
+          ["CalendarEvent/get", { accountId, "#ids": { resultOf: "q", name: "CalendarEvent/query", path: "/ids" }, properties: EVENT_PROPS, timeZone: tz }, "g"],
+        ]);
+        const g = res.get("g")?.[0] as unknown as GetResponse<CalendarEvent>;
+        for (const e of g.list) {
+          const k = sharedKey(accountId, e.id);
+          events[k] = e;
+          ids.push(k);
+        }
+      } catch {
+        // One account refusing must not empty the calendar of the others.
+        continue;
+      }
+    }
+    set((s) => ({ sharedEvents: { ...s.sharedEvents, ...events }, sharedRanges: { ...s.sharedRanges, [key]: ids } }));
   },
 
   async loadCalendars() {
@@ -131,13 +216,14 @@ export const useCalendar = create<CalendarState>((set, get) => ({
         for (const e of g.list) events[e.id] = e;
         return { events, ranges: { ...s.ranges, [key]: q.ids }, loading: false, error: null };
       });
+      void get().loadSharedRange(start, end);
     } catch (err) {
       set({ loading: false, error: (err as Error).message });
     }
   },
 
   instancesIn(start, end) {
-    const { events, ranges, calendars, hidden } = get();
+    const { events, ranges, calendars, hidden, sharedEvents, sharedRanges, sharedCalendars } = get();
     const ids = new Set<Id>();
     for (const list of Object.values(ranges)) for (const id of list) ids.add(id);
     const out: EventInstance[] = [];
@@ -147,6 +233,24 @@ export const useCalendar = create<CalendarState>((set, get) => ({
       const calId = Object.keys(e.calendarIds ?? {})[0];
       if (calId && hidden[calId]) continue;
       const inst = toInstance(e, calendars);
+      if (!inst) continue;
+      if (inst.end > start && inst.start < end) out.push(inst);
+    }
+    /* Shared events go through the same funnel, so every view gets them
+       without knowing they exist. Their calendars are looked up per account:
+       a shared calendar id means nothing outside the account holding it, and
+       hiding one is remembered under the same account-qualified key. */
+    const sharedKeys = new Set<string>();
+    for (const list of Object.values(sharedRanges)) for (const k of list) sharedKeys.add(k);
+    for (const k of sharedKeys) {
+      const e = sharedEvents[k];
+      if (!e) continue;
+      const accountId = k.slice(0, k.length - e.id.length - 1);
+      const calId = Object.keys(e.calendarIds ?? {})[0];
+      if (calId && hidden[sharedKey(accountId, calId)]) continue;
+      const theirs: Record<Id, Calendar> = {};
+      for (const c of sharedCalendars) if (c.accountId === accountId) theirs[c.calendar.id] = c.calendar;
+      const inst = toInstance(e, theirs);
       if (!inst) continue;
       if (inst.end > start && inst.start < end) out.push(inst);
     }

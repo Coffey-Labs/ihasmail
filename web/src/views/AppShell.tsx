@@ -6,7 +6,7 @@ import { toggleTarget, useEffectiveTheme, useSettings } from "@/store/settings";
 import { useMail } from "@/store/mail";
 import { draftFromMailto, useCompose } from "@/store/compose";
 import { Avatar, useIsMobile } from "@/ui/misc";
-import { MenuItem, MenuSep, MenuTitle, Popover, useMenu } from "@/ui/popover";
+import { MenuItem, MenuSep, Popover, useMenu } from "@/ui/popover";
 import { SearchBar } from "./SearchBar";
 import { MailboxTree } from "./mail/MailboxTree";
 import { FilesTree } from "./files/FilesTree";
@@ -14,7 +14,6 @@ import { ContactsSidebar } from "./contacts/ContactsSidebar";
 import { CalendarSidebar } from "./calendar/CalendarSidebar";
 import { ShortcutsDialog, useGlobalShortcuts } from "./Shortcuts";
 import { formatSize } from "@/lib/format";
-import { CAP } from "@/jmap/client";
 
 const PUSH_LABEL = {
   connected: "Live updates connected",
@@ -32,8 +31,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   const openCompose = useCompose((s) => s.open);
   const pushState = useSession((s) => s.pushState);
   const session = useSession((s) => s.session);
-  const accountId = useSession((s) => s.accountId);
-  const setAccount = useSession((s) => s.setAccount);
   const logout = useSession((s) => s.logout);
   const acctMenu = useMenu();
   const section = location.split("/")[1] || "mail";
@@ -55,8 +52,16 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
   }, [openCompose, navigate]);
 
-  const accounts = session ? Object.entries(session.accounts) : [];
-  const mailAccounts = accounts.filter(([, a]) => CAP.mail in (a.accountCapabilities ?? {}));
+  /*
+   * There is no account switcher any more.
+   *
+   * It existed to reach what other people shared, and was the wrong door: it
+   * moved the whole app to somebody else's account, and Stalwart advertises
+   * every capability on a shared account, so mail, calendar and contacts went
+   * with it and were refused. Shares are listed where they belong now -- in
+   * Files and in Contacts, beside the reader's own -- and found without anyone
+   * having to know an account switch was involved.
+   */
 
   return (
     <div className="app">
@@ -67,7 +72,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <Link href="/mail" className="brand">
           <img src="/img/logo.png" alt="" />
           <span className="brand-name">
-            ihasmail{mailAccounts.length > 1 ? "" : ""}
+            ihasmail
           </span>
         </Link>
         <SearchBar />
@@ -95,15 +100,6 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <div className="hint truncate">{session?.ihasmail?.loginName}</div>
               </div>
             </div>
-            {mailAccounts.length > 1 && (
-              <>
-                <MenuSep />
-                <MenuTitle>Accounts</MenuTitle>
-                {mailAccounts.map(([id, a]) => (
-                  <MenuItem key={id} checked={id === accountId} label={a.name} onClick={() => setAccount(id)} />
-                ))}
-              </>
-            )}
             <MenuSep />
             <MenuItem icon={<Settings size={16} />} label="Settings" onClick={() => navigate("/settings")} />
             <MenuItem icon={<RefreshCw size={16} />} label="Refresh" onClick={() => window.location.reload()} />
