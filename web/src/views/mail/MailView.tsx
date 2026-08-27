@@ -14,6 +14,7 @@ import { LabelPicker } from "./LabelPicker";
 import type { Id } from "@/jmap/types";
 import { confirmDialog } from "@/ui/dialog";
 import { toast } from "@/ui/toast";
+import { isUnknownMailbox } from "@/lib/mailboxRoute";
 import { scheduledMailboxIdFrom, useScheduled } from "@/store/scheduled";
 
 export function MailView({ mailboxId, threadId, search }: { mailboxId?: string; threadId?: string; search?: boolean }) {
@@ -38,6 +39,26 @@ export function MailView({ mailboxId, threadId, search }: { mailboxId?: string; 
   useEffect(() => {
     if (!search && !mailboxId && inboxId) navigate(`/mail/${inboxId}`, { replace: true });
   }, [search, mailboxId, inboxId, navigate]);
+
+  /*
+   * A folder id this account does not have.
+   *
+   * It used to render the ordinary empty state -- "Nothing here. This folder is
+   * empty." -- which is a claim about a folder that is not there, so a stale
+   * link read as a folder that had emptied itself rather than one that was
+   * gone (#111). Only reachable from outside the app: the sidebar links to ids
+   * that exist.
+   *
+   * Inbox is the kinder landing than a dead end, but silently swapping one
+   * folder for another would be its own small lie, so it says what happened.
+   * `mailboxesLoaded` gates it: without that, every cold load redirects in the
+   * moment before the folder list arrives.
+   */
+  useEffect(() => {
+    if (!isUnknownMailbox({ mailboxId, mailboxes, loaded: mailboxesLoaded, search }) || !inboxId) return;
+    toast.show("That folder no longer exists. Showing your inbox instead.");
+    navigate(`/mail/${inboxId}`, { replace: true });
+  }, [search, mailboxId, mailboxesLoaded, mailboxes, inboxId, navigate]);
 
   // Build & run the list query
   const listQuery = useMemo<ListQuery | null>(() => {
