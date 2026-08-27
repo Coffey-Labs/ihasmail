@@ -470,7 +470,7 @@ const handlers: Record<string, Handler> = {
     const list = ids.filter((id) => id === ACCOUNT).map((id) => ({ id, name: USER, locale: MOCK_LOCALE, timeZone: null }));
     return { accountId: ACCOUNT, state: String(state.n), list, notFound: ids.filter((id) => id !== ACCOUNT) };
   },
-  "Mailbox/get": genericGet(mailboxes),
+  "Mailbox/get": (a) => hideShareWithUnlessAsked(a, genericGet(mailboxes)(a) as { list: Obj[] }) as never,
   "Mailbox/set": (a) => { const r = genericSet(mailboxes, "m", (o) => Object.assign(o, { ...mb(o.id as string, o.name as string, null, (o.parentId as string) ?? null), ...o }))(a); recount(); return r; },
   "Mailbox/changes": () => ({ accountId: ACCOUNT, oldState: "1", newState: String(state.n), hasMoreChanges: false, created: [], updated: [], destroyed: [] }),
   "Email/query": (a) => {

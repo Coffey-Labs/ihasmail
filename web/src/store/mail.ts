@@ -22,6 +22,32 @@ import { toast } from "@/ui/toast";
 import { settings, useSettings } from "./settings";
 import { useSession } from "./session";
 
+/*
+ * Named explicitly so `shareWith` comes back, which it does not otherwise --
+ * see the note on CALENDAR_PROPS and the KNOWN-ISSUES entry. Mailboxes were the
+ * third and last store fetching everything by asking for nothing.
+ *
+ * It matters here for one narrow but real case. Sharing a mail folder is
+ * withdrawn because Stalwart stores the share and never delivers it, and the
+ * only way left to clear one already made is the "Stop sharing" entry, which
+ * appears only when a folder looks shared. Without this it never looked shared,
+ * so the escape hatch for the exact situation it was built for was invisible.
+ */
+export const MAILBOX_PROPS = [
+  "id",
+  "name",
+  "parentId",
+  "role",
+  "sortOrder",
+  "totalEmails",
+  "unreadEmails",
+  "totalThreads",
+  "unreadThreads",
+  "myRights",
+  "isSubscribed",
+  "shareWith",
+];
+
 export const LIST_PROPS = [
   "id",
   "blobId",
@@ -210,7 +236,7 @@ export const useMail = create<MailState>((set, get) => ({
   async loadMailboxes() {
     const accountId = get().accountId;
     if (!accountId) return;
-    const res = await client.call<GetResponse<Mailbox>>("Mailbox/get", { accountId, ids: null });
+    const res = await client.call<GetResponse<Mailbox>>("Mailbox/get", { accountId, ids: null, properties: MAILBOX_PROPS });
     const mailboxes: Record<Id, Mailbox> = {};
     for (const m of res.list) mailboxes[m.id] = m;
     set({ mailboxes, mailboxState: res.state, mailboxesLoaded: true });
