@@ -25,8 +25,13 @@ export function CalendarSidebar() {
   const [anchor, setAnchor] = useState(() => startOfDay(selected));
   const grid = useMemo(() => monthGrid(anchor, weekStart), [anchor, weekStart]);
   const menu = useMenu();
-  const sharedSubscribed = cal.sharedCalendars.filter((c) => c.calendar.isSubscribed);
-  const sharedAvailable = cal.sharedCalendars.filter((c) => !c.calendar.isSubscribed);
+  /* Added if the server says so or the reader's settings do; Stalwart will not
+     always take the flag, so the settings carry it where it refuses. */
+  const addedShares = new Set(useSettings((s) => s.settings).addedShares);
+  const isAdded = (c: { accountId: string; calendar: { id: string; isSubscribed?: boolean } }) =>
+    Boolean(c.calendar.isSubscribed) || addedShares.has(`${c.accountId}:${c.calendar.id}`);
+  const sharedSubscribed = cal.sharedCalendars.filter(isAdded);
+  const sharedAvailable = cal.sharedCalendars.filter((c) => !isAdded(c));
   const [menuCal, setMenuCal] = useState<Calendar | null>(null);
   const [editCal, setEditCal] = useState<Partial<Calendar> | null>(null);
   const [share, setShare] = useState<Calendar | null>(null);
