@@ -472,7 +472,22 @@ const handlers: Record<string, Handler> = {
     return { accountId: ACCOUNT, queryState: String(state.n), canCalculateChanges: false, position: pos, ids: list.slice(pos, pos + limit).map((e) => e.id), total: list.length, limit };
   },
   "Email/get": (a) => genericGet(emails)(a),
-  "Email/changes": () => ({ accountId: ACCOUNT, oldState: "1", newState: String(state.n), hasMoreChanges: false, created: [], updated: [], destroyed: [] }),
+  /*
+   * Real changes, not an empty answer.
+   *
+   * This used to return three empty arrays whatever had happened, so the
+   * client's whole reconciliation path -- `Email/changes`, then deciding what
+   * to do with what came back -- never ran against the mock. A bug living in
+   * that path could not be reproduced here at all, which is how one reached
+   * production and survived being "fixed" once (#100). The log below is what
+   * the real server can answer from.
+   */
+  "Email/changes": (a) => {
+    const since = Number(a.sinceState ?? 0);
+    const relevant = emailChanges.filter((c) => c.state > since);
+    const pick = (k: "created" | "updated" | "destroyed") => [...new Set(relevant.flatMap((c) => c[k]))];
+    return { accountId: ACCOUNT, oldState: String(a.sinceState ?? "1"), newState: String(state.n), hasMoreChanges: false, created: pick("created"), updated: pick("updated"), destroyed: pick("destroyed") };
+  },
   "Email/set": (a) => {
     const r = genericSet(emails, "e", (o) => {
       const bv = (o.bodyValues as Record<string, { value: string }>) ?? {};
@@ -493,6 +508,19 @@ const handlers: Record<string, Handler> = {
       o.blobId = putBlob(`Subject: ${o.subject}\r\n\r\n${bv.text?.value ?? ""}`, "message/rfc822");
     })(a);
     recount();
+    nextState();
+    recordEmailChange({
+      created: Object.values((r.created ?? {}) as Record<string, { id: string }>).map((x) => x.id),
+      updated: Object.keys((a.update as Obj) ?? {}),
+      destroyed: (r.destroyed as string[] | undefined) ?? [],
+    });
+    /* A real server pushes a state change after a set, and the client acts on
+       it -- `Email/changes` runs and the store reconciles what came back. The
+       mock stayed silent, so that whole path never ran here and a bug living
+       in it could not be reproduced: marking a message read went round the
+       server and back on the live instance, and did nothing at all on the mock
+       (#100). Announced now, the way Stalwart does. */
+    broadcast(["Email", "Mailbox", "Thread"]);
     return r;
   },
   "Email/import": (a) => { const created: Obj = {}; for (const [cid, spec] of Object.entries((a.emails as Obj) ?? {})) { const id = `e${counter++}`; emails.push({ id, blobId: (spec as Obj).blobId, threadId: `t${id}`, mailboxIds: (spec as Obj).mailboxIds, keywords: (spec as Obj).keywords ?? {}, size: 100, receivedAt: new Date().toISOString(), subject: "(imported message)", from: [{ name: null, email: "import@example" }], to: null, preview: "", hasAttachment: false, textBody: [], htmlBody: [], attachments: [], bodyValues: {} }); created[cid] = { id }; } recount(); return setResp({ created }); },
@@ -852,6 +880,14 @@ const session = () => ({
 });
 
 const sseClients = new Set<ServerResponse>();
+/** What changed and when, so `Email/changes` can answer honestly. */
+const emailChanges: Array<{ state: number; created: string[]; updated: string[]; destroyed: string[] }> = [];
+function recordEmailChange(change: { created?: string[]; updated?: string[]; destroyed?: string[] }) {
+  emailChanges.push({ state: state.n, created: change.created ?? [], updated: change.updated ?? [], destroyed: change.destroyed ?? [] });
+  // A window is plenty; the client refetches from scratch if it falls behind.
+  if (emailChanges.length > 200) emailChanges.splice(0, emailChanges.length - 200);
+}
+
 function broadcast(types: string[]) {
   const payload = `event: state\ndata: ${JSON.stringify({ "@type": "StateChange", changed: { [ACCOUNT]: Object.fromEntries(types.map((t) => [t, String(state.n)])) } })}\n\n`;
   for (const c of sseClients) c.write(payload);
