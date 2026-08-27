@@ -193,9 +193,9 @@ const cards: Obj[] = people.slice(0, 6).map((p, i) => {
 });
 const principals: Obj[] = people.slice(0, 5).map((p, i) => ({ id: `pr${i}`, type: "individual", name: p[0], description: null, email: p[1], timeZone: "UTC" }));
 const fileNodes: Obj[] = [
-  { id: "f1", parentId: null, nodeType: "directory", blobId: null, size: null, name: "Documents", type: null, created: new Date().toISOString(), modified: new Date().toISOString(), myRights: fr(), role: "documents" },
-  { id: "f2", parentId: "f1", nodeType: "file", blobId: putBlob("hello world", "text/plain"), size: 11, name: "notes.txt", type: "text/plain", created: new Date().toISOString(), modified: new Date().toISOString(), myRights: fr() },
-  { id: "f3", parentId: null, nodeType: "file", blobId: putBlob("%PDF-1.4 mock", "application/pdf"), size: 14, name: "report.pdf", type: "application/pdf", created: new Date().toISOString(), modified: new Date().toISOString(), myRights: fr() },
+  { id: "f1", parentId: null, nodeType: "directory", blobId: null, size: null, name: "Documents", type: null, created: new Date().toISOString(), modified: new Date().toISOString(), myRights: fr(), shareWith: {}, role: "documents" },
+  { id: "f2", parentId: "f1", nodeType: "file", blobId: putBlob("hello world", "text/plain"), size: 11, name: "notes.txt", type: "text/plain", created: new Date().toISOString(), modified: new Date().toISOString(), myRights: fr(), shareWith: {} },
+  { id: "f3", parentId: null, nodeType: "file", blobId: putBlob("%PDF-1.4 mock", "application/pdf"), size: 14, name: "report.pdf", type: "application/pdf", created: new Date().toISOString(), modified: new Date().toISOString(), myRights: fr(), shareWith: {} },
 ];
 function fr() {
   return { mayRead: true, mayAddChildren: true, mayRename: true, mayDelete: true, mayModifyContent: true, mayShare: true };
@@ -727,7 +727,7 @@ const handlers: Record<string, Handler> = {
   "FileNode/get": genericGet(fileNodes),
   "FileNode/set": (a) => {
     return genericSet(fileNodes, "f", (o) => {
-      Object.assign(o, { created: new Date().toISOString(), modified: new Date().toISOString(), myRights: fr(), size: o.blobId ? (blobs.get(o.blobId as string)?.data.length ?? 0) : null, type: o.type ?? null, blobId: o.blobId ?? null, ...o });
+      Object.assign(o, { created: new Date().toISOString(), modified: new Date().toISOString(), myRights: fr(), shareWith: {}, size: o.blobId ? (blobs.get(o.blobId as string)?.data.length ?? 0) : null, type: o.type ?? null, blobId: o.blobId ?? null, ...o });
       // Without nodeType, a node is a directory precisely when it carries no
       // file properties. Keep it internally so query and get stay consistent.
       if (!o.nodeType) o.nodeType = o.blobId || o.size != null || o.type ? "file" : "directory";
