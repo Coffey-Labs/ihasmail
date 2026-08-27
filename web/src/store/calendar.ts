@@ -3,6 +3,7 @@ import { CAP, client, setErrorMessage } from "@/jmap/client";
 import type { BusyPeriod, Calendar, CalendarEvent, GetResponse, Id, JSCalendarParticipant, JSCalendarRecurrenceRule, ParticipantIdentity, QueryResponse, SetResponse } from "@/jmap/types";
 import { toUTCDate, toLocalDateTime, zonedToDate, parseDuration, DAY_MS, browserTimeZone } from "@/lib/dates";
 import { settings } from "./settings";
+import { toast } from "@/ui/toast";
 import { useSession } from "./session";
 
 export interface EventInstance {
@@ -146,10 +147,15 @@ export const useCalendar = create<CalendarState>((set, get) => ({
   },
 
   async setSharedSubscribed(accountId, calendarId, subscribed) {
+    // See the note in the contacts store: subscribing writes to another
+    // account, so a refusal is an ordinary answer and arrives in `notUpdated`
+    // rather than as a thrown error.
     try {
-      await client.call("Calendar/set", { accountId, update: { [calendarId]: { isSubscribed: subscribed } } });
+      const res = await client.call<SetResponse>("Calendar/set", { accountId, update: { [calendarId]: { isSubscribed: subscribed } } });
+      const err = res.notUpdated?.[calendarId];
+      if (err) throw new Error(setErrorMessage(err));
     } catch (err) {
-      set({ error: (err as Error).message });
+      toast.error(`Could not ${subscribed ? "add" : "remove"} that calendar: ${(err as Error).message}`);
       return;
     }
     set((s) => ({
