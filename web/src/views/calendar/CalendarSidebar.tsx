@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
-import { ChevronLeft, ChevronRight, MoreVertical, Pencil, Plus, Share2, Trash2, Eye, EyeOff, Star, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, MoreVertical, Pencil, Plus, Share2, Trash2, Eye, EyeOff, Star, UserMinus, X } from "lucide-react";
 import { useCalendar } from "@/store/calendar";
 import { dateTimeKey, useSettings } from "@/store/settings";
 import { addMonths, isSameDay, isToday, monthGrid, startOfDay, toLocalDateOnly } from "@/lib/dates";
@@ -66,6 +66,7 @@ export function CalendarSidebar() {
         <div key={c.id} className={`cal-list-item ${cal.hidden[c.id] ? "hidden-cal" : ""}`} onClick={() => cal.toggleHidden(c.id)} onContextMenu={(e) => { e.preventDefault(); setMenuCal(c); menu.openAt(e.clientX, e.clientY); }}>
           <span className="cal-color" style={{ background: c.color ?? "var(--accent)", borderColor: c.color ?? "var(--accent)" }} />
           <span className="cal-name">{c.name}</span>
+          {Object.keys(c.shareWith ?? {}).length > 0 && <Share2 size={12} className="faint" aria-label="Shared" />}
           {c.isDefault && <Star size={12} className="faint" />}
           <button className="icon-btn xs nav-more" onClick={(e) => { e.stopPropagation(); setMenuCal(c); menu.open(e); }} aria-label="Calendar options"><MoreVertical size={14} /></button>
         </div>
@@ -123,6 +124,31 @@ export function CalendarSidebar() {
             <MenuItem icon={cal.hidden[menuCal.id] ? <Eye size={16} /> : <EyeOff size={16} />} label={cal.hidden[menuCal.id] ? "Show" : "Hide"} onClick={() => cal.toggleHidden(menuCal.id)} />
             <MenuItem icon={<Pencil size={16} />} label="Edit" onClick={() => setEditCal(menuCal)} />
             <MenuItem icon={<Share2 size={16} />} label="Share…" onClick={() => setShare(menuCal)} disabled={!menuCal.myRights.mayShare} />
+            {/* Revoking every share at once, without walking the dialog and
+                removing people one at a time. Only offered when there is
+                something to revoke. */}
+            {Object.keys(menuCal.shareWith ?? {}).length > 0 && (
+              <MenuItem
+                icon={<UserMinus size={16} />}
+                label="Stop sharing"
+                disabled={!menuCal.myRights.mayShare}
+                onClick={async () => {
+                  const who = Object.keys(menuCal.shareWith ?? {}).length;
+                  if (!(await confirmDialog({
+                    title: `Stop sharing “${menuCal.name}”?`,
+                    message: `${who === 1 ? "One person" : `${who} people`} will lose access. Events in it are not affected.`,
+                    confirmLabel: "Stop sharing",
+                    danger: true,
+                  }))) return;
+                  try {
+                    await cal.updateCalendar(menuCal.id, { shareWith: null });
+                    toast.success("No longer shared");
+                  } catch (err) {
+                    toast.error((err as Error).message);
+                  }
+                }}
+              />
+            )}
             <MenuItem icon={<Star size={16} />} label="Make default" disabled={menuCal.isDefault} onClick={() => void cal.updateCalendar(menuCal.id, { isDefault: true } as Partial<Calendar>).catch((err) => toast.error((err as Error).message))} />
             <MenuSep />
             <MenuItem danger icon={<Trash2 size={16} />} label="Delete" disabled={!menuCal.myRights.mayDelete} onClick={async () => { if (await confirmDialog({ title: `Delete “${menuCal.name}”?`, message: "All events in this calendar will be deleted.", confirmLabel: "Delete", danger: true })) void cal.destroyCalendar(menuCal.id).catch((err) => toast.error((err as Error).message)); }} />
