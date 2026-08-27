@@ -33,6 +33,21 @@ export interface Settings {
   showAvatars: boolean;
   pageSize: number;
   markReadDelay: number; // seconds; -1 = never auto
+  /**
+   * Shared calendars and address books the reader has added, as
+   * `accountId:collectionId`.
+   *
+   * JMAP keeps this on the collection itself, in `isSubscribed`, and that is
+   * still tried first -- a preference the server holds is one every client
+   * sees. But subscribing writes to the *owner's* account, and Stalwart 0.16.19
+   * refuses that for an address book shared read-only: "You are not allowed to
+   * modify this address book." It accepts the same write on a shared calendar,
+   * which is the inconsistency this list exists to paper over.
+   *
+   * So where the server will not remember, ihasmail does, in the settings that
+   * already follow the reader between devices.
+   */
+  addedShares: string[];
   imagePolicy: ImagePolicy;
   /** Let messages follow the app's light/dark theme instead of always sitting on white. */
   themeMessageBody: boolean;
@@ -128,6 +143,7 @@ export const DEFAULT_SETTINGS: Settings = {
   showAvatars: true,
   pageSize: 50,
   markReadDelay: 0,
+  addedShares: [],
   imagePolicy: "ask",
   themeMessageBody: false,
   undoSendSeconds: 8,

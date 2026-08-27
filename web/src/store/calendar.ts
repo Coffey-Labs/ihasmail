@@ -2,8 +2,7 @@ import { create } from "zustand";
 import { CAP, client, setErrorMessage } from "@/jmap/client";
 import type { BusyPeriod, Calendar, CalendarEvent, GetResponse, Id, JSCalendarParticipant, JSCalendarRecurrenceRule, ParticipantIdentity, QueryResponse, SetResponse } from "@/jmap/types";
 import { toUTCDate, toLocalDateTime, zonedToDate, parseDuration, DAY_MS, browserTimeZone } from "@/lib/dates";
-import { settings } from "./settings";
-import { toast } from "@/ui/toast";
+import { settings, useSettings } from "./settings";
 import { useSession } from "./session";
 
 export interface EventInstance {
@@ -150,13 +149,26 @@ export const useCalendar = create<CalendarState>((set, get) => ({
     // See the note in the contacts store: subscribing writes to another
     // account, so a refusal is an ordinary answer and arrives in `notUpdated`
     // rather than as a thrown error.
+    /*
+     * Server first, settings when it refuses -- the same arrangement the
+     * contacts store explains. Stalwart takes this write on a shared calendar
+     * where it will not on a shared address book, but the difference is the
+     * server's to change and not worth relying on from here.
+     */
+    let stored = false;
     try {
       const res = await client.call<SetResponse>("Calendar/set", { accountId, update: { [calendarId]: { isSubscribed: subscribed } } });
       const err = res.notUpdated?.[calendarId];
       if (err) throw new Error(setErrorMessage(err));
-    } catch (err) {
-      toast.error(`Could not ${subscribed ? "add" : "remove"} that calendar: ${(err as Error).message}`);
-      return;
+      stored = true;
+    } catch {
+      stored = false;
+    }
+    if (!stored) {
+      const added = new Set(settings().addedShares);
+      if (subscribed) added.add(sharedKey(accountId, calendarId));
+      else added.delete(sharedKey(accountId, calendarId));
+      useSettings.getState().update({ addedShares: [...added] });
     }
     set((s) => ({
       sharedCalendars: s.sharedCalendars.map((c) =>
@@ -281,8 +293,13 @@ export const useCalendar = create<CalendarState>((set, get) => ({
          an account linked for its files offered its calendar too. `isSubscribed`
          is the only thing separating "shared with me" from "reachable", so
          nothing unsubscribed is drawn. */
+      const added = new Set(settings().addedShares);
       const theirs: Record<Id, Calendar> = {};
-      for (const c of sharedCalendars) if (c.accountId === accountId && c.calendar.isSubscribed) theirs[c.calendar.id] = c.calendar;
+      for (const c of sharedCalendars) {
+        if (c.accountId !== accountId) continue;
+        if (!c.calendar.isSubscribed && !added.has(sharedKey(c.accountId, c.calendar.id))) continue;
+        theirs[c.calendar.id] = c.calendar;
+      }
       if (calId && !theirs[calId]) continue;
       const inst = toInstance(e, theirs);
       if (!inst) continue;
