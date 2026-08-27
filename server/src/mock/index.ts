@@ -721,7 +721,15 @@ const handlers: Record<string, Handler> = {
   "ContactCard/parse": (a) => { const parsed: Obj = {}; for (const b of a.blobIds as string[]) { const t = blobs.get(b)?.data.toString() ?? ""; const fn = /^FN:(.*)$/m.exec(t)?.[1]?.trim() ?? "Imported"; const em = /^EMAIL[^:]*:(.*)$/m.exec(t)?.[1]?.trim(); parsed[b] = [{ "@type": "Card", version: "1.0", uid: randomUUID(), kind: "individual", name: { full: fn }, emails: em ? { e1: { address: em } } : undefined }]; } return { accountId: ACCOUNT, parsed, notParsable: [] }; },
   "FileNode/query": (a) => {
     const f = (a.filter as Obj) ?? {};
-    const list = fileNodes.filter((n) => (f.isTopLevel ? n.parentId == null : f.parentId ? n.parentId === f.parentId : true));
+    // `nodeType` is a filter 0.16.19 really applies -- checked live on
+    // 2026-08-27, where it returned the two directories out of seven nodes. The
+    // mock ignoring it was worse than not having it: the sidebar tree asks for
+    // directories and was handed files, which it then drew as folders.
+    const list = fileNodes.filter((n) => {
+      if (f.isTopLevel ? n.parentId != null : f.parentId ? n.parentId !== f.parentId : false) return false;
+      if (f.nodeType && n.nodeType !== f.nodeType) return false;
+      return true;
+    });
     return { accountId: ACCOUNT, queryState: "1", canCalculateChanges: false, position: 0, ids: list.map((n) => n.id), total: list.length };
   },
   "FileNode/get": genericGet(fileNodes),

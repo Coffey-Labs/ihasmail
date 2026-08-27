@@ -1014,3 +1014,13 @@ button.dp-open:disabled { cursor: default; opacity: .5; }
   .dp-split { flex-direction: column; }
   .dp-times { flex-direction: row; overflow-x: auto; max-height: none; border-left: 0; border-top: 1px solid var(--border); padding: 6px 0 0; }
 }
+
+/* Files: the sidebar tree reuses .nav-item, so only the parts the mail tree has
+   no equivalent for are here. A row in the list is a drop target the same way a
+   folder in the tree is, and says so the same way. */
+.files-table tbody tr.drop-target > td { background: var(--accent-soft); }
+.files-table tbody tr.drop-target > td:first-child { box-shadow: inset 2px 0 0 var(--accent); }
+.files-table tbody tr[draggable="true"] { cursor: grab; }
+.files-table tbody tr[draggable="true"]:active { cursor: grabbing; }
+.sidebar .nav-item[draggable="true"] { cursor: pointer; }
+.f-name .faint { flex: none; }
