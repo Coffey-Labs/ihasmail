@@ -379,6 +379,19 @@ function enforceLimits(name: string, args: Obj): void {
 
 const setResp = (extra: Obj = {}): Obj => ({ accountId: ACCOUNT, oldState: "1", newState: nextState(), created: {}, updated: {}, destroyed: [], ...extra });
 
+/*
+ * Stalwart does not return `shareWith` unless a client asks for it by name: a
+ * `/get` with no `properties` comes back without the field at all. Confirmed on
+ * 0.16.19 (2026-08-27) against a calendar and an address book that really were
+ * shared. The mock handing it over unasked meant a client that never asked
+ * still saw every share, and the one place that did not -- the real server --
+ * showed nothing shared at all.
+ */
+function hideShareWithUnlessAsked(a: Obj, res: { list: Obj[] }): { list: Obj[] } {
+  if (a.properties) return res;
+  return { ...res, list: res.list.map(({ shareWith: _drop, ...rest }) => rest) };
+}
+
 function genericGet(list: Obj[]) {
   return (a: Obj) => {
     const ids = a.ids as string[] | null | undefined;
@@ -759,7 +772,7 @@ const handlers: Record<string, Handler> = {
   "SieveScript/get": genericGet(sieveScripts),
   "SieveScript/set": (a) => { const r = genericSet(sieveScripts, "sv", (o) => Object.assign(o, { isActive: false, ...o }))(a); const act = (a.onSuccessActivateScript as string | undefined); if (act) { const id = act.startsWith("#") ? ((r.created as Obj)[act.slice(1)] as Obj)?.id : act; for (const s of sieveScripts) s.isActive = s.id === id; } if (a.onSuccessDeactivateScript) for (const s of sieveScripts) s.isActive = false; return r; },
   "SieveScript/validate": () => ({ accountId: ACCOUNT, error: null }),
-  "Calendar/get": (a) => genericGet(calendarsFor(a.accountId))(a),
+  "Calendar/get": (a) => hideShareWithUnlessAsked(a, genericGet(calendarsFor(a.accountId))(a) as { list: Obj[] }) as never,
   "Calendar/set": (a) => genericSet(calendarsFor(a.accountId), "c", (o) => Object.assign(o, { color: "#0f766e", isSubscribed: true, isVisible: true, isDefault: false, includeInAvailability: "all", timeZone: null, shareWith: null, myRights: rightsCal(), description: null, sortOrder: 0, ...o }))(a),
   "CalendarEvent/query": (a) => { const list = eventsFor(a.accountId); return { accountId: a.accountId ?? ACCOUNT, queryState: "1", canCalculateChanges: false, position: 0, ids: list.filter((e) => !(a.filter as Obj)?.uid || e.uid === (a.filter as Obj).uid).map((e) => e.id), total: list.length }; },
   "CalendarEvent/get": (a) => genericGet(eventsFor(a.accountId))(a),
@@ -778,7 +791,7 @@ const handlers: Record<string, Handler> = {
   "Principal/query": () => ({ accountId: ACCOUNT, queryState: "1", canCalculateChanges: false, position: 0, ids: principals.map((p) => p.id) }),
   "Principal/get": genericGet(principals),
   "Principal/getAvailability": (a) => ({ accountId: ACCOUNT, list: [{ utcStart: String(a.utcStart).slice(0, 11) + "13:00:00Z", utcEnd: String(a.utcStart).slice(0, 11) + "14:30:00Z", busyStatus: "confirmed", event: null }] }),
-  "AddressBook/get": (a) => genericGet(booksFor(a.accountId))(a),
+  "AddressBook/get": (a) => hideShareWithUnlessAsked(a, genericGet(booksFor(a.accountId))(a) as { list: Obj[] }) as never,
   "AddressBook/set": (a) => {
     /* Stalwart refuses any update to a book shared read-only, `isSubscribed`
        included -- "You are not allowed to modify this address book", confirmed
