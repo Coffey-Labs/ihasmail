@@ -833,10 +833,27 @@ export const useMail = create<MailState>((set, get) => ({
               delete next[id];
               delete nextFull[id];
             }
-            // Drop cached versions of updated emails so they're refetched lazily.
-            for (const id of updated) {
-              if (next[id] && nextFull[id]) delete nextFull[id];
-            }
+            /*
+             * The full copy of an updated email is deliberately kept.
+             *
+             * This used to drop it so the next read would fetch it again. But
+             * the reading pane renders only the emails it holds in full, so
+             * dropping one took the message out of the open thread until the
+             * refetch at the end of this function put it back. The pane emptied
+             * and refilled -- on an HTML message, a flash to the app's own
+             * background and out again, which is what was left of #100 after
+             * the message view stopped rebuilding its body.
+             *
+             * Marking as read causes exactly this: the server echoes our own
+             * change back as an update.
+             *
+             * Nothing is lost by keeping it. RFC 8621 makes every property of
+             * an Email immutable except `keywords` and `mailboxIds` -- the id
+             * is derived from the content, so a body cannot change beneath one
+             * -- and both are in LIST_PROPS, which the refresh immediately
+             * below merges over the cached copy. The eviction only ever cost
+             * the message its place in the thread.
+             */
             return { emails: next, fullIds: nextFull, emailState: since };
           });
           // Refresh the list-level props of updated/cached emails.
