@@ -36,7 +36,7 @@ let armed = false;
 let listenersBound = false;
 
 export function settingsSyncAvailable(): boolean {
-  return client.hasCapability(CAP.filenode) && Boolean(useSession.getState().accountFor(CAP.filenode));
+  return client.hasCapability(CAP.filenode) && Boolean(useSession.getState().ownAccountFor(CAP.filenode));
 }
 
 /**
@@ -46,7 +46,7 @@ export function settingsSyncAvailable(): boolean {
  */
 export async function loadRemoteSettings(): Promise<Record<string, unknown> | null> {
   if (!settingsSyncAvailable()) return null;
-  const accountId = useSession.getState().accountFor(CAP.filenode)!;
+  const accountId = useSession.getState().ownAccountFor(CAP.filenode)!;
   try {
     const folderId = await ensureFolder(accountId);
     const node = await findInFolder(accountId, folderId, FILE);
@@ -109,7 +109,7 @@ export async function flushSettingsPush(): Promise<void> {
 
 async function writeSettings(body: Record<string, unknown>): Promise<void> {
   if (!settingsSyncAvailable()) return;
-  const accountId = useSession.getState().accountFor(CAP.filenode)!;
+  const accountId = useSession.getState().ownAccountFor(CAP.filenode)!;
   const json = JSON.stringify(body, null, 2);
   // Byte length, not character count: a template or a signature with any
   // non-ASCII in it would otherwise be reported shorter than it is.
