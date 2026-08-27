@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { ChevronRight, Download, File, Folder, FolderPlus, FolderOpen, Home, MoreVertical, Pencil, Trash2, Upload, FolderInput } from "lucide-react";
+import { ChevronRight, Download, File, Folder, FolderPlus, FolderOpen, Home, MoreVertical, Pencil, Share2, Trash2, Upload, FolderInput } from "lucide-react";
 import { useFiles } from "@/store/files";
 import { client } from "@/jmap/client";
 import type { FileNode } from "@/jmap/types";
 import { formatSize, formatListDate } from "@/lib/format";
+import { isShared } from "@/lib/filenode";
+import { ShareDialog } from "../settings/ShareDialog";
 import { Empty, Spinner } from "@/ui/misc";
 import { MenuItem, MenuSep, Popover, useMenu } from "@/ui/popover";
 import { confirmDialog, promptDialog, Dialog } from "@/ui/dialog";
@@ -19,6 +21,7 @@ export function FilesView({ nodeId }: { nodeId?: string }) {
   const menu = useMenu();
   const [menuNode, setMenuNode] = useState<FileNode | null>(null);
   const [moveNode, setMoveNode] = useState<FileNode | null>(null);
+  const [shareNode, setShareNode] = useState<FileNode | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -94,7 +97,7 @@ export function FilesView({ nodeId }: { nodeId?: string }) {
             <tbody>
               {nodes.map((n) => (
                 <tr key={n.id} className={selected === n.id ? "selected" : ""} onClick={() => setSelected(n.id)} onDoubleClick={() => (n.nodeType === "directory" ? navigate(`/files/${n.id}`) : download(n))} onContextMenu={(e) => { e.preventDefault(); setMenuNode(n); menu.openAt(e.clientX, e.clientY); }}>
-                  <td><div className="f-name">{n.nodeType === "directory" ? <Folder size={18} /> : <File size={18} />}<span onClick={(e) => { if (n.nodeType === "directory") { e.stopPropagation(); navigate(`/files/${n.id}`); } }} style={n.nodeType === "directory" ? { cursor: "pointer" } : undefined}>{n.name}</span></div></td>
+                  <td><div className="f-name">{n.nodeType === "directory" ? <Folder size={18} /> : <File size={18} />}<span onClick={(e) => { if (n.nodeType === "directory") { e.stopPropagation(); navigate(`/files/${n.id}`); } }} style={n.nodeType === "directory" ? { cursor: "pointer" } : undefined}>{n.name}</span>{isShared(n) && <Share2 size={13} className="faint" aria-label="Shared" />}</div></td>
                   <td className="hide-mobile muted">{n.nodeType === "directory" ? "—" : formatSize(n.size)}</td>
                   <td className="hide-mobile muted">{formatListDate(n.modified ?? n.created)}</td>
                   <td style={{ textAlign: "right" }}><button className="icon-btn sm" onClick={(e) => { e.stopPropagation(); setMenuNode(n); menu.open(e); }} aria-label="Options"><MoreVertical size={16} /></button></td>
@@ -110,12 +113,14 @@ export function FilesView({ nodeId }: { nodeId?: string }) {
             {menuNode.nodeType === "directory" ? <MenuItem icon={<FolderOpen size={16} />} label="Open" onClick={() => navigate(`/files/${menuNode.id}`)} /> : <MenuItem icon={<Download size={16} />} label="Download" onClick={() => download(menuNode)} />}
             <MenuItem icon={<Pencil size={16} />} label="Rename" disabled={!menuNode.myRights?.mayRename} onClick={async () => { const n = await promptDialog({ title: "Rename", defaultValue: menuNode.name }); if (n?.trim() && n !== menuNode.name) { try { await files.rename(menuNode.id, n.trim()); } catch (err) { toast.error((err as Error).message); } } }} />
             <MenuItem icon={<FolderInput size={16} />} label="Move to…" onClick={() => setMoveNode(menuNode)} />
+            <MenuItem icon={<Share2 size={16} />} label="Share…" disabled={!menuNode.myRights?.mayShare} onClick={() => setShareNode(menuNode)} />
             <MenuSep />
             <MenuItem danger icon={<Trash2 size={16} />} label="Delete" disabled={!menuNode.myRights?.mayDelete} onClick={async () => { if (await confirmDialog({ title: `Delete “${menuNode.name}”?`, confirmLabel: "Delete", danger: true })) { try { await files.destroy([menuNode.id]); toast.success("Deleted"); } catch (err) { toast.error((err as Error).message); } } }} />
           </>
         )}
       </Popover>
       {moveNode && <MoveDialog node={moveNode} onClose={() => setMoveNode(null)} />}
+      {shareNode && <ShareDialog kind="FileNode" id={shareNode.id} name={shareNode.name} shareWith={shareNode.shareWith ?? null} onClose={() => setShareNode(null)} />}
     </div>
   );
 }

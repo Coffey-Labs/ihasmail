@@ -21,6 +21,7 @@ interface FilesState {
   rename(id: Id, name: string): Promise<void>;
   move(id: Id, parentId: Id | null): Promise<void>;
   destroy(ids: Id[]): Promise<void>;
+  refresh(ids: Id[]): Promise<void>;
   pathTo(id: Id | null): FileNode[];
   applyChanges(types: Set<string>): void;
 }
@@ -127,6 +128,20 @@ export const useFiles = create<FilesState>((set, get) => ({
       }
     }
     await get().loadChildren(parentId);
+  },
+
+  /* Re-read named nodes in place. Sharing changes one property of one node and
+     nothing about which folder it sits in, so reloading the level around it
+     would be a bigger round trip to land in the same place. */
+  async refresh(ids) {
+    const accountId = get().accountId;
+    if (!accountId || !ids.length) return;
+    const res = await client.call<GetResponse<FileNode>>("FileNode/get", { accountId, ids, properties: fileNodeProps() });
+    set((s) => {
+      const nodes = { ...s.nodes };
+      for (const n of res.list) nodes[n.id] = n;
+      return { nodes };
+    });
   },
 
   async rename(id, name) {
