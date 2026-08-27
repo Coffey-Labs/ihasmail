@@ -1,17 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, Book, Download, Mail, MoreVertical, Pencil, Plus, Search, Share2, Trash2, Upload, Users, Phone, MapPin, Building2, Cake, StickyNote, Globe, Calendar as CalIcon, Star, Pin } from "lucide-react";
+import { ArrowLeft, Building2, Cake, Calendar as CalIcon, Download, Globe, Mail, MapPin, Pencil, Phone, Pin, Plus, Search, StickyNote, Trash2, Users } from "lucide-react";
 import { useContacts } from "@/store/contacts";
 import { useCompose } from "@/store/compose";
-import type { AddressBook, ContactCard } from "@/jmap/types";
+import type { ContactCard } from "@/jmap/types";
 import { contactDisplayName, contactEmails, contactPhoto, formatAddressLines, sortKey, toVCard } from "@/lib/contacts";
 import { formatDate, formatDateLong } from "@/lib/datetime";
 import { Avatar, Empty, Spinner, useIsNarrow } from "@/ui/misc";
-import { MenuItem, MenuSep, Popover, useMenu } from "@/ui/popover";
-import { confirmDialog, promptDialog } from "@/ui/dialog";
+import { confirmDialog } from "@/ui/dialog";
 import { toast } from "@/ui/toast";
 import { ContactEditor } from "./ContactEditor";
-import { ShareDialog } from "../settings/ShareDialog";
 import { avatarColor } from "@/lib/address";
 
 export function ContactsView({ id }: { id?: string }) {
@@ -19,11 +17,11 @@ export function ContactsView({ id }: { id?: string }) {
   const contacts = useContacts();
   const narrow = useIsNarrow();
   const [q, setQ] = useState("");
-  const [bookId, setBookId] = useState<string | "all">("all");
+  /* The book being shown lives in the store, because the list that chooses it
+     is the app's own sidebar rather than anything this view owns. */
+  const sel = contacts.selection;
+  const bookId = sel.bookId;
   const [editing, setEditing] = useState<Partial<ContactCard> | null>(null);
-  const [share, setShare] = useState<AddressBook | null>(null);
-  const bookMenu = useMenu();
-  const [menuBook, setMenuBook] = useState<AddressBook | null>(null);
   const openCompose = useCompose((s) => s.open);
 
   useEffect(() => {
@@ -33,16 +31,38 @@ export function ContactsView({ id }: { id?: string }) {
 
   useEffect(() => {
     const onNew = () => setEditing({});
+    const onImport = (ev: Event) => { const f = (ev as CustomEvent<File>).detail; if (f) void importFile(f); };
+    const onExport = () => exportAll();
     window.addEventListener("ihm:new-contact", onNew);
-    return () => window.removeEventListener("ihm:new-contact", onNew);
-  }, []);
+    window.addEventListener("ihm:contacts-import", onImport);
+    window.addEventListener("ihm:contacts-export", onExport);
+    return () => {
+      window.removeEventListener("ihm:new-contact", onNew);
+      window.removeEventListener("ihm:contacts-import", onImport);
+      window.removeEventListener("ihm:contacts-export", onExport);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  });
 
   const list = useMemo(() => {
+    // A shared book lists that account's cards; anything else lists the
+    // reader's own. They are never mixed: whose contacts you are looking at is
+    // the one thing this view must not be vague about.
+    if (sel.accountId) {
+      const prefix = `${sel.accountId}:`;
+      const theirs = Object.entries(contacts.sharedCards)
+        .filter(([key]) => key.startsWith(prefix))
+        .map(([, c]) => c)
+        .filter((c) => bookId === "all" || c.addressBookIds?.[bookId]);
+      return contacts.filterCards(theirs, q);
+    }
     const all = contacts.search(q);
     return bookId === "all" ? all : all.filter((c) => c.addressBookIds?.[bookId]);
-  }, [contacts, q, bookId]);
+  }, [contacts, q, bookId, sel.accountId]);
 
-  const selected = id ? contacts.cards[id] : undefined;
+  const selected = id
+    ? contacts.cards[id] ?? Object.entries(contacts.sharedCards).find(([key]) => key.endsWith(`:${id}`))?.[1]
+    : undefined;
   const books = Object.values(contacts.books).sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
   const groups = useMemo(() => {
     const out: Array<{ letter: string; items: ContactCard[] }> = [];
@@ -84,42 +104,6 @@ export function ContactsView({ id }: { id?: string }) {
 
   return (
     <div className={`contacts-layout ${selected || editing ? "detail" : ""}`}>
-      <aside className="contacts-books">
-        <button className={`nav-item ${bookId === "all" ? "active" : ""}`} style={{ width: "100%" }} onClick={() => setBookId("all")}>
-          <Users size={18} /><span className="nav-label">All contacts</span><span className="nav-count">{Object.keys(contacts.cards).length}</span>
-        </button>
-        <div className="nav-section"><span>Address books</span>
-          <button className="icon-btn" title="New address book" onClick={async () => { const n = await promptDialog({ title: "New address book", placeholder: "Name" }); if (n?.trim()) { try { await contacts.createBook(n.trim()); } catch (err) { toast.error((err as Error).message); } } }}><Plus size={16} /></button>
-        </div>
-        {books.map((b) => (
-          <button key={b.id} className={`nav-item ${bookId === b.id ? "active" : ""}`} style={{ width: "100%" }} onClick={() => setBookId(b.id)} onContextMenu={(e) => { e.preventDefault(); setMenuBook(b); bookMenu.openAt(e.clientX, e.clientY); }}>
-            <Book size={18} /><span className="nav-label">{b.name}</span>
-            <span className="icon-btn nav-more" onClick={(e) => { e.stopPropagation(); setMenuBook(b); bookMenu.open(e); }}><MoreVertical size={16} /></span>
-          </button>
-        ))}
-        <div style={{ padding: "12px 8px" }} className="col gap-8">
-          <label className="btn btn-sm btn-block"><Upload size={14} /> Import vCard<input type="file" accept=".vcf,text/vcard" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) void importFile(f); e.target.value = ""; }} /></label>
-          <button className="btn btn-sm btn-block" onClick={exportAll}><Download size={14} /> Export {bookId === "all" ? "all" : "book"}</button>
-        </div>
-        <Popover anchor={bookMenu.anchor} onClose={bookMenu.close} width={220}>
-          {menuBook && (
-            <>
-              <MenuItem icon={<Pencil size={16} />} label="Rename" onClick={async () => { const n = await promptDialog({ title: "Rename address book", defaultValue: menuBook.name }); if (n?.trim()) void contacts.updateBook(menuBook.id, { name: n.trim() }).catch((err) => toast.error((err as Error).message)); }} />
-              {/* Withdrawn alongside mail folder sharing, on a report that it
-                  behaved the same way -- which was never reproduced, and which
-                  Stalwart's own docs contradict, since address books are listed
-                  as shareable. Expected back once two accounts have confirmed a
-                  book actually arrives. Clearing one still works. */}
-              {Object.keys(menuBook.shareWith ?? {}).length > 0 && (
-                <MenuItem icon={<Share2 size={16} />} label="Stop sharing" onClick={() => setShare(menuBook)} />
-              )}
-              <MenuItem icon={<Star size={16} />} label={menuBook.isDefault ? "Default book" : "Make default"} disabled={menuBook.isDefault} onClick={() => void contacts.updateBook(menuBook.id, { isDefault: true } as Partial<AddressBook>).catch((err) => toast.error((err as Error).message))} />
-              <MenuSep />
-              <MenuItem danger icon={<Trash2 size={16} />} label="Delete" disabled={!menuBook.myRights.mayDelete} onClick={async () => { if (await confirmDialog({ title: `Delete “${menuBook.name}”?`, message: "All contacts in it will be deleted.", confirmLabel: "Delete", danger: true })) void contacts.destroyBook(menuBook.id).catch((err) => toast.error((err as Error).message)); }} />
-            </>
-          )}
-        </Popover>
-      </aside>
 
       <section className="contacts-list">
         <div className="list-search row">
@@ -161,7 +145,6 @@ export function ContactsView({ id }: { id?: string }) {
         )}
       </section>
       {editing && <ContactEditor card={editing} defaultBookId={bookId !== "all" ? bookId : (books.find((b) => b.isDefault)?.id ?? books[0]?.id ?? null)} onClose={() => setEditing(null)} onSaved={(cid) => { setEditing(null); navigate(`/contacts/${cid}`); }} />}
-      {share && <ShareDialog kind="AddressBook" id={share.id} name={share.name} shareWith={share.shareWith} onClose={() => setShare(null)} />}
     </div>
   );
 }

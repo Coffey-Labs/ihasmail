@@ -13,6 +13,22 @@ export interface Suggestion {
   photo?: string | null;
 }
 
+/** A book somebody else shared, and the account it lives in. */
+export interface SharedBook {
+  accountId: Id;
+  accountName: string;
+  book: AddressBook;
+}
+
+/** Which book the contact list is showing. `accountId` null means the reader's. */
+export interface BookSelection {
+  accountId: Id | null;
+  bookId: Id | "all";
+}
+
+/** Cards from shared accounts are keyed by account too: ids collide across them. */
+export const sharedKey = (accountId: Id, id: Id): string => `${accountId}:${id}`;
+
 interface ContactsState {
   accountId: Id | null;
   available: boolean;
@@ -24,12 +40,25 @@ interface ContactsState {
   principals: Principal[];
   principalsLoaded: boolean;
   recent: EmailAddress[];
+  /** Address books shared with the reader, from every non-personal account. */
+  sharedBooks: SharedBook[];
+  /** Their cards, keyed by account and id. See `sharedKey`. */
+  sharedCards: Record<string, ContactCard>;
+  sharedLoaded: boolean;
+  selection: BookSelection;
 
   init(): Promise<void>;
   loadBooks(): Promise<void>;
   loadAll(): Promise<void>;
+  /** Books and cards from accounts that shared with the reader. */
+  loadShared(): Promise<void>;
+  select(selection: BookSelection): void;
+  /** The account a card belongs to, null for the reader's own. */
+  accountOfCard(id: Id): Id | null;
   getCard(id: Id): Promise<ContactCard | null>;
   search(text: string): ContactCard[];
+  /** The search filter itself, so a shared book can be filtered the same way. */
+  filterCards(cards: ContactCard[], text: string): ContactCard[];
   createCard(card: Partial<ContactCard>, addressBookId: Id): Promise<Id>;
   updateCard(id: Id, patch: Record<string, unknown>): Promise<void>;
   destroyCards(ids: Id[]): Promise<void>;
@@ -57,14 +86,76 @@ export const useContacts = create<ContactsState>((set, get) => ({
   principals: [],
   principalsLoaded: false,
   recent: [],
+  sharedBooks: [],
+  sharedCards: {},
+  sharedLoaded: false,
+  selection: { accountId: null, bookId: "all" },
 
   async init() {
-    const accountId = useSession.getState().accountFor(CAP.contacts);
+    // The reader's own, not whichever account is selected: a shared address
+    // book is shown beside theirs rather than instead of it, so nothing here
+    // should move when the switcher does.
+    const accountId = useSession.getState().ownAccountFor(CAP.contacts);
     const available = Boolean(accountId && client.hasCapability(CAP.contacts));
-    if (accountId !== get().accountId) set({ accountId, books: {}, cards: {}, loaded: false });
+    if (accountId !== get().accountId) set({ accountId, books: {}, cards: {}, loaded: false, selection: { accountId: null, bookId: "all" } });
     set({ available });
     if (!available) return;
     await get().loadBooks();
+    void get().loadShared();
+  },
+
+  /*
+   * Books and cards from accounts that shared with the reader.
+   *
+   * These are held apart from the reader's own rather than merged into them,
+   * because ids are only unique within an account: two accounts each having a
+   * book "ab1" is ordinary, and a flat map keyed on the bare id would have one
+   * quietly replace the other. `sharedKey` keeps them apart.
+   *
+   * Loaded eagerly, unlike the shared folders in Files, because these are not
+   * only browsed -- they have to answer when someone types a name into a To
+   * field, which cannot wait for a folder to be opened first.
+   */
+  async loadShared() {
+    const session = useSession.getState();
+    const own = session.ownAccountFor(CAP.contacts);
+    const s = session.session;
+    const accounts = Object.entries(s?.accounts ?? {}).filter(([id, a]) => a.isPersonal === false && id !== own);
+    if (!accounts.length) {
+      set({ sharedBooks: [], sharedCards: {}, sharedLoaded: true });
+      return;
+    }
+    const books: SharedBook[] = [];
+    const cards: Record<string, ContactCard> = {};
+    for (const [accountId, account] of accounts) {
+      try {
+        const res = await client.call<GetResponse<AddressBook>>("AddressBook/get", { accountId, ids: null });
+        for (const book of res.list) books.push({ accountId, accountName: account.name, book });
+        // One page. A shared book is a colleague's contacts, not an archive,
+        // and the alternative is holding the reader's own list hostage to it.
+        const cardsRes = await client.chain([
+          ["ContactCard/query", { accountId, limit: 500 }, "q"],
+          ["ContactCard/get", { accountId, "#ids": { resultOf: "q", name: "ContactCard/query", path: "/ids" } }, "g"],
+        ]);
+        const g = cardsRes.get("g")?.[0] as unknown as GetResponse<ContactCard>;
+        for (const c of g.list) cards[sharedKey(accountId, c.id)] = c;
+      } catch {
+        // An account that refuses is one that shared nothing here. Not an
+        // error to show: the reader did not ask for it and cannot act on it.
+        continue;
+      }
+    }
+    set({ sharedBooks: books, sharedCards: cards, sharedLoaded: true });
+  },
+
+  select(selection) {
+    set({ selection });
+  },
+
+  accountOfCard(id) {
+    if (get().cards[id]) return null;
+    const hit = Object.entries(get().sharedCards).find(([key]) => key.endsWith(`:${id}`));
+    return hit ? hit[0].slice(0, hit[0].length - id.length - 1) : null;
   },
 
   async loadBooks() {
@@ -114,18 +205,21 @@ export const useContacts = create<ContactsState>((set, get) => ({
     return c ?? null;
   },
 
-  search(text) {
+  filterCards(cards, text) {
     const q = text.trim().toLowerCase();
-    const all = Object.values(get().cards);
     const filtered = q
-      ? all.filter((c) => {
+      ? cards.filter((c) => {
           const hay = [contactDisplayName(c), ...Object.values(c.emails ?? {}).map((e) => e.address), ...Object.values(c.phones ?? {}).map((p) => p.number), ...Object.values(c.organizations ?? {}).map((o) => o.name ?? ""), ...Object.values(c.nicknames ?? {}).map((n) => n.name)]
             .join(" ")
             .toLowerCase();
           return hay.includes(q);
         })
-      : all;
+      : cards;
     return filtered.sort((a, b) => sortKey(a).localeCompare(sortKey(b)));
+  },
+
+  search(text) {
+    return get().filterCards(Object.values(get().cards), text);
   },
 
   async createCard(card, addressBookId) {
@@ -244,10 +338,15 @@ export const useContacts = create<ContactsState>((set, get) => ({
       return 99;
     };
     const candidates: Array<Suggestion & { score: number }> = [];
-    for (const c of Object.values(st.cards)) {
+    // A shared address book is only useful if it answers when you are writing
+    // to someone in it, so its cards are offered alongside the reader's own.
+    // They rank a shade lower, so a name in both wins from your own book.
+    const own = Object.values(st.cards).map((c) => ({ c, penalty: 0 }));
+    const shared = Object.values(st.sharedCards).map((c) => ({ c, penalty: 0.5 }));
+    for (const { c, penalty } of [...own, ...shared]) {
       for (const a of contactEmails(c)) {
         const sc = score(a.name, a.email);
-        if (sc < 99) candidates.push({ name: a.name, email: a.email, source: "contact", contactId: c.id, score: sc });
+        if (sc < 99) candidates.push({ name: a.name, email: a.email, source: "contact", contactId: c.id, score: sc + penalty });
       }
     }
     for (const p of st.principals) {
@@ -280,11 +379,14 @@ export const useContacts = create<ContactsState>((set, get) => ({
 
   lookupByEmail(email) {
     const e = email.toLowerCase();
-    return Object.values(get().cards).find((c) => Object.values(c.emails ?? {}).some((x) => x.address.toLowerCase() === e));
+    const match = (c: ContactCard) => Object.values(c.emails ?? {}).some((x) => x.address.toLowerCase() === e);
+    // The reader's own books first: a card they wrote themselves should win
+    // over a colleague's version of the same person.
+    return Object.values(get().cards).find(match) ?? Object.values(get().sharedCards).find(match);
   },
 
   applyChanges(types) {
-    if (types.has("AddressBook")) void get().loadBooks();
+    if (types.has("AddressBook")) { void get().loadBooks(); void get().loadShared(); }
     if (types.has("ContactCard") && get().loaded) void get().loadAll();
   },
 }));
