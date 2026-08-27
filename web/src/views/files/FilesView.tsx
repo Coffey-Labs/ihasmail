@@ -32,8 +32,19 @@ export function FilesView({ nodeId }: { nodeId?: string }) {
 
   useEffect(() => {
     if (files.available) void files.loadChildren(parentId);
+    // `accountId` is in here because opening a share changes which account the
+    // same route means: at /files the parent is null before and after, so
+    // without it the listing would keep showing the previous account's folder.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [files.available, parentId]);
+  }, [files.available, files.accountId, parentId]);
+
+  // The sidebar's primary button asks for an upload here, the way it asks the
+  // calendar for a new event.
+  useEffect(() => {
+    const open = () => inputRef.current?.click();
+    window.addEventListener("ihm:files-upload", open);
+    return () => window.removeEventListener("ihm:files-upload", open);
+  }, []);
 
   // Ensure ancestors are loaded for breadcrumbs
   useEffect(() => {

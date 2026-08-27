@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { Calendar, ChevronsUpDown, FolderOpen, HelpCircle, Mail, Menu as MenuIcon, Moon, PenSquare, Settings, Sun, Users, LogOut, Plus, RefreshCw } from "lucide-react";
+import { Calendar, ChevronsUpDown, FolderOpen, HelpCircle, LogOut, Mail, Menu as MenuIcon, Moon, PenSquare, Plus, RefreshCw, Settings, Sun, Upload, Users } from "lucide-react";
 import { useSession } from "@/store/session";
 import { toggleTarget, useEffectiveTheme, useSettings } from "@/store/settings";
 import { useMail } from "@/store/mail";
@@ -114,16 +114,19 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className={`app-body ${collapsed && !isMobile ? "collapsed" : ""}`}>
         <div className={`drawer-backdrop ${drawer ? "open" : ""}`} onClick={() => setDrawer(false)} />
         <aside className={`sidebar ${drawer ? "open" : ""}`}>
+          {/* Whatever this pane is for. Files offered Compose, which wrote mail
+              from the file manager and was the one thing nobody wanted there. */}
           <button
             className="compose-btn"
             onClick={() => {
               if (section === "calendar") window.dispatchEvent(new CustomEvent("ihm:new-event"));
               else if (section === "contacts") window.dispatchEvent(new CustomEvent("ihm:new-contact"));
+              else if (section === "files") window.dispatchEvent(new CustomEvent("ihm:files-upload"));
               else openCompose();
             }}
           >
-            {section === "calendar" || section === "contacts" ? <Plus size={22} /> : <PenSquare size={22} />}
-            <span>{section === "calendar" ? "New event" : section === "contacts" ? "New contact" : "Compose"}</span>
+            {section === "files" ? <Upload size={22} /> : section === "calendar" || section === "contacts" ? <Plus size={22} /> : <PenSquare size={22} />}
+            <span>{section === "calendar" ? "New event" : section === "contacts" ? "New contact" : section === "files" ? "Upload" : "Compose"}</span>
           </button>
           <div className="sidebar-scroll">
             {(section === "mail" || section === "search") && <MailboxTree />}
