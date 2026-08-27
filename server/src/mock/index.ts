@@ -181,7 +181,7 @@ let vacation: Obj = { id: "singleton", isEnabled: false, fromDate: null, toDate:
 const sieveScripts: Obj[] = [];
 /* A calendar in the shared account, so "Shared with me" and a colleague's
    events appearing in the grid can be exercised. Read-only, as a share is. */
-const sharedCalendars: Obj[] = [{ id: "c9", name: "Grace — Work", description: null, color: "#c084fc", sortOrder: 0, isSubscribed: true, isVisible: true, isDefault: true, includeInAvailability: "all", defaultAlertsWithTime: null, defaultAlertsWithoutTime: null, timeZone: "UTC", shareWith: {}, myRights: { mayReadFreeBusy: true, mayReadItems: true, mayWriteAll: false, mayWriteOwn: false, mayUpdatePrivate: false, mayRSVP: false, mayShare: false, mayDelete: false } }];
+const sharedCalendars: Obj[] = [{ id: "c9", name: "Grace — Work", description: null, color: "#c084fc", sortOrder: 0, isSubscribed: false, isVisible: true, isDefault: true, includeInAvailability: "all", defaultAlertsWithTime: null, defaultAlertsWithoutTime: null, timeZone: "UTC", shareWith: {}, myRights: { mayReadFreeBusy: true, mayReadItems: true, mayWriteAll: false, mayWriteOwn: false, mayUpdatePrivate: false, mayRSVP: false, mayShare: false, mayDelete: false } }];
 const sharedEvents: Obj[] = [];
 const eventsFor = (accountId: unknown): Obj[] => (accountId === SHARED_ACCOUNT ? sharedEvents : events);
 const calendarsFor = (accountId: unknown): Obj[] => (accountId === SHARED_ACCOUNT ? sharedCalendars : calendars);
@@ -207,7 +207,7 @@ const addressBooks: Obj[] = [{ id: "ab1", name: "Personal", description: null, s
 /* A book in the shared account, so "Shared with me" and addressing a message
    from somebody else's contacts can be exercised at all. Read-only, which is
    what a share usually is. */
-const sharedAddressBooks: Obj[] = [{ id: "ab9", name: "Team contacts", description: null, sortOrder: 0, isDefault: true, isSubscribed: true, shareWith: {}, myRights: abRights(false) }];
+const sharedAddressBooks: Obj[] = [{ id: "ab9", name: "Team contacts", description: null, sortOrder: 0, isDefault: true, isSubscribed: false, shareWith: {}, myRights: abRights(false) }];
 const sharedCards: Obj[] = [
   { id: "sc1", addressBookIds: { ab9: true }, name: { full: "Katherine Johnson" }, emails: { e1: { address: "katherine@example.org", contexts: {} } }, phones: {}, organizations: {}, nicknames: {}, addresses: {}, notes: {}, updated: new Date().toISOString() },
   { id: "sc2", addressBookIds: { ab9: true }, name: { full: "Dorothy Vaughan" }, emails: { e1: { address: "dorothy@example.org", contexts: {} } }, phones: {}, organizations: {}, nicknames: {}, addresses: {}, notes: {}, updated: new Date().toISOString() },
@@ -732,7 +732,7 @@ const handlers: Record<string, Handler> = {
   "SieveScript/set": (a) => { const r = genericSet(sieveScripts, "sv", (o) => Object.assign(o, { isActive: false, ...o }))(a); const act = (a.onSuccessActivateScript as string | undefined); if (act) { const id = act.startsWith("#") ? ((r.created as Obj)[act.slice(1)] as Obj)?.id : act; for (const s of sieveScripts) s.isActive = s.id === id; } if (a.onSuccessDeactivateScript) for (const s of sieveScripts) s.isActive = false; return r; },
   "SieveScript/validate": () => ({ accountId: ACCOUNT, error: null }),
   "Calendar/get": (a) => genericGet(calendarsFor(a.accountId))(a),
-  "Calendar/set": genericSet(calendars, "c", (o) => Object.assign(o, { color: "#0f766e", isSubscribed: true, isVisible: true, isDefault: false, includeInAvailability: "all", timeZone: null, shareWith: null, myRights: rightsCal(), description: null, sortOrder: 0, ...o })),
+  "Calendar/set": (a) => genericSet(calendarsFor(a.accountId), "c", (o) => Object.assign(o, { color: "#0f766e", isSubscribed: true, isVisible: true, isDefault: false, includeInAvailability: "all", timeZone: null, shareWith: null, myRights: rightsCal(), description: null, sortOrder: 0, ...o }))(a),
   "CalendarEvent/query": (a) => { const list = eventsFor(a.accountId); return { accountId: a.accountId ?? ACCOUNT, queryState: "1", canCalculateChanges: false, position: 0, ids: list.filter((e) => !(a.filter as Obj)?.uid || e.uid === (a.filter as Obj).uid).map((e) => e.id), total: list.length }; },
   "CalendarEvent/get": (a) => genericGet(eventsFor(a.accountId))(a),
   // Stalwart 0.16 rejects the RFC 8984 array outright and silently discards
@@ -751,7 +751,7 @@ const handlers: Record<string, Handler> = {
   "Principal/get": genericGet(principals),
   "Principal/getAvailability": (a) => ({ accountId: ACCOUNT, list: [{ utcStart: String(a.utcStart).slice(0, 11) + "13:00:00Z", utcEnd: String(a.utcStart).slice(0, 11) + "14:30:00Z", busyStatus: "confirmed", event: null }] }),
   "AddressBook/get": (a) => genericGet(booksFor(a.accountId))(a),
-  "AddressBook/set": genericSet(addressBooks, "ab", (o) => Object.assign(o, { description: null, sortOrder: 0, isDefault: false, isSubscribed: true, shareWith: null, myRights: { mayRead: true, mayWrite: true, mayShare: true, mayDelete: true }, ...o })),
+  "AddressBook/set": (a) => genericSet(booksFor(a.accountId), "ab", (o) => Object.assign(o, { description: null, sortOrder: 0, isDefault: false, isSubscribed: true, shareWith: {}, myRights: abRights(), ...o }))(a),
   "ContactCard/query": (a) => { const list = a.accountId === SHARED_ACCOUNT ? sharedCards : cards; return { accountId: a.accountId ?? ACCOUNT, queryState: "1", canCalculateChanges: false, position: 0, ids: list.map((c) => c.id), total: list.length }; },
   "ContactCard/get": (a) => genericGet(a.accountId === SHARED_ACCOUNT ? sharedCards : cards)(a),
   "ContactCard/set": genericSet(cards, "cc"),
