@@ -11,6 +11,11 @@
  * Restart the mock before a run. The filters shot creates rules, so a second
  * run against the same mock shows them twice.
  *
+ * The files shot was taken by hand until 2026-08-27, and had gone stale twice
+ * over by the time anyone noticed. Anything the docs show should be generated
+ * from the mock, or it describes whatever the app looked like on the day
+ * somebody had a screenshot tool open.
+ *
  * Two shots are deliberately not taken here:
  *
  * - **mobile**, because at the tail of this sequence the app would not render
@@ -226,6 +231,23 @@ try {
   await waitFor("!/Select a contact/.test(document.body.innerText)", "the contact detail pane", 8000);
   await sleep(1800);
   await shot("contacts.jpg");
+
+  // --- files ---
+  // Was the one shot taken by hand, which is why it outlived two rewrites of
+  // the view it was meant to show. The tree makes it worth automating: opening
+  // a folder is now the difference between a screenshot of a file manager and a
+  // screenshot of a list.
+  await go("http://localhost:5173/files");
+  await waitFor("document.querySelector('.files-table, .files-layout')", "the files view");
+  await evaluate(`(() => {
+    // Expand the tree and open a folder, so the shot shows the pane doing its job.
+    const twisty = document.querySelector('.sidebar .nav-twisty');
+    if (twisty) twisty.click();
+    const folder = [...document.querySelectorAll('.sidebar .nav-item')].find(e => /Documents/.test(e.textContent || ""));
+    if (folder) folder.click();
+  })()`);
+  await sleep(1800);
+  await shot("files.jpg");
 
   // --- filters, with rules that actually say something ---
   await go("http://localhost:5173/settings/filters");
