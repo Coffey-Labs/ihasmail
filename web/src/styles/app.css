@@ -1024,3 +1024,9 @@ button.dp-open:disabled { cursor: default; opacity: .5; }
 .files-table tbody tr[draggable="true"]:active { cursor: grabbing; }
 .sidebar .nav-item[draggable="true"] { cursor: pointer; }
 .f-name .faint { flex: none; }
+
+/* The "Shared with me" header carries a refresh control, so it is a row rather
+   than the plain label the other sections use. */
+.sidebar .nav-section { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.spin { animation: spin 1s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .spin { animation: none; } }

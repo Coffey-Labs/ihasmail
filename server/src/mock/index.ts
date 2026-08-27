@@ -26,6 +26,13 @@ const NO_FUTURE_RELEASE = process.env.MOCK_NO_FUTURE_RELEASE === "1";
 /** What the session advertises, matching Stalwart's own 30 days. */
 const MAX_DELAYED_SEND = 86400 * 30;
 const ACCOUNT = "a1";
+/** An account somebody has shared with the demo user. See the session below. */
+const SHARED_ACCOUNT = "a2";
+const SHARED_CAPS: Obj = {
+  "urn:ietf:params:jmap:mail": {}, "urn:ietf:params:jmap:submission": {}, "urn:ietf:params:jmap:vacationresponse": {},
+  "urn:ietf:params:jmap:sieve": {}, "urn:ietf:params:jmap:calendars": {}, "urn:ietf:params:jmap:contacts": {},
+  "urn:ietf:params:jmap:principals": {}, "urn:ietf:params:jmap:quota": {}, "urn:ietf:params:jmap:filenode": {},
+};
 const USER = process.env.MOCK_USER ?? "demo@example.com";
 /** Locale the fake directory reports for the account (POSIX style, as Stalwart does). */
 const MOCK_LOCALE = process.env.MOCK_LOCALE ?? "en_US";
@@ -197,6 +204,17 @@ const fileNodes: Obj[] = [
   { id: "f2", parentId: "f1", nodeType: "file", blobId: putBlob("hello world", "text/plain"), size: 11, name: "notes.txt", type: "text/plain", created: new Date().toISOString(), modified: new Date().toISOString(), myRights: fr(), shareWith: {} },
   { id: "f3", parentId: null, nodeType: "file", blobId: putBlob("%PDF-1.4 mock", "application/pdf"), size: 14, name: "report.pdf", type: "application/pdf", created: new Date().toISOString(), modified: new Date().toISOString(), myRights: fr(), shareWith: {} },
 ];
+
+/* What the shared account holds. Its own nodes, so opening the share in Files
+   shows something different from the reader's own folders rather than the same
+   list under another name. */
+const sharedFileNodes: Obj[] = [
+  { id: "s1", parentId: null, nodeType: "directory", blobId: null, size: null, name: "Team plans", type: null, created: new Date().toISOString(), modified: new Date().toISOString(), myRights: fr(), shareWith: {} },
+  { id: "s2", parentId: "s1", nodeType: "file", blobId: putBlob("shared notes", "text/plain"), size: 12, name: "roadmap.txt", type: "text/plain", created: new Date().toISOString(), modified: new Date().toISOString(), myRights: fr(), shareWith: {} },
+];
+/** The node list an account owns. */
+const nodesFor = (accountId: unknown): Obj[] => (accountId === SHARED_ACCOUNT ? sharedFileNodes : fileNodes);
+
 function fr() {
   return { mayRead: true, mayAddChildren: true, mayRename: true, mayDelete: true, mayModifyContent: true, mayShare: true };
 }
@@ -721,6 +739,7 @@ const handlers: Record<string, Handler> = {
   "ContactCard/parse": (a) => { const parsed: Obj = {}; for (const b of a.blobIds as string[]) { const t = blobs.get(b)?.data.toString() ?? ""; const fn = /^FN:(.*)$/m.exec(t)?.[1]?.trim() ?? "Imported"; const em = /^EMAIL[^:]*:(.*)$/m.exec(t)?.[1]?.trim(); parsed[b] = [{ "@type": "Card", version: "1.0", uid: randomUUID(), kind: "individual", name: { full: fn }, emails: em ? { e1: { address: em } } : undefined }]; } return { accountId: ACCOUNT, parsed, notParsable: [] }; },
   "FileNode/query": (a) => {
     const f = (a.filter as Obj) ?? {};
+    const fileNodes = nodesFor(a.accountId);
     // `nodeType` is a filter 0.16.19 really applies -- checked live on
     // 2026-08-27, where it returned the two directories out of seven nodes. The
     // mock ignoring it was worse than not having it: the sidebar tree asks for
@@ -732,9 +751,9 @@ const handlers: Record<string, Handler> = {
     });
     return { accountId: ACCOUNT, queryState: "1", canCalculateChanges: false, position: 0, ids: list.map((n) => n.id), total: list.length };
   },
-  "FileNode/get": genericGet(fileNodes),
+  "FileNode/get": (a) => genericGet(nodesFor(a.accountId))(a),
   "FileNode/set": (a) => {
-    return genericSet(fileNodes, "f", (o) => {
+    return genericSet(nodesFor(a.accountId), "f", (o) => {
       Object.assign(o, { created: new Date().toISOString(), modified: new Date().toISOString(), myRights: fr(), shareWith: {}, size: o.blobId ? (blobs.get(o.blobId as string)?.data.length ?? 0) : null, type: o.type ?? null, blobId: o.blobId ?? null, ...o });
       // Without nodeType, a node is a directory precisely when it carries no
       // file properties. Keep it internally so query and get stay consistent.
@@ -779,7 +798,18 @@ const session = () => ({
   capabilities: { "urn:ietf:params:jmap:core": { maxSizeUpload: 50000000, maxConcurrentUpload: 4, maxSizeRequest: 10000000, maxConcurrentRequests: 4, maxCallsInRequest: 16, maxObjectsInGet: MAX_OBJECTS, maxObjectsInSet: MAX_OBJECTS, collationAlgorithms: ["i;ascii-casemap"] }, "urn:ietf:params:jmap:mail": {}, "urn:ietf:params:jmap:submission": {}, "urn:ietf:params:jmap:vacationresponse": {}, "urn:ietf:params:jmap:webpush-vapid": { applicationServerKey: "BBvig2GPmqohMJJHMzp6bTKviHibYiVCyAY8gdq2fPhS-9YfO9_0TnhMyZ0a0JxTsbCqd3zm1rEiXsXsL3jveJY" },
   "urn:ietf:params:jmap:emailpush": {},
   "urn:ietf:params:jmap:sieve": { implementation: "mock" }, "urn:ietf:params:jmap:calendars": {}, "urn:ietf:params:jmap:calendars:parse": {}, "urn:ietf:params:jmap:contacts": {}, "urn:ietf:params:jmap:contacts:parse": {}, "urn:ietf:params:jmap:principals": {}, "urn:ietf:params:jmap:principals:availability": {}, "urn:ietf:params:jmap:quota": {}, "urn:ietf:params:jmap:blob": {}, "urn:ietf:params:jmap:filenode": {} },
-  accounts: { [ACCOUNT]: { name: USER, isPersonal: true, isReadOnly: false, accountCapabilities: { "urn:ietf:params:jmap:mail": {}, "urn:ietf:params:jmap:submission": { maxDelayedSend: MAX_DELAYED_SEND, submissionExtensions: { FUTURERELEASE: [], SIZE: [], DSN: [], DELIVERYBY: [], "MT-PRIORITY": ["MIXER"], REQUIRETLS: [] } }, "urn:ietf:params:jmap:vacationresponse": {}, "urn:ietf:params:jmap:sieve": {}, "urn:ietf:params:jmap:calendars": {}, "urn:ietf:params:jmap:contacts": {}, "urn:ietf:params:jmap:principals": {}, "urn:ietf:params:jmap:quota": {}, "urn:ietf:params:jmap:filenode": {}, ...(NO_REGISTRY ? {} : { "urn:stalwart:jmap": {} }) } } },
+  /*
+   * Two accounts: the demo user's own, and one somebody has shared.
+   *
+   * The shared one carries the *same* capability list, because that is what
+   * Stalwart does -- checked on 0.16.19 (2026-08-27), where a shared account
+   * advertised mail, calendars, contacts and the rest, identical to a personal
+   * one, whatever had actually been shared. Giving the mock a truthful shared
+   * account is the only way to exercise the Files "Shared with me" list, and
+   * the only way this stays honest about what can be inferred from a
+   * capability, which is nothing.
+   */
+  accounts: { [SHARED_ACCOUNT]: { name: "grace@example.org", isPersonal: false, isReadOnly: false, accountCapabilities: SHARED_CAPS }, [ACCOUNT]: { name: USER, isPersonal: true, isReadOnly: false, accountCapabilities: { "urn:ietf:params:jmap:mail": {}, "urn:ietf:params:jmap:submission": { maxDelayedSend: MAX_DELAYED_SEND, submissionExtensions: { FUTURERELEASE: [], SIZE: [], DSN: [], DELIVERYBY: [], "MT-PRIORITY": ["MIXER"], REQUIRETLS: [] } }, "urn:ietf:params:jmap:vacationresponse": {}, "urn:ietf:params:jmap:sieve": {}, "urn:ietf:params:jmap:calendars": {}, "urn:ietf:params:jmap:contacts": {}, "urn:ietf:params:jmap:principals": {}, "urn:ietf:params:jmap:quota": {}, "urn:ietf:params:jmap:filenode": {}, ...(NO_REGISTRY ? {} : { "urn:stalwart:jmap": {} }) } } },
   primaryAccounts: { ...Object.fromEntries(["mail", "submission", "vacationresponse", "sieve", "calendars", "contacts", "principals", "quota", "filenode", "blob"].map((c) => [`urn:ietf:params:jmap:${c}`, ACCOUNT])), ...(NO_REGISTRY ? {} : { "urn:stalwart:jmap": ACCOUNT }) },
   username: USER,
   apiUrl: `http://127.0.0.1:${PORT}/jmap/`,
