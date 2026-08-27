@@ -5,7 +5,9 @@ import { useFiles } from "@/store/files";
 import { client } from "@/jmap/client";
 import type { FileNode } from "@/jmap/types";
 import { formatSize, formatListDate } from "@/lib/format";
-import { isShared } from "@/lib/filenode";
+import { canDropFileNode, isShared } from "@/lib/filenode";
+import { entriesFromDrop, hasDirectory, planUpload } from "@/lib/dropUpload";
+import { NODE_MIME } from "./FilesTree";
 import { ShareDialog } from "../settings/ShareDialog";
 import { Empty, Spinner } from "@/ui/misc";
 import { MenuItem, MenuSep, Popover, useMenu } from "@/ui/popover";
@@ -22,6 +24,10 @@ export function FilesView({ nodeId }: { nodeId?: string }) {
   const [menuNode, setMenuNode] = useState<FileNode | null>(null);
   const [moveNode, setMoveNode] = useState<FileNode | null>(null);
   const [shareNode, setShareNode] = useState<FileNode | null>(null);
+  /* Shared with the sidebar tree, so a row dragged onto a folder there is
+     recognised. See the note on `draggingId` in the store. */
+  const draggingId = files.draggingId;
+  const setDraggingId = files.setDragging;
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -51,12 +57,36 @@ export function FilesView({ nodeId }: { nodeId?: string }) {
   const nodes = ids.map((id) => files.nodes[id]).filter((n): n is FileNode => Boolean(n));
   const path = files.pathTo(parentId);
 
-  const onDrop = (e: React.DragEvent) => {
+  /* A drop lands in `into`, which is the folder under the pointer when there is
+     one and the folder being listed otherwise. Entries have to be read out
+     before the first await -- the list is emptied the moment the handler
+     returns -- so that happens here, synchronously, for every path. */
+  const dropOnto = (into: string | null, e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setDropping(false);
-    const list = Array.from(e.dataTransfer.files);
-    if (list.length) void files.upload(parentId, list);
+    if (e.dataTransfer.types.includes(NODE_MIME)) {
+      const id = e.dataTransfer.getData(NODE_MIME);
+      setDraggingId(null);
+      if (id && canDropFileNode(files.nodes, id, into)) {
+        void files.move(id, into).catch((err) => toast.error((err as Error).message));
+      }
+      return;
+    }
+    if (!e.dataTransfer.types.includes("Files")) return;
+    const entries = entriesFromDrop(e.dataTransfer);
+    const flat = Array.from(e.dataTransfer.files);
+    void (async () => {
+      if (entries.length && hasDirectory(entries)) {
+        const plan = await planUpload(entries);
+        if (plan.length) await files.uploadPlan(into, plan);
+        return;
+      }
+      if (flat.length) await files.upload(into, flat);
+    })();
   };
+
+  const onDrop = (e: React.DragEvent) => dropOnto(parentId, e);
 
   const download = (n: FileNode) => {
     if (!n.blobId) return;
@@ -67,7 +97,7 @@ export function FilesView({ nodeId }: { nodeId?: string }) {
   };
 
   return (
-    <div className={`files-layout ${dropping ? "dropping" : ""}`} onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDropping(true); } }} onDragLeave={() => setDropping(false)} onDrop={onDrop}>
+    <div className={`files-layout ${dropping ? "dropping" : ""}`} onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDropping(true); } else if (e.dataTransfer.types.includes(NODE_MIME) && canDropFileNode(files.nodes, draggingId ?? "", parentId)) { e.preventDefault(); } }} onDragLeave={() => setDropping(false)} onDrop={onDrop}>
       <div className="files-toolbar">
         <div className="breadcrumb">
           <button className={path.length ? "" : "current"} onClick={() => navigate("/files")}><Home size={16} /></button>
@@ -88,7 +118,16 @@ export function FilesView({ nodeId }: { nodeId?: string }) {
         </div>
       )}
       {files.error && <div className="error-box" style={{ margin: 12 }}>{files.error}</div>}
-      <div className="files-scroll">
+      <div
+        className="files-scroll"
+        onContextMenu={(e) => {
+          // Only the empty space below the rows: a row has its own menu.
+          if ((e.target as HTMLElement).closest("tr")) return;
+          e.preventDefault();
+          setMenuNode(null);
+          menu.openAt(e.clientX, e.clientY);
+        }}
+      >
         {files.loading && !nodes.length ? <Spinner /> : !nodes.length ? (
           <Empty icon={<FolderOpen size={40} />} title="This folder is empty">Drag files here or use Upload.</Empty>
         ) : (
@@ -96,7 +135,22 @@ export function FilesView({ nodeId }: { nodeId?: string }) {
             <thead><tr><th>Name</th><th className="hide-mobile">Size</th><th className="hide-mobile">Modified</th><th /></tr></thead>
             <tbody>
               {nodes.map((n) => (
-                <tr key={n.id} className={selected === n.id ? "selected" : ""} onClick={() => setSelected(n.id)} onDoubleClick={() => (n.nodeType === "directory" ? navigate(`/files/${n.id}`) : download(n))} onContextMenu={(e) => { e.preventDefault(); setMenuNode(n); menu.openAt(e.clientX, e.clientY); }}>
+                <tr
+                  key={n.id}
+                  className={`${selected === n.id ? "selected" : ""} ${draggingId && n.nodeType === "directory" && canDropFileNode(files.nodes, draggingId, n.id) ? "drop-target" : ""}`}
+                  draggable
+                  onDragStart={(e) => { e.dataTransfer.setData(NODE_MIME, n.id); e.dataTransfer.effectAllowed = "move"; setDraggingId(n.id); }}
+                  onDragEnd={() => setDraggingId(null)}
+                  onDragOver={(e) => {
+                    if (n.nodeType !== "directory") return;
+                    const node = e.dataTransfer.types.includes(NODE_MIME);
+                    if (node ? !(draggingId && canDropFileNode(files.nodes, draggingId, n.id)) : !e.dataTransfer.types.includes("Files")) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    e.dataTransfer.dropEffect = node ? "move" : "copy";
+                  }}
+                  onDrop={(e) => { if (n.nodeType === "directory") dropOnto(n.id, e); }}
+                  onClick={() => setSelected(n.id)} onDoubleClick={() => (n.nodeType === "directory" ? navigate(`/files/${n.id}`) : download(n))} onContextMenu={(e) => { e.preventDefault(); setMenuNode(n); menu.openAt(e.clientX, e.clientY); }}>
                   <td><div className="f-name">{n.nodeType === "directory" ? <Folder size={18} /> : <File size={18} />}<span onClick={(e) => { if (n.nodeType === "directory") { e.stopPropagation(); navigate(`/files/${n.id}`); } }} style={n.nodeType === "directory" ? { cursor: "pointer" } : undefined}>{n.name}</span>{isShared(n) && <Share2 size={13} className="faint" aria-label="Shared" />}</div></td>
                   <td className="hide-mobile muted">{n.nodeType === "directory" ? "—" : formatSize(n.size)}</td>
                   <td className="hide-mobile muted">{formatListDate(n.modified ?? n.created)}</td>
@@ -108,6 +162,12 @@ export function FilesView({ nodeId }: { nodeId?: string }) {
         )}
       </div>
       <Popover anchor={menu.anchor} onClose={menu.close} width={200}>
+        {!menuNode && (
+          <>
+            <MenuItem icon={<Upload size={16} />} label="Upload files…" onClick={() => inputRef.current?.click()} />
+            <MenuItem icon={<FolderPlus size={16} />} label="New folder" onClick={async () => { const n = await promptDialog({ title: "New folder", placeholder: "Folder name" }); if (n?.trim()) { try { await files.mkdir(parentId, n.trim()); } catch (err) { toast.error((err as Error).message); } } }} />
+          </>
+        )}
         {menuNode && (
           <>
             {menuNode.nodeType === "directory" ? <MenuItem icon={<FolderOpen size={16} />} label="Open" onClick={() => navigate(`/files/${menuNode.id}`)} /> : <MenuItem icon={<Download size={16} />} label="Download" onClick={() => download(menuNode)} />}

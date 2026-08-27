@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { CAP, client, setErrorMessage } from "@/jmap/client";
 import { directoryCreate, fileCreate, fileNodeProps } from "@/lib/filenode";
+import { foldersNeeded, type PlannedUpload } from "@/lib/dropUpload";
 import { isAppFolder } from "@/lib/appFolder";
 import type { FileNode, GetResponse, Id, QueryResponse, SetResponse } from "@/jmap/types";
 import { useSession } from "./session";
@@ -13,6 +14,22 @@ interface FilesState {
   loading: boolean;
   error: string | null;
   uploads: Array<{ id: string; name: string; progress: number; error: string | null }>;
+  dirIds: Id[];
+  treeLoaded: boolean;
+  /*
+   * The node being dragged, if any.
+   *
+   * Kept here rather than in whichever pane started the drag, because a drag
+   * crosses between them -- a row dragged onto the sidebar tree, a folder in
+   * the tree dragged onto a row -- and every possible target has to know what
+   * is in flight to say whether it will take it. Two panes each holding their
+   * own copy meant the one that did not start the drag never lit up and never
+   * accepted the drop.
+   *
+   * It cannot be read from the drag itself: `dataTransfer.getData` is blocked
+   * during dragover, which is exactly when the answer is needed.
+   */
+  draggingId: Id | null;
 
   init(): Promise<void>;
   loadChildren(parentId: Id | null): Promise<void>;
@@ -22,6 +39,11 @@ interface FilesState {
   move(id: Id, parentId: Id | null): Promise<void>;
   destroy(ids: Id[]): Promise<void>;
   refresh(ids: Id[]): Promise<void>;
+  setDragging(id: Id | null): void;
+  /** Every directory in the account, for the tree in the sidebar. */
+  loadTree(): Promise<void>;
+  /** Upload a planned drop, creating the folders it needs as it goes. */
+  uploadPlan(parentId: Id | null, plan: PlannedUpload[]): Promise<void>;
   pathTo(id: Id | null): FileNode[];
   applyChanges(types: Set<string>): void;
 }
@@ -61,12 +83,53 @@ export const useFiles = create<FilesState>((set, get) => ({
   loading: false,
   error: null,
   uploads: [],
+  dirIds: [],
+  treeLoaded: false,
+  draggingId: null,
 
   async init() {
     const accountId = useSession.getState().accountFor(CAP.filenode);
     const available = Boolean(accountId && client.hasCapability(CAP.filenode));
     if (accountId !== get().accountId) set({ accountId, nodes: {}, children: {} });
     set({ available });
+  },
+
+  /*
+   * The whole directory tree in one query.
+   *
+   * `filter: { nodeType: "directory" }` returns every folder in the account,
+   * confirmed against 0.16.19 on 2026-08-27, so the sidebar tree is complete
+   * from the first paint: expanding costs nothing, and a drag knows every
+   * folder it could be dropped on without having opened it first.
+   *
+   * It is deliberately its own request rather than a call appended to another.
+   * A filter Stalwart refuses fails with a request-level 400 that takes every
+   * method call in the request with it -- `{ parentId: null }` does exactly
+   * that -- so a tree query batched alongside the folder listing would blank
+   * the whole view instead of just the sidebar.
+   */
+  async loadTree() {
+    const accountId = get().accountId;
+    if (!accountId) return;
+    try {
+      const res = await client.chain([
+        ["FileNode/query", { accountId, filter: { nodeType: "directory" }, sort: [{ property: "name", isAscending: true }], limit: 1000 }, "q"],
+        ["FileNode/get", { accountId, "#ids": { resultOf: "q", name: "FileNode/query", path: "/ids" }, properties: fileNodeProps() }, "g"],
+      ]);
+      const g = res.get("g")?.[0] as unknown as GetResponse<FileNode>;
+      // Filtered again here rather than trusted: a server that ignores the
+      // nodeType filter answers with files as well, and the tree would draw
+      // them as folders you could open into nothing.
+      const dirs = withoutAppFolder(g.list).filter((n) => n.nodeType === "directory");
+      set((s) => {
+        const nodes = { ...s.nodes };
+        for (const n of dirs) nodes[n.id] = n;
+        return { nodes, dirIds: dirs.map((n) => n.id), treeLoaded: true };
+      });
+    } catch (err) {
+      // The listing still works without a tree, so this must not blank the view.
+      set({ error: (err as Error).message, treeLoaded: true });
+    }
   },
 
   async loadChildren(parentId) {
@@ -103,6 +166,7 @@ export const useFiles = create<FilesState>((set, get) => ({
     const err = res.notCreated?.d;
     if (err) throw new Error(setErrorMessage(err));
     await get().loadChildren(parentId);
+    void get().loadTree();
     return res.created!.d!.id;
   },
 
@@ -133,6 +197,10 @@ export const useFiles = create<FilesState>((set, get) => ({
   /* Re-read named nodes in place. Sharing changes one property of one node and
      nothing about which folder it sits in, so reloading the level around it
      would be a bigger round trip to land in the same place. */
+  setDragging(id) {
+    set({ draggingId: id });
+  },
+
   async refresh(ids) {
     const accountId = get().accountId;
     if (!accountId || !ids.length) return;
@@ -144,12 +212,36 @@ export const useFiles = create<FilesState>((set, get) => ({
     });
   },
 
+  async uploadPlan(parentId, plan) {
+    // Folders first, parents before children, so every file has somewhere to go.
+    const dirIds = new Map<string, Id | null>([["", parentId]]);
+    for (const path of foldersNeeded(plan)) {
+      const parent = dirIds.get(path.slice(0, -1).join(" ")) ?? parentId;
+      const name = path[path.length - 1]!;
+      try {
+        dirIds.set(path.join(" "), await get().mkdir(parent, name));
+      } catch (err) {
+        // Leave it unmapped: its files land in the nearest folder that exists
+        // rather than vanishing, and the error is shown against the upload.
+        set({ error: (err as Error).message });
+      }
+    }
+    const byFolder = new Map<string, File[]>();
+    for (const item of plan) {
+      const key = item.path.join(" ");
+      byFolder.set(key, [...(byFolder.get(key) ?? []), item.file]);
+    }
+    for (const [key, files] of byFolder) await get().upload(dirIds.get(key) ?? parentId, files);
+    void get().loadTree();
+  },
+
   async rename(id, name) {
     const accountId = get().accountId!;
     const res = await client.call<SetResponse>("FileNode/set", { accountId, update: { [id]: { name } } });
     const err = res.notUpdated?.[id];
     if (err) throw new Error(setErrorMessage(err));
     await get().loadChildren(get().nodes[id]?.parentId ?? null);
+    void get().loadTree();
   },
 
   async move(id, parentId) {
@@ -159,6 +251,7 @@ export const useFiles = create<FilesState>((set, get) => ({
     const err = res.notUpdated?.[id];
     if (err) throw new Error(setErrorMessage(err));
     await Promise.all([get().loadChildren(from), get().loadChildren(parentId)]);
+    void get().loadTree();
   },
 
   async destroy(ids) {
@@ -168,6 +261,7 @@ export const useFiles = create<FilesState>((set, get) => ({
     const failed = Object.values(res.notDestroyed ?? {})[0];
     if (failed) throw new Error(setErrorMessage(failed));
     for (const p of parents) await get().loadChildren(p);
+    void get().loadTree();
   },
 
   pathTo(id) {
