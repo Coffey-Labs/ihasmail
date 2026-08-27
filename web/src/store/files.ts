@@ -133,14 +133,27 @@ export const useFiles = create<FilesState>((set, get) => ({
      * Which accounts hold shared files cannot be worked out from capabilities:
      * Stalwart advertises the whole set on a shared account -- mail, calendars,
      * contacts and the rest -- identical to a personal one, whatever was
-     * actually shared (checked on 0.16.19, 2026-08-27). So every account that
-     * is not the reader's own is offered, and what it really holds is settled
-     * by asking it for its folders and showing what comes back.
+     * actually shared (checked on 0.16.19, 2026-08-27). So each one is asked
+     * for its files, and only the ones that answer with any are listed.
+     *
+     * Listing them all and letting the folders speak for themselves was the
+     * first attempt, and it put an account holding nothing at all under
+     * "Shared with me" -- an invitation to open an empty pane, offered by an
+     * account whose calendar or contacts were the thing actually shared. An
+     * account that shares no files does not belong in a list of shared files.
      */
     const s = session.session;
-    const sharedAccounts = Object.entries(s?.accounts ?? {})
-      .filter(([, a]) => a.isPersonal === false)
-      .map(([id, a]) => ({ id, name: a.name }));
+    const candidates = Object.entries(s?.accounts ?? {}).filter(([, a]) => a.isPersonal === false);
+    const sharedAccounts: SharedAccount[] = [];
+    for (const [id, a] of candidates) {
+      try {
+        const res = await client.call<QueryResponse>("FileNode/query", { accountId: id, limit: 1 });
+        if (res.ids.length) sharedAccounts.push({ id, name: a.name });
+      } catch {
+        // Refused means nothing here is ours to see, which is the same answer.
+        continue;
+      }
+    }
     // Stay where the reader is if they are reading a share that still exists.
     const browsing = get().accountId;
     const keep = browsing && (browsing === ownAccountId || sharedAccounts.some((a) => a.id === browsing));

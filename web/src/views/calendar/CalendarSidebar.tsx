@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
-import { ChevronLeft, ChevronRight, MoreVertical, Pencil, Plus, Share2, Trash2, Eye, EyeOff, Star } from "lucide-react";
+import { ChevronLeft, ChevronRight, MoreVertical, Pencil, Plus, Share2, Trash2, Eye, EyeOff, Star, Users } from "lucide-react";
 import { useCalendar } from "@/store/calendar";
 import { dateTimeKey, useSettings } from "@/store/settings";
 import { addMonths, isSameDay, isToday, monthGrid, startOfDay, toLocalDateOnly } from "@/lib/dates";
@@ -63,6 +63,27 @@ export function CalendarSidebar() {
           <button className="icon-btn xs nav-more" onClick={(e) => { e.stopPropagation(); setMenuCal(c); menu.open(e); }} aria-label="Calendar options"><MoreVertical size={14} /></button>
         </div>
       ))}
+      {/* Calendars other people shared. Separate from the reader's own, the way
+          Files and Contacts separate theirs: you cannot edit these, and which
+          of them you can see at all is somebody else's decision. Hiding one is
+          remembered under an account-qualified key, since a calendar id means
+          nothing outside the account holding it. */}
+      {cal.sharedCalendars.length > 0 && (
+        <>
+          <div className="nav-section"><span>Shared with me</span></div>
+          {cal.sharedCalendars.map(({ accountId, accountName, calendar: c }) => {
+            const key = `${accountId}:${c.id}`;
+            return (
+              <div key={key} className={`cal-list-item ${cal.hidden[key] ? "hidden-cal" : ""}`} onClick={() => cal.toggleHidden(key)} title={`${c.name} — shared by ${accountName}`}>
+                <span className="cal-color" style={{ background: c.color ?? "var(--accent)", borderColor: c.color ?? "var(--accent)" }} />
+                <span className="cal-name">{c.name}</span>
+                <Users size={12} className="faint" />
+              </div>
+            );
+          })}
+        </>
+      )}
+
       <Popover anchor={menu.anchor} onClose={menu.close} width={220}>
         {menuCal && (
           <>
