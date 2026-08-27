@@ -105,7 +105,14 @@ export function ContactsView({ id }: { id?: string }) {
           {menuBook && (
             <>
               <MenuItem icon={<Pencil size={16} />} label="Rename" onClick={async () => { const n = await promptDialog({ title: "Rename address book", defaultValue: menuBook.name }); if (n?.trim()) void contacts.updateBook(menuBook.id, { name: n.trim() }).catch((err) => toast.error((err as Error).message)); }} />
-              <MenuItem icon={<Share2 size={16} />} label="Share…" onClick={() => setShare(menuBook)} />
+              {/* Withdrawn alongside mail folder sharing, on a report that it
+                  behaved the same way -- which was never reproduced, and which
+                  Stalwart's own docs contradict, since address books are listed
+                  as shareable. Expected back once two accounts have confirmed a
+                  book actually arrives. Clearing one still works. */}
+              {Object.keys(menuBook.shareWith ?? {}).length > 0 && (
+                <MenuItem icon={<Share2 size={16} />} label="Stop sharing" onClick={() => setShare(menuBook)} />
+              )}
               <MenuItem icon={<Star size={16} />} label={menuBook.isDefault ? "Default book" : "Make default"} disabled={menuBook.isDefault} onClick={() => void contacts.updateBook(menuBook.id, { isDefault: true } as Partial<AddressBook>).catch((err) => toast.error((err as Error).message))} />
               <MenuSep />
               <MenuItem danger icon={<Trash2 size={16} />} label="Delete" disabled={!menuBook.myRights.mayDelete} onClick={async () => { if (await confirmDialog({ title: `Delete “${menuBook.name}”?`, message: "All contacts in it will be deleted.", confirmLabel: "Delete", danger: true })) void contacts.destroyBook(menuBook.id).catch((err) => toast.error((err as Error).message)); }} />
