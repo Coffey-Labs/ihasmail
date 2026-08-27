@@ -179,6 +179,12 @@ const identities: Obj[] = [
 ];
 let vacation: Obj = { id: "singleton", isEnabled: false, fromDate: null, toDate: null, subject: null, textBody: null, htmlBody: null };
 const sieveScripts: Obj[] = [];
+/* A calendar in the shared account, so "Shared with me" and a colleague's
+   events appearing in the grid can be exercised. Read-only, as a share is. */
+const sharedCalendars: Obj[] = [{ id: "c9", name: "Grace — Work", description: null, color: "#c084fc", sortOrder: 0, isSubscribed: true, isVisible: true, isDefault: true, includeInAvailability: "all", defaultAlertsWithTime: null, defaultAlertsWithoutTime: null, timeZone: "UTC", shareWith: {}, myRights: { mayReadFreeBusy: true, mayReadItems: true, mayWriteAll: false, mayWriteOwn: false, mayUpdatePrivate: false, mayRSVP: false, mayShare: false, mayDelete: false } }];
+const sharedEvents: Obj[] = [];
+const eventsFor = (accountId: unknown): Obj[] => (accountId === SHARED_ACCOUNT ? sharedEvents : events);
+const calendarsFor = (accountId: unknown): Obj[] => (accountId === SHARED_ACCOUNT ? sharedCalendars : calendars);
 const calendars: Obj[] = [{ id: "c1", name: "Personal", description: null, color: "#0f766e", sortOrder: 0, isSubscribed: true, isVisible: true, isDefault: true, includeInAvailability: "all", defaultAlertsWithTime: null, defaultAlertsWithoutTime: null, timeZone: "UTC", shareWith: null, myRights: rightsCal() }, { id: "c2", name: "Work", description: null, color: "#2563eb", sortOrder: 1, isSubscribed: true, isVisible: true, isDefault: false, includeInAvailability: "all", defaultAlertsWithTime: null, defaultAlertsWithoutTime: null, timeZone: "UTC", shareWith: null, myRights: rightsCal() }];
 function rightsCal() { return { mayReadFreeBusy: true, mayReadItems: true, mayWriteAll: true, mayWriteOwn: true, mayUpdatePrivate: true, mayRSVP: true, mayShare: true, mayDelete: true }; }
 const events: Obj[] = [];
@@ -191,6 +197,9 @@ const events: Obj[] = [];
   events.push({ id: "ev2", calendarIds: { c2: true }, "@type": "Event", uid: "ev2", title: "Design review", start: local(d(1, 14)), timeZone: tz, duration: "PT1H30M", showWithoutTime: false, locations: { l: { "@type": "Location", name: "Room 2" } }, participants: { me: { "@type": "Participant", name: "Demo User", calendarAddress: `mailto:${USER}`, roles: { owner: true, attendee: true }, participationStatus: "accepted" }, p2: { "@type": "Participant", name: "Ada Lovelace", calendarAddress: "mailto:ada@example.org", roles: { attendee: true, required: true }, participationStatus: "needs-action", expectReply: true } }, organizerCalendarAddress: `mailto:${USER}` });
   events.push({ id: "ev3", calendarIds: { c1: true }, "@type": "Event", uid: "ev3", title: "Conference", start: local(d(3, 0)).slice(0, 10) + "T00:00:00", duration: "P2D", showWithoutTime: true, timeZone: null });
   events.push({ id: "ev4", calendarIds: { c1: true }, "@type": "Event", uid: "ev4", title: "Lunch with Grace", start: local(d(2, 12)), timeZone: tz, duration: "PT1H", showWithoutTime: false, color: "#db2777" });
+  // Two in the shared account, so a colleague's calendar has something in it.
+  sharedEvents.push({ id: "sv1", calendarIds: { c9: true }, "@type": "Event", uid: "sv1", title: "Grace: release planning", start: local(d(1, 10)), timeZone: tz, duration: "PT1H", showWithoutTime: false, status: "confirmed", freeBusyStatus: "busy", privacy: "public" });
+  sharedEvents.push({ id: "sv2", calendarIds: { c9: true }, "@type": "Event", uid: "sv2", title: "Grace: on leave", start: local(d(4, 0)).slice(0, 10) + "T00:00:00", duration: "P1D", showWithoutTime: true, timeZone: null });
 }
 const participantIdentities: Obj[] = [{ id: "pi1", name: "Demo User", calendarAddress: `mailto:${USER}`, sendTo: { imip: `mailto:${USER}` }, isDefault: true }];
 const abRights = (write = true) => ({ mayRead: true, mayWrite: write, mayShare: write, mayDelete: write });
@@ -722,10 +731,10 @@ const handlers: Record<string, Handler> = {
   "SieveScript/get": genericGet(sieveScripts),
   "SieveScript/set": (a) => { const r = genericSet(sieveScripts, "sv", (o) => Object.assign(o, { isActive: false, ...o }))(a); const act = (a.onSuccessActivateScript as string | undefined); if (act) { const id = act.startsWith("#") ? ((r.created as Obj)[act.slice(1)] as Obj)?.id : act; for (const s of sieveScripts) s.isActive = s.id === id; } if (a.onSuccessDeactivateScript) for (const s of sieveScripts) s.isActive = false; return r; },
   "SieveScript/validate": () => ({ accountId: ACCOUNT, error: null }),
-  "Calendar/get": genericGet(calendars),
+  "Calendar/get": (a) => genericGet(calendarsFor(a.accountId))(a),
   "Calendar/set": genericSet(calendars, "c", (o) => Object.assign(o, { color: "#0f766e", isSubscribed: true, isVisible: true, isDefault: false, includeInAvailability: "all", timeZone: null, shareWith: null, myRights: rightsCal(), description: null, sortOrder: 0, ...o })),
-  "CalendarEvent/query": (a) => ({ accountId: ACCOUNT, queryState: "1", canCalculateChanges: false, position: 0, ids: events.filter((e) => !(a.filter as Obj)?.uid || e.uid === (a.filter as Obj).uid).map((e) => e.id), total: events.length }),
-  "CalendarEvent/get": genericGet(events),
+  "CalendarEvent/query": (a) => { const list = eventsFor(a.accountId); return { accountId: a.accountId ?? ACCOUNT, queryState: "1", canCalculateChanges: false, position: 0, ids: list.filter((e) => !(a.filter as Obj)?.uid || e.uid === (a.filter as Obj).uid).map((e) => e.id), total: list.length }; },
+  "CalendarEvent/get": (a) => genericGet(eventsFor(a.accountId))(a),
   // Stalwart 0.16 rejects the RFC 8984 array outright and silently discards
   // participants addressed the RFC 8984 way. The mock did neither, which is how
   // #26 and #30 reached a live server unnoticed — so it now does both.
