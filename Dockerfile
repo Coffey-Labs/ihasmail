@@ -37,7 +37,15 @@ COPY --from=build /app/server/dist ./server/dist
 COPY --from=build /app/web/dist ./web/dist
 RUN mkdir -p /data && chown -R node:node /data /app
 USER node
-VOLUME ["/data"]
+# No `VOLUME ["/data"]`. It reads like documentation for where the session file
+# goes, but Docker acts on it: a container started without `-v` gets an
+# anonymous volume mounted there anyway, and that mount stays writable even
+# under `--read-only`. So the directive quietly put a writable hole in a
+# container meant to be immutable, and left an orphaned volume behind every
+# time one was replaced -- while never persisting anything across a redeploy,
+# since each new container got a fresh empty volume of its own. Deployments
+# that want the sessions to survive say so themselves: docker-compose.yml and
+# deploy.example.sh both mount a *named* volume at /data, which is unaffected.
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s CMD wget -qO- http://127.0.0.1:8080/api/health || exit 1
 CMD ["node", "server/dist/index.js"]
