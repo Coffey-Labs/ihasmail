@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { reloadIfServerRebuilt } from "@/lib/staleBuild";
+import { reloadIfServerRebuilt, makeConnectionWatcher, startBuildWatch } from "@/lib/staleBuild";
 import { APP_VERSION } from "@/lib/version";
 
 function healthReplies(body: unknown, ok = true) {
@@ -63,5 +63,64 @@ describe("reloadIfServerRebuilt", () => {
     vi.stubGlobal("fetch", healthReplies({ ok: true }));
     expect(await reloadIfServerRebuilt()).toBe(false);
     expect(reload).not.toHaveBeenCalled();
+  });
+});
+
+describe("noticing without being asked", () => {
+  it("checks when the push stream drops, but not before it has connected", async () => {
+    const fetchMock = healthReplies({ ok: true, version: APP_VERSION });
+    vi.stubGlobal("fetch", fetchMock);
+    const onState = makeConnectionWatcher();
+
+    // never connected: a disconnect is not news
+    onState("connecting");
+    await new Promise((r) => setTimeout(r, 0));
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    onState("connected");
+    onState("connecting");
+    await new Promise((r) => setTimeout(r, 0));
+    expect(fetchMock).toHaveBeenCalled();
+  });
+
+  it("asks the server once when several things notice at the same moment", async () => {
+    const fetchMock = healthReplies({ ok: true, version: APP_VERSION });
+    vi.stubGlobal("fetch", fetchMock);
+    await Promise.all([reloadIfServerRebuilt(), reloadIfServerRebuilt(), reloadIfServerRebuilt()]);
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+});
+
+describe("the poll is what the guarantee rests on", () => {
+  it("checks on its own while the tab is visible, with nobody touching it", async () => {
+    vi.useFakeTimers();
+    const fetchMock = healthReplies({ ok: true, version: "9.9.9" });
+    vi.stubGlobal("fetch", fetchMock);
+    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "visible" });
+
+    startBuildWatch();
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(fetchMock).toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it("leaves a hidden tab alone until it is looked at", async () => {
+    vi.useFakeTimers();
+    const fetchMock = healthReplies({ ok: true, version: APP_VERSION });
+    vi.stubGlobal("fetch", fetchMock);
+    let visibility = "hidden";
+    Object.defineProperty(document, "visibilityState", { configurable: true, get: () => visibility });
+
+    startBuildWatch();
+    await vi.advanceTimersByTimeAsync(180_000);
+    expect(fetchMock).not.toHaveBeenCalled();
+
+    visibility = "visible";
+    document.dispatchEvent(new Event("visibilitychange"));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fetchMock).toHaveBeenCalled();
+    vi.useRealTimers();
   });
 });
