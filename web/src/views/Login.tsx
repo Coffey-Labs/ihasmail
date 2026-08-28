@@ -22,7 +22,7 @@ export function LoginPage() {
   const [username, setUsername] = useState(() => localStorage.getItem("ihasmail:lastUser") ?? "");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
-  const [remember, setRemember] = useState(true);
+  const [trustDevice, setTrustDevice] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,8 +34,8 @@ export function LoginPage() {
     try {
       // No two-factor code: the field is not on this form until the flow works
       // end to end, and the server treats an absent code as none given.
-      await login(username.trim(), password, "", remember);
-      localStorage.setItem("ihasmail:lastUser", username.trim());
+      await login(username.trim(), password, "", trustDevice);
+      if (trustDevice) localStorage.setItem("ihasmail:lastUser", username.trim());
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.code === "invalid_credentials") {
@@ -74,10 +74,15 @@ export function LoginPage() {
             </button>
           </div>
         </div>
-        <label className="check" style={{ marginBottom: 12 }}>
-          <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
-          <span>Keep me signed in on this device</span>
+        <label className="check" style={{ marginBottom: 4 }}>
+          <input type="checkbox" checked={trustDevice} onChange={(e) => setTrustDevice(e.target.checked)} />
+          <span>This is my own device</span>
         </label>
+        <p className="hint" style={{ marginBottom: 12 }}>
+          {trustDevice
+            ? "Stay signed in, and keep settings and recent addresses on this computer."
+            : "Signed out after 5 minutes of inactivity, and nothing is kept on this computer. Leave this unticked on a shared or public one."}
+        </p>
         <button className="btn btn-primary btn-lg btn-block" type="submit" disabled={busy}>
           {busy ? <span className="spinner" style={{ borderTopColor: "#fff" }} /> : <LogIn size={18} />}
           {busy ? "Signing in…" : "Sign in"}

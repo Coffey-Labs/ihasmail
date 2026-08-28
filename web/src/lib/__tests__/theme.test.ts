@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_SETTINGS, DEVICE_KEYS, acceptRemote, isDarkTheme, syncedPart, toggleTarget, useSettings, type Theme } from "@/store/settings";
-import { loadJson, saveJson } from "@/lib/storage";
+import { loadJson, saveJson, setDeviceTrusted } from "@/lib/storage";
 
 /**
  * "ihasmail" is a dark theme wearing ihasmail.org's palette. Everything that
@@ -60,9 +60,14 @@ describe("the default theme", () => {
         removeItem: (k: string) => void store.delete(k),
       },
     });
+    // Reads and writes are gated on device trust now, and the gate defaults to
+    // closed. These tests are about `loadJson`'s merge, so open it and put it
+    // back -- an untrusted device is covered by storage.test.ts instead.
+    setDeviceTrusted(true);
     try {
       fn();
     } finally {
+      setDeviceTrusted(false);
       Reflect.deleteProperty(globalThis, "localStorage");
     }
   };

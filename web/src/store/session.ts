@@ -7,6 +7,8 @@ import { setServerLocale } from "@/lib/datetime";
 import { flushSettingsPush, stopSettingsSync } from "@/lib/settingsSync";
 import { reloadIfServerRebuilt } from "@/lib/staleBuild";
 import { unsubscribeThisDevice } from "@/lib/webpush";
+import { clearAllData, clearSignedInData, setDeviceTrusted } from "@/lib/storage";
+import { startIdleLogout, stopIdleLogout } from "@/lib/idleLogout";
 
 export type AuthStatus = "loading" | "anonymous" | "authenticated";
 
@@ -81,6 +83,11 @@ export const useSession = create<SessionState>((set, get) => ({
     } catch {
       /* ignore */
     }
+    stopIdleLogout();
+    // Unconditional. The push subscription above is removed for exactly this
+    // reason -- that a browser left holding someone's mail is somebody else's
+    // problem next -- and the address book cached here is the same argument.
+    clearSignedInData();
     client.session = null;
     set({ status: "anonymous", session: null, accountId: null });
   },
@@ -112,6 +119,19 @@ export const useSession = create<SessionState>((set, get) => ({
 function applySession(s: JmapSession, set: (p: Partial<SessionState>) => void) {
   client.session = s;
   setServerLocale(s.ihasmail?.userLocale);
+  // `remember` is the answer to "is this device yours", given at sign-in and
+  // carried on the session -- so a reload arrives at the same answer without
+  // the client storing it, which on an untrusted device it could not do anyway.
+  const trusted = Boolean(s.ihasmail?.remember);
+  setDeviceTrusted(trusted);
+  if (trusted) {
+    stopIdleLogout();
+  } else {
+    // Residue from an earlier trusted session on this machine is exactly what
+    // an untrusted sign-in is asking us not to keep.
+    clearAllData();
+    startIdleLogout(() => void useSession.getState().logout());
+  }
   const accountId = s.primaryAccounts[CAP.mail] ?? Object.keys(s.accounts)[0] ?? null;
   set({ status: "authenticated", session: s, accountId, error: null });
 }
@@ -119,6 +139,8 @@ function applySession(s: JmapSession, set: (p: Partial<SessionState>) => void) {
 client.onUnauthenticated(() => {
   push.stop();
   stopSettingsSync();
+  stopIdleLogout();
+  clearSignedInData();
   client.session = null;
   // Ask before showing the sign-in form rather than after. A deploy is the
   // usual reason to be signed out here, and reloading a form someone has
