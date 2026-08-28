@@ -48,7 +48,7 @@ const PORT = 9333;
 const chrome = spawn("google-chrome-stable", [
   "--headless=new", `--remote-debugging-port=${PORT}`, "--hide-scrollbars",
   "--no-first-run", "--no-default-browser-check", "--disable-gpu",
-  `--user-data-dir=/tmp/claude-shots-profile`, "about:blank",
+  `--user-data-dir=/tmp/ihasmail-shots-profile`, "about:blank",
 ], { stdio: "ignore" });
 
 const json = async (path) => {

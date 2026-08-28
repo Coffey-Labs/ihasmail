@@ -13,7 +13,7 @@ const chrome = spawn("google-chrome-stable", [
   "--headless=new", `--remote-debugging-port=${PORT}`, "--hide-scrollbars",
   "--no-first-run", "--no-default-browser-check",
   "--window-size=1420,790", "--force-device-scale-factor=1",
-  "--user-data-dir=/tmp/claude-light-profile", "about:blank",
+  "--user-data-dir=/tmp/ihasmail-light-profile", "about:blank",
 ], { stdio: "ignore" });
 
 const json = async (p) => { for (let i = 0; i < 60; i++) { try { return await (await fetch(`http://127.0.0.1:${PORT}${p}`)).json(); } catch { await sleep(250); } } throw new Error("no chrome"); };
