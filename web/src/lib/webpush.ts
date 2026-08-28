@@ -19,6 +19,7 @@
  */
 import { CAP, client } from "@/jmap/client";
 import type { GetResponse, Id, SetResponse } from "@/jmap/types";
+import { isDeviceTrusted } from "@/lib/storage";
 
 export const VAPID_CAP = "urn:ietf:params:jmap:webpush-vapid";
 export const EMAILPUSH_CAP = "urn:ietf:params:jmap:emailpush";
@@ -93,6 +94,10 @@ export function encodeKey(buffer: ArrayBuffer | null): string {
 /** A stable id for this browser, so a re-subscribe replaces rather than piles up. */
 export function deviceClientId(): string {
   const KEY = "ihasmail:pushDeviceId";
+  // An untrusted device gets a per-session id instead of a stored one. It is
+  // the same trade private mode already makes below: re-subscribing will not
+  // reuse it, which costs nothing when push is refused there anyway.
+  if (!isDeviceTrusted()) return `ihasmail-${crypto.randomUUID()}`;
   try {
     const existing = localStorage.getItem(KEY);
     if (existing) return existing;

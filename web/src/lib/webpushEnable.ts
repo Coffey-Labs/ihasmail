@@ -6,6 +6,7 @@
  * permission prompt, none of which exists under a test runner.
  */
 import { CAP } from "@/jmap/client";
+import { isDeviceTrusted } from "@/lib/storage";
 import { useSession } from "@/store/session";
 import { useMail } from "@/store/mail";
 import {
@@ -66,6 +67,12 @@ export async function enableWebPush(): Promise<{ ok: true } | { ok: false; reaso
   }
   if (Notification.permission === "denied") {
     return { ok: false, reason: "Notifications are blocked for this site in your browser's settings." };
+  }
+  // A subscription outlives the tab and belongs to the account, not the
+  // session -- so on a machine the user has told us is not theirs, it would go
+  // on delivering their mail to it long after they had gone.
+  if (!isDeviceTrusted()) {
+    return { ok: false, reason: "Background notifications need a device you have marked as your own. Sign in again with \u201CThis is my own device\u201D ticked." };
   }
   const key = applicationServerKey();
   if (!key) return { ok: false, reason: "This mail server does not publish a push key." };

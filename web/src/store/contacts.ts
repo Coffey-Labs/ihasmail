@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { accountKey, loadRaw, saveJson } from "@/lib/storage";
 import { CAP, client, setErrorMessage } from "@/jmap/client";
 import type { AddressBook, ContactCard, EmailAddress, GetResponse, Id, Principal, QueryResponse, SetResponse } from "@/jmap/types";
 import { contactDisplayName, contactEmails, sortKey } from "@/lib/contacts";
@@ -441,7 +442,7 @@ export const useContacts = create<ContactsState>((set, get) => ({
     const next = [...addrs.filter((a) => a.email), ...cur.filter((r) => !addrs.some((a) => a.email.toLowerCase() === r.email.toLowerCase()))].slice(0, 200);
     set({ recent: next });
     try {
-      localStorage.setItem(`ihasmail:${get().accountId}:recent`, JSON.stringify(next));
+      saveJson(accountKey(get().accountId, "recent"), next);
     } catch {
       /* ignore */
     }
@@ -466,7 +467,7 @@ useSession.subscribe((s) => {
     const accountId = s.accountFor(CAP.contacts);
     let recent: EmailAddress[] = [];
     try {
-      recent = JSON.parse(localStorage.getItem(`ihasmail:${accountId}:recent`) ?? "[]") as EmailAddress[];
+      recent = loadRaw<EmailAddress[]>(accountKey(accountId, "recent"), []);
     } catch {
       /* ignore */
     }
