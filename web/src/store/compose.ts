@@ -10,6 +10,7 @@ import { useMail, FULL_PROPS, BODY_PROPS } from "./mail";
 import { ensureScheduledMailbox, useScheduled } from "./scheduled";
 import { formatScheduleTime, holdUntil } from "@/lib/schedule";
 import { settings } from "./settings";
+import { holdReloadWhile } from "@/lib/staleBuild";
 
 export interface ComposeAttachment {
   id: string;
@@ -807,3 +808,8 @@ export function draftFromMailto(url: string): Partial<Draft> {
     ...(body ? { html: body, text: m.body } : {}),
   };
 }
+
+// A deploy can reload this tab out from under whoever is writing. Text that has
+// not been autosaved lives only here, and once the session is gone it cannot be
+// saved at all -- so say so, and let them sign in and send it instead.
+holdReloadWhile(() => useCompose.getState().drafts.some((d) => d.dirty));
