@@ -34,9 +34,64 @@ export interface LiveSession {
   ip: string;
 }
 
+/** What `/api/auth/sessions` reports about a session, with nothing secret in it. */
+export interface SessionSummary {
+  id: string;
+  username: string;
+  createdAt: number;
+  lastSeenAt: number;
+  expiresAt: number;
+  remember: boolean;
+  userAgent: string;
+  ip: string;
+}
+
+export interface CreateSessionParams {
+  username: string;
+  password: string;
+  remember: boolean;
+  userAgent: string;
+  ip: string;
+}
+
+/**
+ * Everything the rest of the server asks of a session store.
+ *
+ * There is one implementation today -- `SessionStore` below, which keeps the
+ * records in memory and optionally mirrors them to `SESSION_FILE`. The reason
+ * it is named as an interface anyway is that a second one is planned: a
+ * stateless backend that carries the whole record in the cookie, so that a
+ * replica can serve a session it never issued and `/data` can go away. Callers
+ * written against the concrete class would all have to be revisited then.
+ *
+ * Five of these are already stateless in shape -- `create`, `resolve`,
+ * `reseal` and `destroy` each touch exactly one session, and the sealing key is
+ * derived from the cookie secret (see `crypto.ts`), so the record can move into
+ * the cookie without the server keeping a map.
+ *
+ * The other two cannot be. `listForUser` and `destroyAllForUser` have to reach
+ * sessions other than the one presenting itself, which means something has to
+ * be enumerable somewhere. `destroyAllForUser` is not only the "sign out my
+ * other sessions" button: `app.ts` also calls it when the password or the app
+ * password changes, so it carries the guarantee that changing a credential
+ * invalidates the sessions still holding the old one. A stateless backend
+ * cannot honour that alone; the plan is for OAuth to hand the job to
+ * Stalwart's own token registry, which can already answer both questions.
+ */
+export interface SessionBackend {
+  init(): Promise<void>;
+  close(): Promise<void>;
+  create(params: CreateSessionParams): { cookie: string; session: LiveSession };
+  resolve(cookie: string | undefined): LiveSession | null;
+  reseal(cookie: string | undefined, password: string): boolean;
+  destroy(id: string): void;
+  destroyAllForUser(username: string, exceptId?: string): number;
+  listForUser(username: string): SessionSummary[];
+}
+
 const COOKIE_SEP = ".";
 
-export class SessionStore {
+export class SessionStore implements SessionBackend {
   private sessions = new Map<string, StoredSession>();
   private dirty = false;
   private saveTimer: NodeJS.Timeout | null = null;
@@ -104,13 +159,7 @@ export class SessionStore {
   }
 
   /** Create a session; returns the cookie value to hand to the client. */
-  create(params: {
-    username: string;
-    password: string;
-    remember: boolean;
-    userAgent: string;
-    ip: string;
-  }): { cookie: string; session: LiveSession } {
+  create(params: CreateSessionParams): { cookie: string; session: LiveSession } {
     const id = randomToken(18);
     const secret = randomToken(32);
     const salt = randomBytes(16);
@@ -211,7 +260,7 @@ export class SessionStore {
     return n;
   }
 
-  listForUser(username: string): Array<Omit<StoredSession, "secretHash" | "salt" | "sealedCredentials">> {
+  listForUser(username: string): SessionSummary[] {
     const out = [];
     for (const s of this.sessions.values()) {
       if (s.username !== username) continue;

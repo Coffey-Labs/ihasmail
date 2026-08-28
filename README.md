@@ -83,6 +83,29 @@ Full instructions, TLS, and every environment variable:
 [Installing](https://docs.ihasmail.org/install/) ·
 [Configuring](https://docs.ihasmail.org/configure/).
 
+### Running immutably
+
+The server writes to exactly one path, the optional `SESSION_FILE`. Clear it
+and there is nothing left to write, so the container can run with no writable
+filesystem at all:
+
+```bash
+docker run --read-only --tmpfs /tmp -e IMMUTABLE=1 -e SESSION_FILE= ...
+```
+
+`IMMUTABLE=1` is an assertion the server checks at startup rather than a switch
+that changes what it does: it refuses to start if `SESSION_FILE` is still set,
+or if the filesystem it is installed on turns out to be writable after all.
+Without it the same misconfiguration is silent — sessions are held in memory
+and persisting them is best-effort, so a read-only `/data` costs one warning at
+the first sign-in and nothing else until the instance is replaced and everyone
+is signed out.
+
+That sign-out is the standing cost of this mode today, since sessions have
+nowhere to live across a restart. Removing it means moving the session upstream
+into a token Stalwart itself issues and can revoke, which is what the OAuth work
+in [ROADMAP.md](ROADMAP.md) is for.
+
 ## Architecture
 
 ```
