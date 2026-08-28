@@ -3,7 +3,7 @@ import type { Context, MiddlewareHandler } from "hono";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import { getConnInfo } from "@hono/node-server/conninfo";
 import { config } from "./config.js";
-import { SessionStore, type LiveSession } from "./sessions.js";
+import { SessionStore, type SessionBackend, type LiveSession } from "./sessions.js";
 import { RateLimiter } from "./ratelimit.js";
 import { resolveClientIp } from "./clientip.js";
 import {
@@ -34,7 +34,7 @@ import { staticHandler } from "./static.js";
 
 type Env = { Variables: { session: LiveSession } };
 
-export const sessions = new SessionStore(config.sessionFile);
+export const sessions: SessionBackend = new SessionStore(config.sessionFile);
 const loginLimiter = new RateLimiter(config.loginRateLimit, 15 * 60_000);
 /**
  * Credential changes verify the current password upstream, and Stalwart's
