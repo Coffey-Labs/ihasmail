@@ -14,10 +14,16 @@ import { push, type PushState } from "@/jmap/push";
  *
  * `index.html` is served `no-cache` and the assets under it are content-hashed
  * and immutable, so a reload is all it takes; the only missing part was
- * something to ask for one. Checking on a 401 rather than on a timer keeps it
- * to the moment it matters and costs one small request, and comparing versions
- * rather than reloading on every 401 means an ordinary session expiry still
- * lands on the sign-in form with the page intact.
+ * something to ask for one. Comparing versions rather than reloading on every
+ * 401 means an ordinary session expiry still lands on the sign-in form with the
+ * page intact -- only a build that actually moved costs the page.
+ *
+ * The reload is unconditional once the versions differ. A compose window can
+ * be holding text that never reached the server, and after a deploy it cannot
+ * be saved either, since the session went with the container -- so this will
+ * sometimes take an unsent draft with it. That is a deliberate trade: a tab
+ * running code the server no longer speaks is the worse failure, and one that
+ * stays behind because someone left a draft open is not automatic at all.
  */
 const TRIED_KEY = "ihasmail:reloaded-for";
 
@@ -44,35 +50,6 @@ function forget(): void {
   } catch {
     /* as above */
   }
-}
-
-/**
- * Reasons to leave a stale page alone for now.
- *
- * A reload throws away everything the tab has not sent anywhere, and on an
- * immutable instance the session is gone by the time we get here, so a compose
- * window holding text that never reached the server cannot save it either.
- * Reloading would be the difference between the author signing in again and
- * pressing send, and losing what they wrote. Whoever owns such state says so
- * here; see the registration at the bottom of `store/compose.ts`.
- */
-const holds = new Set<() => boolean>();
-
-export function holdReloadWhile(fn: () => boolean): () => void {
-  holds.add(fn);
-  return () => holds.delete(fn);
-}
-
-function held(): boolean {
-  for (const fn of holds) {
-    try {
-      if (fn()) return true;
-    } catch {
-      /* a broken predicate is not a reason to reload over someone's work */
-      return true;
-    }
-  }
-  return false;
 }
 
 let inFlight: Promise<boolean> | null = null;
@@ -114,7 +91,6 @@ async function check(): Promise<boolean> {
   // still reports the old version -- a stale proxy cache, a half-finished
   // deploy -- this stops the two of them reloading each other in a loop.
   if (tried() === serverVersion) return false;
-  if (held()) return false;
   remember(serverVersion);
   window.location.reload();
   return true;

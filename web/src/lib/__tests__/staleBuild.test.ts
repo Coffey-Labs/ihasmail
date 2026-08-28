@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { reloadIfServerRebuilt, holdReloadWhile, makeConnectionWatcher, startBuildWatch } from "@/lib/staleBuild";
+import { reloadIfServerRebuilt, makeConnectionWatcher, startBuildWatch } from "@/lib/staleBuild";
 import { APP_VERSION } from "@/lib/version";
 
 function healthReplies(body: unknown, ok = true) {
@@ -63,27 +63,6 @@ describe("reloadIfServerRebuilt", () => {
     vi.stubGlobal("fetch", healthReplies({ ok: true }));
     expect(await reloadIfServerRebuilt()).toBe(false);
     expect(reload).not.toHaveBeenCalled();
-  });
-});
-
-describe("unsaved work holds the page", () => {
-  it("does not reload while something says it has unsaved work", async () => {
-    const release = holdReloadWhile(() => true);
-    vi.stubGlobal("fetch", healthReplies({ ok: true, version: "9.9.9" }));
-    expect(await reloadIfServerRebuilt()).toBe(false);
-    expect(reload).not.toHaveBeenCalled();
-    release();
-    expect(await reloadIfServerRebuilt()).toBe(true);
-    expect(reload).toHaveBeenCalledOnce();
-  });
-
-  it("treats a predicate that throws as a reason to wait", async () => {
-    const release = holdReloadWhile(() => {
-      throw new Error("broken");
-    });
-    vi.stubGlobal("fetch", healthReplies({ ok: true, version: "9.9.9" }));
-    expect(await reloadIfServerRebuilt()).toBe(false);
-    release();
   });
 });
 
