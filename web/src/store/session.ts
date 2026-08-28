@@ -5,6 +5,7 @@ import { push, type PushState } from "@/jmap/push";
 import { accountForCapability, ownAccountForCapability } from "@/lib/accountRouting";
 import { setServerLocale } from "@/lib/datetime";
 import { flushSettingsPush, stopSettingsSync } from "@/lib/settingsSync";
+import { reloadIfServerRebuilt } from "@/lib/staleBuild";
 import { unsubscribeThisDevice } from "@/lib/webpush";
 
 export type AuthStatus = "loading" | "anonymous" | "authenticated";
@@ -119,7 +120,12 @@ client.onUnauthenticated(() => {
   push.stop();
   stopSettingsSync();
   client.session = null;
-  useSession.setState({ status: "anonymous", session: null, accountId: null });
+  // Ask before showing the sign-in form rather than after. A deploy is the
+  // usual reason to be signed out here, and reloading a form someone has
+  // already started typing into would throw the password away.
+  void reloadIfServerRebuilt().then((reloading) => {
+    if (!reloading) useSession.setState({ status: "anonymous", session: null, accountId: null });
+  });
 });
 
 push.onConnection((state) => useSession.setState({ pushConnected: state === "connected", pushState: state }));
