@@ -1,7 +1,7 @@
 import { resolveVersion } from "../../scripts/version.mjs";
 import { randomBytes } from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 /** Minimal .env loader (no dependency): first match wins, never overrides real env. */
@@ -58,6 +58,58 @@ if (!appSecret || appSecret === "change-me") {
 
 const stalwartUrl = env("STALWART_URL", "https://mail.example.com").replace(/\/+$/, "");
 
+/**
+ * Declares that this instance is running as an immutable container: read-only
+ * root filesystem, nothing durable of its own, replaceable by its image.
+ *
+ * It is a claim the process checks rather than one it takes on trust, because
+ * the failure it guards against is silent. Left to itself the server survives
+ * a read-only filesystem perfectly well -- sessions are held in memory and the
+ * write is best-effort, so the only sign that `SESSION_FILE` is going nowhere
+ * is one warning at the first login, long after anyone was watching. The
+ * instance looks healthy right up until it is replaced and everyone is signed
+ * out. Setting IMMUTABLE turns both halves of that into a refusal to start.
+ */
+const immutable = bool("IMMUTABLE", false);
+const sessionFile = process.env.SESSION_FILE ?? "";
+
+/**
+ * Refuse to run when the promise IMMUTABLE makes is not one this instance can
+ * keep. Exported so it can be tested without a read-only filesystem to hand.
+ */
+export function assertImmutable(sessionFile: string, root: string): void {
+  // The image sets SESSION_FILE=/data/sessions.json, so this is a deliberate
+  // refusal rather than a formality: running immutably means clearing it. It
+  // is not quietly ignored, because a configured path that silently persists
+  // nothing is exactly the failure this flag exists to surface.
+  if (sessionFile) {
+    throw new Error(
+      `IMMUTABLE is set, but SESSION_FILE is ${sessionFile}. An immutable instance keeps no durable state of its own: ` +
+        "pass SESSION_FILE= (empty) to hold sessions in memory, or unset IMMUTABLE.",
+    );
+  }
+  // And check the property itself, not just the intention to have it. Setting
+  // the variable while forgetting `--read-only` is the easy mistake, and it
+  // leaves an instance claiming a guarantee it does not have.
+  const probe = resolve(root, ".immutable-probe");
+  let writable = false;
+  try {
+    writeFileSync(probe, "");
+    writable = true;
+    unlinkSync(probe);
+  } catch {
+    /* EROFS, or EACCES on a root we do not own: either way, not writable by us */
+  }
+  if (writable) {
+    throw new Error(
+      `IMMUTABLE is set, but ${root} is writable. Run the container with --read-only (and --tmpfs /tmp), or unset IMMUTABLE.`,
+    );
+  }
+}
+
+if (immutable) assertImmutable(sessionFile, fileURLToPath(new URL("../..", import.meta.url)));
+
+
 export const config = {
   isProd,
   appName: env("APP_NAME", "ihasmail"),
@@ -92,7 +144,9 @@ export const config = {
   secureCookies: (process.env.SECURE_COOKIES ?? "auto").toLowerCase(),
   sessionTtl: int("SESSION_TTL", 12 * 60 * 60),
   sessionRememberTtl: int("SESSION_REMEMBER_TTL", 30 * 24 * 60 * 60),
-  sessionFile: process.env.SESSION_FILE ?? "",
+  sessionFile,
+  /** True when this instance has asserted, and verified, that it is immutable. */
+  immutable,
   upstreamTimeout: int("UPSTREAM_TIMEOUT", 30_000),
   maxUploadBytes: int("MAX_UPLOAD_BYTES", 50 * 1024 * 1024),
   imageProxy: bool("IMAGE_PROXY", true),
