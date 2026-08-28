@@ -11,12 +11,14 @@
 
 # ihasmail
 
-**A fast, friendly, Gmail-class webmail for [Stalwart Mail Server](https://stalw.art) — built on JMAP, from the ground up.**
+**Immutable webmail for [Stalwart Mail Server](https://stalw.art) — a container
+with nothing to persist, and a Gmail-class client on top of it.**
 
 Mail, calendars, contacts, files and filters in a responsive single-page app
 that works equally well on a desktop monitor and a phone. It talks only JMAP
 (plus Stalwart's blob/upload/EventSource endpoints) — no IMAP, no SMTP, no
-database.
+database, and with `IMMUTABLE=1` no writable filesystem either. Everything
+durable belongs to Stalwart; the container is disposable.
 
 | | |
 | --- | --- |
@@ -47,6 +49,7 @@ More, including the mobile layout, on [ihasmail.org](https://ihasmail.org/#scree
 - **Contacts** — JMAP Contacts / JSContact: address books, groups, full editor, vCard import/export
 - **Files** — JMAP FileNode: browse, upload, download, rename, move, delete
 - **Settings that follow the account**, not the browser — kept in a `settings.json` in the account's own JMAP Files, so ihasmail itself stays stateless
+- **Runs read-only** — one optional write path, and with it switched off the container needs no volume and no writable root. `IMMUTABLE=1` is checked at startup rather than trusted, so a half-applied switch refuses to boot instead of failing quietly. See [Running immutably](#running-immutably)
 - **Platform** — installable PWA, Web Push with ihasmail closed, `mailto:` handler, no credentials in the browser, strict CSP, SSRF-safe image proxy
 
 The long version is on [ihasmail.org](https://ihasmail.org/#features); how to
