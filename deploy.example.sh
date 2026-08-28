@@ -41,8 +41,23 @@ HOLD="${IHASMAIL_HOLD:-$APP/.deploy-hold}"
 # for a reverse proxy in front (see Caddyfile.example / nginx.example.conf).
 NAME="${IHASMAIL_NAME:-ihasmail}"
 BIND="${IHASMAIL_BIND:-127.0.0.1:8090}"
-# Named volume for /data (sessions).
+# Named volume for /data (sessions). Unused when running immutably.
 VOLUME="${IHASMAIL_VOLUME:-ihasmail-data}"
+# Run the container immutably: read-only root filesystem, no volume, sessions
+# held in memory only. See "Running immutably" in the README. The server is told
+# the same thing through IMMUTABLE=1 and checks it, so a half-applied switch --
+# the flag without the read-only filesystem, or a SESSION_FILE still pointing
+# somewhere -- refuses to start here instead of looking fine until the next
+# redeploy signs everyone out.
+#
+# The standing cost is that sessions do not outlive a deploy, because there is
+# nowhere left to keep them. Going back is this variable and nothing else:
+#
+#   IHASMAIL_IMMUTABLE=0 ./ihasmail-deploy.sh --yes
+#
+# The named volume is never touched either way, so whatever was in it when the
+# switch was thrown is still there to come back to.
+IMMUTABLE="${IHASMAIL_IMMUTABLE:-0}"
 # Image repository. Each build is tagged with its version as well, so an
 # earlier one can be run again without rebuilding it.
 IMAGE_REPO="${IHASMAIL_IMAGE:-ihasmail}"
@@ -194,10 +209,19 @@ docker build \
   -t "$IMAGE_REPO:current" \
   .
 
-echo "==> restarting container"
+RUN_ARGS=(-d --name "$NAME" --restart unless-stopped -p "$BIND:8080" --env-file "$ENVF")
+if [ "$IMMUTABLE" = "1" ]; then
+  # -e wins over --env-file, so this clears a SESSION_FILE set there or baked
+  # into the image, rather than needing the environment file edited to match.
+  RUN_ARGS+=(--read-only --tmpfs /tmp -e IMMUTABLE=1 -e SESSION_FILE=)
+  echo "==> restarting container -- immutable: read-only, no volume, sessions in memory"
+  echo "    (everyone signed in is signed out; IHASMAIL_IMMUTABLE=0 puts it back)"
+else
+  RUN_ARGS+=(-v "$VOLUME:/data")
+  echo "==> restarting container"
+fi
 docker rm -f "$NAME" >/dev/null 2>&1 || true
-docker run -d --name "$NAME" --restart unless-stopped \
-  -p "$BIND:8080" --env-file "$ENVF" -v "$VOLUME:/data" "$IMAGE_REPO:$TAG" >/dev/null
+docker run "${RUN_ARGS[@]}" "$IMAGE_REPO:$TAG" >/dev/null
 
 for _ in $(seq 1 "$HEALTH_TIMEOUT"); do
   if health=$(curl -sf "http://$BIND/api/health"); then
