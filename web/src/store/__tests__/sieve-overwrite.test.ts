@@ -83,3 +83,91 @@ describe("reloading", () => {
     expect(useSieve.getState().rules().rules).toHaveLength(3);
   });
 });
+
+/**
+ * Issue #76, second round. The transport fault is fixed in the blob proxy, but
+ * the save path had no answer for a script that arrives *partly* read: it is
+ * neither unknown nor empty, so the guards above all pass it through. It parses
+ * into a shorter rule list that looks exactly like a script with fewer rules,
+ * and saving writes that shorter version back over the real one.
+ *
+ * These pin the third state: read, but not all of it.
+ */
+describe("a script that was only partly read", () => {
+  /** Cut at 384 bytes, the way a compressing hop cut the reporter's script. */
+  const truncate = (content: string, at: number) => content.slice(0, at);
+  const full = rulesToSieve(threeRules);
+
+  it("reports its rules as unknown rather than handing back the ones that parsed", () => {
+    useSieve.setState({ contents: { s1: truncate(full, 384) } });
+    const { rules, loaded, damage } = useSieve.getState().rules();
+    expect(rules).toBeNull();
+    expect(loaded).toBe(true);
+    expect(damage).toBeTruthy();
+  });
+
+  it("refuses to save over the part it never saw", async () => {
+    useSieve.setState({ contents: { s1: truncate(full, 384) } });
+    await expect(useSieve.getState().saveRules([newRule({ name: "New" })])).rejects.toThrow(/overwrite the rest of it/i);
+  });
+
+  it("catches a cut at every offset through the script, not just a lucky one", () => {
+    // The offsets that cannot be caught are the ends of complete rule blocks:
+    // each is a valid shorter script and nothing in the bytes says otherwise.
+    // That is the residual the proxy fix covers and this check cannot.
+    const safe = new Set<number>();
+    for (let n = 0; n <= threeRules.length; n++) safe.add(rulesToSieve(threeRules.slice(0, n)).length);
+    let missed = 0;
+    for (let at = 1; at < full.length; at++) {
+      useSieve.setState({ contents: { s1: truncate(full, at) } });
+      const { damage } = useSieve.getState().rules();
+      if (!damage && !safe.has(at)) missed++;
+    }
+    expect(missed).toBe(0);
+  });
+
+  it("leaves an intact script alone at every length it can legitimately have", () => {
+    for (let n = 0; n <= threeRules.length; n++) {
+      useSieve.setState({ contents: { s1: rulesToSieve(threeRules.slice(0, n)) } });
+      const { rules, damage } = useSieve.getState().rules();
+      expect(damage).toBeNull();
+      expect(rules).toHaveLength(n);
+    }
+  });
+
+  it("leaves the shapes a rule can take alone — disabled, many actions, extensions", () => {
+    // A false positive here costs someone the use of the rules editor, so the
+    // walk has to pass everything rulesToSieve can legitimately produce.
+    const varied = [
+      newRule({ name: "Disabled", enabled: false }),
+      newRule({ name: "Many actions", actions: [{ type: "fileinto", mailbox: "A" }, { type: "markread" }, { type: "flag" }, { type: "stop" }] }),
+      newRule({ name: "Two tests", join: "anyof", tests: [{ type: "body", op: "contains", value: "x" }, { type: "size", op: "over", value: 1024 }] }),
+      newRule({ name: "No actions at all", actions: [] }),
+      newRule({ name: "Quotes \" and \\ backslash" }),
+    ];
+    useSieve.setState({ contents: { s1: rulesToSieve(varied) } });
+    const { rules, damage } = useSieve.getState().rules();
+    expect(damage).toBeNull();
+    expect(rules).toHaveLength(varied.length);
+  });
+
+  it("catches a cut at every offset through that script too", () => {
+    const varied = [newRule({ name: "Disabled", enabled: false }), newRule({ name: "Live" }), newRule({ name: "Also off", enabled: false })];
+    const full = rulesToSieve(varied);
+    const safe = new Set<number>();
+    for (let n = 0; n <= varied.length; n++) safe.add(rulesToSieve(varied.slice(0, n)).length);
+    let missed = 0;
+    for (let at = 1; at < full.length; at++) {
+      useSieve.setState({ contents: { s1: full.slice(0, at) } });
+      if (!useSieve.getState().rules().damage && !safe.has(at)) missed++;
+    }
+    expect(missed).toBe(0);
+  });
+
+  it("does not call a hand-written script damaged", () => {
+    useSieve.setState({ contents: { s1: 'require ["fileinto"];\nif header :contains "from" "x" { fileinto "X"; }' } });
+    const { rules, damage } = useSieve.getState().rules();
+    expect(damage).toBeNull();
+    expect(rules).toBeNull(); // hand-written, which is a different refusal
+  });
+});

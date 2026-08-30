@@ -45,7 +45,7 @@ const RULE_MIME = "application/x-ihasmail-sieve-rule";
 
 function RulesEditor() {
   const sieve = useSieve();
-  const { script, rules, content } = sieve.rules();
+  const { script, rules, content, damage } = sieve.rules();
   const [local, setLocal] = useState<SieveRule[] | null>(null);
   const [editing, setEditing] = useState<SieveRule | null>(null);
   const [saving, setSaving] = useState(false);
@@ -79,6 +79,19 @@ function RulesEditor() {
       setSaving(false);
     }
   };
+
+  // Before the hand-written branch: a script that arrived in part is not a
+  // script someone chose to write themselves, and the way out of it is a reload
+  // rather than the "start with rules" button below, which would write over it.
+  if (damage) {
+    return (
+      <div className="warn-box">
+        <div className="row gap-8" style={{ marginBottom: 8 }}><AlertTriangle size={18} /> <b>Only part of your filter script arrived.</b></div>
+        <p style={{ margin: "0 0 8px" }}>It {damage}, so the rules in it can't be shown or edited — saving what did arrive would write it back over the rest. Reload the page to try again. Your rules are still on the server; nothing here has changed them.</p>
+        <button className="btn" onClick={() => window.location.reload()}>Reload</button>
+      </div>
+    );
+  }
 
   if (rules === null) {
     return (
