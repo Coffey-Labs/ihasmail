@@ -9,7 +9,7 @@ services:
       STALWART_URL: ${STALWART_URL:?set STALWART_URL in .env}
       APP_SECRET: ${APP_SECRET:?set APP_SECRET in .env (openssl rand -base64 48)}
       APP_NAME: ${APP_NAME:-ihasmail}
-      SOURCE_URL: ${SOURCE_URL:-https://github.com/LINUXexpert-org/ihasmail}
+      SOURCE_URL: ${SOURCE_URL:-https://github.com/Coffey-Labs/ihasmail}
       TRUST_PROXY: "1"
       IMAGE_PROXY: "1"
     volumes:

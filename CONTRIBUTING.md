@@ -16,7 +16,7 @@ By participating in this project, you agree to treat other contributors with res
 
 ### Reporting Bugs
 
-Before opening a new issue, please search [existing issues](https://github.com/LINUXexpert-org/ihasmail/issues) to see if it's already been reported. When filing a bug report, include:
+Before opening a new issue, please search [existing issues](https://github.com/Coffey-Labs/ihasmail/issues) to see if it's already been reported. When filing a bug report, include:
 
 - A clear, descriptive title
 - Steps to reproduce the issue
