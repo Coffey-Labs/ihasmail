@@ -30,7 +30,7 @@ export function AboutSettings() {
         </tbody>
       </table>
       <p className="hint" style={{ marginTop: 6 }}>Stalwart does not publish its version number to mail clients, so ihasmail reports the edition where the server gives one. ihasmail requires 0.16 or newer, and sign-in refuses anything older.</p>
-      <p className="hint">The middle number of ihasmail's own version is the Stalwart generation it is built for: <strong>v2.16.x</strong> targets Stalwart 0.16. The last is the pull request it was built from, and a trailing <code>+g</code> and short commit means the build is past that pull request rather than exactly it.</p>
+      <p className="hint">ihasmail's own version is the date of the commit it was built from, followed by where that commit came from: <strong>v2026.8.30+pr129</strong> was built from a commit dated the 30th of August 2026 that arrived through pull request 129. A commit that did not come through one carries its short SHA instead — <code>+g1fa6578</code>. The version deliberately says nothing about Stalwart; what this build needs from the server is the line above.</p>
       <h2>Server capabilities</h2>
       <div className="row wrap gap-4">
         {caps.map((c) => <span key={c} className="chip mono" style={{ fontSize: ".78em" }}>{c.replace("urn:ietf:params:jmap:", "")}</span>)}

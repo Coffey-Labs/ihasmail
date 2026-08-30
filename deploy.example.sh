@@ -208,10 +208,11 @@ prune_old_images() {
 }
 
 VERSION="$(node scripts/version.mjs)"
-# A Docker tag may not contain "+", which a version for a commit that did not
-# come through a pull request does: 2.16.57+g1fa6578. The image is tagged with
-# the "+" turned into "-"; what the build is *told* it is keeps the real form,
-# so About and /api/health still report it correctly.
+# A Docker tag may not contain "+", and every version has one now:
+# 2026.8.30+pr129, or +g1fa6578 for a commit that did not come through a pull
+# request. The image is tagged with the "+" turned into "-"; what the build is
+# *told* it is keeps the real form, so About and /api/health still report it
+# correctly.
 TAG="${VERSION//+/-}"
 echo "==> building $(git log --oneline -1) as v$VERSION"
 docker build \

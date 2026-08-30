@@ -161,21 +161,39 @@ the sign-in refusal can be tested.
 
 ### Version numbers
 
-`ihasmail v2.16.84` — `2` is ihasmail's own major, `16` the Stalwart generation
-this build targets, `84` the pull request the commit came from. The first two
-live in the root `package.json`; the third comes from git at build time, since
-it does not exist until the PR has merged. A commit that did not arrive through
-a PR carries the last number plus its short SHA — `2.16.84+g1fa6578`.
+`ihasmail v2026.8.30+pr129` — the date of the commit this was built from, and
+the pull request that commit arrived through. A commit that did not arrive
+through one carries its short SHA instead: `2026.8.30+g1fa6578`. It all comes
+from git at build time; nothing writes a version into the tree, and
+`package.json` sits at `0.0.0` because it is no longer the source of anything.
+
+The date is the commit's own rather than today's, so rebuilding an old commit
+gives the version it had the first time.
 
 ```bash
 node scripts/version.mjs        # the version for the current checkout
-docker build --build-arg IHASMAIL_VERSION="$(node scripts/version.mjs)" -t ihasmail:2.16 .
+docker build --build-arg IHASMAIL_VERSION="$(node scripts/version.mjs)" -t ihasmail:2026.8.30 .
 ```
 
 `.dockerignore` excludes `.git` deliberately, so an image build cannot work this
-out for itself — pass it in. Left out, the build falls back to the base version
-from `package.json`, so a version with no PR number means whoever built the
-image did not pass one.
+out for itself — pass it in. Left out, the build reports `0.0.0`, which is meant
+to look wrong: a version with no `+pr` or `+g` means whoever built the image did
+not pass one.
+
+The version says nothing about Stalwart, deliberately. It used to: `2.16.x` had
+`16` for the 0.16 generation it targeted, which left nowhere to go when Stalwart
+reached 1.0 — `2.1` sorts *below* the `2.16` already deployed, so every image and
+About screen would have read as a downgrade. Which Stalwart a build needs is
+stated where it can be precise, in the badge at the top of this file and in
+[KNOWN-ISSUES.md](KNOWN-ISSUES.md), rather than compressed into one digit.
+
+The pull request lives after the `+`, as build metadata, because it is
+provenance rather than a rank: at the rate they merge here it climbs without
+bound and says nothing about how new a build is. Everything after the `+` is
+ignored when versions are compared, which is the right reading — two builds from
+the same day differ in where they came from, not in age. Nothing here depends on
+that comparison: images are pruned oldest-first by creation time, and a rollback
+names a git ref.
 
 ### Deploying
 
@@ -188,7 +206,7 @@ container, waits for healthy, then prunes all but the newest
 ```bash
 ./deploy.sh                 # origin/main, asks before shipping new commits
 ./deploy.sh --dry-run       # run the guards and stop
-./deploy.sh v2.16.84 --yes  # a named ref, no prompt (there is no tty over ssh)
+./deploy.sh v2026.8.30 --yes  # a named ref, no prompt (there is no tty over ssh)
 ```
 
 `--yes` does not override a hold; clearing one means deleting its line.
