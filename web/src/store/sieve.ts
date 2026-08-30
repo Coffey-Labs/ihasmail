@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { CAP, client, setErrorMessage } from "@/jmap/client";
 import type { GetResponse, Id, SetResponse, SieveScript } from "@/jmap/types";
-import { rulesToSieve, sieveToRules, type SieveRule } from "@/lib/sieve";
+import { rulesToSieve, scriptDamage, sieveToRules, type SieveRule } from "@/lib/sieve";
 import { useSession } from "./session";
 
 export const IHASMAIL_SCRIPT = "ihasmail";
@@ -19,7 +19,7 @@ interface SieveState {
   getContent(id: Id): Promise<string>;
   /** Rules derived from the "ihasmail" script (null = the active script is hand-written). */
   /** `loaded` distinguishes "this script is hand-written" from "we could not read it". */
-  rules(): { script: SieveScript | null; rules: SieveRule[] | null; content: string; loaded: boolean };
+  rules(): { script: SieveScript | null; rules: SieveRule[] | null; content: string; loaded: boolean; damage: string | null };
   saveRules(rules: SieveRule[]): Promise<void>;
   saveScript(id: Id | null, name: string, content: string, activate: boolean): Promise<Id>;
   activate(id: Id | null): Promise<void>;
@@ -91,14 +91,19 @@ export const useSieve = create<SieveState>((set, get) => ({
   rules() {
     const { scripts, contents } = get();
     const script = scripts.find((s) => s.name === IHASMAIL_SCRIPT) ?? scripts.find((s) => s.isActive) ?? null;
-    if (!script) return { script: null, rules: [], content: "", loaded: true };
+    if (!script) return { script: null, rules: [], content: "", loaded: true, damage: null };
     const content = contents[script.id];
     // Not loaded, or the fetch failed. `null` means "cannot say", which every
     // caller already treats as "do not edit this script" -- as opposed to `[]`,
     // which means "this script genuinely has no rules" and invites a save that
     // would overwrite whatever is really in it.
-    if (content === undefined) return { script, rules: null, content: "", loaded: false };
-    return { script, rules: sieveToRules(content), content, loaded: true };
+    if (content === undefined) return { script, rules: null, content: "", loaded: false, damage: null };
+    // Read, but not all of it. Showing the rules that did parse would be the
+    // most dangerous thing available: a short list that looks complete, over a
+    // script that is not. Say "cannot say" here too.
+    const damage = scriptDamage(content);
+    if (damage) return { script, rules: null, content, loaded: true, damage };
+    return { script, rules: sieveToRules(content), content, loaded: true, damage: null };
   },
 
   async saveRules(rules) {
@@ -106,8 +111,18 @@ export const useSieve = create<SieveState>((set, get) => ({
     // The last line of defence. Writing rules replaces the whole script, so
     // doing it from a baseline we never managed to read deletes whatever was
     // there. Refusing is recoverable; overwriting is not.
-    if (existing && get().contents[existing.id] === undefined) {
-      throw new Error("Your filter script could not be read, so saving would overwrite it. Reload and try again.");
+    if (existing) {
+      const content = get().contents[existing.id];
+      if (content === undefined) {
+        throw new Error("Your filter script could not be read, so saving would overwrite it. Reload and try again.");
+      }
+      // Read in full is a separate question from read at all, and the answer
+      // that cost rules in #76 was "partly". A baseline missing its tail writes
+      // out just as confidently as one missing entirely.
+      const damage = scriptDamage(content);
+      if (damage) {
+        throw new Error(`Your filter script ${damage}, so saving would overwrite the rest of it. Reload and try again.`);
+      }
     }
     await get().saveScript(existing?.id ?? null, IHASMAIL_SCRIPT, rulesToSieve(rules), true);
   },
