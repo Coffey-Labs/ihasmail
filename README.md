@@ -6,7 +6,7 @@
   <a href="LICENSE"><img alt="Licence: AGPL-3.0-or-later" src="https://img.shields.io/badge/licence-AGPL--3.0--or--later-2dd4bf?style=flat-square"></a>
   <a href="https://stalw.art" target="_blank" rel="noreferrer"><img alt="Requires Stalwart 0.16 or newer; tested against 0.16.19" src="https://img.shields.io/badge/Stalwart-0.16.19-6366f1?style=flat-square"></a>
   <a href="https://docs.ihasmail.org" target="_blank" rel="noreferrer"><img alt="Documentation: docs.ihasmail.org" src="https://img.shields.io/badge/docs-docs.ihasmail.org-0ea5e9?style=flat-square"></a>
-  <a href="https://linuxexpert.org" target="_blank" rel="noreferrer"><img alt="by LINUXexpert.org" src="https://img.shields.io/badge/by-LINUXexpert.org-0f766e?style=flat-square"></a>
+  <a href="https://coffeylabs.org" target="_blank" rel="noreferrer"><img alt="by Coffey Labs" src="https://img.shields.io/badge/by-Coffey%20Labs-0f766e?style=flat-square"></a>
 </p>
 
 # ihasmail
@@ -200,7 +200,7 @@ container, waits for healthy, then prunes all but the newest
 
 ## License
 
-Copyright (C) 2026 LINUXexpert.org — AGPL-3.0-or-later. See
+Copyright (C) 2026 Coffey Labs — AGPL-3.0-or-later. See
 [LICENSE](LICENSE).
 
 ihasmail was relicensed from GPL-3.0 to AGPL-3.0 on 2026-08-25: webmail is
