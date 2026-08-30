@@ -519,14 +519,17 @@ export function createApp(): Hono<Env> {
       const upstream = await getUpstreamSession(session.id, session.authorization);
       const url = absoluteUpstream(expandTemplate(upstream.downloadUrl, { accountId, blobId, name, type: accept }));
       const res = await fetch(url, {
-        headers: { authorization: session.authorization },
+        // Ask for the bytes as they are. undici would otherwise negotiate gzip
+        // on our behalf and hand back a decompressed body whose content-length
+        // header still describes the compressed one -- see forwardedContentLength.
+        headers: { authorization: session.authorization, "accept-encoding": "identity" },
         signal: AbortSignal.timeout(Math.max(config.upstreamTimeout, 5 * 60_000)),
       });
       if (!res.ok) return c.json({ error: "not_found" }, res.status === 404 ? 404 : 502);
       const headers = new Headers();
       const type = sanitizeContentType(res.headers.get("content-type") ?? accept);
       headers.set("Content-Type", type);
-      const cl = res.headers.get("content-length");
+      const cl = forwardedContentLength(res.headers);
       if (cl) headers.set("Content-Length", cl);
       const safeInline = inline && isInlineSafe(type);
       headers.set(
@@ -649,6 +652,32 @@ function passthrough(res: Response): Response {
   if (!headers.has("content-type")) headers.set("content-type", "application/json");
   headers.set("Cache-Control", "no-store");
   return new Response(res.body, { status: res.status, headers });
+}
+
+/**
+ * The upstream content-length, but only when it describes the bytes we are
+ * about to forward.
+ *
+ * A compressed response is decompressed for us before we ever see the body --
+ * undici does it transparently -- while the content-length header is left
+ * describing the *compressed* length. Copying it onto the longer body we then
+ * send makes the browser stop reading exactly that many bytes in and call the
+ * download complete, so the file arrives silently truncated.
+ *
+ * That is the second half of issue #76. A hop in front of Stalwart compressed
+ * responses over 1 KiB, so a Sieve script stayed intact until the third rule
+ * pushed it past the threshold and it came back cut off mid-rule. Nothing
+ * reported an error: the script parsed, just with rules missing, and saving
+ * wrote that shortened version back over the real one.
+ *
+ * We ask for `identity` above so the usual case still carries a length the
+ * browser can show progress against; this is the guard for a hop that
+ * compresses anyway.
+ */
+export function forwardedContentLength(headers: Headers): string | null {
+  const encoding = headers.get("content-encoding")?.trim().toLowerCase();
+  if (encoding && encoding !== "identity") return null;
+  return headers.get("content-length");
 }
 
 function sanitizeContentType(ct: string): string {
