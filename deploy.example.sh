@@ -20,8 +20,12 @@
 #                 whatever main happens to have picked up since the last
 #                 release.
 #
-#   --dry-run     runs both guards, says what it would deploy, and stops before
-#                 building or touching the container.
+#   --dry-run     checks the hold list, says what it would deploy, and stops
+#                 before building or touching the container. It does not ask
+#                 for confirmation: there is nothing to agree to when nothing
+#                 changes, and needing a terminal would make it useless over
+#                 SSH -- which is where wanting to look before leaping is most
+#                 likely.
 #
 # The container is replaced rather than restarted, because the image is rebuilt
 # from the new checkout. Data lives in a named volume and survives that; the
@@ -97,7 +101,7 @@ for arg in "$@"; do
   case "$arg" in
     -y|--yes) ASSUME_YES=1 ;;
     -n|--dry-run) DRY_RUN=1 ;;
-    -h|--help) sed -n '2,28p' "$0"; exit 0 ;;
+    -h|--help) awk 'NR > 1 { if (/^#/) print; else exit }' "$0"; exit 0 ;;
     -*) echo "unknown option: $arg" >&2; exit 2 ;;
     *)
       if [ -n "$REF" ]; then echo "give at most one git-ref (got '$REF' and '$arg')" >&2; exit 2; fi
@@ -145,26 +149,33 @@ if [ -n "$NEW" ]; then
   echo "==> $(git log --oneline -1 "$CURRENT") -> $(git log --oneline -1 "$TARGET")"
   echo "==> introduces:"
   printf '%s\n' "$NEW" | sed 's/^/      /'
-  if [ "$ASSUME_YES" -ne 1 ]; then
-    if [ -t 0 ]; then
-      read -r -p "deploy these to production? [y/N] " reply
-      case "$reply" in
-        y|Y|yes|YES) ;;
-        *) echo "aborted."; exit 1 ;;
-      esac
-    else
-      echo "!! refusing: this introduces new commits and there is no terminal to confirm on." >&2
-      echo "   re-run with --yes if that is what you mean, or name the ref you want." >&2
-      exit 1
-    fi
-  fi
 else
   echo "==> already at $(git log --oneline -1 "$TARGET"); rebuilding"
 fi
 
+# A dry run has now said everything it has to say, so it stops here -- before
+# the confirmation rather than after it. Asking whether to go ahead with
+# something that is not going to happen is noise at a terminal; over SSH it was
+# worse, because the refusal came out *instead of* the report above and a dry
+# run could not be used from another machine at all. Which is the machine you
+# are most likely to be on when you want one.
 if [ "$DRY_RUN" -eq 1 ]; then
   echo "==> dry run: would deploy $(git log --oneline -1 "$TARGET"); nothing was changed"
   exit 0
+fi
+
+if [ -n "$NEW" ] && [ "$ASSUME_YES" -ne 1 ]; then
+  if [ -t 0 ]; then
+    read -r -p "deploy these to production? [y/N] " reply
+    case "$reply" in
+      y|Y|yes|YES) ;;
+      *) echo "aborted."; exit 1 ;;
+    esac
+  else
+    echo "!! refusing: this introduces new commits and there is no terminal to confirm on." >&2
+    echo "   re-run with --yes if that is what you mean, or name the ref you want." >&2
+    exit 1
+  fi
 fi
 
 git reset --hard --quiet "$TARGET"
