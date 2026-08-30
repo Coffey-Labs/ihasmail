@@ -10,7 +10,7 @@ import { formatVersion, resolveVersion, UNVERSIONED, versionFromGit } from "../.
 
 test("a pull request merge is named by its number", () => {
   assert.equal(
-    formatVersion({ date: "2026-08-30", subject: "Merge pull request #129 from LINUXexpert-org/link-project-site-v2", sha: "1fa6578" }),
+    formatVersion({ date: "2026-08-30", subject: "Merge pull request #129 from Coffey-Labs/link-project-site-v2", sha: "1fa6578" }),
     "2026.8.30+pr129",
   );
 });

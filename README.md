@@ -64,8 +64,8 @@ wrong guess had somewhere to fall back to, so it failed *quietly* — and that
 reached production. With one supported generation a wrong guess is a loud error
 on the first call.
 
-- Still on 0.15? The last release that runs on it is tagged [`stalwart-0.15-support`](https://github.com/LINUXexpert-org/ihasmail/releases/tag/stalwart-0.15-support).
-- Upgrading? [stalwart-migrator](https://github.com/LINUXexpert-org/stalwart-migrator) does it in place, checkpointing every phase and validating afterwards. The live instance moved 0.15.5 → 0.16.19 with eight seconds of downtime and nothing lost.
+- Still on 0.15? The last release that runs on it is tagged [`stalwart-0.15-support`](https://github.com/Coffey-Labs/ihasmail/releases/tag/stalwart-0.15-support).
+- Upgrading? [stalwart-migrator](https://github.com/Coffey-Labs/stalwart-migrator) does it in place, checkpointing every phase and validating afterwards. The live instance moved 0.15.5 → 0.16.19 with eight seconds of downtime and nothing lost.
 
 ## Quick start (Docker)
 
