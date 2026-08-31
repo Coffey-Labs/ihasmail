@@ -178,7 +178,9 @@ function EventForm({ init, base, editing, onClose, settingsTz, defaultAlert, myE
         const patch: Record<string, unknown> = {};
         for (const [k, v] of Object.entries(obj)) patch[k] = v === undefined ? null : v;
         if (Object.keys(ev.calendarIds)[0] !== calendarId) patch.calendarIds = { [calendarId]: true };
-        await cal.updateEvent(ev.id, patch, invites);
+        // `ev` is the master: EventEditor resolves `baseEventId` when it opens
+        // on an occurrence, so the whole series is what this form edits.
+        await cal.updateEvent(ev, patch, invites, "series");
         toast.success("Event updated");
       } else {
         const clean: Record<string, unknown> = {};

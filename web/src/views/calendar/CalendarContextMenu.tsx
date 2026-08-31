@@ -60,14 +60,13 @@ export function CalendarContextMenu({ ctx, onClose, onOpen, onEdit, onCreate }: 
 
   const { inst } = ctx;
   const ev = inst.event;
-  const baseId = ev.baseEventId ?? ev.id;
   const canEdit = inst.calendar?.myRights.mayWriteAll || inst.calendar?.myRights.mayWriteOwn || !inst.calendar;
   const currentCat = categoryOf(ev, categories);
   const participants = Object.keys(ev.participants ?? {}).length;
 
   const patch = async (p: Record<string, unknown>, msg: string) => {
     try {
-      await cal.updateEvent(baseId, p, false);
+      await cal.updateEvent(ev, p, false, "series");
       toast.success(msg);
     } catch (err) {
       toast.error((err as Error).message);
@@ -92,7 +91,7 @@ export function CalendarContextMenu({ ctx, onClose, onOpen, onEdit, onCreate }: 
     const recurring = isRecurring(ev);
     if (!(await confirmDialog({ title: recurring ? "Delete all occurrences?" : "Delete this event?", confirmLabel: "Delete", danger: true }))) return;
     try {
-      await cal.destroyEvent(baseId, participants > 1);
+      await cal.destroyEvent(ev, participants > 1, "series");
       toast.success("Event deleted");
     } catch (err) {
       toast.error((err as Error).message);

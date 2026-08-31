@@ -46,6 +46,43 @@ export const CALENDAR_PROPS = [
   "myRights",
 ];
 
+/**
+ * Which of an event's two ids a mutation means.
+ *
+ * `CalendarEvent/query` runs with `expandRecurrences`, so an occurrence arrives
+ * carrying a synthetic `id` of its own *and* a `baseEventId` pointing at the
+ * master it was expanded from. Sending one where the other was meant is not a
+ * distinction the server will make for us:
+ *
+ * - Through 0.16.19 a synthetic id was refused outright — *"Updating synthetic
+ *   ids is not yet supported"* — so a slip was loud and arrived as a toast.
+ * - 0.16.20 accepts it, and writes a `recurrenceOverrides` entry instead. A
+ *   destroy that meant the series now removes one date and reports success,
+ *   under a dialog that said "Delete all occurrences?".
+ *
+ * So the choice is named and required rather than left to each caller to
+ * remember a `??`. There is exactly one place that turns an event into an id,
+ * and it is below.
+ */
+export type EventScope = "series" | "occurrence";
+
+/**
+ * The id to send for `scope`.
+ *
+ * `series` walks up to the master; `occurrence` sends the instance as it came.
+ * A one-off is safe either way — it has a synthetic id like everything an
+ * expanded query returns, and Stalwart resolves a synthetic id on a component
+ * that is neither recurrent nor an override back to the base event itself.
+ */
+export function eventIdForScope(event: CalendarEvent, scope: EventScope): Id {
+  return scope === "series" ? (event.baseEventId ?? event.id) : event.id;
+}
+
+/** Whether this object is an expanded occurrence rather than a master. */
+export function isOccurrence(event: CalendarEvent): boolean {
+  return event.baseEventId != null && event.baseEventId !== event.id;
+}
+
 /** A calendar somebody else shared, and the account it lives in. */
 export interface SharedCalendar {
   accountId: Id;
@@ -85,9 +122,9 @@ interface CalendarState {
   instancesIn(start: Date, end: Date): EventInstance[];
   getEvent(id: Id): Promise<CalendarEvent | null>;
   createEvent(event: Partial<CalendarEvent>, calendarId: Id, sendInvites: boolean): Promise<Id>;
-  updateEvent(id: Id, patch: Record<string, unknown>, sendInvites: boolean): Promise<void>;
-  destroyEvent(id: Id, sendInvites: boolean): Promise<void>;
-  rsvp(id: Id, status: "accepted" | "tentative" | "declined", comment?: string): Promise<void>;
+  updateEvent(event: CalendarEvent, patch: Record<string, unknown>, sendInvites: boolean, scope: EventScope): Promise<void>;
+  destroyEvent(event: CalendarEvent, sendInvites: boolean, scope: EventScope): Promise<void>;
+  rsvp(event: CalendarEvent, status: "accepted" | "tentative" | "declined", comment?: string): Promise<void>;
   createCalendar(data: Partial<Calendar>): Promise<Id>;
   updateCalendar(id: Id, patch: Partial<Calendar>): Promise<void>;
   destroyCalendar(id: Id): Promise<void>;
@@ -359,39 +396,46 @@ export const useCalendar = create<CalendarState>((set, get) => ({
     return res.created!.e!.id;
   },
 
-  async updateEvent(id, patch, sendInvites) {
+  async updateEvent(event, patch, sendInvites, scope) {
     const accountId = get().accountId!;
+    const id = eventIdForScope(event, scope);
     const res = await client.call<SetResponse>("CalendarEvent/set", { accountId, update: { [id]: patch }, sendSchedulingMessages: sendInvites });
     const err = res.notUpdated?.[id];
     if (err) throw new Error(setErrorMessage(err));
     get().invalidate();
   },
 
-  async destroyEvent(id, sendInvites) {
+  async destroyEvent(event, sendInvites, scope) {
     const accountId = get().accountId!;
+    const id = eventIdForScope(event, scope);
     const res = await client.call<SetResponse>("CalendarEvent/set", { accountId, destroy: [id], sendSchedulingMessages: sendInvites });
     const err = res.notDestroyed?.[id];
     if (err) throw new Error(setErrorMessage(err));
     set((s) => {
       const events = { ...s.events };
+      // Drop both ids: the one that was sent, and the object as the caller
+      // held it. An occurrence destroy leaves the master alone on purpose.
       delete events[id];
+      if (scope === "occurrence") delete events[event.id];
       return { events };
     });
     get().invalidate();
   },
 
-  async rsvp(id, status, comment) {
-    const ev = get().events[id] ?? (await get().getEvent(id));
-    if (!ev) throw new Error("Event not found");
-    id = ev.baseEventId ?? id;
-    const mine = myParticipantKeys(ev, get().identities);
+  async rsvp(event, status, comment) {
+    const mine = myParticipantKeys(event, get().identities);
     if (!mine.length) throw new Error("You are not a participant of this event");
     const patch: Record<string, unknown> = {};
     for (const k of mine) {
       patch[`participants/${k}/participationStatus`] = status;
       if (comment) patch[`participants/${k}/participationComment`] = comment;
     }
-    await get().updateEvent(id, patch, true);
+    // Answering for the series, not for one date. The patch itself survives
+    // either scope -- `participants/{key}/participationStatus` is one of the
+    // pointers 0.16.20 allows on an occurrence -- so this would silently mean
+    // "only that day" if it were aimed at an instance. Accepting an invitation
+    // means accepting the series.
+    await get().updateEvent(event, patch, true, "series");
   },
 
   async createCalendar(data) {
@@ -436,6 +480,14 @@ export const useCalendar = create<CalendarState>((set, get) => ({
     return res.list ?? [];
   },
 
+  /**
+   * The event with this uid, as a master rather than an occurrence.
+   *
+   * The query deliberately omits `expandRecurrences`, so what comes back is the
+   * stored event and `id` is a real id. Callers rely on that — `InviteCard`
+   * removes a cancelled event by handing this straight to `destroyEvent` — so
+   * it is a property of this method, not an accident of the default.
+   */
   async findByUid(uid) {
     const accountId = get().accountId;
     if (!accountId) return null;

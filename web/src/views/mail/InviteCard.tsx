@@ -54,7 +54,7 @@ export function InviteCard({ email, part }: { email: Email; part: EmailBodyPart 
         target = await cal.getEvent(id);
       }
       if (!target) throw new Error("Could not add the event to your calendar");
-      await cal.rsvp(target.id, status);
+      await cal.rsvp(target, status);
       setExisting(await cal.getEvent(target.id));
       toast.success(status === "accepted" ? "Invitation accepted" : status === "declined" ? "Invitation declined" : "Marked as tentative");
     } catch (err) {
@@ -115,7 +115,7 @@ export function InviteCard({ email, part }: { email: Email; part: EmailBodyPart 
       )}
       {method === "CANCEL" && existing && (
         <div className="rsvp">
-          <button className="btn btn-sm btn-danger" disabled={Boolean(busy)} onClick={async () => { try { await cal.destroyEvent(existing.id, false); setExisting(null); toast.success("Removed from calendar"); } catch (err) { toast.error((err as Error).message); } }}>Remove from calendar</button>
+          <button className="btn btn-sm btn-danger" disabled={Boolean(busy)} onClick={async () => { try { await cal.destroyEvent(existing, false, "series"); setExisting(null); toast.success("Removed from calendar"); } catch (err) { toast.error((err as Error).message); } }}>Remove from calendar</button>
         </div>
       )}
       <span className="sr-only">{email.id}</span>
