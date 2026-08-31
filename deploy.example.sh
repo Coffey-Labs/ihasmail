@@ -54,6 +54,13 @@ VOLUME="${IHASMAIL_VOLUME:-ihasmail-data}"
 # somewhere -- refuses to start here instead of looking fine until the next
 # redeploy signs everyone out.
 #
+# It defaults to on, and the reason is what happens when it does not. Forgetting
+# the variable used to hand back a writable container with a volume mounted --
+# quietly, and then report healthy. Nothing in the output said the immutability
+# had gone; `docker inspect` was the only place it showed. So the safe posture
+# is what you get by default, and giving it up is the half that has to be
+# deliberate, which is the way round these two should always have been.
+#
 # The standing cost is that sessions do not outlive a deploy, because there is
 # nowhere left to keep them. Going back is this variable and nothing else:
 #
@@ -61,7 +68,7 @@ VOLUME="${IHASMAIL_VOLUME:-ihasmail-data}"
 #
 # The named volume is never touched either way, so whatever was in it when the
 # switch was thrown is still there to come back to.
-IMMUTABLE="${IHASMAIL_IMMUTABLE:-0}"
+IMMUTABLE="${IHASMAIL_IMMUTABLE:-1}"
 # Image repository. Each build is tagged with its version as well, so an
 # earlier one can be run again without rebuilding it.
 IMAGE_REPO="${IHASMAIL_IMAGE:-ihasmail}"
