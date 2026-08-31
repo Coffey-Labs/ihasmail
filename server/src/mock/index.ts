@@ -5,6 +5,7 @@
  */
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
+import { expandOccurrences, occurrenceAt, occurrenceView, parseSyntheticId, splitOccurrencePatch, syntheticId, type Occurrence } from "./recurrence.js";
 import { parseOtpauthUrl, verifyTotp } from "../totp.js";
 import { holdUntilOf, undoStatusOf } from "./futurerelease.js";
 
@@ -399,6 +400,24 @@ function genericGet(list: Obj[]) {
     return { accountId: ACCOUNT, state: String(state.n), list: found.map((x) => pick(x, a.properties as string[] | null)), notFound: ids ? ids.filter((id) => !list.some((x) => x.id === id)) : [] };
   };
 }
+/**
+ * An id, as either a stored event or one occurrence of one.
+ *
+ * A synthetic id whose base is gone, or whose index falls outside the series
+ * (deleted, or past a `count`), resolves to nothing — `notFound`, the way the
+ * server answers for an occurrence that is not there any more.
+ */
+function resolveEvent(list: Obj[], id: string): { base: Obj; occ?: Occurrence } | null {
+  const direct = list.find((x) => x.id === id);
+  if (direct) return { base: direct };
+  const parsed = parseSyntheticId(id);
+  if (!parsed) return null;
+  const base = list.find((x) => x.id === parsed.baseId);
+  if (!base) return null;
+  const occ = occurrenceAt(base, parsed.index);
+  return occ ? { base, occ } : null;
+}
+
 /** Thrown from an onCreate hook to refuse a create the way a real server would. */
 class SetError extends Error {
   constructor(readonly type: string, readonly description: string, readonly properties?: string[]) { super(description); }
@@ -434,6 +453,125 @@ function genericSet(list: Obj[], prefix: string, onCreate?: (o: Obj) => void) {
     }
     return setResp({ created, updated, destroyed, ...(Object.keys(notCreated).length ? { notCreated } : {}) });
   };
+}
+
+/* ---------- calendar events ---------- */
+
+/**
+ * `CalendarEvent/set`, including the synthetic-id handling 0.16.20 added.
+ *
+ * An update or destroy aimed at an occurrence does not touch the series: it
+ * writes a `recurrenceOverrides` entry keyed by that date, exactly as Stalwart
+ * does — `{ excluded: true }` for a destroy, the patch merged in for an update.
+ *
+ * The refusals are the point of reproducing this at all:
+ *
+ * - a base event and one of its instances in the same request is refused, both
+ *   ids at once, because the server cannot apply them in a defined order;
+ * - the same id twice is "Duplicate event id.";
+ * - the ten event-level properties are refused with `invalidProperties`;
+ * - and the twelve inherited ones are dropped in silence, with the response
+ *   still saying the update succeeded. A mock that applied them would let a
+ *   client that sends them look correct everywhere except a real server.
+ */
+function calendarEventSet(a: Obj) {
+  const created: Obj = {};
+  const updated: Obj = {};
+  const destroyed: string[] = [];
+  const notCreated: Obj = {};
+  const notUpdated: Obj = {};
+  const notDestroyed: Obj = {};
+
+  for (const [cid, obj] of Object.entries((a.create as Obj) ?? {})) {
+    const o: Obj = { ...(obj as Obj), id: `ev${randomUUID().slice(0, 6)}` };
+    // Stalwart 0.16 rejects the RFC 8984 array outright and silently discards
+    // participants addressed the RFC 8984 way. The mock did neither, which is
+    // how #26 and #30 reached a live server unnoticed — so it does both.
+    if (o.recurrenceRules) { notCreated[cid] = new SetError("invalidProperties", "Invalid property.", ["recurrenceRules"]).toJSON(); continue; }
+    const parts = o.participants as Record<string, Obj> | undefined;
+    if (parts && Object.values(parts).some((p) => !p.calendarAddress)) delete o.participants;
+    if (o.replyTo && !o.organizerCalendarAddress) delete o.replyTo;
+    o.uid = o.uid ?? randomUUID();
+    events.push(o);
+    created[cid] = { id: o.id };
+  }
+
+  const updates = Object.entries((a.update as Obj) ?? {});
+  const destroys = ((a.destroy as string[]) ?? []).slice();
+  const seen = new Set<string>();
+
+  /* A base and one of its instances cannot be settled in the same request. */
+  const baseOf = (id: string): string | null => {
+    const r = resolveEvent(events, id);
+    return r ? (r.base.id as string) : null;
+    };
+  const touched = new Map<string, { base: string[]; instance: string[] }>();
+  for (const id of [...updates.map(([id]) => id), ...destroys]) {
+    const b = baseOf(id);
+    if (!b) continue;
+    const entry = touched.get(b) ?? { base: [], instance: [] };
+    (parseSyntheticId(id) ? entry.instance : entry.base).push(id);
+    touched.set(b, entry);
+  }
+  const conflicted = new Set<string>();
+  for (const [, e] of touched) {
+    if (e.base.length && e.instance.length) for (const id of [...e.base, ...e.instance]) conflicted.add(id);
+  }
+  const conflict = () => new SetError("invalidProperties", "A base event and its instances cannot be modified in the same request.", ["id"]).toJSON();
+
+  for (const [id, patch] of updates) {
+    if (conflicted.has(id)) { notUpdated[id] = conflict(); continue; }
+    if (seen.has(id)) { notUpdated[id] = new SetError("invalidProperties", "Duplicate event id.", ["id"]).toJSON(); continue; }
+    seen.add(id);
+    const resolved = resolveEvent(events, id);
+    if (!resolved) { notUpdated[id] = { type: "notFound" }; continue; }
+    if (!resolved.occ) { applyPatch(resolved.base, patch as Obj); updated[id] = null; continue; }
+    const { rejected, applied } = splitOccurrencePatch(patch as Obj);
+    if (rejected) { notUpdated[id] = new SetError("invalidProperties", "This property cannot be modified on a single occurrence.", [rejected]).toJSON(); continue; }
+    writeOverride(resolved.base, resolved.occ, applied);
+    updated[id] = null;
+  }
+
+  for (const id of destroys) {
+    if (conflicted.has(id)) { notDestroyed[id] = conflict(); continue; }
+    const resolved = resolveEvent(events, id);
+    if (!resolved) { notDestroyed[id] = { type: "notFound" }; continue; }
+    if (resolved.occ) {
+      // One date off a series, which is an override rather than a deletion.
+      writeOverride(resolved.base, resolved.occ, { excluded: true }, true);
+      destroyed.push(id);
+      continue;
+    }
+    const i = events.findIndex((x) => x.id === id);
+    if (i >= 0) { events.splice(i, 1); destroyed.push(id); }
+  }
+
+  return setResp({
+    created, updated, destroyed,
+    ...(Object.keys(notCreated).length ? { notCreated } : {}),
+    ...(Object.keys(notUpdated).length ? { notUpdated } : {}),
+    ...(Object.keys(notDestroyed).length ? { notDestroyed } : {}),
+  });
+}
+
+/**
+ * Merge a patch into the override for one date.
+ *
+ * Stalwart fills `start` and `duration` in when the patch leaves them out, so
+ * an override always carries its own timing; the mock does the same, or a
+ * client could depend on inheriting them and be right only here.
+ */
+function writeOverride(base: Obj, occ: Occurrence, patch: Obj, replace = false) {
+  const overrides = (base.recurrenceOverrides as Record<string, Obj> | undefined) ?? {};
+  const existing = replace ? {} : (overrides[occ.recurrenceId] ?? {});
+  const next: Obj = { ...existing };
+  if (!replace) {
+    if (!("start" in next)) next.start = occ.start;
+    if (!("duration" in next) && base.duration) next.duration = base.duration;
+  }
+  applyPatch(next, patch);
+  overrides[occ.recurrenceId] = next;
+  base.recurrenceOverrides = overrides;
 }
 
 /* ---------- submissions ---------- */
@@ -774,18 +912,43 @@ const handlers: Record<string, Handler> = {
   "SieveScript/validate": () => ({ accountId: ACCOUNT, error: null }),
   "Calendar/get": (a) => hideShareWithUnlessAsked(a, genericGet(calendarsFor(a.accountId))(a) as { list: Obj[] }) as never,
   "Calendar/set": (a) => genericSet(calendarsFor(a.accountId), "c", (o) => Object.assign(o, { color: "#0f766e", isSubscribed: true, isVisible: true, isDefault: false, includeInAvailability: "all", timeZone: null, shareWith: null, myRights: rightsCal(), description: null, sortOrder: 0, ...o }))(a),
-  "CalendarEvent/query": (a) => { const list = eventsFor(a.accountId); return { accountId: a.accountId ?? ACCOUNT, queryState: "1", canCalculateChanges: false, position: 0, ids: list.filter((e) => !(a.filter as Obj)?.uid || e.uid === (a.filter as Obj).uid).map((e) => e.id), total: list.length }; },
-  "CalendarEvent/get": (a) => genericGet(eventsFor(a.accountId))(a),
+  /*
+   * With `expandRecurrences` every id that comes back is synthetic — a one-off
+   * included, which is what a live 0.16.19 does and what makes `baseEventId`
+   * useless as a test for a series. Without it (the `findByUid` path) the
+   * stored ids come back untouched, because callers hand those straight to a
+   * destroy and mean the whole event.
+   */
+  "CalendarEvent/query": (a) => {
+    const list = eventsFor(a.accountId);
+    const filter = (a.filter as Obj) ?? {};
+    const matching = list.filter((e) => !filter.uid || e.uid === filter.uid);
+    if (!a.expandRecurrences) {
+      return { accountId: a.accountId ?? ACCOUNT, queryState: "1", canCalculateChanges: false, position: 0, ids: matching.map((e) => e.id), total: matching.length };
+    }
+    const from = filter.after ? new Date(filter.after as string) : new Date(-8640000000000);
+    const to = filter.before ? new Date(filter.before as string) : new Date(8640000000000);
+    const ids: string[] = [];
+    for (const e of matching) for (const occ of expandOccurrences(e, from, to)) ids.push(syntheticId(e.id as string, occ.index));
+    return { accountId: a.accountId ?? ACCOUNT, queryState: "1", canCalculateChanges: false, position: 0, ids, total: ids.length };
+  },
+  "CalendarEvent/get": (a) => {
+    const list = eventsFor(a.accountId);
+    const ids = a.ids as string[] | null | undefined;
+    if (!ids) return genericGet(list)(a);
+    const found: Obj[] = [];
+    const notFound: string[] = [];
+    for (const id of ids) {
+      const resolved = resolveEvent(list, id);
+      if (!resolved) { notFound.push(id); continue; }
+      found.push(resolved.occ ? occurrenceView(resolved.base, resolved.occ) : resolved.base);
+    }
+    return { accountId: ACCOUNT, state: String(state.n), list: found.map((x) => pick(x, a.properties as string[] | null)), notFound };
+  },
   // Stalwart 0.16 rejects the RFC 8984 array outright and silently discards
   // participants addressed the RFC 8984 way. The mock did neither, which is how
   // #26 and #30 reached a live server unnoticed — so it now does both.
-  "CalendarEvent/set": genericSet(events, "ev", (o) => {
-    if (o.recurrenceRules) throw new SetError("invalidProperties", "Invalid property.", ["recurrenceRules"]);
-    const parts = o.participants as Record<string, Obj> | undefined;
-    if (parts && Object.values(parts).some((p) => !p.calendarAddress)) delete o.participants;
-    if (o.replyTo && !o.organizerCalendarAddress) delete o.replyTo;
-    return Object.assign(o, { uid: o.uid ?? randomUUID() });
-  }),
+  "CalendarEvent/set": (a) => calendarEventSet(a),
   "CalendarEvent/parse": (a) => { const parsed: Obj = {}; for (const b of a.blobIds as string[]) { const blob = blobs.get(b); if (!blob) continue; const t = blob.data.toString(); const g = (k: string) => new RegExp(`^${k}[^:]*:(.*)$`, "m").exec(t)?.[1]?.trim(); const ds = g("DTSTART") ?? "20260101T000000Z"; const de = g("DTEND") ?? ds; const toLocal = (s: string) => `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}T${s.slice(9, 11)}:${s.slice(11, 13)}:00`; const start = new Date(`${toLocal(ds)}Z`); const end = new Date(`${toLocal(de)}Z`); parsed[b] = { "@type": "Event", uid: g("UID"), title: g("SUMMARY"), start: toLocal(ds), timeZone: "Etc/UTC", duration: `PT${Math.round((end.getTime() - start.getTime()) / 60000)}M`, method: g("METHOD"), locations: g("LOCATION") ? { l: { name: g("LOCATION") } } : undefined, participants: { org: { name: "Ada Lovelace", calendarAddress: "mailto:ada@example.org", roles: { owner: true } }, me: { name: "Demo User", calendarAddress: `mailto:${USER}`, roles: { attendee: true, required: true }, participationStatus: "needs-action" } } }; } return { accountId: ACCOUNT, parsed, notParsable: [] }; },
   "ParticipantIdentity/get": genericGet(participantIdentities),
   "Principal/query": () => ({ accountId: ACCOUNT, queryState: "1", canCalculateChanges: false, position: 0, ids: principals.map((p) => p.id) }),

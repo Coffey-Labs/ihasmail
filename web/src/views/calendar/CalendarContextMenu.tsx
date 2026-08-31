@@ -1,13 +1,14 @@
 import { Calendar as CalIcon, CalendarDays, Copy, ExternalLink, Palette, Pencil, Plus, Tag, Trash2, X } from "lucide-react";
 import { useLocation } from "wouter";
 import type { CalendarEvent } from "@/jmap/types";
-import { useCalendar, isRecurring, type EventInstance } from "@/store/calendar";
+import { useCalendar, isRecurring, isOccurrence, type EventInstance, type EventScope } from "@/store/calendar";
 import { useSettings } from "@/store/settings";
 import { formatDayMonth } from "@/lib/datetime";
-import { MenuItem, MenuSep, MenuTitle, Popover, type Anchor } from "@/ui/popover";
 import { CALENDAR_COLORS } from "@/ui/misc";
+import { MenuItem, MenuSep, MenuTitle, Popover, type Anchor } from "@/ui/popover";
 import { confirmDialog } from "@/ui/dialog";
 import { toast } from "@/ui/toast";
+import { askDeleteScope, askEditScope, droppedMessage, runScoped } from "./scope";
 import { toLocalDateOnly } from "@/lib/dates";
 import { formatTime } from "@/lib/format";
 
@@ -65,9 +66,13 @@ export function CalendarContextMenu({ ctx, onClose, onOpen, onEdit, onCreate }: 
   const participants = Object.keys(ev.participants ?? {}).length;
 
   const patch = async (p: Record<string, unknown>, msg: string) => {
+    const scope = await askEditScope(ev);
+    if (!scope) return;
     try {
-      await cal.updateEvent(ev, p, false, "series");
-      toast.success(msg);
+      const dropped = await runScoped(scope, (s) => cal.updateEvent(ev, p, false, s));
+      if (!dropped) return;
+      // A per-occurrence change can be accepted in part. Say which part.
+      toast.success(droppedMessage(dropped) ?? (scope === "occurrence" ? `${msg} for this date` : msg));
     } catch (err) {
       toast.error((err as Error).message);
     }
@@ -88,11 +93,16 @@ export function CalendarContextMenu({ ctx, onClose, onOpen, onEdit, onCreate }: 
   };
   const del = async () => {
     onClose();
-    const recurring = isRecurring(ev);
-    if (!(await confirmDialog({ title: recurring ? "Delete all occurrences?" : "Delete this event?", confirmLabel: "Delete", danger: true }))) return;
+    let scope: EventScope | null = "series";
+    if (isRecurring(ev) && isOccurrence(ev)) {
+      scope = await askDeleteScope(ev);
+    } else if (!(await confirmDialog({ title: "Delete this event?", confirmLabel: "Delete", danger: true }))) {
+      scope = null;
+    }
+    if (!scope) return;
     try {
-      await cal.destroyEvent(ev, participants > 1, "series");
-      toast.success("Event deleted");
+      await runScoped(scope, (s) => cal.destroyEvent(ev, participants > 1, s));
+      toast.success(scope === "occurrence" ? "Occurrence deleted" : "Event deleted");
     } catch (err) {
       toast.error((err as Error).message);
     }

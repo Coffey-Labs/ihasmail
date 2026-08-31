@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CAP, client } from "@/jmap/client";
-import { eventIdForScope, isOccurrence, useCalendar } from "@/store/calendar";
+import { CalendarSetError, eventIdForScope, isOccurrence, isThisAndFutureRefusal, occurrencePatch, OccurrenceScopeError, useCalendar } from "@/store/calendar";
 import type { CalendarEvent, JmapSession } from "@/jmap/types";
 
 /**
@@ -159,5 +159,73 @@ describe("rsvp", () => {
     server();
     useCalendar.setState({ identities: [{ id: "id2", name: "Someone", calendarAddress: "mailto:someone-else@example.org", sendTo: {}, isDefault: true }] });
     await expect(useCalendar.getState().rsvp(OCCURRENCE, "accepted")).rejects.toThrow(/not a participant/i);
+  });
+});
+
+
+describe("occurrencePatch", () => {
+  it("lets through what one date will actually take", () => {
+    const { patch, dropped } = occurrencePatch({ title: "Just today", color: "#f00" });
+    expect(patch).toEqual({ title: "Just today", color: "#f00" });
+    expect(dropped).toEqual([]);
+  });
+
+  it("throws on a property the server refuses outright", () => {
+    // Loud is correct here: moving one occurrence to another calendar is not
+    // something the user can be quietly given a different answer to.
+    expect(() => occurrencePatch({ calendarIds: { c2: true } })).toThrow(OccurrenceScopeError);
+    expect(() => occurrencePatch({ useDefaultAlerts: false })).toThrow(/whole series/i);
+  });
+
+  it("removes an inherited property and reports it, rather than letting it vanish", () => {
+    // The server would take this patch, drop `privacy`, and answer "updated".
+    // Anything that believes the response believes the change landed.
+    const { patch, dropped } = occurrencePatch({ title: "x", privacy: "private", recurrenceRule: null });
+    expect(patch).toEqual({ title: "x" });
+    expect(dropped).toEqual(["privacy", "recurrenceRule"]);
+  });
+
+  it("judges a pointer patch on its first token, as the server does", () => {
+    expect(occurrencePatch({ "participants/me/participationStatus": "accepted" }).patch)
+      .toEqual({ "participants/me/participationStatus": "accepted" });
+    expect(occurrencePatch({ "participants/me/calendarAddress": "mailto:x@y" }).dropped)
+      .toEqual(["participants/me/calendarAddress"]);
+  });
+});
+
+describe("updateEvent, per occurrence", () => {
+  it("narrows the patch before sending it and reports what it kept back", async () => {
+    const calls = server();
+    const dropped = await useCalendar.getState().updateEvent(OCCURRENCE, { title: "Just today", privacy: "private" }, false, "occurrence");
+    expect(calls[0]!.update).toEqual({ iaaaaas: { title: "Just today" } });
+    expect(dropped).toEqual(["privacy"]);
+  });
+
+  it("sends nothing at all when a patch is entirely inherited", async () => {
+    // A request that could only be a no-op is worse than no request: the
+    // response would say "updated" and mean nothing by it.
+    const calls = server();
+    const dropped = await useCalendar.getState().updateEvent(OCCURRENCE, { privacy: "private" }, false, "occurrence");
+    expect(calls).toEqual([]);
+    expect(dropped).toEqual(["privacy"]);
+  });
+
+  it("leaves a series patch exactly as the caller wrote it", async () => {
+    const calls = server();
+    await useCalendar.getState().updateEvent(OCCURRENCE, { privacy: "private", useDefaultAlerts: false }, false, "series");
+    expect(calls[0]!.update!.i).toEqual({ privacy: "private", useDefaultAlerts: false });
+  });
+});
+
+describe("isThisAndFutureRefusal", () => {
+  it("recognises the refusal worth offering the series for", () => {
+    expect(isThisAndFutureRefusal(new CalendarSetError({
+      type: "invalidProperties",
+      description: "Occurrences of a this-and-future change cannot be modified individually.",
+    }))).toBe(true);
+  });
+  it("does not claim an unrelated refusal", () => {
+    expect(isThisAndFutureRefusal(new CalendarSetError({ type: "forbidden", description: "Nope." }))).toBe(false);
+    expect(isThisAndFutureRefusal(new Error("Occurrences of a this-and-future change"))).toBe(false);
   });
 });

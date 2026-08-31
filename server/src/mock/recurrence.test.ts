@@ -1,0 +1,133 @@
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import { expandOccurrences, occurrenceAt, occurrenceView, parseSyntheticId, splitOccurrencePatch, syntheticId } from "./recurrence.js";
+
+/**
+ * The mock expands recurrences so that per-occurrence editing can be developed
+ * against something. What it has to get right is not the expansion — that is
+ * the easy half — but the three things a live server does that a client will
+ * otherwise be written against wrongly:
+ *
+ * - every expanded id is synthetic, one-offs included;
+ * - an occurrence carries a `recurrenceId` and no rule;
+ * - a per-occurrence patch loses some properties in silence.
+ */
+
+const WEEKDAYS = { "@type": "RecurrenceRule", frequency: "weekly", byDay: [{ day: "mo" }, { day: "tu" }, { day: "we" }, { day: "th" }, { day: "fr" }] };
+
+/** A standup at 09:00 every weekday, starting Monday 2026-09-07. */
+const series = () => ({ id: "ev1", "@type": "Event", uid: "u1", title: "Standup", start: "2026-09-07T09:00:00", duration: "PT30M", recurrenceRule: WEEKDAYS } as Record<string, unknown>);
+const oneOff = () => ({ id: "ev2", "@type": "Event", uid: "u2", title: "Lunch", start: "2026-09-08T12:00:00", duration: "PT1H" } as Record<string, unknown>);
+
+const week = (from: string, to: string) => [new Date(from), new Date(to)] as const;
+
+describe("expandOccurrences", () => {
+  it("gives a weekday rule five dates in a week and skips the weekend", () => {
+    const [a, b] = week("2026-09-07T00:00:00", "2026-09-14T00:00:00");
+    const out = expandOccurrences(series(), a, b);
+    assert.deepEqual(out.map((o) => o.start), [
+      "2026-09-07T09:00:00", "2026-09-08T09:00:00", "2026-09-09T09:00:00",
+      "2026-09-10T09:00:00", "2026-09-11T09:00:00",
+    ]);
+  });
+
+  it("gives a one-off exactly one occurrence, at index 0", () => {
+    const [a, b] = week("2026-09-01T00:00:00", "2026-10-01T00:00:00");
+    const out = expandOccurrences(oneOff(), a, b);
+    assert.equal(out.length, 1);
+    assert.equal(out[0]!.index, 0);
+  });
+
+  it("honours count", () => {
+    const ev = { ...series(), recurrenceRule: { ...WEEKDAYS, count: 3 } };
+    const [a, b] = week("2026-09-07T00:00:00", "2026-10-01T00:00:00");
+    assert.equal(expandOccurrences(ev, a, b).length, 3);
+  });
+
+  it("skips an excluded date but does not renumber the ones after it", () => {
+    // The whole reason an index rather than a position is the id: deleting
+    // Tuesday must not turn Wednesday's id into Tuesday's.
+    const ev = { ...series(), recurrenceOverrides: { "2026-09-08T09:00:00": { excluded: true } } };
+    const [a, b] = week("2026-09-07T00:00:00", "2026-09-14T00:00:00");
+    const out = expandOccurrences(ev, a, b);
+    assert.deepEqual(out.map((o) => o.start), [
+      "2026-09-07T09:00:00", "2026-09-09T09:00:00", "2026-09-10T09:00:00", "2026-09-11T09:00:00",
+    ]);
+    // Wednesday is still index 2, as it was before Tuesday went.
+    assert.equal(out[1]!.index, 2);
+    assert.equal(occurrenceAt(ev, 2)!.start, "2026-09-09T09:00:00");
+  });
+
+  it("carries an override onto the occurrence it keys", () => {
+    const ev = { ...series(), recurrenceOverrides: { "2026-09-09T09:00:00": { title: "Standup (long)" } } };
+    const [a, b] = week("2026-09-07T00:00:00", "2026-09-14T00:00:00");
+    const out = expandOccurrences(ev, a, b);
+    assert.deepEqual(out.find((o) => o.start === "2026-09-09T09:00:00")!.override, { title: "Standup (long)" });
+  });
+});
+
+describe("occurrenceView", () => {
+  it("strips the rule, sets recurrenceId, and points baseEventId at the master", () => {
+    const base = series();
+    const occ = occurrenceAt(base, 1)!;
+    const view = occurrenceView(base, occ);
+    assert.equal(view.id, syntheticId("ev1", 1));
+    assert.equal(view.baseEventId, "ev1");
+    assert.equal(view.recurrenceId, "2026-09-08T09:00:00");
+    assert.equal(view.recurrenceRule, undefined);
+    assert.equal(view.recurrenceOverrides, undefined);
+  });
+
+  it("gives a one-off a synthetic id over a different base, and no recurrenceId", () => {
+    // Both halves matter. The id is why `baseEventId` proves nothing about a
+    // series; the absent `recurrenceId` is why a one-off does not read as one.
+    const base = oneOff();
+    const view = occurrenceView(base, occurrenceAt(base, 0)!);
+    assert.equal(view.id, "ev2-o0");
+    assert.equal(view.baseEventId, "ev2");
+    assert.notEqual(view.id, view.baseEventId);
+    assert.equal(view.recurrenceId, undefined);
+  });
+
+  it("lets an override win over the series", () => {
+    const base = { ...series(), recurrenceOverrides: { "2026-09-08T09:00:00": { title: "Moved" } } };
+    const view = occurrenceView(base, occurrenceAt(base, 1)!);
+    assert.equal(view.title, "Moved");
+  });
+});
+
+describe("parseSyntheticId", () => {
+  it("round-trips", () => {
+    assert.deepEqual(parseSyntheticId(syntheticId("ev1", 12)), { baseId: "ev1", index: 12 });
+  });
+  it("does not claim a stored id", () => {
+    assert.equal(parseSyntheticId("ev1"), null);
+  });
+});
+
+describe("splitOccurrencePatch", () => {
+  it("applies what an occurrence takes", () => {
+    const { rejected, applied } = splitOccurrencePatch({ title: "Just today", color: "#f00" });
+    assert.equal(rejected, undefined);
+    assert.deepEqual(applied, { title: "Just today", color: "#f00" });
+  });
+
+  it("refuses an event-level property by name", () => {
+    assert.equal(splitOccurrencePatch({ calendarIds: { c2: true } }).rejected, "calendarIds");
+    assert.equal(splitOccurrencePatch({ hideAttendees: true }).rejected, "hideAttendees");
+  });
+
+  it("drops an inherited property in silence, which is the dangerous half", () => {
+    // No `rejected`, nothing applied, and a real server would still answer
+    // "updated". Anything that trusts the response believes this landed.
+    const { rejected, applied } = splitOccurrencePatch({ privacy: "private", recurrenceRule: null });
+    assert.equal(rejected, undefined);
+    assert.deepEqual(applied, {});
+  });
+
+  it("judges a pointer patch on its first token", () => {
+    assert.deepEqual(splitOccurrencePatch({ "participants/me/participationStatus": "accepted" }).applied,
+      { "participants/me/participationStatus": "accepted" });
+    assert.deepEqual(splitOccurrencePatch({ "participants/me/calendarAddress": "mailto:x@y" }).applied, {});
+  });
+});
