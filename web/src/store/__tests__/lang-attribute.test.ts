@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { applyLang, DEFAULT_SETTINGS } from "@/store/settings";
+import { UI_LANGUAGES } from "@/lib/languages";
 
 /**
  * `<html lang>` has to be right *before first paint*, not after mount.
@@ -34,15 +35,23 @@ describe("applyLang", () => {
     expect(document.documentElement.lang).toBe("en");
   });
 
-  it("serves a language whose catalogue is shipped", () => {
-    applyLang({ ...DEFAULT_SETTINGS, uiLanguage: "de" });
-    expect(document.documentElement.lang).toBe("de");
+  it("serves every language whose catalogue is shipped", () => {
+    for (const l of UI_LANGUAGES) {
+      applyLang({ ...DEFAULT_SETTINGS, uiLanguage: l.tag });
+      expect(document.documentElement.lang).toBe(l.tag);
+    }
   });
 
   it("falls back to English rather than claiming a language it cannot render", () => {
-    // A tag no catalogue exists for -- an account carrying a preference from a
-    // build that shipped more languages than this one.
-    applyLang({ ...DEFAULT_SETTINGS, uiLanguage: "fr" });
+    /*
+     * The tag is derived, not written down. Naming a real language here means
+     * the test breaks the day that language ships -- which it did, twice, for
+     * German and then French, each time reporting a failure that was really
+     * the test being out of date.
+     */
+    const unshipped = ["cy", "is", "mt", "eu"].find((tag) => !UI_LANGUAGES.some((l) => l.tag === tag));
+    expect(unshipped).toBeDefined();
+    applyLang({ ...DEFAULT_SETTINGS, uiLanguage: unshipped! });
     expect(document.documentElement.lang).toBe("en");
   });
 
