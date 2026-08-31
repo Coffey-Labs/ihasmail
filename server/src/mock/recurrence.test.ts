@@ -166,3 +166,45 @@ describe("synthetic ids are only true until the next write", () => {
     assert.equal(same!.start, occ.start);
   });
 });
+
+
+describe("an override that moves an occurrence", () => {
+  /*
+   * Confirmed live on 0.16.20 (2026-08-31): one occurrence of a weekly 09:00
+   * series moved to 14:00 comes back with `start` at 14:00 and `recurrenceId`
+   * still at 09:00 — the slot the rule made, which the move does not touch.
+   *
+   * The mock used to clobber the override's `start` with the slot time, so a
+   * moved occurrence did not move. That made per-occurrence *time* editing —
+   * one of the main things the feature is for — look broken against the mock
+   * and fine against the server.
+   */
+  const moved = () => ({
+    ...series(),
+    recurrenceOverrides: { "2026-09-08T09:00:00": { start: "2026-09-08T14:00:00" } },
+  });
+
+  it("moves the occurrence and leaves its recurrenceId on the original slot", () => {
+    const [a, b] = week("2026-09-07T00:00:00", "2026-09-14T00:00:00");
+    const occ = expandOccurrences(moved(), a, b).find((o) => o.recurrenceId === "2026-09-08T09:00:00")!;
+    assert.equal(occ.start, "2026-09-08T14:00:00");
+    assert.equal(occ.recurrenceId, "2026-09-08T09:00:00");
+  });
+
+  it("shows the moved time on the occurrence a get returns", () => {
+    const base = moved();
+    const occ = expandOccurrences(base, new Date("2026-09-07T00:00:00"), new Date("2026-09-14T00:00:00"))
+      .find((o) => o.recurrenceId === "2026-09-08T09:00:00")!;
+    const view = occurrenceView(base, occ);
+    assert.equal(view.start, "2026-09-08T14:00:00");
+    assert.equal(view.recurrenceId, "2026-09-08T09:00:00");
+  });
+
+  it("keeps the occurrence findable by recurrenceId after the move", () => {
+    // This is the property the store depends on: `recurrenceId` survives both
+    // a renumbering and a move, so it is the handle a mutation resolves from.
+    const base = moved();
+    const all = expandOccurrences(base, new Date("2026-09-01T00:00:00"), new Date("2026-10-01T00:00:00"));
+    assert.equal(all.filter((o) => o.recurrenceId === "2026-09-08T09:00:00").length, 1);
+  });
+});
