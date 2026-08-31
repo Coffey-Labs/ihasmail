@@ -107,8 +107,22 @@ export function expandOccurrences(base: Obj, from: Date, to: Date): Occurrence[]
     // An excluded date is simply gone from the expansion. Its slot is not
     // reserved -- see `syntheticId` for why nothing here pretends otherwise.
     if (override?.excluded === true) return true;
-    if (at >= from && at < to) {
-      out.push({ index, recurrenceId, start: recurrenceId, ...(override ? { override } : {}) });
+    /*
+     * An override may move the occurrence, and then `start` and `recurrenceId`
+     * are two different times: the slot it fills stays where the rule put it,
+     * and only the clock time moves. **Confirmed live on 0.16.20
+     * (2026-08-31)**: one occurrence of a weekly 09:00 series moved to 14:00
+     * came back `start: 2027-06-14T14:00:00` with `recurrenceId` still
+     * `2027-06-14T09:00:00`.
+     *
+     * Which is exactly why `recurrenceId` is what a client holds on to. It is
+     * the one name for this instance that neither a renumbering nor a move
+     * changes.
+     */
+    const start = (typeof override?.start === "string" ? override.start : null) ?? recurrenceId;
+    const shown = parseLocal(start);
+    if (shown >= from && shown < to) {
+      out.push({ index, recurrenceId, start, ...(override ? { override } : {}) });
     }
     return at < to;
   };
