@@ -855,6 +855,15 @@ export const catalog: Catalog = {
     "Delete “{name}”?": "删除「{name}」？",
     "Rename folder": "重命名文件夹",
     "Search: {query}": "搜索：{query}",
+
+    // ── Composer status, calendar title ────────────────────────────────
+    "New message": "新邮件",
+    "Sending…": "正在发送…",
+    "Saving…": "正在保存…",
+    "Error": "错误",
+    "Saved {when}": "已保存 {when}",
+    "Unsaved": "未保存",
+    "Agenda from {date}": "从 {date} 起的日程",
   },
   plurals: {
     /*

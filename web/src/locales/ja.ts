@@ -856,6 +856,15 @@ export const catalog: Catalog = {
     "Delete “{name}”?": "「{name}」を削除しますか？",
     "Rename folder": "フォルダー名を変更",
     "Search: {query}": "検索: {query}",
+
+    // ── Composer status, calendar title ────────────────────────────────
+    "New message": "新規メール",
+    "Sending…": "送信中…",
+    "Saving…": "保存中…",
+    "Error": "エラー",
+    "Saved {when}": "{when} に保存",
+    "Unsaved": "未保存",
+    "Agenda from {date}": "{date} からの予定",
   },
   plurals: {
     /*

@@ -141,8 +141,14 @@ export function Composer({ draft }: { draft: Draft }) {
     [allIdentities, hiddenIdentities, d.identityId, defaultIdentityId],
   );
   const ident = identities.find((i) => i.id === d.identityId) ?? identities[0];
-  const title = d.subject || (d.replyMode ? (d.replyMode === "forward" ? "Forward" : "Reply") : "New message");
-  const status = d.sending ? "Sending…" : d.saving ? "Saving…" : d.error ? "Error" : d.savedAt ? `Saved ${formatRelative(new Date(d.savedAt).toISOString())}` : d.dirty ? "Unsaved" : "";
+  const title = d.subject || (d.replyMode ? (d.replyMode === "forward" ? translate("Forward") : translate("Reply")) : translate("New message"));
+  const status =
+    d.sending ? translate("Sending…")
+    : d.saving ? translate("Saving…")
+    : d.error ? translate("Error")
+    : d.savedAt ? translate("Saved {when}", { when: formatRelative(new Date(d.savedAt).toISOString()) })
+    : d.dirty ? translate("Unsaved")
+    : "";
   const totalSize = d.attachments.reduce((n, a) => n + a.size, 0);
 
   if (d.minimized) {
