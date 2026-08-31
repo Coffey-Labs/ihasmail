@@ -24,6 +24,7 @@ durable belongs to Stalwart; the container is disposable.
 | --- | --- |
 | 🌐 **[ihasmail.org](https://ihasmail.org)** | What it is, what it looks like, the full feature list |
 | 📘 **[docs.ihasmail.org](https://docs.ihasmail.org)** | [Installing](https://docs.ihasmail.org/install/) · [Configuring](https://docs.ihasmail.org/configure/) · [Using it](https://docs.ihasmail.org/using/) · [Shortcuts](https://docs.ihasmail.org/shortcuts/) · [Rebranding](https://docs.ihasmail.org/rebranding/) · [Troubleshooting](https://docs.ihasmail.org/troubleshooting/) |
+| 📋 **[FEATURES.md](FEATURES.md)** | Everything it does, feature by feature, with the capability each one needs |
 | 🧪 **[KNOWN-ISSUES.md](KNOWN-ISSUES.md)** | What was verified live, and where Stalwart departs from a spec |
 | 🛣 **[ROADMAP.md](ROADMAP.md)** | What ihasmail does not do, and why |
 
