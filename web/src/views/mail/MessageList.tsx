@@ -648,7 +648,7 @@ const Row = memo(function Row({ email: e, threadEmails, top, height, selected, f
       {twoLine ? (
         <div className="msg-body">
           <div className="msg-line1">
-            <span className="msg-from truncate">
+            <span className="msg-from truncate notranslate" translate="no">
               <span className="truncate">{who}</span>
               {count > 1 && <span className="thread-count"> {count}</span>}
             </span>
@@ -659,8 +659,8 @@ const Row = memo(function Row({ email: e, threadEmails, top, height, selected, f
           </div>
           <div className="msg-main">
             {isDrafts && <span style={{ color: "var(--danger)" }}>{t("Draft")}</span>}
-            <span className="msg-subject">{e.subject || "(no subject)"}</span>
-            {showPreview && <span className="msg-preview">{latest.preview}</span>}
+            <span className="msg-subject notranslate" translate="no">{e.subject || "(no subject)"}</span>
+            {showPreview && <span className="msg-preview notranslate" translate="no">{latest.preview}</span>}
             <button className={`msg-star ${starred ? "on" : ""}`} style={{ marginLeft: "auto" }} onClick={(ev) => { ev.stopPropagation(); onStar(e.id, !starred); }} aria-label={t("Star")}>
               <Star size={16} fill={starred ? "currentColor" : "none"} />
             </button>
@@ -669,15 +669,15 @@ const Row = memo(function Row({ email: e, threadEmails, top, height, selected, f
         </div>
       ) : (
         <>
-          <span className="msg-from" title={who}>
+          <span className="msg-from notranslate" translate="no" title={who}>
             <span className="truncate">{who}</span>
             {count > 1 && <span className="thread-count">{count}</span>}
           </span>
           <span className="msg-main">
             {isDrafts && <span style={{ color: "var(--danger)", flex: "0 0 auto" }}>{t("Draft")}</span>}
             {rowLabels.length > 0 && <span className="msg-labels">{rowLabels.map((l) => <span key={l.keyword} className="tag" style={{ background: l.color }}>{l.name}</span>)}</span>}
-            <span className="msg-subject">{e.subject || "(no subject)"}</span>
-            {showPreview && <span className="msg-preview">{latest.preview}</span>}
+            <span className="msg-subject notranslate" translate="no">{e.subject || "(no subject)"}</span>
+            {showPreview && <span className="msg-preview notranslate" translate="no">{latest.preview}</span>}
           </span>
           <span className="msg-meta">
             {(answered || forwarded) && <span className="msg-answered" title={answered ? "Replied" : "Forwarded"}>{answered ? <Reply size={14} /> : <Forward size={14} />}</span>}

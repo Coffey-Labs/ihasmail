@@ -18,7 +18,7 @@ import { MailView } from "@/views/mail/MailView";
 import { ComposerDock } from "@/views/compose/ComposerDock";
 import { setUnreadBadge } from "@/lib/notify";
 import { useSettings, syncedPart } from "@/store/settings";
-import { armSettingsSync, loadRemoteSettings, queueSettingsPush, settingsSyncAvailable } from "@/lib/settingsSync";
+import { armSettingsSync, loadRemoteSettings, queueSettingsPush, settingsAlreadyLoadedFor, settingsSyncAvailable } from "@/lib/settingsSync";
 import { listenForVerification, renewWebPush } from "@/lib/webpushEnable";
 import { useLanguageVersion } from "@/lib/i18n";
 
@@ -68,8 +68,13 @@ function AuthedApp() {
 
   // Settings that live with the account rather than the browser. The cached
   // ones have already painted, so this only has to correct them (issue #54).
+  //
+  // Once per account, not once per mount: this subtree is keyed on the
+  // language version, so picking a language throws it away and builds it
+  // again. Re-reading the settings file there would apply a copy written
+  // before the change and undo it.
   useEffect(() => {
-    if (!accountId) return;
+    if (settingsAlreadyLoadedFor(accountId)) return;
     let cancelled = false;
     void (async () => {
       const remote = await loadRemoteSettings();
