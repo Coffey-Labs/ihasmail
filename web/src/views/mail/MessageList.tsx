@@ -1,6 +1,6 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent } from "react";
+import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent, type ReactNode } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { Archive, ArrowLeft, CheckSquare, FolderInput, PanelRight, PanelBottom, PanelTop, Filter, Inbox, Mail, MailOpen, MoreVertical, Paperclip, RefreshCw, Reply, Search, Star, Tag, Trash2, AlertOctagon, Forward, Eraser, ShieldCheck } from "lucide-react";
+import { Archive, ArrowLeft, CheckSquare, FolderInput, PanelRight, PanelBottom, PanelTop, Filter, Inbox, Mail, MailOpen, MoreVertical, Paperclip, RefreshCw, Reply, Search, Star, Tag, Trash2, AlertOctagon, Forward, Eraser, ShieldCheck, X } from "lucide-react";
 import { useLocation } from "wouter";
 import { useMail, type ListState } from "@/store/mail";
 import { dateTimeKey, useSettings } from "@/store/settings";
@@ -8,10 +8,28 @@ import type { Email, Id } from "@/jmap/types";
 import { formatListDate } from "@/lib/format";
 import { canEmpty, confirmAndEmpty, emptyLabel } from "@/lib/emptyFolder";
 import { displayName, shortName } from "@/lib/address";
-import { Avatar, Empty, useIsMobile } from "@/ui/misc";
+import { Avatar, Empty, useIsMobile, useIsTouch } from "@/ui/misc";
 import { MenuItem, MenuSep, MenuTitle, Popover, useMenu } from "@/ui/popover";
 import { useCompose } from "@/store/compose";
+import { haptic, usePullToRefresh, useTouchRow, PULL_TRIGGER } from "@/lib/touch";
+import { describeSwipe, type SwipeAction, type SwipeDescriptor, type SwipeIcon } from "@/lib/swipe";
 import { FilterFromMessageDialog } from "./FilterFromMessage";
+
+/**
+ * The glyph on the strip a swipe reveals. Sized larger than the toolbar's
+ * icons: it is read at arm's length, in motion, out of the corner of an eye.
+ */
+const SWIPE_ICON: Record<SwipeIcon, ReactNode> = {
+  archive: <Archive size={22} />,
+  delete: <Trash2 size={22} />,
+  spam: <AlertOctagon size={22} />,
+  "not-spam": <ShieldCheck size={22} />,
+  read: <MailOpen size={22} />,
+  unread: <Mail size={22} />,
+  star: <Star size={22} fill="currentColor" />,
+  unstar: <Star size={22} />,
+  move: <FolderInput size={22} />,
+};
 
 export interface ListActions {
   archive: (rows?: Id[]) => Promise<void>;
@@ -50,10 +68,15 @@ export function MessageList({ title, list, openThreadId, focusId, setFocusId, on
   const settings = useSettings((s) => s.settings);
   const updateSettings = useSettings((s) => s.update);
   const parentRef = useRef<HTMLDivElement>(null);
+  // The same element as `parentRef`, held in state as well: the pull-to-refresh
+  // listeners have to be bound in an effect that re-runs when the element
+  // arrives, and a ref does not tell anybody it has been filled in.
+  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
   const isMobile = useIsMobile();
+  const isTouch = useIsTouch();
   const [paneWidth, setPaneWidth] = useState(0);
   useEffect(() => {
-    const el = parentRef.current;
+    const el = scrollEl;
     if (!el) return;
     const ro = new ResizeObserver((entries) => {
       const w = entries[0]?.contentRect.width ?? 0;
@@ -61,7 +84,7 @@ export function MessageList({ title, list, openThreadId, focusId, setFocusId, on
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [scrollEl]);
   const twoLine = isMobile || (paneWidth > 0 && paneWidth < 640);
   const ctxMenu = useMenu();
   const [ctxRow, setCtxRow] = useState<Id | null>(null);
@@ -69,6 +92,11 @@ export function MessageList({ title, list, openThreadId, focusId, setFocusId, on
   const [refreshing, setRefreshing] = useState(false);
   const [filterFrom, setFilterFrom] = useState<Email | null>(null);
   const lastClick = useRef<Id | null>(null);
+  const selMenu = useMenu();
+  /** The one row currently under a finger, and what letting go would do. */
+  const [swiping, setSwiping] = useState<{ id: Id; dir: -1 | 1; armed: boolean; desc: SwipeDescriptor } | null>(null);
+  /** How far the list has been pulled down, and whether that is far enough. */
+  const [pull, setPull] = useState<{ y: number; armed: boolean; live: boolean }>({ y: 0, armed: false, live: false });
 
   const ids = list?.ids ?? [];
   const selCount = Object.keys(selected).length;
@@ -98,13 +126,24 @@ export function MessageList({ title, list, openThreadId, focusId, setFocusId, on
     if (last.index >= ids.length - 5 && !list.loadingMore && !list.exhausted && !list.loading) void loadMore();
   }, [items, ids.length, list, loadMore]);
 
-  // Pull-to-refresh-ish: manual refresh button
-  const doRefresh = async () => {
+  const doRefresh = useCallback(async () => {
     setRefreshing(true);
     await refreshList();
     await useMail.getState().loadMailboxes();
     setRefreshing(false);
-  };
+  }, [refreshList]);
+
+  /*
+   * Pull the top of the list down to refresh it.
+   *
+   * The toolbar button stays: it is the only way to do this with a mouse, and
+   * on a phone it is the way that works when the list is already scrolled down
+   * a thousand messages. This is the one a thumb reaches for first.
+   */
+  usePullToRefresh(scrollEl, doRefresh, {
+    enabled: isTouch,
+    onPull: useCallback((y: number, armed: boolean, live: boolean) => setPull({ y, armed, live }), []),
+  });
 
   const onRowClick = useCallback(
     (e: MouseEvent, rowId: Id) => {
@@ -143,6 +182,46 @@ export function MessageList({ title, list, openThreadId, focusId, setFocusId, on
     [ctxMenu, setFocusId],
   );
 
+  /*
+   * Hold a row to select it, the way the mail app the phone came with does.
+   *
+   * Selection was reachable on a touchscreen already -- the checkboxes are
+   * always visible where there is no hover -- but a checkbox is a small target
+   * beside an avatar, and nobody aims for it, because on a phone holding the
+   * row *is* how you select it. Once one row is selected, plain taps toggle
+   * the rest (see `onRowClick`), so this only has to open the mode.
+   */
+  const onLongPress = useCallback(
+    (rowId: Id) => {
+      haptic(15);
+      setFocusId(rowId);
+      lastClick.current = rowId;
+      select([rowId], !useMail.getState().selected[rowId]);
+    },
+    [select, setFocusId],
+  );
+
+  const onSwipeState = useCallback((rowId: Id, state: { dir: -1 | 1; armed: boolean; desc: SwipeDescriptor } | null) => {
+    // A row clearing itself must not clear a gesture that has since moved on
+    // to another row -- rows unmount as the list scrolls, at any moment.
+    setSwiping((cur) => (state ? { id: rowId, ...state } : cur?.id === rowId ? null : cur));
+  }, []);
+
+  const fireSwipe = useCallback(
+    async (rowId: Id, d: SwipeDescriptor) => {
+      switch (d.action) {
+        case "archive": await actions.archive([rowId]); break;
+        case "delete": await actions.trash([rowId]); break;
+        case "spam": await actions.spam([rowId]); break;
+        // `on` rather than a fresh look at the row: fire what the strip said.
+        case "read": await actions.read(d.on === true, [rowId]); break;
+        case "star": await actions.star(d.on === true, [rowId]); break;
+        case "move": actions.move([rowId]); break;
+      }
+    },
+    [actions],
+  );
+
   const ctxTargets = useMemo(() => (ctxRow ? (selected[ctxRow] ? Object.keys(selected) : [ctxRow]) : []), [ctxRow, selected]);
   const allSelected = ids.length > 0 && ids.every((id) => selected[id]);
   const someUnread = ctxTargets.some((id) => !emails[id]?.keywords.$seen);
@@ -178,6 +257,31 @@ export function MessageList({ title, list, openThreadId, focusId, setFocusId, on
             <button className="icon-btn hide-mobile" title="Mark as unread (Shift+U)" onClick={() => void actions.read(false)}><Mail size={19} /></button>
             <button className="icon-btn" title="Move to (v)" onClick={() => actions.move()}><FolderInput size={19} /></button>
             <button className="icon-btn hide-mobile" title="Labels (l)" onClick={(e) => actions.label(undefined, { x: e.clientX, y: e.clientY })}><Tag size={19} /></button>
+            {/*
+              The three buttons above marked hide-mobile have nowhere to go on
+              a phone, and used to simply not exist there: selecting mail on a
+              touchscreen could archive, delete, mark read and move, and could
+              not report spam, mark unread or label. Now that holding a row is
+              how selection starts, that gap is the first thing a thumb finds.
+            */}
+            {isMobile && (
+              <>
+                <span className="spacer" />
+                <button className="icon-btn" onClick={selMenu.open} aria-label="More actions"><MoreVertical size={19} /></button>
+                <Popover anchor={selMenu.anchor} onClose={selMenu.close} align="end" width={240}>
+                  <MenuItem
+                    icon={mailbox?.role === "junk" ? <ShieldCheck size={16} /> : <AlertOctagon size={16} />}
+                    label={mailbox?.role === "junk" ? "Not spam" : "Report spam"}
+                    onClick={() => void actions.spam()}
+                  />
+                  <MenuItem icon={<Mail size={16} />} label="Mark as unread" onClick={() => void actions.read(false)} />
+                  <MenuItem icon={<Tag size={16} />} label="Label…" onClick={() => actions.label(undefined, { x: window.innerWidth / 2, y: 100 })} />
+                  <MenuSep />
+                  <MenuItem icon={<CheckSquare size={16} />} label="Select all" onClick={selectAll} />
+                  <MenuItem icon={<X size={16} />} label="Clear selection" onClick={clearSelection} />
+                </Popover>
+              </>
+            )}
           </>
         ) : (
           <>
@@ -237,65 +341,120 @@ export function MessageList({ title, list, openThreadId, focusId, setFocusId, on
           <button onClick={() => void confirmAndEmpty(mailbox)}>Delete all spam now</button>
         </div>
       )}
-      <div ref={parentRef} className={`mail-list ${selCount ? "has-selection" : ""} ${twoLine ? "two-line" : ""} ${settings.density === "compact" ? "compact" : ""}`} tabIndex={-1}>
-        {list?.loading && ids.length === 0 ? (
-          <div style={{ padding: 8 }}>
-            {[...Array(12)].map((_, i) => (
-              <div key={i} className="row" style={{ height: rowHeight, padding: "0 8px", gap: 12 }}>
-                <span className="skeleton" style={{ width: 32, height: 32, borderRadius: 16 }} />
-                <span className="skeleton" style={{ width: 140, height: 14 }} />
-                <span className="skeleton grow" style={{ height: 14 }} />
-                <span className="skeleton" style={{ width: 50, height: 12 }} />
-              </div>
-            ))}
-          </div>
-        ) : ids.length === 0 && list && !list.loading ? (
-          <Empty icon={isSearch ? <Search size={40} /> : <Inbox size={40} />} title={isSearch ? "No results" : mailbox?.role === "inbox" ? "You're all caught up" : "Nothing here"}>
-            {isSearch ? "Try different keywords or filters." : mailbox?.role === "inbox" ? "No new mail in your inbox." : "This folder is empty."}
-          </Empty>
-        ) : (
-          <div className="mail-list-inner" style={{ height: virtualizer.getTotalSize() }}>
-            {items.map((vi) => {
-              const id = ids[vi.index];
-              if (!id) {
-                return (
-                  <div key="loader" className="list-footer" style={{ position: "absolute", top: vi.start, left: 0, right: 0, height: vi.size }}>
-                    {list?.loadingMore ? <span className="spinner" style={{ display: "inline-block" }} /> : ""}
-                  </div>
-                );
-              }
-              const e = emails[id];
-              if (!e) return <div key={id} style={{ position: "absolute", top: vi.start, height: vi.size }} />;
-              const thread = list?.collapseThreads ? threads[e.threadId] : undefined;
-              return (
-                <Row
-                  key={id}
-                  email={e}
-                  threadEmails={thread ? thread.emailIds.map((x) => emails[x]).filter((x): x is Email => Boolean(x)) : undefined}
-                  top={vi.start}
-                  height={vi.size}
-                  selected={Boolean(selected[id])}
-                  focused={focusId === id}
-                  open={openThreadId === e.threadId}
-                  twoLine={twoLine}
-                  showAvatar={settings.showAvatars}
-                  showPreview={settings.showPreview}
-                  isDrafts={isDrafts}
-                  mailboxId={mailboxId}
-                  isSent={mailbox?.role === "sent"}
-                  onClick={onRowClick}
-                  onContext={onContext}
-                  onSelect={(rowId, on) => { select([rowId], on); lastClick.current = rowId; }}
-                  onStar={(rowId, on) => void actions.star(on, [rowId])}
-                  onArchive={(rowId) => void actions.archive([rowId])}
-                  onTrash={(rowId) => void actions.trash([rowId])}
-                  onRead={(rowId, read) => void actions.read(read, [rowId])}
-                  selectedIds={selected}
-                />
-              );
-            })}
+      <div
+        ref={(el) => {
+          parentRef.current = el;
+          setScrollEl(el);
+        }}
+        className={`mail-list ${selCount ? "has-selection" : ""} ${twoLine ? "two-line" : ""} ${settings.density === "compact" ? "compact" : ""}`}
+        tabIndex={-1}
+      >
+        {/*
+          The pull dial. Zero-height and sticky, so it rides the top of the
+          scroller without taking a row's worth of space from the list when
+          nobody is pulling — and so it stays put while the content below it
+          comes down.
+        */}
+        {isTouch && (
+          <div className="ptr" aria-hidden="true">
+            <span
+              className={`ptr-dial ${pull.armed || refreshing ? "armed" : ""}`}
+              style={{ transform: `translate(-50%, ${Math.max(0, pull.y - 36)}px)`, opacity: Math.min(1, pull.y / 20), transition: pull.live ? "none" : "transform .22s var(--ease), opacity .22s" }}
+            >
+              <RefreshCw size={18} className={refreshing ? "spin" : ""} style={refreshing ? undefined : { transform: `rotate(${Math.round((pull.y / PULL_TRIGGER) * 270)}deg)` }} />
+            </span>
           </div>
         )}
+        <div
+          className="mail-list-pull"
+          style={pull.y ? { transform: `translateY(${pull.y}px)`, transition: pull.live ? "none" : "transform .22s var(--ease)" } : { transition: "transform .22s var(--ease)" }}
+        >
+          {list?.loading && ids.length === 0 ? (
+            <div style={{ padding: 8 }}>
+              {[...Array(12)].map((_, i) => (
+                <div key={i} className="row" style={{ height: rowHeight, padding: "0 8px", gap: 12 }}>
+                  <span className="skeleton" style={{ width: 32, height: 32, borderRadius: 16 }} />
+                  <span className="skeleton" style={{ width: 140, height: 14 }} />
+                  <span className="skeleton grow" style={{ height: 14 }} />
+                  <span className="skeleton" style={{ width: 50, height: 12 }} />
+                </div>
+              ))}
+            </div>
+          ) : ids.length === 0 && list && !list.loading ? (
+            <Empty icon={isSearch ? <Search size={40} /> : <Inbox size={40} />} title={isSearch ? "No results" : mailbox?.role === "inbox" ? "You're all caught up" : "Nothing here"}>
+              {isSearch ? "Try different keywords or filters." : mailbox?.role === "inbox" ? "No new mail in your inbox." : "This folder is empty."}
+            </Empty>
+          ) : (
+            <div className="mail-list-inner" style={{ height: virtualizer.getTotalSize() }}>
+              {items.map((vi) => {
+                const id = ids[vi.index];
+                if (!id) {
+                  return (
+                    <div key="loader" className="list-footer" style={{ position: "absolute", top: vi.start, left: 0, right: 0, height: vi.size }}>
+                      {list?.loadingMore ? <span className="spinner" style={{ display: "inline-block" }} /> : ""}
+                    </div>
+                  );
+                }
+                const e = emails[id];
+                if (!e) return <div key={id} style={{ position: "absolute", top: vi.start, height: vi.size }} />;
+                const thread = list?.collapseThreads ? threads[e.threadId] : undefined;
+                const strip = swiping?.id === id ? swiping : null;
+                return (
+                  <Fragment key={id}>
+                    {/*
+                      What the row is sliding off to reveal. Only ever one of
+                      these exists, under the row being dragged, painted into the
+                      same slot the row occupies — the row's own background is
+                      opaque, so it covers this until the finger moves it.
+                    */}
+                    {strip && (
+                      <div
+                        className={`msg-swipe ${strip.desc.tone} ${strip.armed ? "armed" : ""} ${strip.dir === 1 ? "from-left" : "from-right"}`}
+                        style={{ top: vi.start, height: vi.size }}
+                        aria-hidden="true"
+                      >
+                        <span className="msg-swipe-act">
+                          {SWIPE_ICON[strip.desc.icon]}
+                          <span>{strip.desc.label}</span>
+                        </span>
+                      </div>
+                    )}
+                    <Row
+                      email={e}
+                      threadEmails={thread ? thread.emailIds.map((x) => emails[x]).filter((x): x is Email => Boolean(x)) : undefined}
+                      top={vi.start}
+                      height={vi.size}
+                      selected={Boolean(selected[id])}
+                      focused={focusId === id}
+                      open={openThreadId === e.threadId}
+                      twoLine={twoLine}
+                      showAvatar={settings.showAvatars}
+                      showPreview={settings.showPreview}
+                      isDrafts={isDrafts}
+                      mailboxId={mailboxId}
+                      isSent={mailbox?.role === "sent"}
+                      onClick={onRowClick}
+                      onContext={onContext}
+                      onSelect={(rowId, on) => { select([rowId], on); lastClick.current = rowId; }}
+                      onStar={(rowId, on) => void actions.star(on, [rowId])}
+                      onArchive={(rowId) => void actions.archive([rowId])}
+                      onTrash={(rowId) => void actions.trash([rowId])}
+                      onRead={(rowId, read) => void actions.read(read, [rowId])}
+                      selectedIds={selected}
+                      touch={isTouch}
+                      role={mailbox?.role ?? null}
+                      swipeLeft={settings.swipeLeft}
+                      swipeRight={settings.swipeRight}
+                      onLongPress={onLongPress}
+                      onSwipeState={onSwipeState}
+                      onSwipeFire={fireSwipe}
+                    />
+                  </Fragment>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
       <Popover anchor={ctxMenu.anchor} onClose={ctxMenu.close} width={250}>
         <MenuItem icon={<Reply size={16} />} label="Reply" onClick={() => { const e = ctxRow ? emails[ctxRow] : undefined; if (e) void useCompose.getState().reply(e, "reply"); }} />
@@ -339,9 +498,17 @@ interface RowProps {
   onArchive: (id: Id) => void;
   onTrash: (id: Id) => void;
   onRead: (id: Id, read: boolean) => void;
+  /** Whether this list is being pointed at with a finger. */
+  touch: boolean;
+  role: string | null;
+  swipeLeft: SwipeAction;
+  swipeRight: SwipeAction;
+  onLongPress: (id: Id) => void;
+  onSwipeState: (id: Id, state: { dir: -1 | 1; armed: boolean; desc: SwipeDescriptor } | null) => void;
+  onSwipeFire: (id: Id, desc: SwipeDescriptor) => Promise<void>;
 }
 
-const Row = memo(function Row({ email: e, threadEmails, top, height, selected, focused, open, twoLine, showAvatar, showPreview, isDrafts, isSent, mailboxId, selectedIds, onClick, onContext, onSelect, onStar, onArchive, onTrash, onRead }: RowProps) {
+const Row = memo(function Row({ email: e, threadEmails, top, height, selected, focused, open, twoLine, showAvatar, showPreview, isDrafts, isSent, mailboxId, selectedIds, onClick, onContext, onSelect, onStar, onArchive, onTrash, onRead, touch, role, swipeLeft, swipeRight, onLongPress, onSwipeState, onSwipeFire }: RowProps) {
   const labels = useSettings((s) => s.settings.labels);
   // Subscribed purely so the row re-renders when the date format changes.
   useSettings((s) => dateTimeKey(s.settings));
@@ -371,6 +538,67 @@ const Row = memo(function Row({ email: e, threadEmails, top, height, selected, f
   const who = (isSent || isDrafts ? (names.length ? `To: ${names.join(", ")}` : "(no recipients)") : names.join(", ")) || "(unknown)";
   const rowLabels = labels.filter((l) => scope.some((x) => x.keywords[l.keyword]));
 
+  /*
+   * How far this row has been dragged from home, and whether it is currently
+   * animating back. Kept here rather than in the list so that a moving finger
+   * re-renders one row instead of the whole virtualised list; the list is told
+   * only the three things the strip behind the row needs -- which row, which
+   * way, and whether letting go now would fire.
+   */
+  const [dx, setDx] = useState(0);
+  const [gliding, setGliding] = useState(false);
+  const rowRef = useRef<HTMLDivElement>(null);
+  const descFor = useCallback(
+    (dir: -1 | 1) => describeSwipe(dir === 1 ? swipeRight : swipeLeft, { role, unread, starred }),
+    [swipeLeft, swipeRight, role, unread, starred],
+  );
+  // A row that scrolls out from under a live gesture takes its strip with it.
+  useEffect(() => () => onSwipeState(e.id, null), [e.id, onSwipeState]);
+
+  const gesture = useTouchRow({
+    enabled: touch,
+    onLongPress: () => onLongPress(e.id),
+    canSwipe: (dir) => Boolean(descFor(dir)),
+    onSwipeMove: (offset, dir, armed) => {
+      const desc = descFor(dir);
+      if (!desc) return;
+      setGliding(false);
+      setDx(offset);
+      onSwipeState(e.id, { dir, armed, desc });
+    },
+    onSwipeEnd: (dir) => {
+      setGliding(true);
+      const desc = dir ? descFor(dir) : null;
+      if (!desc) {
+        setDx(0);
+        onSwipeState(e.id, null);
+        return;
+      }
+      const settle = () => {
+        setDx(0);
+        onSwipeState(e.id, null);
+      };
+      if (!desc.removes) {
+        settle();
+        void onSwipeFire(e.id, desc);
+        return;
+      }
+      /*
+       * An action that empties the row sees it out first: the row leaves the
+       * way the finger was taking it, and the list closes the gap behind it.
+       * Snapping home and vanishing a frame later reads as a misfire.
+       *
+       * It still settles afterwards, because "removes" is what the action
+       * means to do rather than what it did -- a delete the reader cancels at
+       * the confirmation leaves the row here, and it has to come back.
+       */
+      setDx(dir * (rowRef.current?.offsetWidth ?? 400));
+      window.setTimeout(() => {
+        void Promise.resolve(onSwipeFire(e.id, desc)).finally(settle);
+      }, 160);
+    },
+  });
+
   const onDragStart = (ev: DragEvent) => {
     const ids = selectedIds[e.id] ? Object.keys(selectedIds) : [e.id];
     // include thread emails in scope
@@ -391,13 +619,20 @@ const Row = memo(function Row({ email: e, threadEmails, top, height, selected, f
 
   return (
     <div
-      className={`msg-row ${unread ? "unread" : ""} ${selected ? "selected" : ""} ${focused ? "focused" : ""} ${open ? "open" : ""}`}
-      style={{ top, height }}
+      ref={rowRef}
+      className={`msg-row ${unread ? "unread" : ""} ${selected ? "selected" : ""} ${focused ? "focused" : ""} ${open ? "open" : ""} ${dx ? "swiping" : ""}`}
+      style={{ top, height, ...(dx ? { transform: `translateX(${dx}px)` } : {}), transition: gliding ? "transform .18s var(--ease)" : "none" }}
       data-row-id={e.id}
       onClick={(ev) => onClick(ev, e.id)}
       onContextMenu={(ev) => onContext(ev, e.id)}
-      draggable
+      /*
+       * Dragging a row into a folder is a mouse gesture, and on a touchscreen
+       * it is the browser's idea of a long press — the same press that now
+       * opens selection. Only one of them can have it.
+       */
+      draggable={!touch}
       onDragStart={onDragStart}
+      {...gesture}
       role="row"
       aria-selected={selected}
     >

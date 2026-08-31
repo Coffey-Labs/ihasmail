@@ -7,12 +7,13 @@ import { isScheduledMailbox } from "@/store/scheduled";
 import { useSettings } from "@/store/settings";
 import type { Id, Mailbox } from "@/jmap/types";
 import { MenuItem, MenuSep, MenuTitle, Popover, useMenu } from "@/ui/popover";
-import { CALENDAR_COLORS } from "@/ui/misc";
+import { CALENDAR_COLORS, useIsTouch } from "@/ui/misc";
 import { confirmDialog, promptDialog } from "@/ui/dialog";
 import { toast } from "@/ui/toast";
 import { ShareDialog } from "../settings/ShareDialog";
 import { loadRaw, saveJson } from "@/lib/storage";
 import { canDropFolder, folderColor, movable } from "@/lib/folderMove";
+import { haptic, useTouchRow } from "@/lib/touch";
 
 const ROLE_ICONS: Record<string, ReactNode> = {
   inbox: <Inbox size={20} />,
@@ -230,6 +231,22 @@ function FolderRow({ mailbox: m, label, depth, hasChildren, open, hiddenUnread, 
       /* ignore */
     }
   };
+  /*
+   * Hold a folder for its menu, which is the same menu the ⋮ opens.
+   *
+   * The button is already visible where there is no hover, so this is not the
+   * only way in — but a 24px target beside a folder name is not what a thumb
+   * aims at, and a right-click has no touchscreen equivalent to inherit.
+   */
+  const isTouch = useIsTouch();
+  const press = useTouchRow({
+    enabled: isTouch,
+    onLongPress: (target) => {
+      haptic(15);
+      onMenu(m, { currentTarget: target });
+    },
+  });
+
   const onDragStart = (e: DragEvent) => {
     e.dataTransfer.setData(FOLDER_MIME, m.id);
     e.dataTransfer.effectAllowed = "move";
@@ -243,7 +260,10 @@ function FolderRow({ mailbox: m, label, depth, hasChildren, open, hiddenUnread, 
       href={`/mail/${m.id}`}
       className={`nav-item folder-row depth-${Math.min(depth, 4)} ${currentId === m.id ? "active" : ""} ${unread ? "unread" : ""} ${dropping ? "drop-target" : ""} ${dragging ? "dragging" : ""}`}
       title={label}
-      draggable={movable(m)}
+      {...press}
+      // Dragging a folder is a mouse gesture; on a touchscreen the browser
+      // starts it from the same long press that now opens the menu.
+      draggable={movable(m) && !isTouch}
       onDragStart={onDragStart}
       onDragEnd={onFolderDragEnd}
       onDragOver={onDragOver}

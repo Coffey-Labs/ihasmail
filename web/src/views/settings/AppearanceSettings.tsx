@@ -1,5 +1,6 @@
 import { useSettings } from "@/store/settings";
-import { Switch } from "@/ui/misc";
+import { Switch, useIsTouch } from "@/ui/misc";
+import { SWIPE_CHOICES, type SwipeAction } from "@/lib/swipe";
 
 /**
  * The theme cards, each previewing the background it actually paints. Kept as
@@ -27,6 +28,7 @@ const ACCENTS = [
 export function AppearanceSettings() {
   const s = useSettings((st) => st.settings);
   const update = useSettings((st) => st.update);
+  const isTouch = useIsTouch();
   return (
     <div>
       <h1>Appearance</h1>
@@ -75,6 +77,43 @@ export function AppearanceSettings() {
           </select>
         </div>
       </div>
+      <h2>Swiping</h2>
+      <p className="hint">
+        On a touchscreen, drag a message sideways to act on it. Each direction can do one thing, or nothing. These follow your account, so a phone and a tablet agree; a mouse ignores them and keeps dragging messages into folders instead.
+      </p>
+      <div className="field-row">
+        <div className="field">
+          <label htmlFor="swipe-right">Swipe right</label>
+          <select id="swipe-right" className="select" value={s.swipeRight} onChange={(e) => update({ swipeRight: e.target.value as SwipeAction })}>
+            {SWIPE_CHOICES.map((c) => (
+              <option key={c.value} value={c.value}>{c.label}</option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label htmlFor="swipe-left">Swipe left</label>
+          <select id="swipe-left" className="select" value={s.swipeLeft} onChange={(e) => update({ swipeLeft: e.target.value as SwipeAction })}>
+            {SWIPE_CHOICES.map((c) => (
+              <option key={c.value} value={c.value}>{c.label}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+      {/*
+        Said once, where it is relevant, rather than greying the pickers out on
+        a desktop: the settings are real and worth setting here for the phone
+        that will read them, and a disabled control invites a hunt for whatever
+        would enable it.
+      */}
+      {!isTouch && (
+        <p className="hint">
+          This screen has no touchscreen, so nothing here changes what it does. Your phone or tablet will pick these up.
+        </p>
+      )}
+      <p className="hint">
+        Holding a message selects it, and holding a folder opens its menu. Pull the top of the message list down to check for new mail.
+      </p>
+
       <h2>Sidebar</h2>
       <Switch checked={s.labelsSidebar} onChange={(v) => update({ labelsSidebar: v })} label="Show labels in the sidebar" />
       <Switch checked={s.showHiddenFolders} onChange={(v) => update({ showHiddenFolders: v })} label="Show unsubscribed (hidden) folders" />

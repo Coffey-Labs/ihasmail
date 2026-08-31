@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { loadJson, saveJson } from "@/lib/storage";
 import { queueSettingsPush } from "@/lib/settingsSync";
 import { setDateTimePrefs, type DateFormat, type TimeFormat } from "@/lib/datetime";
+import type { SwipeAction } from "@/lib/swipe";
 
 /**
  * "ihasmail" is a dark theme carrying the palette from ihasmail.org. It is a
@@ -65,6 +66,22 @@ export interface Settings {
    */
   readReceiptPolicy: ReadReceiptPolicy;
   confirmDelete: boolean;
+  /**
+   * What dragging a message row sideways does, on a touchscreen.
+   *
+   * Two settings rather than one "swipe actions" toggle because the pair is
+   * the choice: which hand-side gets the destructive one is personal, and the
+   * usual complaint about swipe gestures is not that they exist but that the
+   * app picked the wrong ones. "none" turns a direction off; turning both off
+   * turns the gesture off.
+   *
+   * They follow the account rather than the device: someone who has decided
+   * that a left swipe deletes has decided it for their phone and their tablet
+   * both, and the setting is meaningless on the desktop that would otherwise
+   * be the odd one out.
+   */
+  swipeRight: SwipeAction;
+  swipeLeft: SwipeAction;
   desktopNotifications: boolean;
   notificationSound: boolean;
   attachmentReminder: boolean;
@@ -154,6 +171,12 @@ export const DEFAULT_SETTINGS: Settings = {
   requestReadReceipt: false,
   readReceiptPolicy: "ask",
   confirmDelete: false,
+  /*
+   * Right archives and left deletes, which is what the mail apps a phone came
+   * with already do. A default nobody has to learn beats a better one they do.
+   */
+  swipeRight: "archive",
+  swipeLeft: "delete",
   desktopNotifications: false,
   notificationSound: false,
   attachmentReminder: true,

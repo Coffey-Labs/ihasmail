@@ -7,10 +7,11 @@ import type { Email, Id } from "@/jmap/types";
 import { MessageView } from "./MessageView";
 import type { ListActions } from "./MessageList";
 import { MenuItem, MenuSep, Popover, useMenu } from "@/ui/popover";
-import { Spinner } from "@/ui/misc";
+import { Spinner, useIsNarrow, useIsTouch } from "@/ui/misc";
 import { client } from "@/jmap/client";
 import { LabelPicker } from "./LabelPicker";
 import { threadScrollTarget } from "@/lib/threadScroll";
+import { useEdgeBack } from "@/lib/touch";
 
 /** How long the opening scroll keeps its place while bodies and images land. */
 const HOLD_MS = 2000;
@@ -42,6 +43,18 @@ export function ThreadView({ threadId, mailboxId, onBack, actions, onNavigate, h
   const moreMenu = useMenu();
   const scrollRef = useRef<HTMLDivElement>(null);
   const markTimer = useRef<number | null>(null);
+  const isTouch = useIsTouch();
+  const narrow = useIsNarrow();
+  /*
+   * Drag in from the left edge to go back to the list.
+   *
+   * Only where back means something: on a wide screen the list is still
+   * beside the conversation and there is nowhere to go. The toolbar's arrow
+   * stays regardless — a gesture with no visible control is a gesture only
+   * the people who already know about it can use.
+   */
+  const [viewEl, setViewEl] = useState<HTMLDivElement | null>(null);
+  useEdgeBack(viewEl, onBack, isTouch && narrow);
 
   // Load
   useEffect(() => {
@@ -215,7 +228,7 @@ export function ThreadView({ threadId, mailboxId, onBack, actions, onNavigate, h
   const accountId = useMail((s) => s.accountId);
 
   return (
-    <div className="thread-view">
+    <div className="thread-view" ref={setViewEl}>
       <div className="thread-toolbar">
         <button className="icon-btn" onClick={onBack} aria-label="Back to list" title="Back (u)">
           <ArrowLeft size={20} />
