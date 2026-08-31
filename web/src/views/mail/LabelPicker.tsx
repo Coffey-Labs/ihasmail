@@ -39,7 +39,7 @@ export function LabelPicker({ ids, anchor, onClose, onApplied }: { ids: Id[]; an
         <input
           className="input sm"
           autoFocus
-          placeholder={labels.length ? "Search or create label" : "New label name"}
+          placeholder={labels.length ? t("Search or create label") : t("New label name")}
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => {

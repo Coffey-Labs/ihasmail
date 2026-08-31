@@ -72,7 +72,7 @@ export function InviteCard({ email, part }: { email: Email; part: EmailBodyPart 
       if (!calId) throw new Error("No calendar available");
       const id = await cal.importEvent(ev, calId);
       setExisting(await cal.getEvent(id));
-      toast.success("Added to your calendar");
+      toast.success(t("Added to your calendar"));
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
@@ -116,7 +116,7 @@ export function InviteCard({ email, part }: { email: Email; part: EmailBodyPart 
       )}
       {method === "CANCEL" && existing && (
         <div className="rsvp">
-          <button className="btn btn-sm btn-danger" disabled={Boolean(busy)} onClick={async () => { try { await cal.destroyEvent(existing, false, "series"); setExisting(null); toast.success("Removed from calendar"); } catch (err) { toast.error((err as Error).message); } }}>{t("Remove from calendar")}</button>
+          <button className="btn btn-sm btn-danger" disabled={Boolean(busy)} onClick={async () => { try { await cal.destroyEvent(existing, false, "series"); setExisting(null); toast.success(t("Removed from calendar")); } catch (err) { toast.error((err as Error).message); } }}>{t("Remove from calendar")}</button>
         </div>
       )}
       <span className="sr-only">{email.id}</span>

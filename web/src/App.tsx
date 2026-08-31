@@ -1,4 +1,4 @@
-import { Fragment, lazy, Suspense, useEffect } from "react";
+import { Fragment, lazy, Suspense, useEffect, useState } from "react";
 import { Route, Switch, Redirect, useLocation } from "wouter";
 import { useSession } from "@/store/session";
 import { useMail } from "@/store/mail";
@@ -20,7 +20,7 @@ import { setUnreadBadge } from "@/lib/notify";
 import { useSettings, syncedPart } from "@/store/settings";
 import { armSettingsSync, loadRemoteSettings, queueSettingsPush, settingsAlreadyLoadedFor, settingsSyncAvailable } from "@/lib/settingsSync";
 import { listenForVerification, renewWebPush } from "@/lib/webpushEnable";
-import { useLanguageVersion } from "@/lib/i18n";
+import { useLanguageVersion, whenLanguageReady } from "@/lib/i18n";
 
 const ContactsView = lazy(() => import("@/views/contacts/ContactsView").then((m) => ({ default: m.ContactsView })));
 const CalendarView = lazy(() => import("@/views/calendar/CalendarView").then((m) => ({ default: m.CalendarView })));
@@ -46,7 +46,23 @@ export function App() {
     void bootstrap();
   }, [bootstrap]);
 
-  if (status === "loading") {
+  /*
+   * Wait for the catalogue before the first paint.
+   *
+   * The tree is rebuilt when a catalogue lands, so components recover on
+   * their own -- but a string computed in an effect does not. A toast fired
+   * in the gap is emitted in English and stays English, in an interface that
+   * is otherwise not. The wait costs nothing visible: the session bootstrap
+   * is already showing a spinner, and English resolves immediately.
+   */
+  const [languageReady, setLanguageReady] = useState(false);
+  useEffect(() => {
+    let live = true;
+    void whenLanguageReady().finally(() => live && setLanguageReady(true));
+    return () => { live = false; };
+  }, []);
+
+  if (status === "loading" || !languageReady) {
     return (
       <div className="center" style={{ height: "100%" }}>
         <Spinner size="lg" />

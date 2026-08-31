@@ -248,8 +248,8 @@ function ThemeToggle() {
   return (
     <button
       className="icon-btn"
-      aria-label={`Switch to ${label}`}
-      title={`Switch to ${label}`}
+      aria-label={t("Switch to {theme}", { theme: label })}
+      title={t("Switch to {theme}", { theme: label })}
       onClick={() => update({ theme: next })}
     >
       {effective === "dark" ? <Sun size={21} /> : <Moon size={21} />}

@@ -50,7 +50,7 @@ export function CalendarContextMenu({ ctx, onClose, onOpen, onEdit, onCreate }: 
     const { start, end, allDay } = ctx;
     return (
       <Popover anchor={ctx.anchor} onClose={onClose} width={240}>
-        <MenuItem icon={<Plus size={16} />} label={allDay ? `New all-day event on ${formatDayMonth(start)}` : `New event at ${formatTime(start)}`} onClick={() => onCreate(start, end, allDay)} />
+        <MenuItem icon={<Plus size={16} />} label={allDay ? t("New all-day event on {date}", { date: formatDayMonth(start) }) : t("New event at {time}", { time: formatTime(start) })} onClick={() => onCreate(start, end, allDay)} />
         {!allDay && <MenuItem icon={<CalendarDays size={16} />} label={t("New all-day event")} onClick={() => { const d = new Date(start); d.setHours(0, 0, 0, 0); onCreate(d, new Date(d.getTime() + 86400000), true); }} />}
         <MenuSep />
         <MenuItem icon={<CalIcon size={16} />} label={t("Go to day")} onClick={() => navigate(`/calendar/day/${toLocalDateOnly(start)}`)} />
@@ -77,16 +77,16 @@ export function CalendarContextMenu({ ctx, onClose, onOpen, onEdit, onCreate }: 
       toast.error((err as Error).message);
     }
   };
-  const setColor = (color: string | null) => void patch({ color }, color ? "Colour updated" : "Custom colour removed");
+  const setColor = (color: string | null) => void patch({ color }, color ? t("Colour updated") : t("Custom colour removed"));
   const setCategory = (cat: { name: string; color: string } | null) => {
     const categoriesPatch = cat ? { [cat.name]: true } : null;
-    void patch({ categories: categoriesPatch, color: cat ? cat.color : null }, cat ? `Categorised as ${cat.name}` : "Category cleared");
+    void patch({ categories: categoriesPatch, color: cat ? cat.color : null }, cat ? t("Categorised as {name}", { name: cat.name }) : t("Category cleared"));
   };
   const duplicate = async () => {
     const { id: _i, baseEventId: _b, uid: _u, utcStart: _s, utcEnd: _e, isOrigin: _o, calendarIds, created: _c, updated: _up, sequence: _sq, recurrenceId: _ri, recurrenceIdTimeZone: _rt, ...rest } = ev as CalendarEvent & Record<string, unknown>;
     try {
-      await cal.createEvent({ ...rest, title: `Copy of ${ev.title ?? "event"}`, participants: undefined, replyTo: undefined, organizerCalendarAddress: undefined } as Partial<CalendarEvent>, Object.keys(calendarIds)[0] ?? Object.keys(cal.calendars)[0]!, false);
-      toast.success("Event duplicated");
+      await cal.createEvent({ ...rest, title: t("Copy of {title}", { title: ev.title ?? t("event") }), participants: undefined, replyTo: undefined, organizerCalendarAddress: undefined } as Partial<CalendarEvent>, Object.keys(calendarIds)[0] ?? Object.keys(cal.calendars)[0]!, false);
+      toast.success(t("Event duplicated"));
     } catch (err) {
       toast.error((err as Error).message);
     }
@@ -96,7 +96,7 @@ export function CalendarContextMenu({ ctx, onClose, onOpen, onEdit, onCreate }: 
     let scope: EventScope | null = "series";
     if (isRecurring(ev) && isOccurrence(ev)) {
       scope = await askDeleteScope(ev);
-    } else if (!(await confirmDialog({ title: "Delete this event?", confirmLabel: "Delete", danger: true }))) {
+    } else if (!(await confirmDialog({ title: t("Delete this event?"), confirmLabel: t("Delete"), danger: true }))) {
       scope = null;
     }
     if (!scope) return;

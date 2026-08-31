@@ -48,13 +48,13 @@ export function IdentitiesSettings() {
             <button
               className="btn btn-sm btn-ghost"
               disabled={isAlwaysVisible(i.id, [defaultId])}
-              title={isAlwaysVisible(i.id, [defaultId]) ? "The default identity is always offered when composing" : hidden.includes(i.id) ? "Show this in the compose picker" : "Hide this from the compose picker"}
+              title={isAlwaysVisible(i.id, [defaultId]) ? t("The default identity is always offered when composing") : hidden.includes(i.id) ? t("Show this in the compose picker") : t("Hide this from the compose picker")}
               onClick={(e) => { e.stopPropagation(); toggleHidden(i.id); }}
             >
               {hidden.includes(i.id) ? <><Eye size={14} /> {t("Show when composing")}</> : <><EyeOff size={14} /> {t("Hide when composing")}</>}
             </button>
             {i.mayDelete && (
-              <button className="icon-btn sm danger" aria-label={t("Delete identity")} onClick={async (e) => { e.stopPropagation(); if (await confirmDialog({ title: "Delete this identity?", confirmLabel: "Delete", danger: true })) { try { await useMail.getState().destroyIdentity(i.id); } catch (err) { toast.error((err as Error).message); } } }}><Trash2 size={16} /></button>
+              <button className="icon-btn sm danger" aria-label={t("Delete identity")} onClick={async (e) => { e.stopPropagation(); if (await confirmDialog({ title: t("Delete this identity?"), confirmLabel: t("Delete"), danger: true })) { try { await useMail.getState().destroyIdentity(i.id); } catch (err) { toast.error((err as Error).message); } } }}><Trash2 size={16} /></button>
             )}
           </div>
           {hidden.includes(i.id) && <div className="hint" style={{ marginTop: 4 }}>{t("Not offered when composing. It still receives mail, and you can still send from it by showing it again.")}</div>}
@@ -105,7 +105,7 @@ function IdentityDialog({ identity, onClose }: { identity: Partial<Identity>; on
       };
       if (!identity.id) patch.email = email.trim();
       await useMail.getState().saveIdentity(identity.id ?? null, patch);
-      toast.success("Identity saved");
+      toast.success(t("Identity saved"));
       onClose();
     } catch (err) {
       toast.error((err as Error).message);
@@ -114,7 +114,7 @@ function IdentityDialog({ identity, onClose }: { identity: Partial<Identity>; on
     }
   };
   return (
-    <Dialog open onClose={onClose} title={identity.id ? "Edit identity" : "New identity"} size="lg" footer={<><button className="btn" onClick={onClose}>{t("Cancel")}</button><button className="btn btn-primary" disabled={busy} onClick={() => void save()}>{busy ? "Saving…" : "Save"}</button></>}>
+    <Dialog open onClose={onClose} title={identity.id ? t("Edit identity") : t("New identity")} size="lg" footer={<><button className="btn" onClick={onClose}>{t("Cancel")}</button><button className="btn btn-primary" disabled={busy} onClick={() => void save()}>{busy ? t("Saving…") : t("Save")}</button></>}>
       <div className="field-row">
         <div className="field"><label>{t("Display name")}</label><input className="input" value={name} onChange={(e) => setName(e.target.value)} /></div>
         <div className="field"><label>{t("Email address")}</label><input className="input" type="email" value={email} disabled={Boolean(identity.id)} onChange={(e) => setEmail(e.target.value)} /></div>

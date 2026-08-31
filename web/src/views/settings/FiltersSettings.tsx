@@ -73,9 +73,9 @@ function RulesEditor() {
     try {
       await sieve.saveRules(next);
       setLocal(null);
-      toast.success("Filters saved");
+      toast.success(t("Filters saved"));
     } catch (err) {
-      toast.error(`Could not save filters: ${(err as Error).message}`);
+      toast.error(t("Could not save filters: {error}", { error: (err as Error).message }));
     } finally {
       setSaving(false);
     }
@@ -203,7 +203,7 @@ function ScriptsEditor() {
 
   const save = async (activate: boolean) => {
     if (!name.trim()) {
-      toast.error("Script name is required");
+      toast.error(t("Script name is required"));
       return;
     }
     setBusy(true);
@@ -211,11 +211,11 @@ function ScriptsEditor() {
       const err = await sieve.validate(content);
       setValidation(err);
       if (err) {
-        toast.error("Script has errors");
+        toast.error(t("Script has errors"));
         return;
       }
       await sieve.saveScript(sel?.id ?? null, name.trim(), content, activate);
-      toast.success("Script saved");
+      toast.success(t("Script saved"));
       setSel(null);
     } catch (err) {
       toast.error((err as Error).message);
@@ -236,7 +236,7 @@ function ScriptsEditor() {
           {validation && <div className="error-box mb-16">{validation}</div>}
           <div className="row">
             <button className="btn btn-ghost" onClick={() => { setSel(null); setName(""); setContent(""); }}>{t("Cancel")}</button>
-            <button className="btn" disabled={busy} onClick={async () => { setBusy(true); const err = await sieve.validate(content); setValidation(err); setBusy(false); if (!err) toast.success("Script is valid"); }}><Play size={14} />  {t("Validate")}</button>
+            <button className="btn" disabled={busy} onClick={async () => { setBusy(true); const err = await sieve.validate(content); setValidation(err); setBusy(false); if (!err) toast.success(t("Script is valid")); }}><Play size={14} />  {t("Validate")}</button>
             <span className="spacer" />
             <button className="btn" disabled={busy} onClick={() => void save(false)}>{t("Save")}</button>
             <button className="btn btn-primary" disabled={busy} onClick={() => void save(true)}>{t("Save & activate")}</button>
@@ -254,8 +254,8 @@ function ScriptsEditor() {
           <div className="card-head">
             <h3><span>{s.name} </span>{s.isActive && <span className="tag" style={{ background: "var(--success)" }}>{t("active")}</span>}</h3>
             <button className="btn btn-sm" onClick={() => void open(s)}>{t("Edit")}</button>
-            <button className="btn btn-sm" onClick={async () => { try { await sieve.activate(s.isActive ? null : s.id); } catch (err) { toast.error((err as Error).message); } }}><Power size={14} /> {s.isActive ? "Deactivate" : "Activate"}</button>
-            <button className="icon-btn sm danger" aria-label={t("Delete script")} onClick={async () => { if (await confirmDialog({ title: `Delete script “${s.name}”?`, confirmLabel: "Delete", danger: true })) { try { await sieve.destroy(s.id); } catch (err) { toast.error((err as Error).message); } } }}><Trash2 size={16} /></button>
+            <button className="btn btn-sm" onClick={async () => { try { await sieve.activate(s.isActive ? null : s.id); } catch (err) { toast.error((err as Error).message); } }}><Power size={14} /> {s.isActive ? t("Deactivate") : t("Activate")}</button>
+            <button className="icon-btn sm danger" aria-label={t("Delete script")} onClick={async () => { if (await confirmDialog({ title: t("Delete script “{name}”?", { name: s.name }), confirmLabel: t("Delete"), danger: true })) { try { await sieve.destroy(s.id); } catch (err) { toast.error((err as Error).message); } } }}><Trash2 size={16} /></button>
           </div>
         </div>
       ))}

@@ -82,28 +82,28 @@ export function Composer({ draft }: { draft: Draft }) {
   const doSend = async () => {
     const all = [...d.to, ...d.cc, ...d.bcc];
     if (!all.length) {
-      toast.error("Please add at least one recipient");
+      toast.error(translate("Please add at least one recipient"));
       return;
     }
     const bad = all.filter((a) => !isValidEmail(a.email));
     if (bad.length) {
-      toast.error(`Invalid address: ${bad[0]!.email}`);
+      toast.error(translate("Invalid address: {address}", { address: bad[0]!.email }));
       return;
     }
     if (d.attachments.some((a) => a.error)) {
-      toast.error("Remove attachments that failed to upload first");
+      toast.error(translate("Remove attachments that failed to upload first"));
       return;
     }
     if (d.attachments.some((a) => !a.blobId)) {
-      toast.error("Attachments are still uploading");
+      toast.error(translate("Attachments are still uploading"));
       return;
     }
     if (!d.subject.trim()) {
-      const ok = await confirmDialog({ title: "Send without a subject?", confirmLabel: "Send anyway" });
+      const ok = await confirmDialog({ title: translate("Send without a subject?"), confirmLabel: translate("Send anyway") });
       if (!ok) return;
     }
     if (settings.attachmentReminder && !d.attachments.length && /\b(attach(ed|ment|ing)?|enclosed|anbei|ci-joint|adjunto)\b/i.test(bodyText) ) {
-      const ok = await confirmDialog({ title: "Did you forget the attachment?", message: "Your message mentions an attachment, but nothing is attached.", confirmLabel: "Send anyway" });
+      const ok = await confirmDialog({ title: translate("Did you forget the attachment?"), message: translate("Your message mentions an attachment, but nothing is attached."), confirmLabel: translate("Send anyway") });
       if (!ok) return;
     }
     await send(key);
@@ -169,7 +169,7 @@ export function Composer({ draft }: { draft: Draft }) {
         <span className="title">{title}</span>
         <span className="status">{status}</span>
         {!isMobile && <button className="icon-btn sm" aria-label={translate("Minimize")} title={translate("Minimize")} onClick={() => patch({ minimized: true })}><Minus size={16} /></button>}
-        {!isMobile && <button className="icon-btn sm" aria-label={d.maximized ? "Restore" : "Maximize"} title={d.maximized ? "Restore" : "Full screen"} onClick={() => patch({ maximized: !d.maximized })}>{d.maximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}</button>}
+        {!isMobile && <button className="icon-btn sm" aria-label={d.maximized ? translate("Restore") : translate("Maximize")} title={d.maximized ? translate("Restore") : translate("Full screen")} onClick={() => patch({ maximized: !d.maximized })}>{d.maximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}</button>}
         <button className="icon-btn sm" aria-label={translate("Close")} title={translate("Save & close (Esc)")} onClick={() => void close(key)}><X size={18} /></button>
       </div>
       <div className="composer-body">
@@ -251,14 +251,14 @@ export function Composer({ draft }: { draft: Draft }) {
         )}
         <div className="composer-foot">
           <span className="send-group">
-            <button className="btn btn-primary" onClick={() => void doSend()} disabled={d.sending} title={d.sendAt !== null ? `Hand to the server, held until ${formatScheduleTime(new Date(d.sendAt))} (Ctrl+Enter)` : "Send (Ctrl+Enter)"}>
+            <button className="btn btn-primary" onClick={() => void doSend()} disabled={d.sending} title={d.sendAt !== null ? translate("Hand to the server, held until {when} (Ctrl+Enter)", { when: formatScheduleTime(new Date(d.sendAt)) }) : translate("Send (Ctrl+Enter)")}>
               {d.sendAt !== null ? <><Clock size={16} />  {translate("Schedule send")}</> : <><Send size={16} />  {translate("Send")}</>}
             </button>
             <button className="btn btn-primary" onClick={sendMenu.open} aria-label={translate("Send options")}><ChevronDown size={16} /></button>
           </span>
           <Popover anchor={sendMenu.anchor} onClose={sendMenu.close} side="top" width={280}>
             <MenuItem icon={<Send size={16} />} label={d.sendAt !== null ? "Send now instead" : "Send"} kbd={d.sendAt !== null ? undefined : "Ctrl+↵"} onClick={() => { if (d.sendAt !== null) patch({ sendAt: null }); sendMenu.close(); void doSend(); }} />
-            <MenuItem icon={<Clock size={16} />} label={`Undo window: ${settings.undoSendSeconds}s`} onClick={() => updateSettings({ undoSendSeconds: settings.undoSendSeconds >= 30 ? 0 : settings.undoSendSeconds + 5 })} />
+            <MenuItem icon={<Clock size={16} />} label={translate("Undo window: {seconds}s", { seconds: settings.undoSendSeconds })} onClick={() => updateSettings({ undoSendSeconds: settings.undoSendSeconds >= 30 ? 0 : settings.undoSendSeconds + 5 })} />
             {canSchedule && <ScheduleMenuItems maxMs={scheduleMax} onPick={scheduleFor} onCustom={() => { sendMenu.close(); setScheduleOpen(true); }} />}
           </Popover>
           {addressBookOpen && (
@@ -299,13 +299,13 @@ export function Composer({ draft }: { draft: Draft }) {
               <MenuItem label={translate("Normal")} checked={d.priority === "normal"} onClick={() => patch({ priority: "normal" })} />
               <MenuItem label={translate("Low")} checked={d.priority === "low"} onClick={() => patch({ priority: "low" })} />
               <MenuSep />
-              <MenuItem icon={<ChevronsDown size={16} />} label={translate("Save as template")} onClick={async () => { const name = await promptDialog({ title: "Save as template", defaultValue: d.subject || "Template", placeholder: "Template name" }); if (name) updateSettings({ templates: [...useSettings.getState().settings.templates, { id: `t${Date.now()}`, name, subject: d.subject, html: d.format === "html" ? d.html : textToHtml(d.text) }] }); }} />
+              <MenuItem icon={<ChevronsDown size={16} />} label={translate("Save as template")} onClick={async () => { const name = await promptDialog({ title: translate("Save as template"), defaultValue: d.subject || translate("Template"), placeholder: translate("Template name") }); if (name) updateSettings({ templates: [...useSettings.getState().settings.templates, { id: `t${Date.now()}`, name, subject: d.subject, html: d.format === "html" ? d.html : textToHtml(d.text) }] }); }} />
               <MenuItem icon={<FileText size={16} />} label={translate("Save draft now")} onClick={() => void saveDraft(key)} />
             </Popover>
           </span>
           <span className="spacer" />
           {totalSize > 20 * 1024 * 1024 && <span className="hint row gap-4" title={translate("Large attachments may be rejected by some servers")}><AlertTriangle size={14} /> {formatSize(totalSize)}</span>}
-          <button className="icon-btn danger" title={translate("Discard draft")} aria-label={translate("Discard draft")} onClick={async () => { if (!d.dirty && !d.draftId) { void close(key, { discard: true }); return; } if (await confirmDialog({ title: "Discard this draft?", confirmLabel: "Discard", danger: true })) void close(key, { discard: true }); }}><Trash2 size={18} /></button>
+          <button className="icon-btn danger" title={translate("Discard draft")} aria-label={translate("Discard draft")} onClick={async () => { if (!d.dirty && !d.draftId) { void close(key, { discard: true }); return; } if (await confirmDialog({ title: translate("Discard this draft?"), confirmLabel: translate("Discard"), danger: true })) void close(key, { discard: true }); }}><Trash2 size={18} /></button>
         </div>
       </div>
     </div>

@@ -8,7 +8,7 @@ import { RuleDialog } from "../settings/RuleDialog";
 import { toast } from "@/ui/toast";
 import { Spinner } from "@/ui/misc";
 import { Dialog } from "@/ui/dialog";
-import { t, tNode } from "@/lib/i18n";
+import { plural, t, tNode } from "@/lib/i18n";
 
 /** "Filter messages like this…" — creates a Sieve rule seeded from a message, optionally applying it to the current folder. */
 export function FilterFromMessageDialog({ email, mailboxId, onClose }: { email: Email; mailboxId: Id | null; onClose: () => void }) {
@@ -79,24 +79,30 @@ export function FilterFromMessageDialog({ email, mailboxId, onClose }: { email: 
 export async function saveAndApply(r: SieveRule, existing: SieveRule[], applyMailboxId: Id | null) {
   const sieve = useSieve.getState();
   const created = !existing.some((x) => x.id === r.id);
-  const verb = created ? "created" : "saved";
+  const saved = !created;
   try {
     await sieve.saveRules(upsertRule(existing, r));
   } catch (err) {
-    toast.error(`Could not save filter: ${(err as Error).message}`);
+    toast.error(t("Could not save filter: {error}", { error: (err as Error).message }));
     return;
   }
   if (!applyMailboxId) {
-    toast.success(`Filter ${verb} — it will run on new mail`);
+    toast.success(saved ? t("Filter saved — it will run on new mail") : t("Filter created — it will run on new mail"));
     return;
   }
-  const tid = toast.show("Applying filter to existing messages…", { duration: 0 });
+  const tid = toast.show(t("Applying filter to existing messages…"), { duration: 0 });
   try {
     const res = await applyRuleToMailbox(r, applyMailboxId);
     toast.dismiss(tid);
-    toast.success(`Filter ${verb} · applied to ${res.matched} of ${res.scanned} message${res.scanned === 1 ? "" : "s"}${res.skippedActions.length ? ` (skipped: ${res.skippedActions.join("; ")})` : ""}`, { duration: 8000 });
+    toast.success(
+      (saved ? t("Filter saved") : t("Filter created"))
+      + " · "
+      + plural(res.scanned, { one: "applied to {matched} of {n} message", other: "applied to {matched} of {n} messages" }, { matched: res.matched })
+      + (res.skippedActions.length ? " " + t("(skipped: {actions})", { actions: res.skippedActions.join("; ") }) : ""),
+      { duration: 8000 },
+    );
   } catch (err) {
     toast.dismiss(tid);
-    toast.error(`Filter saved, but applying it failed: ${(err as Error).message}`);
+    toast.error(t("Filter saved, but applying it failed: {error}", { error: (err as Error).message }));
   }
 }

@@ -14,7 +14,7 @@ import { ShareDialog } from "../settings/ShareDialog";
 import { loadRaw, saveJson } from "@/lib/storage";
 import { canDropFolder, folderColor, movable } from "@/lib/folderMove";
 import { haptic, useTouchRow } from "@/lib/touch";
-import { t } from "@/lib/i18n";
+import { plural, t } from "@/lib/i18n";
 import { mailboxDisplayName } from "@/lib/mailboxName";
 
 const ROLE_ICONS: Record<string, ReactNode> = {
@@ -105,11 +105,11 @@ export function MailboxTree() {
   }, [mailboxes, showHidden, expanded]);
 
   const createFolder = async (parentId: Id | null) => {
-    const name = await promptDialog({ title: parentId ? "New subfolder" : "New folder", placeholder: "Folder name" });
+    const name = await promptDialog({ title: parentId ? t("New subfolder") : t("New folder"), placeholder: t("Folder name") });
     if (!name?.trim()) return;
     try {
       await useMail.getState().createMailbox(name.trim(), parentId);
-      toast.success(`Folder “${name.trim()}” created`);
+      toast.success(t("Folder “{name}” created", { name: name.trim() }));
     } catch (err) {
       toast.error((err as Error).message);
     }
@@ -344,11 +344,11 @@ function MailboxMenu({ mailbox: m, onClose, onCreateChild, onShare }: { mailbox:
     }
   };
   const remove = async () => {
-    const ok = await confirmDialog({ title: t("Delete “{name}”?", { name: mailboxDisplayName(m) }), message: `This permanently deletes the folder and its ${m.totalEmails} message(s).`, confirmLabel: "Delete", danger: true });
+    const ok = await confirmDialog({ title: t("Delete “{name}”?", { name: mailboxDisplayName(m) }), message: plural(m.totalEmails, { one: "This permanently deletes the folder and its {n} message.", other: "This permanently deletes the folder and its {n} messages." }), confirmLabel: t("Delete"), danger: true });
     if (!ok) return;
     try {
       await useMail.getState().destroyMailbox(m.id, true);
-      toast.success("Folder deleted");
+      toast.success(t("Folder deleted"));
       navigate(`/mail/${useMail.getState().roleId("inbox") ?? ""}`);
     } catch (err) {
       toast.error((err as Error).message);

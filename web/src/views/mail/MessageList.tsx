@@ -251,8 +251,8 @@ export function MessageList({ title, list, openThreadId, focusId, setFocusId, on
             <span className="tb-count">{plural(selCount, { one: "{n} selected", other: "{n} selected" })}</span>
             <span className="tb-sep" />
             <button className="icon-btn" title={t("Archive (e)")} onClick={() => void actions.archive()}><Archive size={19} /></button>
-            <button className="icon-btn" title={isTrashOrJunk ? "Delete forever" : "Delete (#)"} onClick={() => void actions.trash()}><Trash2 size={19} /></button>
-            <button className="icon-btn hide-mobile" title={mailbox?.role === "junk" ? "Not spam" : "Report spam (!)"} onClick={() => void actions.spam()}>{mailbox?.role === "junk" ? <ShieldCheck size={19} /> : <AlertOctagon size={19} />}</button>
+            <button className="icon-btn" title={isTrashOrJunk ? t("Delete forever") : t("Delete (#)")} onClick={() => void actions.trash()}><Trash2 size={19} /></button>
+            <button className="icon-btn hide-mobile" title={mailbox?.role === "junk" ? t("Not spam") : t("Report spam (!)")} onClick={() => void actions.spam()}>{mailbox?.role === "junk" ? <ShieldCheck size={19} /> : <AlertOctagon size={19} />}</button>
             <span className="tb-sep" />
             <button className="icon-btn" title={t("Mark as read (Shift+I)")} onClick={() => void actions.read(true)}><MailOpen size={19} /></button>
             <button className="icon-btn hide-mobile" title={t("Mark as unread (Shift+U)")} onClick={() => void actions.read(false)}><Mail size={19} /></button>
@@ -383,8 +383,8 @@ export function MessageList({ title, list, openThreadId, focusId, setFocusId, on
               ))}
             </div>
           ) : ids.length === 0 && list && !list.loading ? (
-            <Empty icon={isSearch ? <Search size={40} /> : <Inbox size={40} />} title={isSearch ? "No results" : mailbox?.role === "inbox" ? "You're all caught up" : "Nothing here"}>
-              {isSearch ? "Try different keywords or filters." : mailbox?.role === "inbox" ? "No new mail in your inbox." : "This folder is empty."}
+            <Empty icon={isSearch ? <Search size={40} /> : <Inbox size={40} />} title={isSearch ? t("No results") : mailbox?.role === "inbox" ? t("You're all caught up") : t("Nothing here")}>
+              {isSearch ? t("Try different keywords or filters.") : mailbox?.role === "inbox" ? t("No new mail in your inbox.") : t("This folder is empty.")}
             </Empty>
           ) : (
             <div className="mail-list-inner" style={{ height: virtualizer.getTotalSize() }}>
@@ -417,7 +417,7 @@ export function MessageList({ title, list, openThreadId, focusId, setFocusId, on
                       >
                         <span className="msg-swipe-act">
                           {SWIPE_ICON[strip.desc.icon]}
-                          <span>{strip.desc.label}</span>
+                          <span>{t(strip.desc.label)}</span>
                         </span>
                       </div>
                     )}
@@ -613,7 +613,7 @@ const Row = memo(function Row({ email: e, threadEmails, top, height, selected, f
     ev.dataTransfer.effectAllowed = "move";
     const ghost = document.createElement("div");
     ghost.className = "drag-ghost";
-    ghost.textContent = `${ids.length > 1 ? `${ids.length} conversations` : e.subject || "(no subject)"}`;
+    ghost.textContent = ids.length > 1 ? plural(ids.length, { one: "{n} conversation", other: "{n} conversations" }) : e.subject || t("(no subject)");
     document.body.appendChild(ghost);
     ev.dataTransfer.setDragImage(ghost, 10, 10);
     setTimeout(() => ghost.remove(), 0);
@@ -659,7 +659,7 @@ const Row = memo(function Row({ email: e, threadEmails, top, height, selected, f
           </div>
           <div className="msg-main">
             {isDrafts && <span style={{ color: "var(--danger)" }}>{t("Draft")}</span>}
-            <span className="msg-subject notranslate" translate="no">{e.subject || "(no subject)"}</span>
+            <span className="msg-subject notranslate" translate="no">{e.subject || t("(no subject)")}</span>
             {showPreview && <span className="msg-preview notranslate" translate="no">{latest.preview}</span>}
             <button className={`msg-star ${starred ? "on" : ""}`} style={{ marginLeft: "auto" }} onClick={(ev) => { ev.stopPropagation(); onStar(e.id, !starred); }} aria-label={t("Star")}>
               <Star size={16} fill={starred ? "currentColor" : "none"} />
@@ -676,17 +676,17 @@ const Row = memo(function Row({ email: e, threadEmails, top, height, selected, f
           <span className="msg-main">
             {isDrafts && <span style={{ color: "var(--danger)", flex: "0 0 auto" }}>{t("Draft")}</span>}
             {rowLabels.length > 0 && <span className="msg-labels">{rowLabels.map((l) => <span key={l.keyword} className="tag" style={{ background: l.color }}>{l.name}</span>)}</span>}
-            <span className="msg-subject notranslate" translate="no">{e.subject || "(no subject)"}</span>
+            <span className="msg-subject notranslate" translate="no">{e.subject || t("(no subject)")}</span>
             {showPreview && <span className="msg-preview notranslate" translate="no">{latest.preview}</span>}
           </span>
           <span className="msg-meta">
-            {(answered || forwarded) && <span className="msg-answered" title={answered ? "Replied" : "Forwarded"}>{answered ? <Reply size={14} /> : <Forward size={14} />}</span>}
+            {(answered || forwarded) && <span className="msg-answered" title={answered ? t("Replied") : t("Forwarded")}>{answered ? <Reply size={14} /> : <Forward size={14} />}</span>}
             {hasAtt && <Paperclip size={14} className="msg-attach" />}
             <span className="msg-date">{formatListDate(latest.receivedAt)}</span>
             <span className="msg-actions">
               <button className="icon-btn sm" title={t("Archive")} onClick={(ev) => { ev.stopPropagation(); onArchive(e.id); }}><Archive size={16} /></button>
               <button className="icon-btn sm" title={t("Delete")} onClick={(ev) => { ev.stopPropagation(); onTrash(e.id); }}><Trash2 size={16} /></button>
-              <button className="icon-btn sm" title={unread ? "Mark as read" : "Mark as unread"} onClick={(ev) => { ev.stopPropagation(); onRead(e.id, unread); }}>{unread ? <MailOpen size={16} /> : <Mail size={16} />}</button>
+              <button className="icon-btn sm" title={unread ? t("Mark as read") : t("Mark as unread")} onClick={(ev) => { ev.stopPropagation(); onRead(e.id, unread); }}>{unread ? <MailOpen size={16} /> : <Mail size={16} />}</button>
             </span>
           </span>
         </>

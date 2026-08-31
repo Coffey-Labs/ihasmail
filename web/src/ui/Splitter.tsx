@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { t } from "@/lib/i18n";
 
 interface Props {
   direction: "vertical" | "horizontal"; // vertical = a vertical bar that resizes width
@@ -17,7 +18,7 @@ export function Splitter({ direction, onResize, onEnd, onReset, ariaLabel }: Pro
       className={`splitter ${direction}`}
       role="separator"
       aria-orientation={direction === "vertical" ? "vertical" : "horizontal"}
-      aria-label={ariaLabel ?? "Resize panes"}
+      aria-label={ariaLabel ?? t("Resize panes")}
       tabIndex={0}
       onDoubleClick={onReset}
       onPointerDown={(e) => {

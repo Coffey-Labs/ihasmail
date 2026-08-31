@@ -90,7 +90,7 @@ export function ShareDialog({ kind, id, name, shareWith, onClose }: { kind: Kind
       const res = await client.call<{ notUpdated?: Record<string, { type: string; description?: string }> }>(`${kind}/set`, { accountId, update: { [id]: { shareWith: Object.keys(rights).length ? rights : null } } });
       const err = res.notUpdated?.[id];
       if (err) throw new Error(setErrorMessage(err));
-      toast.success("Sharing updated");
+      toast.success(t("Sharing updated"));
       if (kind === "Mailbox") void useMail.getState().loadMailboxes();
       if (kind === "Calendar") void useCalendar.getState().loadCalendars();
       if (kind === "AddressBook") void useContacts.getState().loadBooks();
@@ -104,7 +104,7 @@ export function ShareDialog({ kind, id, name, shareWith, onClose }: { kind: Kind
   };
 
   return (
-    <Dialog open onClose={onClose} title={`Share “${name}”`} size="lg" footer={<><button className="btn" onClick={onClose}>{t("Cancel")}</button><button className="btn btn-primary" disabled={busy} onClick={() => void save()}>{t("Save")}</button></>}>
+    <Dialog open onClose={onClose} title={t("Share “{name}”", { name })} size="lg" footer={<><button className="btn" onClick={onClose}>{t("Cancel")}</button><button className="btn btn-primary" disabled={busy} onClick={() => void save()}>{t("Save")}</button></>}>
       {/* The list of who it is shared with is rendered whether or not anybody
           can be *added*. It used to sit inside the branch below, so a server
           with directory queries switched off -- which is the default, and which

@@ -53,7 +53,7 @@ export function CalendarSettings() {
           <div className="card-head">
             <span className="label-dot" style={{ background: c.color, width: 14, height: 14 }} />
             <h3>{c.name}</h3>
-            <button className="icon-btn sm" title={t("Rename")} onClick={async () => { const n = await promptDialog({ title: "Rename category", defaultValue: c.name }); if (n?.trim()) update({ eventCategories: s.eventCategories.map((x, j) => (j === i ? { ...x, name: n.trim() } : x)) }); }}>✎</button>
+            <button className="icon-btn sm" title={t("Rename")} onClick={async () => { const n = await promptDialog({ title: t("Rename category"), defaultValue: c.name }); if (n?.trim()) update({ eventCategories: s.eventCategories.map((x, j) => (j === i ? { ...x, name: n.trim() } : x)) }); }}>✎</button>
             <button className="icon-btn sm danger" aria-label={t("Delete category")} onClick={() => update({ eventCategories: s.eventCategories.filter((_, j) => j !== i) })}><Trash2 size={16} /></button>
           </div>
           <div style={{ marginTop: 8 }}><ColorSwatches value={c.color} onChange={(col) => update({ eventCategories: s.eventCategories.map((x, j) => (j === i ? { ...x, color: col } : x)) })} /></div>

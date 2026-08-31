@@ -22,7 +22,7 @@ import { toast } from "@/ui/toast";
 import { settings, useSettings } from "./settings";
 import { useSession } from "./session";
 import { mailboxDisplayName } from "@/lib/mailboxName";
-import { t } from "@/lib/i18n";
+import { plural, t } from "@/lib/i18n";
 
 /*
  * Named explicitly so `shareWith` comes back, which it does not otherwise --
@@ -441,7 +441,7 @@ export const useMail = create<MailState>((set, get) => ({
     try {
       await setEmails(accountId, update);
     } catch (err) {
-      toast.error(`Could not update: ${(err as Error).message}`);
+      toast.error(t("Could not update: {error}", { error: (err as Error).message }));
       void get().getEmails(ids);
     }
   },
@@ -503,7 +503,7 @@ export const useMail = create<MailState>((set, get) => ({
       }
       void get().loadMailboxes();
     } catch (err) {
-      toast.error(`Move failed: ${(err as Error).message}`);
+      toast.error(t("Move failed: {error}", { error: (err as Error).message }));
       void get().getEmails(ids);
       void get().refreshList();
     }
@@ -530,7 +530,7 @@ export const useMail = create<MailState>((set, get) => ({
       await setEmails(accountId, update);
       void get().loadMailboxes();
     } catch (err) {
-      toast.error(`Could not update labels: ${(err as Error).message}`);
+      toast.error(t("Could not update labels: {error}", { error: (err as Error).message }));
       void get().getEmails(ids);
     }
   },
@@ -557,11 +557,11 @@ export const useMail = create<MailState>((set, get) => ({
     try {
       const { notDestroyed } = await destroyEmails(accountId, ids);
       const failed = Object.keys(notDestroyed);
-      if (failed.length) toast.error(`${failed.length} message(s) could not be deleted`);
+      if (failed.length) toast.error(plural(failed.length, { one: "{n} message could not be deleted", other: "{n} messages could not be deleted" }));
       else toast.show(`${ids.length === 1 ? "Message" : `${ids.length} messages`} deleted forever`);
       void get().loadMailboxes();
     } catch (err) {
-      toast.error(`Delete failed: ${(err as Error).message}`);
+      toast.error(t("Delete failed: {error}", { error: (err as Error).message }));
       void get().refreshList();
     }
   },
@@ -569,7 +569,7 @@ export const useMail = create<MailState>((set, get) => ({
   async archive(ids) {
     const archiveId = get().roleId("archive") ?? get().roleId("all");
     if (!archiveId) {
-      toast.error("No Archive folder found. Create one named “Archive” first.");
+      toast.error(t("No Archive folder found. Create one named “Archive” first."));
       return;
     }
     await get().move(ids, archiveId, { label: "Archive" });
@@ -602,7 +602,7 @@ export const useMail = create<MailState>((set, get) => ({
     // there is no point routing spam through the bin on its way out, and it is
     // what "delete all spam" means everywhere else. The dialogs say so.
     if (mailboxId !== get().roleId("trash") && mailboxId !== get().roleId("junk")) {
-      toast.error("Only Deleted Items and Junk Mail can be emptied.");
+      toast.error(t("Only Deleted Items and Junk Mail can be emptied."));
       return;
     }
     // A folder can hold far more messages than the server will destroy in one
@@ -617,7 +617,7 @@ export const useMail = create<MailState>((set, get) => ({
         const q = await client.call<QueryResponse>("Email/query", { accountId, filter: { inMailbox: mailboxId }, limit: page });
         if (!q.ids.length) break;
         if (progress === null && (q.total ?? q.ids.length) > page) {
-          progress = toast.show("Emptying folder…", { duration: 0 });
+          progress = toast.show(t("Emptying folder…"), { duration: 0 });
         }
         const { destroyed, notDestroyed } = await destroyEmails(accountId, q.ids);
         deleted += destroyed.length;
@@ -628,10 +628,11 @@ export const useMail = create<MailState>((set, get) => ({
           throw new Error(err ? setErrorMessage(err) : "the server refused to delete these messages");
         }
       }
-      toast.show(`Deleted ${deleted} message${deleted === 1 ? "" : "s"}`);
+      toast.show(plural(deleted, { one: "Deleted {n} message", other: "Deleted {n} messages" }));
       set({ list: get().list ? { ...get().list!, ids: get().list!.mailboxId === mailboxId ? [] : get().list!.ids, total: 0 } : null });
     } catch (err) {
-      toast.error(`Could not empty folder: ${(err as Error).message}${deleted ? ` (${deleted} deleted first)` : ""}`);
+      toast.error(t("Could not empty folder: {error}", { error: (err as Error).message })
+        + (deleted ? " " + plural(deleted, { one: "({n} deleted first)", other: "({n} deleted first)" }) : ""));
     } finally {
       if (progress !== null) toast.dismiss(progress);
       void get().loadMailboxes();
@@ -688,13 +689,16 @@ export const useMail = create<MailState>((set, get) => ({
         marked += ids.length;
       }
       if (!marked) {
-        toast.show("Nothing unread here");
+        toast.show(t("Nothing unread here"));
         return;
       }
-      toast.success(`Marked ${marked} message${marked === 1 ? "" : "s"} as read${includeChildren && boxes.length > 1 ? ` in ${boxes.length} folders` : ""}`);
+      toast.success(
+        plural(marked, { one: "Marked {n} message as read", other: "Marked {n} messages as read" })
+        + (includeChildren && boxes.length > 1 ? " " + plural(boxes.length, { one: "in {n} folder", other: "in {n} folders" }) : ""),
+      );
       void get().loadMailboxes();
     } catch (err) {
-      toast.error(`Could not mark as read: ${(err as Error).message}`);
+      toast.error(t("Could not mark as read: {error}", { error: (err as Error).message }));
     }
   },
 
@@ -1141,6 +1145,6 @@ async function followFolders(before: FolderRef[]): Promise<void> {
     toast.show(said.join(" · "), { duration: 8000 });
   } catch (err) {
     const { toast } = await import("@/ui/toast");
-    toast.error(`Folder changed, but its filter rules could not be updated: ${(err as Error).message}`);
+    toast.error(t("Folder changed, but its filter rules could not be updated: {error}", { error: (err as Error).message }));
   }
 }

@@ -30,7 +30,7 @@ export function RuleDialog({ rule, onClose, onSave, applyMailbox, applyByDefault
   const setAction = (i: number, a: SieveAction) => setR({ ...r, actions: r.actions.map((x, j) => (j === i ? a : x)) });
 
   return (
-    <Dialog open onClose={onClose} title={title ?? (rule.name === "New filter" ? "New rule" : "Edit rule")} size="lg" footer={<>
+    <Dialog open onClose={onClose} title={title ?? (rule.name === "New filter" ? translate("New rule") : translate("Edit rule"))} size="lg" footer={<>
       {applyMailbox && (
         <label className="check left" style={{ marginRight: "auto" }}>
           <input type="checkbox" checked={applyNow} onChange={(e) => setApplyNow(e.target.checked)} />
@@ -116,7 +116,7 @@ export function RuleDialog({ rule, onClose, onSave, applyMailbox, applyByDefault
                   const v = e.target.value;
                   if (v === "__new__") {
                     // Create a folder on the fly ("Parent/Child" creates nested folders).
-                    const name = await promptDialog({ title: "New folder", placeholder: "Folder name (use / for a subfolder, e.g. Work/Invoices)" });
+                    const name = await promptDialog({ title: translate("New folder"), placeholder: translate("Folder name (use / for a subfolder, e.g. Work/Invoices)") });
                     if (!name?.trim()) return;
                     try {
                       const mail = useMail.getState();
@@ -128,7 +128,7 @@ export function RuleDialog({ rule, onClose, onSave, applyMailbox, applyByDefault
                       }
                       const path = useMail.getState().mailboxPath(parentId!);
                       setAction(i, { ...a, mailbox: path, mailboxId: parentId! });
-                      toast.success(`Folder “${path}” created`);
+                      toast.success(translate("Folder “{name}” created", { name: path }));
                     } catch (err) {
                       toast.error((err as Error).message);
                     }

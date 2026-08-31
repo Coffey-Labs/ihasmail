@@ -6,7 +6,7 @@ import { toast } from "@/ui/toast";
 import { formatSize } from "@/lib/format";
 import { ShareDialog } from "./ShareDialog";
 import type { Mailbox } from "@/jmap/types";
-import { t } from "@/lib/i18n";
+import { plural, t } from "@/lib/i18n";
 import { mailboxDisplayPath } from "@/lib/mailboxName";
 
 export function FoldersSettings() {
@@ -18,7 +18,7 @@ export function FoldersSettings() {
   const q = quotas.find((x) => x.resourceType === "octets");
 
   const create = async () => {
-    const name = await promptDialog({ title: "New folder", placeholder: "Folder name (use / for subfolders, e.g. Work/Invoices)" });
+    const name = await promptDialog({ title: t("New folder"), placeholder: t("Folder name (use / for subfolders, e.g. Work/Invoices)") });
     if (!name?.trim()) return;
     try {
       const parts = name.split("/").map((p) => p.trim()).filter(Boolean);
@@ -27,7 +27,7 @@ export function FoldersSettings() {
         const existing = Object.values(useMail.getState().mailboxes).find((m) => (m.parentId ?? null) === parentId && m.name.toLowerCase() === part.toLowerCase());
         parentId = existing ? existing.id : await useMail.getState().createMailbox(part, parentId);
       }
-      toast.success("Folder created");
+      toast.success(t("Folder created"));
     } catch (err) {
       toast.error((err as Error).message);
     }
@@ -51,9 +51,9 @@ export function FoldersSettings() {
                   <button className="icon-btn sm" title={t("Rename")} disabled={Boolean(m.role) && m.role !== "subscribed"} onClick={async () => { const n = await // The server's own name, never the localised one: this box writes
     // back whatever it is prefilled with.
     promptDialog({ title: t("Rename folder"), defaultValue: m.name }); if (n?.trim() && n !== m.name) { try { await useMail.getState().updateMailbox(m.id, { name: n.trim() }); } catch (err) { toast.error((err as Error).message); } } }}><Pencil size={16} /></button>
-                  <button className="icon-btn sm" title={m.isSubscribed ? "Hide" : "Show"} disabled={m.role === "inbox"} onClick={() => void useMail.getState().updateMailbox(m.id, { isSubscribed: !m.isSubscribed })}>{m.isSubscribed ? <EyeOff size={16} /> : <Eye size={16} />}</button>
+                  <button className="icon-btn sm" title={m.isSubscribed ? t("Hide") : t("Show")} disabled={m.role === "inbox"} onClick={() => void useMail.getState().updateMailbox(m.id, { isSubscribed: !m.isSubscribed })}>{m.isSubscribed ? <EyeOff size={16} /> : <Eye size={16} />}</button>
                   {Object.keys(m.shareWith ?? {}).length > 0 && <button className="icon-btn sm" title={t("Stop sharing")} onClick={() => setShare(m)}><Share2 size={16} /></button>}
-                  <button className="icon-btn sm danger" title={t("Delete")} disabled={Boolean(m.role) && m.role !== "subscribed"} onClick={async () => { if (await confirmDialog({ title: `Delete “${m.name}”?`, message: `${m.totalEmails} message(s) will be permanently deleted.`, confirmLabel: "Delete", danger: true })) { try { await useMail.getState().destroyMailbox(m.id, true); } catch (err) { toast.error((err as Error).message); } } }}><Trash2 size={16} /></button>
+                  <button className="icon-btn sm danger" title={t("Delete")} disabled={Boolean(m.role) && m.role !== "subscribed"} onClick={async () => { if (await confirmDialog({ title: t("Delete “{name}”?", { name: m.name }), message: plural(m.totalEmails, { one: "{n} message will be permanently deleted.", other: "{n} messages will be permanently deleted." }), confirmLabel: t("Delete"), danger: true })) { try { await useMail.getState().destroyMailbox(m.id, true); } catch (err) { toast.error((err as Error).message); } } }}><Trash2 size={16} /></button>
                 </div>
               </td>
             </tr>

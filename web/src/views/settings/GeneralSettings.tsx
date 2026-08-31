@@ -185,7 +185,7 @@ export function GeneralSettings() {
           {t("Import settings")}
           <input type="file" accept="application/json" hidden onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; const ok = importJson(await f.text()); toast[ok ? "success" : "error"](ok ? t("Settings imported") : t("Invalid settings file")); e.target.value = ""; }} />
         </label>
-        <button className="btn btn-ghost" onClick={() => { reset(); toast.show("Settings reset to defaults"); }}>{t("Reset to defaults")}</button>
+        <button className="btn btn-ghost" onClick={() => { reset(); toast.show(t("Settings reset to defaults")); }}>{t("Reset to defaults")}</button>
       </div>
     </div>
   );
@@ -204,16 +204,16 @@ function MailHandlerSettings() {
     try {
       registerMailtoHandler();
       setRequested(true);
-      toast.success("Your browser will ask whether to open mail links in ihasmail");
+      toast.success(t("Your browser will ask whether to open mail links in ihasmail"));
     } catch (err) {
-      toast.error(`Your browser refused the request: ${(err as Error).message}`);
+      toast.error(t("Your browser refused the request: {error}", { error: (err as Error).message }));
     }
   };
 
   const remove = () => {
     unregisterMailtoHandler();
     setRequested(false);
-    toast.show("Removed. Mail links will open in whatever your browser falls back to.");
+    toast.show(t("Removed. Mail links will open in whatever your browser falls back to."));
   };
 
   if (support === "unsupported") {

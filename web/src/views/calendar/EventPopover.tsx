@@ -36,7 +36,7 @@ export function EventPopover({ inst, anchor, onClose, onEdit }: { inst: EventIns
     if (isRecurring(ev) && isOccurrence(ev)) {
       scope = await askDeleteScope(ev);
     } else {
-      const ok = await confirmDialog({ title: "Delete this event?", confirmLabel: "Delete", danger: true });
+      const ok = await confirmDialog({ title: t("Delete this event?"), confirmLabel: t("Delete"), danger: true });
       if (!ok) scope = null;
     }
     if (!scope) return;
@@ -56,7 +56,7 @@ export function EventPopover({ inst, anchor, onClose, onEdit }: { inst: EventIns
     setBusy(true);
     try {
       await cal.rsvp(ev, status);
-      toast.success("Response sent");
+      toast.success(t("Response sent"));
       onClose();
     } catch (err) {
       toast.error((err as Error).message);

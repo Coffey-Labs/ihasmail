@@ -12,7 +12,7 @@ import { toast } from "@/ui/toast";
 import type { Calendar } from "@/jmap/types";
 import { CalendarDialog } from "./CalendarDialog";
 import { ShareDialog } from "../settings/ShareDialog";
-import { t } from "@/lib/i18n";
+import { plural, t } from "@/lib/i18n";
 
 export function CalendarSidebar() {
   const [location, navigate] = useLocation();
@@ -136,14 +136,14 @@ export function CalendarSidebar() {
                 onClick={async () => {
                   const who = Object.keys(menuCal.shareWith ?? {}).length;
                   if (!(await confirmDialog({
-                    title: `Stop sharing “${menuCal.name}”?`,
-                    message: `${who === 1 ? "One person" : `${who} people`} will lose access. Events in it are not affected.`,
-                    confirmLabel: "Stop sharing",
+                    title: t("Stop sharing “{name}”?", { name: menuCal.name }),
+                    message: plural(who, { one: "{n} person will lose access. Events in it are not affected.", other: "{n} people will lose access. Events in it are not affected." }),
+                    confirmLabel: t("Stop sharing"),
                     danger: true,
                   }))) return;
                   try {
                     await cal.updateCalendar(menuCal.id, { shareWith: null });
-                    toast.success("No longer shared");
+                    toast.success(t("No longer shared"));
                   } catch (err) {
                     toast.error((err as Error).message);
                   }
@@ -152,7 +152,7 @@ export function CalendarSidebar() {
             )}
             <MenuItem icon={<Star size={16} />} label={t("Make default")} disabled={menuCal.isDefault} onClick={() => void cal.updateCalendar(menuCal.id, { isDefault: true } as Partial<Calendar>).catch((err) => toast.error((err as Error).message))} />
             <MenuSep />
-            <MenuItem danger icon={<Trash2 size={16} />} label={t("Delete")} disabled={!menuCal.myRights.mayDelete} onClick={async () => { if (await confirmDialog({ title: `Delete “${menuCal.name}”?`, message: "All events in this calendar will be deleted.", confirmLabel: "Delete", danger: true })) void cal.destroyCalendar(menuCal.id).catch((err) => toast.error((err as Error).message)); }} />
+            <MenuItem danger icon={<Trash2 size={16} />} label={t("Delete")} disabled={!menuCal.myRights.mayDelete} onClick={async () => { if (await confirmDialog({ title: t("Delete “{name}”?", { name: menuCal.name }), message: t("All events in this calendar will be deleted."), confirmLabel: t("Delete"), danger: true })) void cal.destroyCalendar(menuCal.id).catch((err) => toast.error((err as Error).message)); }} />
           </>
         )}
       </Popover>

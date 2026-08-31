@@ -4,6 +4,7 @@ import type { EmailSubmission, GetResponse, Id, Mailbox, QueryResponse, SetRespo
 import { toast } from "@/ui/toast";
 import { useMail } from "./mail";
 import { canScheduleSend, maxDelayMs, SUBMISSION_CAP, type SubmissionCapability } from "@/lib/schedule";
+import { t } from "@/lib/i18n";
 
 /**
  * A held message lives in a folder of its own, the way Gmail's does, because
@@ -232,7 +233,7 @@ export const useScheduled = create<ScheduledState>((set, get) => ({
         void mail.refreshList();
       }
     } catch (err) {
-      toast.error(`Could not update the Scheduled folder: ${(err as Error).message}`);
+      toast.error(t("Could not update the Scheduled folder: {error}", { error: (err as Error).message }));
     }
   },
 }));

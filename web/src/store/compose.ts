@@ -9,6 +9,7 @@ import { toast } from "@/ui/toast";
 import { useMail, FULL_PROPS, BODY_PROPS } from "./mail";
 import { ensureScheduledMailbox, useScheduled } from "./scheduled";
 import { formatScheduleTime, holdUntil } from "@/lib/schedule";
+import { t as translate } from "@/lib/i18n";
 import { settings } from "./settings";
 
 export interface ComposeAttachment {
@@ -334,15 +335,15 @@ export const useCompose = create<ComposeState>((set, get) => ({
           /* ignore */
         }
       }
-      toast.show("Draft discarded");
+      toast.show(translate("Draft discarded"));
       return;
     }
     if (d.dirty && (d.to.length || d.subject || hasContent(d))) {
       try {
         await saveDraftInternal(d, get, set, { silent: true, final: true });
-        toast.show("Draft saved");
+        toast.show(translate("Draft saved"));
       } catch (err) {
-        toast.error(`Could not save draft: ${(err as Error).message}`);
+        toast.error(translate("Could not save draft: {error}", { error: (err as Error).message }));
       }
     }
   },
@@ -355,7 +356,7 @@ export const useCompose = create<ComposeState>((set, get) => ({
     const accountId = useMail.getState().accountId;
     if (!accountId) return;
     const max = client.maxSizeUpload;
-    const atts: ComposeAttachment[] = files.map((f) => ({ id: uid("a"), name: f.name, type: f.type || "application/octet-stream", size: f.size, blobId: null, progress: 0, error: f.size > max ? `Larger than ${Math.round(max / 1048576)} MB limit` : null, file: f }));
+    const atts: ComposeAttachment[] = files.map((f) => ({ id: uid("a"), name: f.name, type: f.type || "application/octet-stream", size: f.size, blobId: null, progress: 0, error: f.size > max ? translate("Larger than {size} MB limit", { size: Math.round(max / 1048576) }) : null, file: f }));
     get().update(key, { attachments: [...(get().drafts.find((d) => d.key === key)?.attachments ?? []), ...atts] });
     for (const a of atts) {
       if (a.error || !a.file) continue;
@@ -396,7 +397,7 @@ export const useCompose = create<ComposeState>((set, get) => ({
       size: n.size ?? 0,
       blobId: n.accountId === accountId ? n.blobId : null,
       progress: n.accountId === accountId ? 100 : 0,
-      error: (n.size ?? 0) > max ? `Larger than ${Math.round(max / 1048576)} MB limit` : null,
+      error: (n.size ?? 0) > max ? translate("Larger than {size} MB limit", { size: Math.round(max / 1048576) }) : null,
     }));
     get().update(key, { attachments: [...(get().drafts.find((d) => d.key === key)?.attachments ?? []), ...atts] });
 
@@ -426,7 +427,7 @@ export const useCompose = create<ComposeState>((set, get) => ({
     try {
       return await saveDraftInternal(d, get, set, { silent: opts.silent ?? false });
     } catch (err) {
-      if (!opts.silent) toast.error(`Could not save draft: ${(err as Error).message}`);
+      if (!opts.silent) toast.error(translate("Could not save draft: {error}", { error: (err as Error).message }));
       return null;
     }
   },
@@ -449,9 +450,9 @@ export const useCompose = create<ComposeState>((set, get) => ({
       });
       try {
         await sendInternal(d, get);
-        toast.success(scheduling ? `Send scheduled for ${formatScheduleTime(new Date(d.sendAt!))}` : "Message sent");
+        toast.success(scheduling ? translate("Send scheduled for {when}", { when: formatScheduleTime(new Date(d.sendAt!)) }) : translate("Message sent"));
       } catch (err) {
-        toast.error(`Send failed: ${(err as Error).message}`, {
+        toast.error(translate("Send failed: {error}", { error: (err as Error).message }), {
           action: { label: "Open draft", onClick: () => set((s) => ({ drafts: [...s.drafts, { ...d, sending: false, error: (err as Error).message }], activeKey: d.key })) },
           duration: 15000,
         });
@@ -783,7 +784,7 @@ async function sendInternal(d: Draft, _get: () => ComposeState): Promise<void> {
     const created = (s.created?.s ?? {}) as { id?: Id; sendAt?: string; undoStatus?: string };
     const settled = created.sendAt ? Date.parse(created.sendAt) : NaN;
     if (!Number.isNaN(settled) && Math.abs(settled - d.sendAt!) > 60_000) {
-      toast.error(`The server scheduled this for ${formatScheduleTime(new Date(settled))}, not the time requested.`);
+      toast.error(translate("The server scheduled this for {when}, not the time requested.", { when: formatScheduleTime(new Date(settled)) }));
     }
     await useScheduled.getState().load();
   }

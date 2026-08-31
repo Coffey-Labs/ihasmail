@@ -173,11 +173,11 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
 
   const save = async () => {
     if (!calendarId) {
-      toast.error("Choose a calendar");
+      toast.error(translate("Choose a calendar"));
       return;
     }
     if (end <= start) {
-      toast.error("End must be after start");
+      toast.error(translate("End must be after start"));
       return;
     }
     setBusy(true);
@@ -259,7 +259,7 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
   }, [start]);
 
   return (
-    <Dialog open onClose={onClose} title={editing ? "Edit event" : "New event"} size="lg" footer={<><button className="btn" onClick={onClose}>{translate("Cancel")}</button><button className="btn btn-primary" disabled={busy} onClick={() => void save()}>{busy ? "Saving…" : editing ? "Save" : attendees.length && sendInvites ? "Send invites" : "Create"}</button></>}>
+    <Dialog open onClose={onClose} title={editing ? translate("Edit event") : translate("New event")} size="lg" footer={<><button className="btn" onClick={onClose}>{translate("Cancel")}</button><button className="btn btn-primary" disabled={busy} onClick={() => void save()}>{busy ? translate("Saving…") : editing ? translate("Save") : attendees.length && sendInvites ? translate("Send invites") : translate("Create")}</button></>}>
       <div className="event-form">
         {ev && isRecurring(ev) && (
           <div className="info-box mb-16">
@@ -334,7 +334,7 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
         )}
         <div className="field-row">
           <div className="field"><label>{translate("Calendar")}</label>
-            <select className="select" value={calendarId} disabled={oneDate} title={oneDate ? "An occurrence cannot be moved to another calendar on its own" : undefined} onChange={(e) => setCalendarId(e.target.value)}>
+            <select className="select" value={calendarId} disabled={oneDate} title={oneDate ? translate("An occurrence cannot be moved to another calendar on its own") : undefined} onChange={(e) => setCalendarId(e.target.value)}>
               {calendars.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>

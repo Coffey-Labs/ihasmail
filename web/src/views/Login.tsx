@@ -40,10 +40,10 @@ export function LoginPage() {
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.code === "invalid_credentials") {
-          setError("Invalid username or password.");
-        } else if (err.code === "rate_limited") setError("Too many attempts. Please wait a few minutes and try again.");
-        else setError(err.message || "Could not sign in.");
-      } else setError("Network error. Please check your connection.");
+          setError(t("Invalid username or password."));
+        } else if (err.code === "rate_limited") setError(t("Too many attempts. Please wait a few minutes and try again."));
+        else setError(err.message || t("Could not sign in."));
+      } else setError(t("Network error. Please check your connection."));
     } finally {
       setBusy(false);
     }
@@ -70,7 +70,7 @@ export function LoginPage() {
           <label htmlFor="p">{t("Password")}</label>
           <div className="pw-wrap">
             <input id="p" className="input" type={showPw ? "text" : "password"} autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus={Boolean(username)} required style={{ paddingRight: 40 }} />
-            <button type="button" className="icon-btn" onClick={() => setShowPw((v) => !v)} aria-label={showPw ? "Hide password" : "Show password"} tabIndex={-1}>
+            <button type="button" className="icon-btn" onClick={() => setShowPw((v) => !v)} aria-label={showPw ? t("Hide password") : t("Show password")} tabIndex={-1}>
               {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
           </div>
