@@ -8,6 +8,7 @@ import { RuleDialog } from "../settings/RuleDialog";
 import { toast } from "@/ui/toast";
 import { Spinner } from "@/ui/misc";
 import { Dialog } from "@/ui/dialog";
+import { t } from "@/lib/i18n";
 
 /** "Filter messages like this…" — creates a Sieve rule seeded from a message, optionally applying it to the current folder. */
 export function FilterFromMessageDialog({ email, mailboxId, onClose }: { email: Email; mailboxId: Id | null; onClose: () => void }) {
@@ -26,17 +27,17 @@ export function FilterFromMessageDialog({ email, mailboxId, onClose }: { email: 
 
   if (!sieve.available) {
     return (
-      <Dialog open onClose={onClose} title="Filters unavailable" size="sm" footer={<button className="btn" onClick={onClose}>Close</button>}>
-        <p>Sieve filtering is not enabled for this account.</p>
+      <Dialog open onClose={onClose} title={t("Filters unavailable")} size="sm" footer={<button className="btn" onClick={onClose}>{t("Close")}</button>}>
+        <p>{t("Sieve filtering is not enabled for this account.")}</p>
       </Dialog>
     );
   }
-  if (!ready) return <Dialog open onClose={onClose} title="Create filter" size="sm"><Spinner /></Dialog>;
+  if (!ready) return <Dialog open onClose={onClose} title={t("Create filter")} size="sm"><Spinner /></Dialog>;
 
   const { rules, loaded, damage } = sieve.rules();
   if (rules === null) {
     return (
-      <Dialog open onClose={onClose} title="Create filter" size="sm" footer={<button className="btn" onClick={onClose}>Close</button>}>
+      <Dialog open onClose={onClose} title={t("Create filter")} size="sm" footer={<button className="btn" onClick={onClose}>{t("Close")}</button>}>
         {/*
           Three different situations, and telling them apart matters: one is
           permanent and two are a reload away. Saying "written by hand" when the
@@ -46,9 +47,9 @@ export function FilterFromMessageDialog({ email, mailboxId, onClose }: { email: 
         {damage ? (
           <p>Your filter script {damage}, so only part of it arrived. Adding a rule would write that part back over the whole thing. Reload the page and try again.</p>
         ) : loaded ? (
-          <p>Your active Sieve script was written by hand, so rules can't be added automatically. Open <b>Settings → Filters & rules</b> to edit the script or switch to managed rules.</p>
+          <p>Your active Sieve script was written by hand, so rules can't be added automatically. Open <b>{t("Settings → Filters & rules")}</b> to edit the script or switch to managed rules.</p>
         ) : (
-          <p>Your filter script couldn't be read just now, so adding a rule would risk overwriting it. Reload the page and try again.</p>
+          <p>{t("Your filter script couldn't be read just now, so adding a rule would risk overwriting it. Reload the page and try again.")}</p>
         )}
       </Dialog>
     );
@@ -57,7 +58,7 @@ export function FilterFromMessageDialog({ email, mailboxId, onClose }: { email: 
   return (
     <RuleDialog
       rule={rule}
-      title="Filter messages like this"
+      title={t("Filter messages like this")}
       saveLabel="Create filter"
       applyMailbox={mailbox ? { id: mailbox.id, name: mailbox.name } : null}
       applyByDefault

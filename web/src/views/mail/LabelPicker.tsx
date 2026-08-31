@@ -5,6 +5,7 @@ import { useMail } from "@/store/mail";
 import { Popover } from "@/ui/popover";
 import type { Id } from "@/jmap/types";
 import { CALENDAR_COLORS } from "@/ui/misc";
+import { t } from "@/lib/i18n";
 
 /** Labels are IMAP keywords on the messages; their names/colors live in settings. */
 export function LabelPicker({ ids, anchor, onClose, onApplied }: { ids: Id[]; anchor: { x: number; y: number }; onClose: () => void; onApplied?: () => void }) {
@@ -33,7 +34,7 @@ export function LabelPicker({ ids, anchor, onClose, onApplied }: { ids: Id[]; an
 
   return (
     <Popover anchor={{ x: anchor.x, y: anchor.y, w: 0, h: 0 }} onClose={onClose} width={260} closeOnClick={false}>
-      <div className="menu-title">Label as</div>
+      <div className="menu-title">{t("Label as")}</div>
       <div className="menu-search">
         <input
           className="input sm"
@@ -77,7 +78,7 @@ export function LabelPicker({ ids, anchor, onClose, onApplied }: { ids: Id[]; an
           <span>Create “{q.trim()}”</span>
         </button>
       )}
-      {!labels.length && !q && <div className="hint" style={{ padding: "4px 10px 8px" }}>Type a name to create your first label.</div>}
+      {!labels.length && !q && <div className="hint" style={{ padding: "4px 10px 8px" }}>{t("Type a name to create your first label.")}</div>}
     </Popover>
   );
 }

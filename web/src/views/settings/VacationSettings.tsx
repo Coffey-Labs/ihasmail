@@ -5,6 +5,7 @@ import { toast } from "@/ui/toast";
 import { toInputDateTime, fromInputDateTime, toUTCDate } from "@/lib/dates";
 import { DateTimeField } from "@/ui/datefield";
 import { client, CAP } from "@/jmap/client";
+import { t } from "@/lib/i18n";
 
 export function VacationSettings() {
   const vacation = useMail((s) => s.vacation);
@@ -30,7 +31,7 @@ export function VacationSettings() {
     setTo(vacation.toDate ? toInputDateTime(new Date(vacation.toDate)) : "");
   }, [vacation]);
 
-  if (!available) return <div><h1>Out of office</h1><p className="lead">Vacation responses are not available for this account.</p></div>;
+  if (!available) return <div><h1>{t("Out of office")}</h1><p className="lead">{t("Vacation responses are not available for this account.")}</p></div>;
 
   const submit = async () => {
     setBusy(true);
@@ -53,16 +54,16 @@ export function VacationSettings() {
 
   return (
     <div>
-      <h1>Out of office</h1>
-      <p className="lead">Automatically reply to people who email you while you're away. Each sender gets at most one reply.</p>
-      <Switch checked={enabled} onChange={setEnabled} label="Auto-reply enabled" />
+      <h1>{t("Out of office")}</h1>
+      <p className="lead">{t("Automatically reply to people who email you while you're away. Each sender gets at most one reply.")}</p>
+      <Switch checked={enabled} onChange={setEnabled} label={t("Auto-reply enabled")} />
       <div className="field-row mt-16">
-        <div className="field"><label>Starts (optional)</label><DateTimeField aria-label="Starts" value={from} onChange={setFrom} /></div>
-        <div className="field"><label>Ends (optional)</label><DateTimeField aria-label="Ends" value={to} onChange={setTo} /></div>
+        <div className="field"><label>{t("Starts (optional)")}</label><DateTimeField aria-label={t("Starts")} value={from} onChange={setFrom} /></div>
+        <div className="field"><label>{t("Ends (optional)")}</label><DateTimeField aria-label={t("Ends")} value={to} onChange={setTo} /></div>
       </div>
-      <div className="field"><label>Subject</label><input className="input" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Out of office" /></div>
-      <div className="field"><label>Message</label><textarea className="textarea" rows={7} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Thanks for your message. I'm away until … and will reply when I'm back." /></div>
-      <button className="btn btn-primary" disabled={busy} onClick={() => void submit()}>Save</button>
+      <div className="field"><label>{t("Subject")}</label><input className="input" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder={t("Out of office")} /></div>
+      <div className="field"><label>{t("Message")}</label><textarea className="textarea" rows={7} value={body} onChange={(e) => setBody(e.target.value)} placeholder={t("Thanks for your message. I'm away until … and will reply when I'm back.")} /></div>
+      <button className="btn btn-primary" disabled={busy} onClick={() => void submit()}>{t("Save")}</button>
     </div>
   );
 }

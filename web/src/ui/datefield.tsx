@@ -14,6 +14,7 @@ import {
 } from "@/lib/datetime";
 import { dateTimeKey, useSettings } from "@/store/settings";
 import { anchorFromEl, Popover, type Anchor } from "./popover";
+import { t as translate } from "@/lib/i18n";
 
 /*
  * Date and time fields that follow the user's configured format.
@@ -74,9 +75,9 @@ function CalendarGrid({ selected, onPick, onClose }: { selected: Date | null; on
   return (
     <div className="dp-cal">
       <div className="dp-head">
-        <button type="button" className="icon-btn xs" onClick={() => setAnchor(addMonths(anchor, -1))} aria-label="Previous month"><ChevronLeft size={16} /></button>
+        <button type="button" className="icon-btn xs" onClick={() => setAnchor(addMonths(anchor, -1))} aria-label={translate("Previous month")}><ChevronLeft size={16} /></button>
         <span aria-live="polite">{formatMonthYear(anchor)}</span>
-        <button type="button" className="icon-btn xs" onClick={() => setAnchor(addMonths(anchor, 1))} aria-label="Next month"><ChevronRight size={16} /></button>
+        <button type="button" className="icon-btn xs" onClick={() => setAnchor(addMonths(anchor, 1))} aria-label={translate("Next month")}><ChevronRight size={16} /></button>
       </div>
       <div className="dp-dow" aria-hidden="true">{dow.map((d, i) => <span key={i}>{d}</span>)}</div>
       <div className="dp-grid" role="grid" ref={gridRef} onKeyDown={onKey}>
@@ -99,8 +100,8 @@ function CalendarGrid({ selected, onPick, onClose }: { selected: Date | null; on
         })}
       </div>
       <div className="dp-foot">
-        <button type="button" className="btn btn-ghost xs" onClick={() => onPick(startOfDay(new Date()))}>Today</button>
-        <button type="button" className="btn btn-ghost xs" onClick={onClose}>Close</button>
+        <button type="button" className="btn btn-ghost xs" onClick={() => onPick(startOfDay(new Date()))}>{translate("Today")}</button>
+        <button type="button" className="btn btn-ghost xs" onClick={onClose}>{translate("Close")}</button>
       </div>
     </div>
   );
@@ -127,7 +128,7 @@ function TimeList({ selected, onPick }: { selected: Date | null; onPick: (hours:
   }, []);
 
   return (
-    <div className="dp-times" ref={listRef} role="listbox" aria-label="Time">
+    <div className="dp-times" ref={listRef} role="listbox" aria-label={translate("Time")}>
       {slots.map((t, i) => (
         <button
           key={i}
@@ -234,7 +235,7 @@ export function DateField({ value, onChange, className, disabled, required, id, 
           if (e.key === "ArrowDown" && !anchor) { e.preventDefault(); open(); }
         }}
       />
-      <button type="button" className="dp-open" disabled={disabled} onClick={open} aria-label="Choose a date" tabIndex={-1}>
+      <button type="button" className="dp-open" disabled={disabled} onClick={open} aria-label={translate("Choose a date")} tabIndex={-1}>
         <CalIcon size={15} />
       </button>
       {anchor && (
@@ -311,7 +312,7 @@ export function DateTimeField({ value, onChange, className, disabled, required, 
             if (e.key === "ArrowDown" && !anchor) { e.preventDefault(); open(); }
           }}
         />
-        <button type="button" className="dp-open" disabled={disabled} onClick={open} aria-label="Choose a date and time" tabIndex={-1}>
+        <button type="button" className="dp-open" disabled={disabled} onClick={open} aria-label={translate("Choose a date and time")} tabIndex={-1}>
           <CalIcon size={15} />
         </button>
       </span>

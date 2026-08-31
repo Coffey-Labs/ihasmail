@@ -24,6 +24,7 @@ import { useScheduled } from "@/store/scheduled";
 import { formatScheduleTime } from "@/lib/schedule";
 import { mdnDecision, refusalText } from "@/lib/mdn";
 import { sendReadReceipt } from "@/store/mdn";
+import { t as translate } from "@/lib/i18n";
 
 interface Props {
   email: Email;
@@ -150,13 +151,13 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
           <div className="from" onContextMenu={(ev) => from && addrMenu.open(ev, from)}>
             <span className="addr">{displayName(from)}</span>
             {expanded && from && <span className="email addr">&lt;{from.email}&gt;</span>}
-            {isHighPriority && <span className="tag" style={{ background: "var(--danger)" }}>Important</span>}
+            {isHighPriority && <span className="tag" style={{ background: "var(--danger)" }}>{translate("Important")}</span>}
             {authFailed && <span className="tag" style={{ background: "var(--warn)" }} title={e["header:Authentication-Results:asText"] ?? ""}><ShieldAlert size={12} /> Unverified</span>}
           </div>
           {expanded ? (
             <div className="to">
               <span className="truncate">to {summarizeRecipients(e)}</span>
-              <button onClick={(ev) => { ev.stopPropagation(); setDetails((v) => !v); }} aria-label="Show details" title="Show details">
+              <button onClick={(ev) => { ev.stopPropagation(); setDetails((v) => !v); }} aria-label={translate("Show details")} title={translate("Show details")}>
                 {details ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
               </button>
             </div>
@@ -167,30 +168,30 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
         <div className="meta">
           {e.hasAttachment && !expanded && <Paperclip size={14} />}
           <span className="date" title={formatFullDate(e.receivedAt)}>{expanded ? formatFullDate(e.receivedAt) : formatListDate(e.receivedAt)}</span>
-          <button className={`icon-btn sm ${e.keywords.$flagged ? "active" : ""}`} style={e.keywords.$flagged ? { color: "var(--star)", background: "transparent" } : undefined} title="Star" onClick={(ev) => { ev.stopPropagation(); void actions.star(!e.keywords.$flagged, [e.id]); }}>
+          <button className={`icon-btn sm ${e.keywords.$flagged ? "active" : ""}`} style={e.keywords.$flagged ? { color: "var(--star)", background: "transparent" } : undefined} title={translate("Star")} onClick={(ev) => { ev.stopPropagation(); void actions.star(!e.keywords.$flagged, [e.id]); }}>
             <Star size={17} fill={e.keywords.$flagged ? "currentColor" : "none"} />
           </button>
           {expanded && (
             <>
-              <button className="icon-btn sm hide-mobile" title="Reply (r)" onClick={(ev) => { ev.stopPropagation(); void reply(e, "reply"); }}><Reply size={17} /></button>
-              <button className="icon-btn sm" onClick={(ev) => { ev.stopPropagation(); moreMenu.open(ev); }} aria-label="More"><MoreVertical size={17} /></button>
+              <button className="icon-btn sm hide-mobile" title={translate("Reply (r)")} onClick={(ev) => { ev.stopPropagation(); void reply(e, "reply"); }}><Reply size={17} /></button>
+              <button className="icon-btn sm" onClick={(ev) => { ev.stopPropagation(); moreMenu.open(ev); }} aria-label={translate("More")}><MoreVertical size={17} /></button>
             </>
           )}
         </div>
       </header>
       <Popover anchor={moreMenu.anchor} onClose={moreMenu.close} align="end" width={240}>
-        <MenuItem icon={<Reply size={16} />} label="Reply" onClick={() => void reply(e, "reply")} />
-        <MenuItem icon={<ReplyAll size={16} />} label="Reply all" onClick={() => void reply(e, "replyAll")} />
-        <MenuItem icon={<Forward size={16} />} label="Forward" onClick={() => void reply(e, "forward")} />
+        <MenuItem icon={<Reply size={16} />} label={translate("Reply")} onClick={() => void reply(e, "reply")} />
+        <MenuItem icon={<ReplyAll size={16} />} label={translate("Reply all")} onClick={() => void reply(e, "replyAll")} />
+        <MenuItem icon={<Forward size={16} />} label={translate("Forward")} onClick={() => void reply(e, "forward")} />
         <MenuSep />
         <MenuItem icon={<Mail size={16} />} label={e.keywords.$seen ? "Mark as unread" : "Mark as read"} onClick={() => void useMail.getState().markRead([e.id], !e.keywords.$seen)} />
-        <MenuItem icon={<Trash2 size={16} />} label="Delete this message" onClick={() => void useMail.getState().trash([e.id])} />
+        <MenuItem icon={<Trash2 size={16} />} label={translate("Delete this message")} onClick={() => void useMail.getState().trash([e.id])} />
         <MenuSep />
-        <MenuItem icon={<Eye size={16} />} label="Show original" onClick={() => void openSource()} />
-        <MenuItem icon={<Code size={16} />} label="Show headers" onClick={() => setShowHeaders(true)} />
-        <MenuItem icon={<Download size={16} />} label="Download (.eml)" onClick={downloadEml} />
-        <MenuItem icon={<Printer size={16} />} label="Print" onClick={() => window.print()} />
-        <MenuItem icon={<Filter size={16} />} label="Filter messages like this…" onClick={() => setFilterOpen(true)} />
+        <MenuItem icon={<Eye size={16} />} label={translate("Show original")} onClick={() => void openSource()} />
+        <MenuItem icon={<Code size={16} />} label={translate("Show headers")} onClick={() => setShowHeaders(true)} />
+        <MenuItem icon={<Download size={16} />} label={translate("Download (.eml)")} onClick={downloadEml} />
+        <MenuItem icon={<Printer size={16} />} label={translate("Print")} onClick={() => window.print()} />
+        <MenuItem icon={<Filter size={16} />} label={translate("Filter messages like this…")} onClick={() => setFilterOpen(true)} />
         {from && (
           <>
             <MenuSep />
@@ -203,18 +204,18 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
         <>
           {details && (
             <dl className="message-details" onClick={(ev) => ev.stopPropagation()}>
-              <dt>From</dt><dd><AddressList list={e.from} onContext={addrMenu.open} /></dd>
-              {e.sender?.length && !(e.sender.length === 1 && e.from?.some((f) => f.email === e.sender![0]!.email)) ? <><dt>Sender</dt><dd><AddressList list={e.sender} onContext={addrMenu.open} /></dd></> : null}
-              {e.replyTo?.length ? <><dt>Reply-To</dt><dd><AddressList list={e.replyTo} onContext={addrMenu.open} /></dd></> : null}
-              <dt>To</dt><dd><AddressList list={e.to} onContext={addrMenu.open} /></dd>
-              {e.cc?.length ? <><dt>Cc</dt><dd><AddressList list={e.cc} onContext={addrMenu.open} /></dd></> : null}
-              {e.bcc?.length ? <><dt>Bcc</dt><dd><AddressList list={e.bcc} onContext={addrMenu.open} /></dd></> : null}
-              <dt>Date</dt><dd>{formatFullDate(e.sentAt ?? e.receivedAt)}</dd>
-              <dt>Subject</dt><dd>{e.subject || "(no subject)"}</dd>
-              {e.messageId?.[0] && <><dt>Message-ID</dt><dd className="mono small">{e.messageId[0]}</dd></>}
-              {e["header:List-Id:asText"] && <><dt>List</dt><dd>{e["header:List-Id:asText"]}</dd></>}
-              <dt>Size</dt><dd>{formatSize(e.size)}</dd>
-              {receiptRequested && <><dt>Receipt</dt><dd>{receipt.offer ? `Requested, to ${receipt.to!.email}. Never sent automatically.` : refusalText(receipt.refusal!)}</dd></>}
+              <dt>{translate("From")}</dt><dd><AddressList list={e.from} onContext={addrMenu.open} /></dd>
+              {e.sender?.length && !(e.sender.length === 1 && e.from?.some((f) => f.email === e.sender![0]!.email)) ? <><dt>{translate("Sender")}</dt><dd><AddressList list={e.sender} onContext={addrMenu.open} /></dd></> : null}
+              {e.replyTo?.length ? <><dt>{translate("Reply-To")}</dt><dd><AddressList list={e.replyTo} onContext={addrMenu.open} /></dd></> : null}
+              <dt>{translate("To")}</dt><dd><AddressList list={e.to} onContext={addrMenu.open} /></dd>
+              {e.cc?.length ? <><dt>{translate("Cc")}</dt><dd><AddressList list={e.cc} onContext={addrMenu.open} /></dd></> : null}
+              {e.bcc?.length ? <><dt>{translate("Bcc")}</dt><dd><AddressList list={e.bcc} onContext={addrMenu.open} /></dd></> : null}
+              <dt>{translate("Date")}</dt><dd>{formatFullDate(e.sentAt ?? e.receivedAt)}</dd>
+              <dt>{translate("Subject")}</dt><dd>{e.subject || "(no subject)"}</dd>
+              {e.messageId?.[0] && <><dt>{translate("Message-ID")}</dt><dd className="mono small">{e.messageId[0]}</dd></>}
+              {e["header:List-Id:asText"] && <><dt>{translate("List")}</dt><dd>{e["header:List-Id:asText"]}</dd></>}
+              <dt>{translate("Size")}</dt><dd>{formatSize(e.size)}</dd>
+              {receiptRequested && <><dt>{translate("Receipt")}</dt><dd>{receipt.offer ? `Requested, to ${receipt.to!.email}. Never sent automatically.` : refusalText(receipt.refusal!)}</dd></>}
             </dl>
           )}
           {receipt.offer && settings.readReceiptPolicy !== "never" && receiptDone !== "dismissed" && (
@@ -241,7 +242,7 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
               >
                 {receiptDone === "sending" ? "Sending…" : "Send receipt"}
               </button>
-              <button onClick={() => setReceiptDone("dismissed")}>Not this time</button>
+              <button onClick={() => setReceiptDone("dismissed")}>{translate("Not this time")}</button>
             </div>
           )}
           {scheduled && (
@@ -258,15 +259,16 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
                   }
                 }}
               >
-                Cancel send
+                
+                {translate("Cancel send")}
               </button>
             </div>
           )}
           {rendered && rendered.remoteCount > 0 && !remoteAllowed && (
             <div className="remote-banner" style={{ margin: "0 16px 8px" }}>
               <ImageIcon size={16} />
-              <span className="grow">Remote images are blocked to protect your privacy.</span>
-              <button onClick={() => setAllowRemote(true)}>Show images</button>
+              <span className="grow">{translate("Remote images are blocked to protect your privacy.")}</span>
+              <button onClick={() => setAllowRemote(true)}>{translate("Show images")}</button>
               {from && <button onClick={() => updateSettings({ trustedImageSenders: [...settings.trustedImageSenders, from.email.toLowerCase()] })}>Always from {from.email}</button>}
             </div>
           )}
@@ -278,18 +280,18 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
           {attachments.length > 0 && <AttachmentList attachments={attachments} accountId={accountId} email={e} />}
           {unsubscribe && (
             <div className="unsubscribe-row">
-              <span>This looks like a mailing list.</span>
-              <button className="btn btn-ghost btn-sm" onClick={() => void onUnsubscribe()}>Unsubscribe</button>
+              <span>{translate("This looks like a mailing list.")}</span>
+              <button className="btn btn-ghost btn-sm" onClick={() => void onUnsubscribe()}>{translate("Unsubscribe")}</button>
             </div>
           )}
         </>
       )}
       {addrMenu.node}
       {filterOpen && <FilterFromMessageDialog email={e} mailboxId={Object.keys(e.mailboxIds)[0] ?? null} onClose={() => setFilterOpen(false)} />}
-      <Dialog open={showSource} onClose={() => setShowSource(false)} title="Original message" size="xl">
+      <Dialog open={showSource} onClose={() => setShowSource(false)} title={translate("Original message")} size="xl">
         {source === null ? <div className="center"><span className="spinner" /></div> : <pre className="code notranslate" translate="no" style={{ minHeight: 300, maxHeight: "65vh" }}>{source}</pre>}
       </Dialog>
-      <Dialog open={showHeaders} onClose={() => setShowHeaders(false)} title="Message headers" size="lg">
+      <Dialog open={showHeaders} onClose={() => setShowHeaders(false)} title={translate("Message headers")} size="lg">
         <dl className="message-details" style={{ margin: 0 }}>
           {Object.entries(e).filter(([k]) => k.startsWith("header:")).map(([k, v]) => (
             <>
@@ -297,11 +299,11 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
               <dd key={`${k}-d`} className="mono small">{Array.isArray(v) ? v.map((x: unknown) => (typeof x === "object" && x ? formatAddress(x as EmailAddress) : String(x))).join(", ") : String(v ?? "—")}</dd>
             </>
           ))}
-          <dt>Received</dt><dd>{formatFullDate(e.receivedAt)}</dd>
-          {e.inReplyTo?.length ? <><dt>In-Reply-To</dt><dd className="mono small">{e.inReplyTo.join(" ")}</dd></> : null}
-          {e.references?.length ? <><dt>References</dt><dd className="mono small">{e.references.join(" ")}</dd></> : null}
+          <dt>{translate("Received")}</dt><dd>{formatFullDate(e.receivedAt)}</dd>
+          {e.inReplyTo?.length ? <><dt>{translate("In-Reply-To")}</dt><dd className="mono small">{e.inReplyTo.join(" ")}</dd></> : null}
+          {e.references?.length ? <><dt>{translate("References")}</dt><dd className="mono small">{e.references.join(" ")}</dd></> : null}
         </dl>
-        <p className="hint">Use “Show original” for the complete raw message.</p>
+        <p className="hint">{translate("Use “Show original” for the complete raw message.")}</p>
       </Dialog>
     </article>
   );
@@ -449,7 +451,7 @@ function HtmlBody({ html, bodyStyle, themed, onShowImages }: { html: string; bod
       <div ref={hostRef} className="body-host notranslate" translate="no" />
       {hasQuote && (
         <button className="quote-toggle" onClick={() => setQuoteOpen((v) => !v)} title={quoteOpen ? "Hide quoted text" : "Show quoted text"}>
-          {quoteOpen ? <ChevronUp size={12} /> : <span style={{ letterSpacing: 2 }}>•••</span>}
+          {quoteOpen ? <ChevronUp size={12} /> : <span style={{ letterSpacing: 2 }}>{translate("•••")}</span>}
           {quoteOpen ? "Hide quoted text" : ""}
         </button>
       )}
@@ -491,7 +493,7 @@ function TextBody({ text }: { text: string }) {
       <div ref={hostRef} className="body-host notranslate" translate="no" />
       {quoted && (
         <button className="quote-toggle" onClick={() => setQuoteOpen((v) => !v)}>
-          {quoteOpen ? <ChevronUp size={12} /> : <span style={{ letterSpacing: 2 }}>•••</span>}
+          {quoteOpen ? <ChevronUp size={12} /> : <span style={{ letterSpacing: 2 }}>{translate("•••")}</span>}
           {quoteOpen ? "Hide quoted text" : ""}
         </button>
       )}
@@ -532,8 +534,8 @@ function AttachmentList({ attachments, accountId, email }: { attachments: EmailB
                 <span className="att-name">{a.name ?? "(unnamed)"}</span>
                 <span className="att-size">{formatSize(a.size)}</span>
                 <span className="att-actions">
-                  <button className="icon-btn xs" title="Download" onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); const l = document.createElement("a"); l.href = url; l.download = a.name ?? ""; l.click(); }}><Download size={14} /></button>
-                  {viewable(a) && <button className="icon-btn xs" title="Open in new tab" onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); window.open(inlineUrl, "_blank", "noopener"); }}><ExternalLink size={14} /></button>}
+                  <button className="icon-btn xs" title={translate("Download")} onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); const l = document.createElement("a"); l.href = url; l.download = a.name ?? ""; l.click(); }}><Download size={14} /></button>
+                  {viewable(a) && <button className="icon-btn xs" title={translate("Open in new tab")} onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); window.open(inlineUrl, "_blank", "noopener"); }}><ExternalLink size={14} /></button>}
                 </span>
               </span>
             </a>
@@ -547,7 +549,7 @@ function AttachmentList({ attachments, accountId, email }: { attachments: EmailB
       </div>
       <Dialog open={Boolean(preview)} onClose={() => setPreview(null)} title={preview?.name ?? "Preview"} size="xl" footer={preview && <a className="btn" href={client.downloadUrl(accountId, preview.blobId!, preview.name ?? "file", preview.type)} download><Download size={16} /> Download</a>}>
         {preview?.type.startsWith("image/") && <img src={client.downloadUrl(accountId, preview.blobId!, preview.name ?? "image", preview.type, true)} alt={preview.name ?? ""} style={{ maxHeight: "70vh", display: "block", margin: "0 auto" }} />}
-        {preview?.type === "application/pdf" && <iframe title="PDF" src={client.downloadUrl(accountId, preview.blobId!, preview.name ?? "file.pdf", preview.type, true)} style={{ width: "100%", height: "70vh", border: 0 }} />}
+        {preview?.type === "application/pdf" && <iframe title={translate("PDF")} src={client.downloadUrl(accountId, preview.blobId!, preview.name ?? "file.pdf", preview.type, true)} style={{ width: "100%", height: "70vh", border: 0 }} />}
         {preview?.type === "text/plain" && <TextAttachment url={client.downloadUrl(accountId, preview.blobId!, preview.name ?? "file.txt", preview.type, true)} />}
         <p className="hint" style={{ marginTop: 8 }}>From: {displayName(email.from?.[0])}</p>
       </Dialog>

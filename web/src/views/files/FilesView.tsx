@@ -13,6 +13,7 @@ import { Empty, Spinner } from "@/ui/misc";
 import { MenuItem, MenuSep, Popover, useMenu } from "@/ui/popover";
 import { confirmDialog, promptDialog, Dialog } from "@/ui/dialog";
 import { toast } from "@/ui/toast";
+import { t } from "@/lib/i18n";
 
 export function FilesView({ nodeId }: { nodeId?: string }) {
   const [, navigate] = useLocation();
@@ -62,7 +63,7 @@ export function FilesView({ nodeId }: { nodeId?: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parentId, files.available]);
 
-  if (!files.available) return <div className="p-16"><Empty icon={<FolderOpen size={40} />} title="File storage is not available">This account does not have the JMAP file storage capability.</Empty></div>;
+  if (!files.available) return <div className="p-16"><Empty icon={<FolderOpen size={40} />} title={t("File storage is not available")}>{t("This account does not have the JMAP file storage capability.")}</Empty></div>;
 
   const ids = files.children[parentId ?? "root"] ?? [];
   const nodes = ids.map((id) => files.nodes[id]).filter((n): n is FileNode => Boolean(n));
@@ -140,10 +141,10 @@ export function FilesView({ nodeId }: { nodeId?: string }) {
         }}
       >
         {files.loading && !nodes.length ? <Spinner /> : !nodes.length ? (
-          <Empty icon={<FolderOpen size={40} />} title="This folder is empty">Drag files here or use Upload.</Empty>
+          <Empty icon={<FolderOpen size={40} />} title={t("This folder is empty")}>{t("Drag files here or use Upload.")}</Empty>
         ) : (
           <table className="files-table">
-            <thead><tr><th>Name</th><th className="hide-mobile">Size</th><th className="hide-mobile">Modified</th><th /></tr></thead>
+            <thead><tr><th>{t("Name")}</th><th className="hide-mobile">{t("Size")}</th><th className="hide-mobile">{t("Modified")}</th><th /></tr></thead>
             <tbody>
               {nodes.map((n) => (
                 <tr
@@ -162,10 +163,10 @@ export function FilesView({ nodeId }: { nodeId?: string }) {
                   }}
                   onDrop={(e) => { if (n.nodeType === "directory") dropOnto(n.id, e); }}
                   onClick={() => setSelected(n.id)} onDoubleClick={() => (n.nodeType === "directory" ? navigate(`/files/${n.id}`) : download(n))} onContextMenu={(e) => { e.preventDefault(); setMenuNode(n); menu.openAt(e.clientX, e.clientY); }}>
-                  <td><div className="f-name">{n.nodeType === "directory" ? <Folder size={18} /> : <File size={18} />}<span onClick={(e) => { if (n.nodeType === "directory") { e.stopPropagation(); navigate(`/files/${n.id}`); } }} style={n.nodeType === "directory" ? { cursor: "pointer" } : undefined}>{n.name}</span>{isShared(n) && <Share2 size={13} className="faint" aria-label="Shared" />}</div></td>
+                  <td><div className="f-name">{n.nodeType === "directory" ? <Folder size={18} /> : <File size={18} />}<span onClick={(e) => { if (n.nodeType === "directory") { e.stopPropagation(); navigate(`/files/${n.id}`); } }} style={n.nodeType === "directory" ? { cursor: "pointer" } : undefined}>{n.name}</span>{isShared(n) && <Share2 size={13} className="faint" aria-label={t("Shared")} />}</div></td>
                   <td className="hide-mobile muted">{n.nodeType === "directory" ? "—" : formatSize(n.size)}</td>
                   <td className="hide-mobile muted">{formatListDate(n.modified ?? n.created)}</td>
-                  <td style={{ textAlign: "right" }}><button className="icon-btn sm" onClick={(e) => { e.stopPropagation(); setMenuNode(n); menu.open(e); }} aria-label="Options"><MoreVertical size={16} /></button></td>
+                  <td style={{ textAlign: "right" }}><button className="icon-btn sm" onClick={(e) => { e.stopPropagation(); setMenuNode(n); menu.open(e); }} aria-label={t("Options")}><MoreVertical size={16} /></button></td>
                 </tr>
               ))}
             </tbody>
@@ -175,18 +176,18 @@ export function FilesView({ nodeId }: { nodeId?: string }) {
       <Popover anchor={menu.anchor} onClose={menu.close} width={200}>
         {!menuNode && (
           <>
-            <MenuItem icon={<Upload size={16} />} label="Upload files…" onClick={() => inputRef.current?.click()} />
-            <MenuItem icon={<FolderPlus size={16} />} label="New folder" onClick={async () => { const n = await promptDialog({ title: "New folder", placeholder: "Folder name" }); if (n?.trim()) { try { await files.mkdir(parentId, n.trim()); } catch (err) { toast.error((err as Error).message); } } }} />
+            <MenuItem icon={<Upload size={16} />} label={t("Upload files…")} onClick={() => inputRef.current?.click()} />
+            <MenuItem icon={<FolderPlus size={16} />} label={t("New folder")} onClick={async () => { const n = await promptDialog({ title: "New folder", placeholder: "Folder name" }); if (n?.trim()) { try { await files.mkdir(parentId, n.trim()); } catch (err) { toast.error((err as Error).message); } } }} />
           </>
         )}
         {menuNode && (
           <>
-            {menuNode.nodeType === "directory" ? <MenuItem icon={<FolderOpen size={16} />} label="Open" onClick={() => navigate(`/files/${menuNode.id}`)} /> : <MenuItem icon={<Download size={16} />} label="Download" onClick={() => download(menuNode)} />}
-            <MenuItem icon={<Pencil size={16} />} label="Rename" disabled={!menuNode.myRights?.mayRename} onClick={async () => { const n = await promptDialog({ title: "Rename", defaultValue: menuNode.name }); if (n?.trim() && n !== menuNode.name) { try { await files.rename(menuNode.id, n.trim()); } catch (err) { toast.error((err as Error).message); } } }} />
-            <MenuItem icon={<FolderInput size={16} />} label="Move to…" onClick={() => setMoveNode(menuNode)} />
-            <MenuItem icon={<Share2 size={16} />} label="Share…" disabled={!menuNode.myRights?.mayShare} onClick={() => setShareNode(menuNode)} />
+            {menuNode.nodeType === "directory" ? <MenuItem icon={<FolderOpen size={16} />} label={t("Open")} onClick={() => navigate(`/files/${menuNode.id}`)} /> : <MenuItem icon={<Download size={16} />} label={t("Download")} onClick={() => download(menuNode)} />}
+            <MenuItem icon={<Pencil size={16} />} label={t("Rename")} disabled={!menuNode.myRights?.mayRename} onClick={async () => { const n = await promptDialog({ title: "Rename", defaultValue: menuNode.name }); if (n?.trim() && n !== menuNode.name) { try { await files.rename(menuNode.id, n.trim()); } catch (err) { toast.error((err as Error).message); } } }} />
+            <MenuItem icon={<FolderInput size={16} />} label={t("Move to…")} onClick={() => setMoveNode(menuNode)} />
+            <MenuItem icon={<Share2 size={16} />} label={t("Share…")} disabled={!menuNode.myRights?.mayShare} onClick={() => setShareNode(menuNode)} />
             <MenuSep />
-            <MenuItem danger icon={<Trash2 size={16} />} label="Delete" disabled={!menuNode.myRights?.mayDelete} onClick={async () => { if (await confirmDialog({ title: `Delete “${menuNode.name}”?`, confirmLabel: "Delete", danger: true })) { try { await files.destroy([menuNode.id]); toast.success("Deleted"); } catch (err) { toast.error((err as Error).message); } } }} />
+            <MenuItem danger icon={<Trash2 size={16} />} label={t("Delete")} disabled={!menuNode.myRights?.mayDelete} onClick={async () => { if (await confirmDialog({ title: `Delete “${menuNode.name}”?`, confirmLabel: "Delete", danger: true })) { try { await files.destroy([menuNode.id]); toast.success("Deleted"); } catch (err) { toast.error((err as Error).message); } } }} />
           </>
         )}
       </Popover>
@@ -206,13 +207,13 @@ function MoveDialog({ node, onClose }: { node: FileNode; onClose: () => void }) 
   const dirs = (files.children[cur ?? "root"] ?? []).map((id) => files.nodes[id]).filter((n): n is FileNode => Boolean(n && n.nodeType === "directory" && n.id !== node.id));
   const path = files.pathTo(cur);
   return (
-    <Dialog open onClose={onClose} title={`Move “${node.name}”`} size="sm" footer={<><button className="btn" onClick={onClose}>Cancel</button><button className="btn btn-primary" disabled={cur === (node.parentId ?? null)} onClick={async () => { try { await files.move(node.id, cur); toast.success("Moved"); onClose(); } catch (err) { toast.error((err as Error).message); } }}>Move here</button></>}>
+    <Dialog open onClose={onClose} title={`Move “${node.name}”`} size="sm" footer={<><button className="btn" onClick={onClose}>{t("Cancel")}</button><button className="btn btn-primary" disabled={cur === (node.parentId ?? null)} onClick={async () => { try { await files.move(node.id, cur); toast.success("Moved"); onClose(); } catch (err) { toast.error((err as Error).message); } }}>{t("Move here")}</button></>}>
       <div className="breadcrumb mb-8">
         <button onClick={() => setCur(null)}><Home size={14} /></button>
         {path.map((n) => <span key={n.id} className="row gap-4"><ChevronRight size={12} /><button onClick={() => setCur(n.id)}>{n.name}</button></span>)}
       </div>
       {dirs.map((d) => <button key={d.id} className="menu-item" onClick={() => setCur(d.id)}><Folder size={16} /><span className="grow">{d.name}</span><ChevronRight size={14} /></button>)}
-      {!dirs.length && <p className="hint">No subfolders here.</p>}
+      {!dirs.length && <p className="hint">{t("No subfolders here.")}</p>}
     </Dialog>
   );
 }

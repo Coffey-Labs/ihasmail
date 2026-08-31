@@ -5,6 +5,7 @@ import { queueSettingsPush } from "@/lib/settingsSync";
 import { setDateTimePrefs, type DateFormat, type TimeFormat } from "@/lib/datetime";
 import type { SwipeAction } from "@/lib/swipe";
 import { resolveUiLanguage } from "@/lib/languages";
+import { loadLanguage } from "@/lib/i18n";
 
 /**
  * "ihasmail" is a dark theme carrying the palette from ihasmail.org. It is a
@@ -368,7 +369,15 @@ function applyDateTimePrefs(s: Settings): void {
  * load, which is the thing the whole design avoids.
  */
 export function applyLang(s: Settings = useSettings.getState().settings): void {
-  document.documentElement.lang = resolveUiLanguage(s.uiLanguage);
+  const tag = resolveUiLanguage(s.uiLanguage);
+  document.documentElement.lang = tag;
+  /*
+   * The catalogue is fetched, so it lands a beat after the attribute. That
+   * order is deliberate: `lang` is what stops Chrome offering to translate,
+   * and it should not wait on a network request to say something it already
+   * knows. English needs no fetch at all and resolves immediately.
+   */
+  void loadLanguage(tag);
 }
 
 /** Background of each theme, for the browser chrome (`theme-color`). */

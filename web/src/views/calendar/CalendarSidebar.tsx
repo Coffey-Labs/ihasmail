@@ -12,6 +12,7 @@ import { toast } from "@/ui/toast";
 import type { Calendar } from "@/jmap/types";
 import { CalendarDialog } from "./CalendarDialog";
 import { ShareDialog } from "../settings/ShareDialog";
+import { t } from "@/lib/i18n";
 
 export function CalendarSidebar() {
   const [location, navigate] = useLocation();
@@ -45,9 +46,9 @@ export function CalendarSidebar() {
     <div style={{ padding: "4px 8px" }}>
       <div className="mini-cal">
         <div className="mc-head">
-          <button className="icon-btn xs" onClick={() => setAnchor(addMonths(anchor, -1))} aria-label="Previous month"><ChevronLeft size={16} /></button>
+          <button className="icon-btn xs" onClick={() => setAnchor(addMonths(anchor, -1))} aria-label={t("Previous month")}><ChevronLeft size={16} /></button>
           <span>{formatMonthYear(anchor)}</span>
-          <button className="icon-btn xs" onClick={() => setAnchor(addMonths(anchor, 1))} aria-label="Next month"><ChevronRight size={16} /></button>
+          <button className="icon-btn xs" onClick={() => setAnchor(addMonths(anchor, 1))} aria-label={t("Next month")}><ChevronRight size={16} /></button>
         </div>
         <div className="mc-grid">
           {dow.map((d, i) => <div key={i} className="mc-dow">{d}</div>)}
@@ -59,16 +60,16 @@ export function CalendarSidebar() {
         </div>
       </div>
       <div className="nav-section" style={{ paddingLeft: 4 }}>
-        <span>My calendars</span>
-        <button className="icon-btn" title="New calendar" onClick={() => setEditCal({})}><Plus size={16} /></button>
+        <span>{t("My calendars")}</span>
+        <button className="icon-btn" title={t("New calendar")} onClick={() => setEditCal({})}><Plus size={16} /></button>
       </div>
       {calendars.map((c) => (
         <div key={c.id} className={`cal-list-item ${cal.hidden[c.id] ? "hidden-cal" : ""}`} onClick={() => cal.toggleHidden(c.id)} onContextMenu={(e) => { e.preventDefault(); setMenuCal(c); menu.openAt(e.clientX, e.clientY); }}>
           <span className="cal-color" style={{ background: c.color ?? "var(--accent)", borderColor: c.color ?? "var(--accent)" }} />
           <span className="cal-name">{c.name}</span>
-          {Object.keys(c.shareWith ?? {}).length > 0 && <Share2 size={12} className="faint" aria-label="Shared" />}
+          {Object.keys(c.shareWith ?? {}).length > 0 && <Share2 size={12} className="faint" aria-label={t("Shared")} />}
           {c.isDefault && <Star size={12} className="faint" />}
-          <button className="icon-btn xs nav-more" onClick={(e) => { e.stopPropagation(); setMenuCal(c); menu.open(e); }} aria-label="Calendar options"><MoreVertical size={14} /></button>
+          <button className="icon-btn xs nav-more" onClick={(e) => { e.stopPropagation(); setMenuCal(c); menu.open(e); }} aria-label={t("Calendar options")}><MoreVertical size={14} /></button>
         </div>
       ))}
       {/* Calendars other people shared, split by whether the reader has added
@@ -78,7 +79,7 @@ export function CalendarSidebar() {
           and adding one is a deliberate act rather than a guess on our part. */}
       {sharedSubscribed.length > 0 && (
         <>
-          <div className="nav-section"><span>Shared with me</span></div>
+          <div className="nav-section"><span>{t("Shared with me")}</span></div>
           {sharedSubscribed.map(({ accountId, accountName, calendar: c }) => {
             const key = `${accountId}:${c.id}`;
             return (
@@ -87,8 +88,8 @@ export function CalendarSidebar() {
                 <span className="cal-name">{c.name}</span>
                 <button
                   className="icon-btn xs nav-more"
-                  title="Remove from my calendar"
-                  aria-label="Remove from my calendar"
+                  title={t("Remove from my calendar")}
+                  aria-label={t("Remove from my calendar")}
                   onClick={(e) => { e.stopPropagation(); void cal.setSharedSubscribed(accountId, c.id, false); }}
                 >
                   <X size={14} />
@@ -100,15 +101,15 @@ export function CalendarSidebar() {
       )}
       {sharedAvailable.length > 0 && (
         <>
-          <div className="nav-section"><span>Available to add</span></div>
+          <div className="nav-section"><span>{t("Available to add")}</span></div>
           {sharedAvailable.map(({ accountId, accountName, calendar: c }) => (
             <div key={`${accountId}:${c.id}`} className="cal-list-item" title={`${c.name} — from ${accountName}`}>
               <span className="cal-color" style={{ background: "transparent", borderColor: c.color ?? "var(--border-strong)" }} />
               <span className="cal-name faint">{c.name}</span>
               <button
                 className="icon-btn xs nav-more"
-                title="Add to my calendar"
-                aria-label="Add to my calendar"
+                title={t("Add to my calendar")}
+                aria-label={t("Add to my calendar")}
                 onClick={(e) => { e.stopPropagation(); void cal.setSharedSubscribed(accountId, c.id, true); }}
               >
                 <Plus size={14} />
@@ -122,15 +123,15 @@ export function CalendarSidebar() {
         {menuCal && (
           <>
             <MenuItem icon={cal.hidden[menuCal.id] ? <Eye size={16} /> : <EyeOff size={16} />} label={cal.hidden[menuCal.id] ? "Show" : "Hide"} onClick={() => cal.toggleHidden(menuCal.id)} />
-            <MenuItem icon={<Pencil size={16} />} label="Edit" onClick={() => setEditCal(menuCal)} />
-            <MenuItem icon={<Share2 size={16} />} label="Share…" onClick={() => setShare(menuCal)} disabled={!menuCal.myRights.mayShare} />
+            <MenuItem icon={<Pencil size={16} />} label={t("Edit")} onClick={() => setEditCal(menuCal)} />
+            <MenuItem icon={<Share2 size={16} />} label={t("Share…")} onClick={() => setShare(menuCal)} disabled={!menuCal.myRights.mayShare} />
             {/* Revoking every share at once, without walking the dialog and
                 removing people one at a time. Only offered when there is
                 something to revoke. */}
             {Object.keys(menuCal.shareWith ?? {}).length > 0 && (
               <MenuItem
                 icon={<UserMinus size={16} />}
-                label="Stop sharing"
+                label={t("Stop sharing")}
                 disabled={!menuCal.myRights.mayShare}
                 onClick={async () => {
                   const who = Object.keys(menuCal.shareWith ?? {}).length;
@@ -149,9 +150,9 @@ export function CalendarSidebar() {
                 }}
               />
             )}
-            <MenuItem icon={<Star size={16} />} label="Make default" disabled={menuCal.isDefault} onClick={() => void cal.updateCalendar(menuCal.id, { isDefault: true } as Partial<Calendar>).catch((err) => toast.error((err as Error).message))} />
+            <MenuItem icon={<Star size={16} />} label={t("Make default")} disabled={menuCal.isDefault} onClick={() => void cal.updateCalendar(menuCal.id, { isDefault: true } as Partial<Calendar>).catch((err) => toast.error((err as Error).message))} />
             <MenuSep />
-            <MenuItem danger icon={<Trash2 size={16} />} label="Delete" disabled={!menuCal.myRights.mayDelete} onClick={async () => { if (await confirmDialog({ title: `Delete “${menuCal.name}”?`, message: "All events in this calendar will be deleted.", confirmLabel: "Delete", danger: true })) void cal.destroyCalendar(menuCal.id).catch((err) => toast.error((err as Error).message)); }} />
+            <MenuItem danger icon={<Trash2 size={16} />} label={t("Delete")} disabled={!menuCal.myRights.mayDelete} onClick={async () => { if (await confirmDialog({ title: `Delete “${menuCal.name}”?`, message: "All events in this calendar will be deleted.", confirmLabel: "Delete", danger: true })) void cal.destroyCalendar(menuCal.id).catch((err) => toast.error((err as Error).message)); }} />
           </>
         )}
       </Popover>

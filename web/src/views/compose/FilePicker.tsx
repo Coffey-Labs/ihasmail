@@ -6,6 +6,7 @@ import { useFiles } from "@/store/files";
 import type { AttachableFile } from "@/store/compose";
 import type { FileNode } from "@/jmap/types";
 import { formatSize } from "@/lib/format";
+import { t } from "@/lib/i18n";
 
 /**
  * Pick something already in Files to attach.
@@ -51,11 +52,11 @@ export function FilePicker({ onPick, onClose }: { onPick: (files: AttachableFile
     <Dialog
       open
       onClose={close}
-      title="Attach from Files"
+      title={t("Attach from Files")}
       size="md"
       footer={
         <>
-          <button className="btn" onClick={close}>Cancel</button>
+          <button className="btn" onClick={close}>{t("Cancel")}</button>
           <button
             className="btn btn-primary"
             disabled={!chosen.length}
@@ -95,7 +96,7 @@ export function FilePicker({ onPick, onClose }: { onPick: (files: AttachableFile
       {files.loading && !nodes.length ? (
         <Spinner />
       ) : !nodes.length ? (
-        <p className="hint">This folder is empty.</p>
+        <p className="hint">{t("This folder is empty.")}</p>
       ) : (
         nodes.map((n) =>
           n.nodeType === "directory" ? (
@@ -131,7 +132,7 @@ export function FilePicker({ onPick, onClose }: { onPick: (files: AttachableFile
         // Blobs belong to the account holding them, so one from a share has to
         // be copied into yours before a draft can reference it. Worth saying,
         // because it is the difference between instant and a wait.
-        <p className="hint" style={{ marginTop: 10 }}>Shared files are copied to your account when attached.</p>
+        <p className="hint" style={{ marginTop: 10 }}>{t("Shared files are copied to your account when attached.")}</p>
       )}
     </Dialog>
   );

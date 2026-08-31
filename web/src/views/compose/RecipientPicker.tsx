@@ -6,6 +6,7 @@ import { useContacts } from "@/store/contacts";
 import { useSettings } from "@/store/settings";
 import { contactDisplayName, contactEmails } from "@/lib/contacts";
 import type { ContactCard, EmailAddress } from "@/jmap/types";
+import { t } from "@/lib/i18n";
 
 export type Field = "to" | "cc" | "bcc";
 
@@ -109,13 +110,13 @@ export function RecipientPicker({ onPick, onClose }: { onPick: (field: Field, ad
     <Dialog
       open
       onClose={onClose}
-      title="Choose recipients"
+      title={t("Choose recipients")}
       size="lg"
       footer={
         <>
-          <button className="btn" onClick={onClose}>Cancel</button>
-          <button className="btn" disabled={!chosen.length} onClick={() => send("bcc")}>Bcc</button>
-          <button className="btn" disabled={!chosen.length} onClick={() => send("cc")}>Cc</button>
+          <button className="btn" onClick={onClose}>{t("Cancel")}</button>
+          <button className="btn" disabled={!chosen.length} onClick={() => send("bcc")}>{t("Bcc")}</button>
+          <button className="btn" disabled={!chosen.length} onClick={() => send("cc")}>{t("Cc")}</button>
           <button className="btn btn-primary" disabled={!chosen.length} onClick={() => send("to")}>
             {chosen.length > 1 ? `To — ${chosen.length} people` : "To"}
           </button>
@@ -129,14 +130,14 @@ export function RecipientPicker({ onPick, onClose }: { onPick: (field: Field, ad
           <input
             className="grow"
             style={{ background: "none", border: 0, outline: "none", color: "inherit", font: "inherit" }}
-            placeholder="Search names and addresses"
+            placeholder={t("Search names and addresses")}
             value={q}
             onChange={(e) => setQ(e.target.value)}
             autoFocus
           />
         </label>
-        <select className="select" value={bookKey} onChange={(e) => setBookKey(e.target.value)} aria-label="Address book">
-          <option value="all">All address books</option>
+        <select className="select" value={bookKey} onChange={(e) => setBookKey(e.target.value)} aria-label={t("Address book")}>
+          <option value="all">{t("All address books")}</option>
           {ownBooks.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
           {subscribed.map((b) => (
             <option key={`${b.accountId}:${b.book.id}`} value={`${b.accountId}:${b.book.id}`}>
@@ -149,7 +150,7 @@ export function RecipientPicker({ onPick, onClose }: { onPick: (field: Field, ad
       {chosen.length > 0 && (
         <div className="row wrap gap-4" style={{ marginBottom: 10 }}>
           {chosen.map((r) => (
-            <button key={r.key} className="chip" onClick={() => toggle(r)} title="Remove">
+            <button key={r.key} className="chip" onClick={() => toggle(r)} title={t("Remove")}>
               {r.name ?? r.email} <X size={12} />
             </button>
           ))}
@@ -158,7 +159,7 @@ export function RecipientPicker({ onPick, onClose }: { onPick: (field: Field, ad
 
       <div style={{ maxHeight: "48vh", overflowY: "auto" }}>
         {contacts.loading && !rows.length ? (
-          <Spinner label="Loading contacts…" />
+          <Spinner label={t("Loading contacts…")} />
         ) : !rows.length ? (
           <p className="hint">{q ? "Nobody matches that." : "No contacts in this address book."}</p>
         ) : (

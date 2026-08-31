@@ -6,6 +6,7 @@ import { useSession } from "@/store/session";
 import { disableWebPush, enableWebPush, webPushActive } from "@/lib/webpushEnable";
 import { supportsEmailPush, webPushAvailable } from "@/lib/webpush";
 import { toast } from "@/ui/toast";
+import { t } from "@/lib/i18n";
 
 export function NotificationsSettings() {
   const s = useSettings((st) => st.settings);
@@ -23,8 +24,8 @@ export function NotificationsSettings() {
   }, [s.desktopNotifications]);
   return (
     <div>
-      <h1>Notifications</h1>
-      <p className="lead">{`Live updates are delivered via JMAP push (${pushConnected ? "connected" : "reconnecting…"}).`}</p>
+      <h1>{t("Notifications")}</h1>
+      <p className="lead">{t("Live updates are delivered via JMAP push ({state}).", { state: pushConnected ? t("connected") : t("reconnecting…") })}</p>
       <Switch
         checked={s.desktopNotifications}
         onChange={async (v) => {
@@ -35,8 +36,8 @@ export function NotificationsSettings() {
           }
           update({ desktopNotifications: v });
         }}
-        label="Desktop notifications while ihasmail is open"
-        hint={perm === "denied" ? "Notifications are blocked in your browser settings." : perm === "unsupported" ? "Not supported in this browser." : "Shows a system notification when new mail arrives in your Inbox while the tab is in the background."}
+        label={t("Desktop notifications while ihasmail is open")}
+        hint={perm === "denied" ? t("Notifications are blocked in your browser settings.") : perm === "unsupported" ? t("Not supported in this browser.") : t("Shows a system notification when new mail arrives in your Inbox while the tab is in the background.")}
         disabled={perm === "denied" || perm === "unsupported"}
       />
       {/*
@@ -57,7 +58,7 @@ export function NotificationsSettings() {
               const res = await enableWebPush();
               if (!res.ok) { toast.error(res.reason); return; }
               setBackground(true);
-              toast.success("Background notifications are on");
+              toast.success(t("Background notifications are on"));
             } else {
               await disableWebPush();
               setBackground(false);
@@ -66,20 +67,20 @@ export function NotificationsSettings() {
             setBusy(false);
           }
         }}
-        label="Notify me even when ihasmail is closed"
+        label={t("Notify me even when ihasmail is closed")}
         hint={
           !canBackground
-            ? "Needs a browser with the Push API and a mail server that publishes a push key."
+            ? t("Needs a browser with the Push API and a mail server that publishes a push key.")
             : supportsEmailPush()
-              ? "Your mail server delivers these straight to your browser, so they arrive with no ihasmail tab open, naming the sender and subject. Your browser still has to be running — if you quit it completely, notifications wait and arrive when you open it again."
-              : "Your mail server can wake this browser, but will not include the sender or subject. Your browser still has to be running."
+              ? t("Your mail server delivers these straight to your browser, so they arrive with no ihasmail tab open, naming the sender and subject. Your browser still has to be running — if you quit it completely, notifications wait and arrive when you open it again.")
+              : t("Your mail server can wake this browser, but will not include the sender or subject. Your browser still has to be running.")
         }
       />
-      <Switch checked={s.notificationSound} onChange={(v) => update({ notificationSound: v })} label="Play a sound for new mail" />
+      <Switch checked={s.notificationSound} onChange={(v) => update({ notificationSound: v })} label={t("Play a sound for new mail")} />
       <div className="row mt-16">
-        <button className="btn" onClick={() => { showNotification("ihasmail test", { body: "This is what a new-mail notification looks like." }); playNewMailSound(); }}>Test notification</button>
+        <button className="btn" onClick={() => { showNotification(t("ihasmail test"), { body: t("This is what a new-mail notification looks like.") }); playNewMailSound(); }}>{t("Test notification")}</button>
       </div>
-      <p className="hint mt-8">The tab title and favicon always show your unread Inbox count.</p>
+      <p className="hint mt-8">{t("The tab title and favicon always show your unread Inbox count.")}</p>
     </div>
   );
 }

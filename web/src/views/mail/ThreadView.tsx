@@ -12,6 +12,7 @@ import { client } from "@/jmap/client";
 import { LabelPicker } from "./LabelPicker";
 import { threadScrollTarget } from "@/lib/threadScroll";
 import { useEdgeBack } from "@/lib/touch";
+import { t } from "@/lib/i18n";
 
 /** How long the opening scroll keeps its place while bodies and images land. */
 const HOLD_MS = 2000;
@@ -230,30 +231,30 @@ export function ThreadView({ threadId, mailboxId, onBack, actions, onNavigate, h
   return (
     <div className="thread-view" ref={setViewEl}>
       <div className="thread-toolbar">
-        <button className="icon-btn" onClick={onBack} aria-label="Back to list" title="Back (u)">
+        <button className="icon-btn" onClick={onBack} aria-label={t("Back to list")} title={t("Back (u)")}>
           <ArrowLeft size={20} />
         </button>
-        <button className="icon-btn" title="Archive (e)" onClick={() => void actions.archive(rowIds)}><Archive size={19} /></button>
+        <button className="icon-btn" title={t("Archive (e)")} onClick={() => void actions.archive(rowIds)}><Archive size={19} /></button>
         <button className="icon-btn" title={inJunk ? "Not spam" : "Report spam (!)"} onClick={() => void actions.spam(rowIds)}>{inJunk ? <ShieldCheck size={19} /> : <AlertOctagon size={19} />}</button>
-        <button className="icon-btn" title="Delete (#)" onClick={() => void actions.trash(rowIds)}><Trash2 size={19} /></button>
+        <button className="icon-btn" title={t("Delete (#)")} onClick={() => void actions.trash(rowIds)}><Trash2 size={19} /></button>
         <span className="tb-sep hide-mobile" />
         <button className="icon-btn hide-mobile" title={anyUnread ? "Mark as read" : "Mark as unread"} onClick={() => void actions.read(anyUnread, rowIds)}>{anyUnread ? <MailOpen size={19} /> : <Mail size={19} />}</button>
-        <button className="icon-btn hide-mobile" title="Move to (v)" onClick={() => actions.move(rowIds)}><FolderInput size={19} /></button>
-        <button className="icon-btn hide-mobile" title="Labels (l)" onClick={(e) => setLabelAnchor({ x: e.clientX, y: e.clientY })}><Tag size={19} /></button>
-        <button className="icon-btn" onClick={moreMenu.open} aria-label="More"><MoreVertical size={19} /></button>
+        <button className="icon-btn hide-mobile" title={t("Move to (v)")} onClick={() => actions.move(rowIds)}><FolderInput size={19} /></button>
+        <button className="icon-btn hide-mobile" title={t("Labels (l)")} onClick={(e) => setLabelAnchor({ x: e.clientX, y: e.clientY })}><Tag size={19} /></button>
+        <button className="icon-btn" onClick={moreMenu.open} aria-label={t("More")}><MoreVertical size={19} /></button>
         <Popover anchor={moreMenu.anchor} onClose={moreMenu.close} align="start" width={240}>
           <MenuItem icon={<Star size={16} />} label={anyStarred ? "Remove star" : "Add star"} onClick={() => void actions.star(!anyStarred, rowIds)} />
-          <MenuItem icon={<Tag size={16} />} label="Label…" onClick={() => setLabelAnchor({ x: window.innerWidth / 2, y: 100 })} />
+          <MenuItem icon={<Tag size={16} />} label={t("Label…")} onClick={() => setLabelAnchor({ x: window.innerWidth / 2, y: 100 })} />
           <MenuItem icon={allExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />} label={allExpanded ? "Collapse all" : "Expand all"} onClick={() => { setAllExpanded((v) => !v); setExpanded({}); }} />
           <MenuSep />
-          <MenuItem icon={<Printer size={16} />} label="Print conversation" onClick={() => window.print()} />
+          <MenuItem icon={<Printer size={16} />} label={t("Print conversation")} onClick={() => window.print()} />
           {last && accountId && (
-            <MenuItem icon={<Download size={16} />} label="Download latest as .eml" onClick={() => { const a = document.createElement("a"); a.href = client.downloadUrl(accountId, last.blobId, `${(last.subject || "message").replace(/[^\w.-]+/g, "_")}.eml`, "message/rfc822"); a.download = ""; a.click(); }} />
+            <MenuItem icon={<Download size={16} />} label={t("Download latest as .eml")} onClick={() => { const a = document.createElement("a"); a.href = client.downloadUrl(accountId, last.blobId, `${(last.subject || "message").replace(/[^\w.-]+/g, "_")}.eml`, "message/rfc822"); a.download = ""; a.click(); }} />
           )}
         </Popover>
         <div className="thread-nav hide-mobile">
-          <button className="icon-btn sm" disabled={!hasPrev} onClick={() => onNavigate(-1)} title="Newer (k)"><ChevronUp size={18} /></button>
-          <button className="icon-btn sm" disabled={!hasNext} onClick={() => onNavigate(1)} title="Older (j)"><ChevronDown size={18} /></button>
+          <button className="icon-btn sm" disabled={!hasPrev} onClick={() => onNavigate(-1)} title={t("Newer (k)")}><ChevronUp size={18} /></button>
+          <button className="icon-btn sm" disabled={!hasNext} onClick={() => onNavigate(1)} title={t("Older (j)")}><ChevronDown size={18} /></button>
         </div>
       </div>
       <div className="thread-scroll" ref={scrollRef}>
@@ -270,7 +271,7 @@ export function ThreadView({ threadId, mailboxId, onBack, actions, onNavigate, h
           {messages.length > 1 && <span className="muted small nowrap" style={{ marginTop: 6 }}>{messages.length} messages</span>}
         </div>
         {error && <div className="error-box" style={{ margin: 16 }}>{error}</div>}
-        {loading && !messages.length && <Spinner label="Loading conversation…" />}
+        {loading && !messages.length && <Spinner label={t("Loading conversation…")} />}
         {messages.map((e, i) => (
           <MessageView
             key={e.id}

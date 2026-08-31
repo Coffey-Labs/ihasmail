@@ -3,6 +3,7 @@ import { Folder, Inbox } from "lucide-react";
 import { useMail } from "@/store/mail";
 import { Dialog } from "@/ui/dialog";
 import type { Id, Mailbox } from "@/jmap/types";
+import { t } from "@/lib/i18n";
 
 export function MailboxPicker({ title, onClose, onPick, exclude }: { title: string; onClose: () => void; onPick: (id: Id) => void; exclude?: Id[] }) {
   const mailboxes = useMail((s) => s.mailboxes);
@@ -23,7 +24,7 @@ export function MailboxPicker({ title, onClose, onPick, exclude }: { title: stri
       <input
         className="input"
         autoFocus
-        placeholder="Type a folder name…"
+        placeholder={t("Type a folder name…")}
         value={q}
         onChange={(e) => {
           setQ(e.target.value);
@@ -47,7 +48,7 @@ export function MailboxPicker({ title, onClose, onPick, exclude }: { title: stri
         {list.map(({ m, path }, i) => (
           <PickerRow key={m.id} m={m} path={path} active={i === active} onClick={() => onPick(m.id)} onHover={() => setActive(i)} />
         ))}
-        {!list.length && <div className="empty" style={{ padding: 24 }}>No matching folders</div>}
+        {!list.length && <div className="empty" style={{ padding: 24 }}>{t("No matching folders")}</div>}
       </div>
     </Dialog>
   );

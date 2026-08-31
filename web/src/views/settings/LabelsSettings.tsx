@@ -3,6 +3,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { useSettings } from "@/store/settings";
 import { CALENDAR_COLORS, ColorSwatches } from "@/ui/misc";
 import { promptDialog } from "@/ui/dialog";
+import { t } from "@/lib/i18n";
 
 export function LabelsSettings() {
   const labels = useSettings((s) => s.settings.labels);
@@ -19,8 +20,8 @@ export function LabelsSettings() {
 
   return (
     <div>
-      <h1>Labels</h1>
-      <p className="lead">Labels are IMAP keywords stored on your messages, so they sync to other clients. Names and colours are kept in this browser.</p>
+      <h1>{t("Labels")}</h1>
+      <p className="lead">{t("Labels are IMAP keywords stored on your messages, so they sync to other clients. Names and colours are kept in this browser.")}</p>
       {labels.map((l) => (
         <div key={l.keyword} className="card">
           <div className="card-head">
@@ -30,7 +31,7 @@ export function LabelsSettings() {
             ) : (
               <h3 style={{ cursor: "text" }} onClick={() => setEditing(l.keyword)}>{l.name} <span className="hint" style={{ fontWeight: 400 }}>({l.keyword})</span></h3>
             )}
-            <button className="icon-btn sm danger" aria-label="Delete label" onClick={() => update({ labels: labels.filter((x) => x.keyword !== l.keyword) })}><Trash2 size={16} /></button>
+            <button className="icon-btn sm danger" aria-label={t("Delete label")} onClick={() => update({ labels: labels.filter((x) => x.keyword !== l.keyword) })}><Trash2 size={16} /></button>
           </div>
           <div style={{ marginTop: 8 }}>
             <ColorSwatches value={l.color} onChange={(c) => update({ labels: labels.map((x) => (x.keyword === l.keyword ? { ...x, color: c } : x)) })} />

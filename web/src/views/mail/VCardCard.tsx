@@ -4,6 +4,7 @@ import type { EmailBodyPart, Id } from "@/jmap/types";
 import { useContacts } from "@/store/contacts";
 import { client } from "@/jmap/client";
 import { toast } from "@/ui/toast";
+import { t } from "@/lib/i18n";
 
 export function VCardCard({ part, accountId }: { part: EmailBodyPart; accountId: Id }) {
   const contacts = useContacts();
@@ -30,7 +31,7 @@ export function VCardCard({ part, accountId }: { part: EmailBodyPart; accountId:
       <UserPlus size={20} style={{ color: "var(--accent)" }} />
       <div className="grow">
         <div style={{ fontWeight: 600 }}>{part.name ?? "Contact card"}</div>
-        <div className="hint">vCard attachment</div>
+        <div className="hint">{t("vCard attachment")}</div>
       </div>
       <button className="btn btn-sm" disabled={busy || done} onClick={() => void add()}>{done ? "Added" : "Add to contacts"}</button>
     </div>

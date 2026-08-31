@@ -8,6 +8,7 @@ import { MenuItem, MenuSep, Popover, useMenu } from "@/ui/popover";
 import { confirmDialog, promptDialog } from "@/ui/dialog";
 import { toast } from "@/ui/toast";
 import { ShareDialog } from "../settings/ShareDialog";
+import { t } from "@/lib/i18n";
 
 /**
  * Re-read the session so newly shared books appear without a sign-in.
@@ -69,18 +70,18 @@ export function ContactsSidebar() {
 
   return (
     <>
-      <div className="nav-section"><span>Contacts</span></div>
+      <div className="nav-section"><span>{t("Contacts")}</span></div>
       <div className={`nav-item ${isOn(null, "all") ? "active" : ""}`} onClick={() => contacts.select({ accountId: null, bookId: "all" })}>
         <Users size={17} />
-        <span className="grow truncate">All contacts</span>
+        <span className="grow truncate">{t("All contacts")}</span>
       </div>
 
       <div className="nav-section">
-        <span>My address books</span>
+        <span>{t("My address books")}</span>
         <button
           className="icon-btn sm"
-          title="New address book"
-          aria-label="New address book"
+          title={t("New address book")}
+          aria-label={t("New address book")}
           onClick={async () => {
             const name = await promptDialog({ title: "New address book", placeholder: "Name" });
             if (!name?.trim()) return;
@@ -103,16 +104,16 @@ export function ContactsSidebar() {
         >
           <Book size={17} />
           <span className="grow truncate">{b.name}</span>
-          {Object.keys(b.shareWith ?? {}).length > 0 && <Share2 size={12} className="faint" aria-label="Shared" />}
+          {Object.keys(b.shareWith ?? {}).length > 0 && <Share2 size={12} className="faint" aria-label={t("Shared")} />}
         </div>
       ))}
 
       <div className="nav-section">
-        <span>Shared with me</span>
+        <span>{t("Shared with me")}</span>
         <button
           className="icon-btn sm"
-          title="Check for new shares"
-          aria-label="Check for new shares"
+          title={t("Check for new shares")}
+          aria-label={t("Check for new shares")}
           onClick={async () => { setRefreshing(true); await refreshShares(true); setRefreshing(false); }}
         >
           <RefreshCw size={14} className={refreshing ? "spin" : ""} />
@@ -129,8 +130,8 @@ export function ContactsSidebar() {
           <span className="grow truncate">{book.name}</span>
           <button
             className="icon-btn sm"
-            title="Remove from my contacts"
-            aria-label="Remove from my contacts"
+            title={t("Remove from my contacts")}
+            aria-label={t("Remove from my contacts")}
             onClick={(e) => { e.stopPropagation(); void contacts.setBookSubscribed(accountId, book.id, false); }}
           >
             <X size={13} />
@@ -148,15 +149,15 @@ export function ContactsSidebar() {
           guess made on their behalf. */}
       {available.length > 0 && (
         <>
-          <div className="nav-section"><span>Available to add</span></div>
+          <div className="nav-section"><span>{t("Available to add")}</span></div>
           {available.map(({ accountId, accountName, book }) => (
             <div key={`${accountId}:${book.id}`} className="nav-item" title={`${book.name} — from ${accountName}`}>
               <BookOpen size={17} className="faint" />
               <span className="grow truncate faint">{book.name}</span>
               <button
                 className="icon-btn sm"
-                title="Add to my contacts"
-                aria-label="Add to my contacts"
+                title={t("Add to my contacts")}
+                aria-label={t("Add to my contacts")}
                 onClick={(e) => { e.stopPropagation(); void contacts.setBookSubscribed(accountId, book.id, true); }}
               >
                 <Plus size={13} />
@@ -180,7 +181,7 @@ export function ContactsSidebar() {
           <>
             <MenuItem
               icon={<Pencil size={16} />}
-              label="Rename"
+              label={t("Rename")}
               onClick={async () => {
                 const name = await promptDialog({ title: "Rename address book", defaultValue: menuBook.name });
                 if (!name?.trim() || name === menuBook.name) return;
@@ -191,13 +192,13 @@ export function ContactsSidebar() {
                 }
               }}
             />
-            <MenuItem icon={<Share2 size={16} />} label="Share…" disabled={!menuBook.myRights?.mayShare} onClick={() => setShare(menuBook)} />
+            <MenuItem icon={<Share2 size={16} />} label={t("Share…")} disabled={!menuBook.myRights?.mayShare} onClick={() => setShare(menuBook)} />
             {/* Revoking the lot, rather than removing people one at a time in
                 the dialog. Only shown when there is something to revoke. */}
             {Object.keys(menuBook.shareWith ?? {}).length > 0 && (
               <MenuItem
                 icon={<UserMinus size={16} />}
-                label="Stop sharing"
+                label={t("Stop sharing")}
                 disabled={!menuBook.myRights?.mayShare}
                 onClick={async () => {
                   const who = Object.keys(menuBook.shareWith ?? {}).length;
@@ -220,7 +221,7 @@ export function ContactsSidebar() {
             <MenuItem
               danger
               icon={<Trash2 size={16} />}
-              label="Delete"
+              label={t("Delete")}
               disabled={menuBook.isDefault}
               onClick={async () => {
                 if (!(await confirmDialog({ title: `Delete “${menuBook.name}”?`, message: "The contacts in it go too.", confirmLabel: "Delete", danger: true }))) return;

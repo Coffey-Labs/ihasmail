@@ -2,6 +2,7 @@ import { useSettings } from "@/store/settings";
 import { Switch, useIsTouch } from "@/ui/misc";
 import { SWIPE_CHOICES, type SwipeAction } from "@/lib/swipe";
 import { UI_LANGUAGES } from "@/lib/languages";
+import { t as translate } from "@/lib/i18n";
 
 /**
  * The theme cards, each previewing the background it actually paints. Kept as
@@ -32,9 +33,9 @@ export function AppearanceSettings() {
   const isTouch = useIsTouch();
   return (
     <div>
-      <h1>Appearance</h1>
-      <p className="lead">Make ihasmail yours.</p>
-      <h2>Theme</h2>
+      <h1>{translate("Appearance")}</h1>
+      <p className="lead">{translate("Make ihasmail yours.")}</p>
+      <h2>{translate("Theme")}</h2>
       <div className="theme-grid">
         {THEMES.map((t) => (
           <button key={t.id} className={`theme-card ${s.theme === t.id ? "active" : ""}`} onClick={() => update({ theme: t.id })}>
@@ -44,43 +45,43 @@ export function AppearanceSettings() {
         ))}
       </div>
       <p className="hint" style={{ marginTop: 10 }}>
-        <strong>ihasmail</strong> is the palette from <a href="https://ihasmail.org" target="_blank" rel="noopener noreferrer">ihasmail.org</a>, and what a new account starts on. It is a dark theme, so it counts as dark wherever that matters, and the accent colour below still applies on top of it.
+        <strong>{translate("ihasmail")}</strong> is the palette from <a href="https://ihasmail.org" target="_blank" rel="noopener noreferrer">{translate("ihasmail.org")}</a>, and what a new account starts on. It is a dark theme, so it counts as dark wherever that matters, and the accent colour below still applies on top of it.
       </p>
       <Switch
         checked={s.themeMessageBody}
         onChange={(v) => update({ themeMessageBody: v })}
-        label="Apply the theme to messages too"
-        hint="Plain-text mail already follows the theme. With this on, HTML mail that brings no colours of its own does as well, instead of sitting on a white card. Messages that style themselves are left exactly as the sender designed them."
+        label={translate("Apply the theme to messages too")}
+        hint={translate("Plain-text mail already follows the theme. With this on, HTML mail that brings no colours of its own does as well, instead of sitting on a white card. Messages that style themselves are left exactly as the sender designed them.")}
       />
 
-      <h2>Accent color</h2>
+      <h2>{translate("Accent color")}</h2>
       <div className="swatches">
         {ACCENTS.map((a) => (
           <button key={a.id} className={`swatch ${s.accent === a.id ? "active" : ""}`} style={{ background: a.color }} onClick={() => update({ accent: a.id })} aria-label={a.id} title={a.id} />
         ))}
       </div>
-      <h2>Density & text</h2>
+      <h2>{translate("Density & text")}</h2>
       <div className="field-row">
         <div className="field">
-          <label>Display density</label>
+          <label>{translate("Display density")}</label>
           <select className="select" value={s.density} onChange={(e) => update({ density: e.target.value as typeof s.density })}>
-            <option value="comfortable">Comfortable</option>
-            <option value="cozy">Cozy (default)</option>
-            <option value="compact">Compact</option>
+            <option value="comfortable">{translate("Comfortable")}</option>
+            <option value="cozy">{translate("Cozy (default)")}</option>
+            <option value="compact">{translate("Compact")}</option>
           </select>
         </div>
         <div className="field">
-          <label>Text size</label>
+          <label>{translate("Text size")}</label>
           <select className="select" value={s.fontSize} onChange={(e) => update({ fontSize: e.target.value as typeof s.fontSize })}>
-            <option value="small">Small</option>
-            <option value="medium">Medium</option>
-            <option value="large">Large</option>
+            <option value="small">{translate("Small")}</option>
+            <option value="medium">{translate("Medium")}</option>
+            <option value="large">{translate("Large")}</option>
           </select>
         </div>
       </div>
-      <h2>Language</h2>
+      <h2>{translate("Language")}</h2>
       <div className="field" style={{ maxWidth: 320 }}>
-        <label htmlFor="ui-language">Interface language</label>
+        <label htmlFor="ui-language">{translate("Interface language")}</label>
         <select id="ui-language" className="select" value={s.uiLanguage} onChange={(e) => update({ uiLanguage: e.target.value })}>
           {UI_LANGUAGES.map((l) => (
             <option key={l.tag} value={l.tag}>{l.name}</option>
@@ -93,19 +94,21 @@ export function AppearanceSettings() {
         more are coming is a roadmap.
       */}
       <p className="hint">
-        Only languages ihasmail has been translated into appear here, so this list grows as translations land rather than ahead of them — a language offered without strings behind it would leave the page claiming to be in a language it is not.
+        
+        {translate("Only languages ihasmail has been translated into appear here, so this list grows as translations land rather than ahead of them — a language offered without strings behind it would leave the page claiming to be in a language it is not.")}
       </p>
       <p className="hint">
-        This is separate from <strong>Language &amp; region</strong> in General, which decides how dates, times and numbers are written. You can read an English interface with German dates, or the other way round.
+        This is separate from <strong>{translate("Language & region")}</strong> in General, which decides how dates, times and numbers are written. You can read an English interface with German dates, or the other way round.
       </p>
 
-      <h2>Swiping</h2>
+      <h2>{translate("Swiping")}</h2>
       <p className="hint">
-        On a touchscreen, drag a message sideways to act on it. Each direction can do one thing, or nothing. These follow your account, so a phone and a tablet agree; a mouse ignores them and keeps dragging messages into folders instead.
+        
+        {translate("On a touchscreen, drag a message sideways to act on it. Each direction can do one thing, or nothing. These follow your account, so a phone and a tablet agree; a mouse ignores them and keeps dragging messages into folders instead.")}
       </p>
       <div className="field-row">
         <div className="field">
-          <label htmlFor="swipe-right">Swipe right</label>
+          <label htmlFor="swipe-right">{translate("Swipe right")}</label>
           <select id="swipe-right" className="select" value={s.swipeRight} onChange={(e) => update({ swipeRight: e.target.value as SwipeAction })}>
             {SWIPE_CHOICES.map((c) => (
               <option key={c.value} value={c.value}>{c.label}</option>
@@ -113,7 +116,7 @@ export function AppearanceSettings() {
           </select>
         </div>
         <div className="field">
-          <label htmlFor="swipe-left">Swipe left</label>
+          <label htmlFor="swipe-left">{translate("Swipe left")}</label>
           <select id="swipe-left" className="select" value={s.swipeLeft} onChange={(e) => update({ swipeLeft: e.target.value as SwipeAction })}>
             {SWIPE_CHOICES.map((c) => (
               <option key={c.value} value={c.value}>{c.label}</option>
@@ -129,17 +132,19 @@ export function AppearanceSettings() {
       */}
       {!isTouch && (
         <p className="hint">
-          This screen has no touchscreen, so nothing here changes what it does. Your phone or tablet will pick these up.
+          
+          {translate("This screen has no touchscreen, so nothing here changes what it does. Your phone or tablet will pick these up.")}
         </p>
       )}
       <p className="hint">
-        Holding a message selects it, and holding a folder opens its menu. Pull the top of the message list down to check for new mail.
+        
+        {translate("Holding a message selects it, and holding a folder opens its menu. Pull the top of the message list down to check for new mail.")}
       </p>
 
-      <h2>Sidebar</h2>
-      <Switch checked={s.labelsSidebar} onChange={(v) => update({ labelsSidebar: v })} label="Show labels in the sidebar" />
-      <Switch checked={s.showHiddenFolders} onChange={(v) => update({ showHiddenFolders: v })} label="Show unsubscribed (hidden) folders" />
-      <Switch checked={s.sidebarCollapsed} onChange={(v) => update({ sidebarCollapsed: v })} label="Collapse sidebar to icons" />
+      <h2>{translate("Sidebar")}</h2>
+      <Switch checked={s.labelsSidebar} onChange={(v) => update({ labelsSidebar: v })} label={translate("Show labels in the sidebar")} />
+      <Switch checked={s.showHiddenFolders} onChange={(v) => update({ showHiddenFolders: v })} label={translate("Show unsubscribed (hidden) folders")} />
+      <Switch checked={s.sidebarCollapsed} onChange={(v) => update({ sidebarCollapsed: v })} label={translate("Collapse sidebar to icons")} />
     </div>
   );
 }

@@ -10,6 +10,7 @@ import { toast } from "@/ui/toast";
 import { askDeleteScope, askEditScope, droppedMessage, runScoped } from "./scope";
 import { toLocalDateOnly } from "@/lib/dates";
 import { formatTime } from "@/lib/format";
+import { t } from "@/lib/i18n";
 
 export type CalendarContext =
   | { kind: "event"; inst: EventInstance; anchor: Anchor }
@@ -50,10 +51,10 @@ export function CalendarContextMenu({ ctx, onClose, onOpen, onEdit, onCreate }: 
     return (
       <Popover anchor={ctx.anchor} onClose={onClose} width={240}>
         <MenuItem icon={<Plus size={16} />} label={allDay ? `New all-day event on ${formatDayMonth(start)}` : `New event at ${formatTime(start)}`} onClick={() => onCreate(start, end, allDay)} />
-        {!allDay && <MenuItem icon={<CalendarDays size={16} />} label="New all-day event" onClick={() => { const d = new Date(start); d.setHours(0, 0, 0, 0); onCreate(d, new Date(d.getTime() + 86400000), true); }} />}
+        {!allDay && <MenuItem icon={<CalendarDays size={16} />} label={t("New all-day event")} onClick={() => { const d = new Date(start); d.setHours(0, 0, 0, 0); onCreate(d, new Date(d.getTime() + 86400000), true); }} />}
         <MenuSep />
-        <MenuItem icon={<CalIcon size={16} />} label="Go to day" onClick={() => navigate(`/calendar/day/${toLocalDateOnly(start)}`)} />
-        <MenuItem icon={<CalIcon size={16} />} label="Go to week" onClick={() => navigate(`/calendar/week/${toLocalDateOnly(start)}`)} />
+        <MenuItem icon={<CalIcon size={16} />} label={t("Go to day")} onClick={() => navigate(`/calendar/day/${toLocalDateOnly(start)}`)} />
+        <MenuItem icon={<CalIcon size={16} />} label={t("Go to week")} onClick={() => navigate(`/calendar/week/${toLocalDateOnly(start)}`)} />
       </Popover>
     );
   }
@@ -109,9 +110,9 @@ export function CalendarContextMenu({ ctx, onClose, onOpen, onEdit, onCreate }: 
 
   return (
     <Popover anchor={ctx.anchor} onClose={onClose} width={260} closeOnClick={false}>
-      <MenuItem icon={<ExternalLink size={16} />} label="Open" onClick={() => { onClose(); onOpen(inst, ctx.anchor); }} />
-      {canEdit && <MenuItem icon={<Pencil size={16} />} label="Edit…" onClick={() => { onClose(); onEdit(inst); }} />}
-      {canEdit && <MenuItem icon={<Copy size={16} />} label="Duplicate" onClick={() => { onClose(); void duplicate(); }} />}
+      <MenuItem icon={<ExternalLink size={16} />} label={t("Open")} onClick={() => { onClose(); onOpen(inst, ctx.anchor); }} />
+      {canEdit && <MenuItem icon={<Pencil size={16} />} label={t("Edit…")} onClick={() => { onClose(); onEdit(inst); }} />}
+      {canEdit && <MenuItem icon={<Copy size={16} />} label={t("Duplicate")} onClick={() => { onClose(); void duplicate(); }} />}
       {canEdit && (
         <>
           <MenuSep />
@@ -119,8 +120,8 @@ export function CalendarContextMenu({ ctx, onClose, onOpen, onEdit, onCreate }: 
           {categories.map((c) => (
             <MenuItem key={c.name} label={<span className="row gap-8"><span className="label-dot" style={{ background: c.color, width: 12, height: 12 }} />{c.name}</span>} checked={currentCat?.name === c.name} onClick={() => { onClose(); setCategory(currentCat?.name === c.name ? null : c); }} />
           ))}
-          <MenuItem icon={<X size={16} />} label="No category" disabled={!currentCat} onClick={() => { onClose(); setCategory(null); }} />
-          <MenuItem icon={<Tag size={16} />} label="Manage categories…" onClick={() => { onClose(); navigate("/settings/calendar"); }} />
+          <MenuItem icon={<X size={16} />} label={t("No category")} disabled={!currentCat} onClick={() => { onClose(); setCategory(null); }} />
+          <MenuItem icon={<Tag size={16} />} label={t("Manage categories…")} onClick={() => { onClose(); navigate("/settings/calendar"); }} />
           {/*
             A colour is what a category already carries, so a second way to set
             one just made two things that could disagree. Picking a category is
@@ -131,9 +132,9 @@ export function CalendarContextMenu({ ctx, onClose, onOpen, onEdit, onCreate }: 
             another client — would otherwise ignore its category for ever with
             nothing on the menu to say why.
           */}
-          {ev.color && <MenuItem icon={<Palette size={16} />} label="Clear custom colour" onClick={() => { onClose(); setColor(null); }} />}
+          {ev.color && <MenuItem icon={<Palette size={16} />} label={t("Clear custom colour")} onClick={() => { onClose(); setColor(null); }} />}
           <MenuSep />
-          <MenuItem danger icon={<Trash2 size={16} />} label="Delete" onClick={() => void del()} />
+          <MenuItem danger icon={<Trash2 size={16} />} label={t("Delete")} onClick={() => void del()} />
         </>
       )}
     </Popover>

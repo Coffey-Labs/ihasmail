@@ -2,6 +2,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useSta
 import { AlignCenter, AlignLeft, AlignRight, Bold, Code, Eraser, Image as ImageIcon, Indent, Italic, Link as LinkIcon, List, ListOrdered, Outdent, Quote, Redo, Smile, Strikethrough, Underline, Undo, Palette, Highlighter, Type } from "lucide-react";
 import { sanitizeEditorHtml } from "@/lib/html";
 import { Popover, useMenu } from "@/ui/popover";
+import { t as translate } from "@/lib/i18n";
 
 export interface RichEditorHandle {
   focus(): void;
@@ -218,46 +219,46 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
         }}
         role="textbox"
         aria-multiline="true"
-        aria-label="Message body"
+        aria-label={translate("Message body")}
       />
       {showToolbar && (
-        <div className="editor-toolbar" role="toolbar" aria-label="Formatting">
-          <button type="button" className="icon-btn" title="Undo (Ctrl+Z)" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("undo")}><Undo size={16} /></button>
-          <button type="button" className="icon-btn" title="Redo" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("redo")}><Redo size={16} /></button>
+        <div className="editor-toolbar" role="toolbar" aria-label={translate("Formatting")}>
+          <button type="button" className="icon-btn" title={translate("Undo (Ctrl+Z)")} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("undo")}><Undo size={16} /></button>
+          <button type="button" className="icon-btn" title={translate("Redo")} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("redo")}><Redo size={16} /></button>
           <span className="tb-sep" />
-          <select title="Font size" onMouseDown={saveRange} onChange={(e) => { exec("fontSize", e.target.value); e.target.value = ""; }} defaultValue="">
-            <option value="" disabled>Size</option>
-            <option value="1">Small</option>
-            <option value="3">Normal</option>
-            <option value="5">Large</option>
-            <option value="7">Huge</option>
+          <select title={translate("Font size")} onMouseDown={saveRange} onChange={(e) => { exec("fontSize", e.target.value); e.target.value = ""; }} defaultValue="">
+            <option value="" disabled>{translate("Size")}</option>
+            <option value="1">{translate("Small")}</option>
+            <option value="3">{translate("Normal")}</option>
+            <option value="5">{translate("Large")}</option>
+            <option value="7">{translate("Huge")}</option>
           </select>
-          <button type="button" className="icon-btn" title="Bold (Ctrl+B)" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("bold")}><Bold size={16} /></button>
-          <button type="button" className="icon-btn" title="Italic (Ctrl+I)" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("italic")}><Italic size={16} /></button>
-          <button type="button" className="icon-btn" title="Underline (Ctrl+U)" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("underline")}><Underline size={16} /></button>
-          <button type="button" className="icon-btn" title="Strikethrough" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("strikeThrough")}><Strikethrough size={16} /></button>
-          <button type="button" className="icon-btn" title="Text color" onMouseDown={(e) => { e.preventDefault(); saveRange(); }} onClick={colorMenu.open}><Palette size={16} /></button>
-          <button type="button" className="icon-btn" title="Highlight" onMouseDown={(e) => { e.preventDefault(); saveRange(); }} onClick={hiliteMenu.open}><Highlighter size={16} /></button>
+          <button type="button" className="icon-btn" title={translate("Bold (Ctrl+B)")} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("bold")}><Bold size={16} /></button>
+          <button type="button" className="icon-btn" title={translate("Italic (Ctrl+I)")} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("italic")}><Italic size={16} /></button>
+          <button type="button" className="icon-btn" title={translate("Underline (Ctrl+U)")} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("underline")}><Underline size={16} /></button>
+          <button type="button" className="icon-btn" title={translate("Strikethrough")} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("strikeThrough")}><Strikethrough size={16} /></button>
+          <button type="button" className="icon-btn" title={translate("Text color")} onMouseDown={(e) => { e.preventDefault(); saveRange(); }} onClick={colorMenu.open}><Palette size={16} /></button>
+          <button type="button" className="icon-btn" title={translate("Highlight")} onMouseDown={(e) => { e.preventDefault(); saveRange(); }} onClick={hiliteMenu.open}><Highlighter size={16} /></button>
           <span className="tb-sep" />
-          <button type="button" className="icon-btn" title="Align left" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("justifyLeft")}><AlignLeft size={16} /></button>
-          <button type="button" className="icon-btn" title="Center" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("justifyCenter")}><AlignCenter size={16} /></button>
-          <button type="button" className="icon-btn" title="Align right" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("justifyRight")}><AlignRight size={16} /></button>
+          <button type="button" className="icon-btn" title={translate("Align left")} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("justifyLeft")}><AlignLeft size={16} /></button>
+          <button type="button" className="icon-btn" title={translate("Center")} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("justifyCenter")}><AlignCenter size={16} /></button>
+          <button type="button" className="icon-btn" title={translate("Align right")} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("justifyRight")}><AlignRight size={16} /></button>
           <span className="tb-sep" />
-          <button type="button" className="icon-btn" title="Bulleted list" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("insertUnorderedList")}><List size={16} /></button>
-          <button type="button" className="icon-btn" title="Numbered list" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("insertOrderedList")}><ListOrdered size={16} /></button>
-          <button type="button" className="icon-btn" title="Decrease indent" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("outdent")}><Outdent size={16} /></button>
-          <button type="button" className="icon-btn" title="Increase indent" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("indent")}><Indent size={16} /></button>
-          <button type="button" className="icon-btn" title="Quote" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("formatBlock", "blockquote")}><Quote size={16} /></button>
-          <button type="button" className="icon-btn" title="Code block" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("formatBlock", "pre")}><Code size={16} /></button>
-          <button type="button" className="icon-btn" title="Normal text" onMouseDown={(e) => e.preventDefault()} onClick={() => exec("formatBlock", "div")}><Type size={16} /></button>
+          <button type="button" className="icon-btn" title={translate("Bulleted list")} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("insertUnorderedList")}><List size={16} /></button>
+          <button type="button" className="icon-btn" title={translate("Numbered list")} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("insertOrderedList")}><ListOrdered size={16} /></button>
+          <button type="button" className="icon-btn" title={translate("Decrease indent")} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("outdent")}><Outdent size={16} /></button>
+          <button type="button" className="icon-btn" title={translate("Increase indent")} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("indent")}><Indent size={16} /></button>
+          <button type="button" className="icon-btn" title={translate("Quote")} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("formatBlock", "blockquote")}><Quote size={16} /></button>
+          <button type="button" className="icon-btn" title={translate("Code block")} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("formatBlock", "pre")}><Code size={16} /></button>
+          <button type="button" className="icon-btn" title={translate("Normal text")} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("formatBlock", "div")}><Type size={16} /></button>
           <span className="tb-sep" />
-          <button type="button" className="icon-btn" title="Insert link (Ctrl+K)" onMouseDown={(e) => { e.preventDefault(); saveRange(); }} onClick={linkMenu.open}><LinkIcon size={16} /></button>
-          <label className="icon-btn" title="Insert image" onMouseDown={saveRange}>
+          <button type="button" className="icon-btn" title={translate("Insert link (Ctrl+K)")} onMouseDown={(e) => { e.preventDefault(); saveRange(); }} onClick={linkMenu.open}><LinkIcon size={16} /></button>
+          <label className="icon-btn" title={translate("Insert image")} onMouseDown={saveRange}>
             <ImageIcon size={16} />
             <input type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) insertImageFile(f); e.target.value = ""; }} />
           </label>
-          <button type="button" className="icon-btn" title="Emoji" onMouseDown={(e) => { e.preventDefault(); saveRange(); }} onClick={emojiMenu.open}><Smile size={16} /></button>
-          <button type="button" className="icon-btn" title="Remove formatting" onMouseDown={(e) => e.preventDefault()} onClick={() => { exec("removeFormat"); exec("unlink"); }}><Eraser size={16} /></button>
+          <button type="button" className="icon-btn" title={translate("Emoji")} onMouseDown={(e) => { e.preventDefault(); saveRange(); }} onClick={emojiMenu.open}><Smile size={16} /></button>
+          <button type="button" className="icon-btn" title={translate("Remove formatting")} onMouseDown={(e) => e.preventDefault()} onClick={() => { exec("removeFormat"); exec("unlink"); }}><Eraser size={16} /></button>
           {toolbarExtra}
         </div>
       )}
@@ -280,8 +281,8 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
       </Popover>
       <Popover anchor={linkMenu.anchor} onClose={linkMenu.close} side="top" closeOnClick={false} width={320}>
         <form className="link-popup" onSubmit={(e) => { e.preventDefault(); applyLink(); }}>
-          <input className="input sm" autoFocus placeholder="https://…" value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} />
-          <button type="submit" className="btn btn-sm btn-primary">Link</button>
+          <input className="input sm" autoFocus placeholder={translate("https://…")} value={linkUrl} onChange={(e) => setLinkUrl(e.target.value)} />
+          <button type="submit" className="btn btn-sm btn-primary">{translate("Link")}</button>
         </form>
       </Popover>
     </div>

@@ -8,6 +8,7 @@ import { useFiles } from "@/store/files";
 import { client, setErrorMessage } from "@/jmap/client";
 import { toast } from "@/ui/toast";
 import type { Id, Principal } from "@/jmap/types";
+import { t } from "@/lib/i18n";
 
 /* The JMAP type name, used verbatim as the `/set` method prefix. */
 type Kind = "Mailbox" | "Calendar" | "AddressBook" | "FileNode";
@@ -103,7 +104,7 @@ export function ShareDialog({ kind, id, name, shareWith, onClose }: { kind: Kind
   };
 
   return (
-    <Dialog open onClose={onClose} title={`Share “${name}”`} size="lg" footer={<><button className="btn" onClick={onClose}>Cancel</button><button className="btn btn-primary" disabled={busy} onClick={() => void save()}>Save</button></>}>
+    <Dialog open onClose={onClose} title={`Share “${name}”`} size="lg" footer={<><button className="btn" onClick={onClose}>{t("Cancel")}</button><button className="btn btn-primary" disabled={busy} onClick={() => void save()}>{t("Save")}</button></>}>
       {/* The list of who it is shared with is rendered whether or not anybody
           can be *added*. It used to sit inside the branch below, so a server
           with directory queries switched off -- which is the default, and which
@@ -111,20 +112,21 @@ export function ShareDialog({ kind, id, name, shareWith, onClose }: { kind: Kind
           share could not be seen, let alone removed. */}
       {!principals.length && (
         <p className="hint" style={{ marginBottom: 12 }}>
-          No other users found in the directory, so nobody new can be added. Sharing already in place is listed below and can still be removed.
+          
+          {t("No other users found in the directory, so nobody new can be added. Sharing already in place is listed below and can still be removed.")}
         </p>
       )}
       {principals.length > 0 && (
         <>
           <div className="row" style={{ marginBottom: 12 }}>
             <select className="select" value={pick} onChange={(e) => setPick(e.target.value)}>
-              <option value="">Add a person or group…</option>
+              <option value="">{t("Add a person or group…")}</option>
               {available.map((p) => (
                 <option key={p.id} value={p.id}>{`${p.name}${p.email ? ` <${p.email}>` : ""}${p.type !== "individual" ? ` (${p.type})` : ""}`}</option>
               ))}
             </select>
-            <button className="btn" disabled={!pick} onClick={() => { const p = principals.find((x) => x.id === pick); if (p) add(p, "reader"); }}>Viewer</button>
-            <button className="btn btn-primary" disabled={!pick} onClick={() => { const p = principals.find((x) => x.id === pick); if (p) add(p, "editor"); }}>Editor</button>
+            <button className="btn" disabled={!pick} onClick={() => { const p = principals.find((x) => x.id === pick); if (p) add(p, "reader"); }}>{t("Viewer")}</button>
+            <button className="btn btn-primary" disabled={!pick} onClick={() => { const p = principals.find((x) => x.id === pick); if (p) add(p, "editor"); }}>{t("Editor")}</button>
           </div>
         </>
       )}
@@ -134,7 +136,7 @@ export function ShareDialog({ kind, id, name, shareWith, onClose }: { kind: Kind
               <div key={pid} className="card">
                 <div className="card-head">
                   <h3><span>{p?.name ?? pid}</span>{p?.email ? <span className="hint" style={{ fontWeight: 400 }}> · {p.email}</span> : null}</h3>
-                  <button className="icon-btn sm danger" onClick={() => { const n = { ...rights }; delete n[pid]; setRights(n); }} aria-label="Remove"><Trash2 size={16} /></button>
+                  <button className="icon-btn sm danger" onClick={() => { const n = { ...rights }; delete n[pid]; setRights(n); }} aria-label={t("Remove")}><Trash2 size={16} /></button>
                 </div>
                 <div className="row wrap" style={{ marginTop: 8 }}>
                   {RIGHTS[kind].map((rt) => (
@@ -147,7 +149,7 @@ export function ShareDialog({ kind, id, name, shareWith, onClose }: { kind: Kind
               </div>
             );
       })}
-      {!Object.keys(rights).length && <p className="hint">Not shared with anyone yet.</p>}
+      {!Object.keys(rights).length && <p className="hint">{t("Not shared with anyone yet.")}</p>}
     </Dialog>
   );
 }
