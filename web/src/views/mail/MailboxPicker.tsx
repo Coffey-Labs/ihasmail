@@ -4,6 +4,7 @@ import { useMail } from "@/store/mail";
 import { Dialog } from "@/ui/dialog";
 import type { Id, Mailbox } from "@/jmap/types";
 import { t } from "@/lib/i18n";
+import { mailboxDisplayPath } from "@/lib/mailboxName";
 
 export function MailboxPicker({ title, onClose, onPick, exclude }: { title: string; onClose: () => void; onPick: (id: Id) => void; exclude?: Id[] }) {
   const mailboxes = useMail((s) => s.mailboxes);
@@ -13,7 +14,7 @@ export function MailboxPicker({ title, onClose, onPick, exclude }: { title: stri
   const list = useMemo(() => {
     const all = Object.values(mailboxes)
       .filter((m) => !exclude?.includes(m.id) && m.myRights.mayAddItems)
-      .map((m) => ({ m, path: mailboxPath(m.id) }))
+      .map((m) => ({ m, path: mailboxDisplayPath(m, mailboxes) }))
       .sort((a, b) => (a.m.role === "inbox" ? -1 : b.m.role === "inbox" ? 1 : a.path.localeCompare(b.path)));
     const ql = q.trim().toLowerCase();
     return ql ? all.filter((x) => x.path.toLowerCase().includes(ql)) : all;

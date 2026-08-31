@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { create } from "zustand";
 import { loadJson, saveJson } from "@/lib/storage";
 import { queueSettingsPush } from "@/lib/settingsSync";
-import { setDateTimePrefs, type DateFormat, type TimeFormat } from "@/lib/datetime";
+import { setDateTimePrefs, setUiLanguageForFormatting, type DateFormat, type TimeFormat } from "@/lib/datetime";
 import type { SwipeAction } from "@/lib/swipe";
 import { resolveUiLanguage } from "@/lib/languages";
 import { loadLanguage } from "@/lib/i18n";
@@ -344,6 +344,9 @@ export const useSettings = create<SettingsState>((set, get) => ({
 }));
 
 function applyDateTimePrefs(s: Settings): void {
+  // The interface language feeds the automatic locale, so month and weekday
+  // names follow the language somebody chose rather than staying English.
+  setUiLanguageForFormatting(resolveUiLanguage(s.uiLanguage));
   setDateTimePrefs({ locale: s.locale, dateFormat: s.dateFormat, timeFormat: s.timeFormat });
 }
 

@@ -35,6 +35,16 @@ for (const file of globSync("web/src/**/*.{ts,tsx}").filter((f) => !f.includes("
     if (ts.isCallExpression(n) && ts.isIdentifier(n.expression)) {
       const fn = n.expression.text, a0 = n.arguments[0];
       if ((fn === "t" || fn === "translate" || fn === "tNode") && a0 && ts.isStringLiteral(a0)) wanted.add(a0.text);
+      // tc(context, source) keys the catalogue on both, joined by the same
+      // control character tc() uses. Without this the contextual entries all
+      // looked stale, which is the checker's own false alarm rather than a
+      // catalogue problem.
+      if (fn === "tc" && a0 && ts.isStringLiteral(a0) && n.arguments[1] && ts.isStringLiteral(n.arguments[1])) {
+        // Only the contextual key is required. The plain one is tc()'s
+        // fallback, not a second obligation -- asking for both would report
+        // work that does not exist.
+        wanted.add(`${a0.text}\u0004${n.arguments[1].text}`);
+      }
       if (fn === "plural" && n.arguments[1] && ts.isObjectLiteralExpression(n.arguments[1])) {
         for (const p of n.arguments[1].properties) {
           if (ts.isPropertyAssignment(p) && p.name.getText(src) === "other" && ts.isStringLiteral(p.initializer)) wanted.add(p.initializer.text);

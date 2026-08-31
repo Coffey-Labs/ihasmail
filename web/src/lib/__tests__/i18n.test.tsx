@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { currentLanguage, interpolate, plural, setCatalog, t, tNode, type Catalog } from "@/lib/i18n";
+import { CONTEXT_SEPARATOR, currentLanguage, interpolate, plural, setCatalog, subscribeForTest, t, tc, tNode, type Catalog } from "@/lib/i18n";
 
 const de: Catalog = {
   strings: {
@@ -107,5 +107,46 @@ describe("tNode", () => {
 
   it("takes plain variables alongside elements", () => {
     expect(render(tNode("{count} of {scheme}", { scheme: <b>x</b> }, { count: 3 }))).toBe("3 of <b>x</b>");
+  });
+});
+
+describe("setCatalog", () => {
+  it("does not announce a change that did not happen", () => {
+    /*
+     * The root keys its tree on the language version, so every publish
+     * remounts the app -- which re-runs the effect that loads the account's
+     * settings, which calls applyLang, which lands back in setCatalog with the
+     * same language. Publishing that non-change looped for ever, and from the
+     * outside it looked like the message list refreshing without end.
+     */
+    const seen: number[] = [];
+    const stop = subscribeForTest(() => seen.push(1));
+    const cat: Catalog = { strings: { Archive: "Archivieren" }, plurals: {} };
+    setCatalog("de", cat);
+    setCatalog("de", cat);
+    setCatalog("de", cat);
+    expect(seen.length).toBe(1);
+    setCatalog("en", { strings: {}, plurals: {} });
+    expect(seen.length).toBe(2);
+    stop();
+  });
+});
+
+describe("tc", () => {
+  it("tells apart an English word doing two jobs", () => {
+    // "Archive" is the button and the folder; German wants a different word
+    // for each, and one key cannot hold both.
+    setCatalog("de", {
+      strings: { "Archive": "Archivieren", [`folder${CONTEXT_SEPARATOR}Archive`]: "Archiv" },
+      plurals: {},
+    });
+    expect(t("Archive")).toBe("Archivieren");
+    expect(tc("folder", "Archive")).toBe("Archiv");
+  });
+
+  it("falls back to the plain translation, then to English", () => {
+    setCatalog("de", { strings: { "Drafts": "Entwürfe" }, plurals: {} });
+    expect(tc("folder", "Drafts")).toBe("Entwürfe");   // no context entry yet
+    expect(tc("folder", "Sent")).toBe("Sent");          // nothing at all
   });
 });

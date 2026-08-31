@@ -21,6 +21,8 @@ import type {
 import { toast } from "@/ui/toast";
 import { settings, useSettings } from "./settings";
 import { useSession } from "./session";
+import { mailboxDisplayName } from "@/lib/mailboxName";
+import { t } from "@/lib/i18n";
 
 /*
  * Named explicitly so `shareWith` comes back, which it does not otherwise --
@@ -478,7 +480,9 @@ export const useMail = create<MailState>((set, get) => ({
         // moved to "Trash" or "Spam" on a server whose folders are called
         // "Deleted Items" and "Junk Mail" -- naming somewhere that does not
         // exist, in the one message whose job is saying where it went.
-        const name = mailboxes[toMailboxId]?.name ?? opts.label ?? "folder";
+        // Through the display name, so the message names the folder the reader
+        // is looking at in the sidebar rather than the server's own word for it.
+        const name = mailboxDisplayName(mailboxes[toMailboxId]) || opts.label || t("folder");
         toast.show(`${ids.length === 1 ? "Conversation" : `${ids.length} conversations`} moved to ${name}`, {
           action: {
             label: "Undo",

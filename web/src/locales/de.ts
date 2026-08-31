@@ -851,6 +851,30 @@ export const catalog: Catalog = {
     "does not match regex": "entspricht regulärem Ausdruck nicht",
     "exists": "ist vorhanden",
     "does not exist": "ist nicht vorhanden",
+
+    // ── Folder names shown for a JMAP role (see lib/mailboxName.ts) ────
+    // Not what the server calls them: Stalwart names these once at account
+    // creation and cannot rename them afterwards. Custom folders keep the
+    // reader's own words and are never translated.
+    // Keyed with the "folder" context (see tc() in lib/i18n.ts), because two
+    // of these are also something else in English: "Archive" is the button
+    // that archives a message, and "Important" is a priority tag. German wants
+    // a different word for each, and one key cannot hold both.
+    "folder\u0004Inbox": "Posteingang",
+    "folder\u0004Archive": "Archiv",
+    "folder\u0004Drafts": "Entwürfe",
+    "folder\u0004Sent": "Gesendet",
+    "folder\u0004Deleted Items": "Papierkorb",
+    "folder\u0004Junk Mail": "Spam",
+    "folder\u0004Important": "Wichtig",
+    "folder\u0004All mail": "Alle Nachrichten",
+    "folder": "Ordner",
+    "“{name}” moved into “{parent}”": "„{name}“ wurde nach „{parent}“ verschoben",
+    "“{name}” moved to the top level": "„{name}“ wurde auf die oberste Ebene verschoben",
+    "Could not move “{name}”: {reason}": "„{name}“ konnte nicht verschoben werden: {reason}",
+    "Delete “{name}”?": "„{name}“ löschen?",
+    "Rename folder": "Ordner umbenennen",
+    "Search: {query}": "Suche: {query}",
   },
   plurals: {
     "{n} messages": { one: "{n} Nachricht", other: "{n} Nachrichten" },
