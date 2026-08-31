@@ -149,7 +149,7 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
         <Avatar who={from ?? null} />
         <div className="who">
           <div className="from" onContextMenu={(ev) => from && addrMenu.open(ev, from)}>
-            <span className="addr">{displayName(from)}</span>
+            <span className="addr notranslate" translate="no">{displayName(from)}</span>
             {/* An address, not a sentence. */}
             {expanded && from && <span className="email addr notranslate" translate="no">&lt;{from.email}&gt;</span>}
             {isHighPriority && <span className="tag" style={{ background: "var(--danger)" }}>{translate("Important")}</span>}

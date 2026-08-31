@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { create } from "zustand";
 import { loadJson, saveJson } from "@/lib/storage";
-import { queueSettingsPush } from "@/lib/settingsSync";
+import { pendingSettingsKeys, queueSettingsPush } from "@/lib/settingsSync";
 import { setDateTimePrefs, setUiLanguageForFormatting, type DateFormat, type TimeFormat } from "@/lib/datetime";
 import type { SwipeAction } from "@/lib/swipe";
 import { resolveUiLanguage } from "@/lib/languages";
@@ -280,6 +280,26 @@ export function acceptRemote(remote: Record<string, unknown>): Partial<Settings>
   return out as Partial<Settings>;
 }
 
+/**
+ * The settings file laid over the ones in hand, minus anything still queued.
+ *
+ * A change that has not been written up yet is newer than the file by
+ * definition, so it wins. Picking a language is where this showed: that
+ * remounts the tree, the remount re-reads the file, and the file still holds
+ * the language from before the click, so the click came undone. Reported as
+ * "sometimes it takes several clicks" — the click that stuck was the one made
+ * after the previous write had landed.
+ */
+export function mergeRemote(
+  current: Settings,
+  remote: Record<string, unknown>,
+  held: ReadonlySet<string> = new Set(),
+): Settings {
+  const incoming = acceptRemote(remote);
+  for (const key of held) delete incoming[key as keyof Settings];
+  return { ...current, ...incoming };
+}
+
 interface SettingsState {
   settings: Settings;
   update(patch: Partial<Settings>): void;
@@ -333,7 +353,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
     }
   },
   hydrate(remote) {
-    const settings = { ...get().settings, ...acceptRemote(remote) };
+    const settings = mergeRemote(get().settings, remote, pendingSettingsKeys());
     // Cache it, so the next first frame on this browser is already right.
     saveJson("settings", settings);
     set({ settings });

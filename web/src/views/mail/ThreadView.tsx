@@ -260,7 +260,7 @@ export function ThreadView({ threadId, mailboxId, onBack, actions, onNavigate, h
       <div className="thread-scroll" ref={scrollRef}>
         <div className="thread-subject">
           <div className="grow">
-            <h1>{subject}</h1>
+            <h1 className="notranslate" translate="no">{subject}</h1>
             {(threadLabels.length > 0 || threadMailboxes.length > 0) && (
               <div className="labels">
                 {threadMailboxes.map((n) => <span key={n} className="chip">{n}</span>)}
