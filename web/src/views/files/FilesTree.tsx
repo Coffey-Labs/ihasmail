@@ -242,7 +242,7 @@ export function FilesTree() {
           icon={<FolderPlus size={16} />}
           label={t("New folder")}
           onClick={async () => {
-            const name = await promptDialog({ title: "New folder", placeholder: "Folder name" });
+            const name = await promptDialog({ title: t("New folder"), placeholder: t("Folder name") });
             if (!name?.trim()) return;
             try {
               await useFiles.getState().mkdir(menuNode?.id ?? null, name.trim());
@@ -276,11 +276,11 @@ export function FilesTree() {
               label={t("Delete")}
               disabled={!menuNode.myRights?.mayDelete}
               onClick={async () => {
-                if (!(await confirmDialog({ title: `Delete “${menuNode.name}”?`, message: "Everything inside it goes too.", confirmLabel: "Delete", danger: true }))) return;
+                if (!(await confirmDialog({ title: t("Delete “{name}”?", { name: menuNode.name }), message: t("Everything inside it goes too."), confirmLabel: t("Delete"), danger: true }))) return;
                 try {
                   await useFiles.getState().destroy([menuNode.id]);
                   if (currentId === menuNode.id) navigate("/files");
-                  toast.success("Deleted");
+                  toast.success(t("Deleted"));
                 } catch (err) {
                   toast.error((err as Error).message);
                 }

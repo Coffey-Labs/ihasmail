@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import qrcode from "qrcode-generator";
+import { t } from "@/lib/i18n";
 
 /**
  * A QR code as inline SVG.
@@ -30,7 +31,7 @@ export function QrCode({ value, size = 200, title }: { value: string; size?: num
       height={size}
       viewBox={`-2 -2 ${count + 4} ${count + 4}`}
       role="img"
-      aria-label={title ?? "QR code"}
+      aria-label={title ?? t("QR code")}
       shapeRendering="crispEdges"
       style={{ background: "#fff", borderRadius: 8, display: "block" }}
     >

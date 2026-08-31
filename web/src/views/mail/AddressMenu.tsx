@@ -56,8 +56,8 @@ export function useAddressMenu() {
             label={t("Copy email address")}
             onClick={() => {
               void navigator.clipboard?.writeText(menu.address.email).then(
-                () => toast.show("Address copied"),
-                () => toast.error("Could not copy the address"),
+                () => toast.show(t("Address copied")),
+                () => toast.error(t("Could not copy the address")),
               );
               close();
             }}

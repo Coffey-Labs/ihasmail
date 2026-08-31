@@ -193,7 +193,28 @@ export function setCatalog(tag: string, catalog: Catalog): void {
  * catalogue -- which matters, because the main bundle is already large enough
  * to warn about.
  */
+/**
+ * The catalogue load that is in flight, so the first paint can wait for it.
+ *
+ * Without this, a cold load paints before the catalogue lands. Components
+ * recover -- the tree is rebuilt when the catalogue arrives -- but a string
+ * computed in an effect does not: a toast fired in that window is emitted in
+ * English and stays English, in an interface that is otherwise German.
+ * Reported as a stale-folder toast that ignored the language setting.
+ */
+let inFlight: Promise<void> = Promise.resolve();
+
+/** Resolves once the chosen language is in force. English resolves at once. */
+export function whenLanguageReady(): Promise<void> {
+  return inFlight;
+}
+
 export async function loadLanguage(tag: string): Promise<void> {
+  inFlight = loadLanguageNow(tag);
+  return inFlight;
+}
+
+async function loadLanguageNow(tag: string): Promise<void> {
   const resolved = resolveUiLanguage(tag);
   if (resolved === DEFAULT_UI_LANGUAGE) {
     setCatalog(DEFAULT_UI_LANGUAGE, EMPTY);

@@ -4,7 +4,7 @@ import type { EmailBodyPart, Id } from "@/jmap/types";
 import { useContacts } from "@/store/contacts";
 import { client } from "@/jmap/client";
 import { toast } from "@/ui/toast";
-import { t } from "@/lib/i18n";
+import { plural, t } from "@/lib/i18n";
 
 export function VCardCard({ part, accountId }: { part: EmailBodyPart; accountId: Id }) {
   const contacts = useContacts();
@@ -19,7 +19,7 @@ export function VCardCard({ part, accountId }: { part: EmailBodyPart; accountId:
       if (!book) throw new Error("No address book available");
       const n = await contacts.importVCard(text, book.id);
       setDone(true);
-      toast.success(`Added ${n} contact${n === 1 ? "" : "s"}`);
+      toast.success(plural(n, { one: "Added {n} contact", other: "Added {n} contacts" }));
     } catch (err) {
       toast.error((err as Error).message);
     } finally {

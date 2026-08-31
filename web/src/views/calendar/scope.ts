@@ -1,6 +1,7 @@
 import { choiceDialog, confirmDialog } from "@/ui/dialog";
 import { isOccurrence, isRecurring, isThisAndFutureRefusal, type EventScope } from "@/store/calendar";
 import type { CalendarEvent } from "@/jmap/types";
+import { plural, t } from "@/lib/i18n";
 
 /**
  * Ask which of a series a change is meant for, when there is a choice.
@@ -32,22 +33,22 @@ export async function askScope(
 /** The scope question for deleting. */
 export const askDeleteScope = (event: CalendarEvent): Promise<EventScope | null> =>
   askScope(event, {
-    title: "Delete this event?",
-    occurrenceLabel: "This occurrence",
-    occurrenceHint: "Removes this date and leaves the rest of the series.",
-    seriesLabel: "All occurrences",
-    seriesHint: "Deletes the whole series. This cannot be undone.",
+    title: t("Delete this event?"),
+    occurrenceLabel: t("This occurrence"),
+    occurrenceHint: t("Removes this date and leaves the rest of the series."),
+    seriesLabel: t("All occurrences"),
+    seriesHint: t("Deletes the whole series. This cannot be undone."),
     danger: true,
   });
 
 /** The scope question for editing. */
 export const askEditScope = (event: CalendarEvent): Promise<EventScope | null> =>
   askScope(event, {
-    title: "Change this event?",
-    occurrenceLabel: "This occurrence",
-    occurrenceHint: "Applies to this date only.",
-    seriesLabel: "All occurrences",
-    seriesHint: "Applies to every date in the series.",
+    title: t("Change this event?"),
+    occurrenceLabel: t("This occurrence"),
+    occurrenceHint: t("Applies to this date only."),
+    seriesLabel: t("All occurrences"),
+    seriesHint: t("Applies to every date in the series."),
   });
 
 /**
@@ -57,7 +58,12 @@ export const askEditScope = (event: CalendarEvent): Promise<EventScope | null> =
 export function droppedMessage(dropped: string[]): string | null {
   if (!dropped.length) return null;
   const names = dropped.map((d) => d.replace(/^@/, "")).join(", ");
-  return `Saved for this date. ${names} ${dropped.length === 1 ? "applies" : "apply"} to the whole series and was left unchanged.`;
+  // One sentence per branch rather than a verb slot: which words agree with
+  // the count, and where they sit, is not the same in every language.
+  return plural(dropped.length, {
+    one: "Saved for this date. {names} applies to the whole series and was left unchanged.",
+    other: "Saved for this date. {names} apply to the whole series and were left unchanged.",
+  }, { names });
 }
 
 
@@ -80,9 +86,9 @@ export async function runScoped<T>(scope: EventScope, run: (scope: EventScope) =
   } catch (err) {
     if (scope !== "occurrence" || !isThisAndFutureRefusal(err)) throw err;
     const ok = await confirmDialog({
-      title: "This date cannot be changed on its own",
-      message: "It belongs to a change that was applied to this and all later occurrences, which the server will only edit as a whole. Apply to the entire series instead?",
-      confirmLabel: "Apply to series",
+      title: t("This date cannot be changed on its own"),
+      message: t("It belongs to a change that was applied to this and all later occurrences, which the server will only edit as a whole. Apply to the entire series instead?"),
+      confirmLabel: t("Apply to series"),
     });
     return ok ? await run("series") : null;
   }

@@ -11,7 +11,7 @@ import { confirmDialog } from "@/ui/dialog";
 import { toast } from "@/ui/toast";
 import { ContactEditor } from "./ContactEditor";
 import { avatarColor } from "@/lib/address";
-import { t as translate } from "@/lib/i18n";
+import { plural, t as translate } from "@/lib/i18n";
 
 export function ContactsView({ id }: { id?: string }) {
   const [, navigate] = useLocation();
@@ -92,12 +92,12 @@ export function ContactsView({ id }: { id?: string }) {
   const importFile = async (f: File) => {
     const book = bookId !== "all" ? contacts.books[bookId] : (books.find((b) => b.isDefault) ?? books[0]);
     if (!book) {
-      toast.error("Create an address book first");
+      toast.error(translate("Create an address book first"));
       return;
     }
     try {
       const n = await contacts.importVCard(await f.text(), book.id);
-      toast.success(`Imported ${n} contact${n === 1 ? "" : "s"}`);
+      toast.success(plural(n, { one: "Imported {n} contact", other: "Imported {n} contacts" }));
     } catch (err) {
       toast.error((err as Error).message);
     }
@@ -116,7 +116,7 @@ export function ContactsView({ id }: { id?: string }) {
         </div>
         <div className="contacts-scroll">
           {contacts.loading && !contacts.loaded ? <Spinner label={translate("Loading contacts…")} /> : !list.length ? (
-            <Empty icon={<Users size={36} />} title={q ? "No matches" : "No contacts yet"}>{q ? "Try another search." : "Add a contact or import a vCard file."}</Empty>
+            <Empty icon={<Users size={36} />} title={q ? translate("No matches") : translate("No contacts yet")}>{q ? translate("Try another search.") : translate("Add a contact or import a vCard file.")}</Empty>
           ) : groups.map((g) => (
             <div key={g.letter}>
               <div className="contact-letter">{g.letter}</div>
@@ -168,7 +168,7 @@ function ContactDetail({ card: c, onBack, onEdit, narrow, onEmail }: { card: Con
         <span className="spacer" />
         <button className="btn btn-sm" onClick={onEdit}><Pencil size={14} />  {translate("Edit")}</button>
         <button className="btn btn-sm" onClick={() => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([toVCard(c)], { type: "text/vcard" })); a.download = `${name.replace(/[^\w.-]+/g, "_")}.vcf`; a.click(); }}><Download size={14} />  {translate("vCard")}</button>
-        <button className="btn btn-sm btn-ghost" style={{ color: "var(--danger)" }} onClick={async () => { if (await confirmDialog({ title: `Delete ${name}?`, confirmLabel: "Delete", danger: true })) { try { await contacts.destroyCards([c.id]); toast.success("Contact deleted"); navigate("/contacts"); } catch (err) { toast.error((err as Error).message); } } }}><Trash2 size={14} /></button>
+        <button className="btn btn-sm btn-ghost" style={{ color: "var(--danger)" }} onClick={async () => { if (await confirmDialog({ title: translate("Delete {name}?", { name }), confirmLabel: translate("Delete"), danger: true })) { try { await contacts.destroyCards([c.id]); toast.success(translate("Contact deleted")); navigate("/contacts"); } catch (err) { toast.error((err as Error).message); } } }}><Trash2 size={14} /></button>
       </div>
       <div className="contact-hero">
         <span className="avatar xl" style={{ background: photo ? "transparent" : avatarColor(contactEmails(c)[0]?.email ?? name) }}>{photo ? <img src={photo} alt="" /> : c.kind === "group" ? <Users size={36} /> : name.slice(0, 1).toUpperCase()}</span>

@@ -8,7 +8,7 @@ import { MenuItem, MenuSep, Popover, useMenu } from "@/ui/popover";
 import { confirmDialog, promptDialog } from "@/ui/dialog";
 import { toast } from "@/ui/toast";
 import { ShareDialog } from "../settings/ShareDialog";
-import { t } from "@/lib/i18n";
+import { plural, t } from "@/lib/i18n";
 
 /**
  * Re-read the session so newly shared books appear without a sign-in.
@@ -183,7 +183,7 @@ export function ContactsSidebar() {
               icon={<Pencil size={16} />}
               label={t("Rename")}
               onClick={async () => {
-                const name = await promptDialog({ title: "Rename address book", defaultValue: menuBook.name });
+                const name = await promptDialog({ title: t("Rename address book"), defaultValue: menuBook.name });
                 if (!name?.trim() || name === menuBook.name) return;
                 try {
                   await contacts.updateBook(menuBook.id, { name: name.trim() });
@@ -203,14 +203,14 @@ export function ContactsSidebar() {
                 onClick={async () => {
                   const who = Object.keys(menuBook.shareWith ?? {}).length;
                   if (!(await confirmDialog({
-                    title: `Stop sharing “${menuBook.name}”?`,
-                    message: `${who === 1 ? "One person" : `${who} people`} will lose access. The contacts in it are not affected.`,
-                    confirmLabel: "Stop sharing",
+                    title: t("Stop sharing “{name}”?", { name: menuBook.name }),
+                    message: plural(who, { one: "{n} person will lose access. The contacts in it are not affected.", other: "{n} people will lose access. The contacts in it are not affected." }),
+                    confirmLabel: t("Stop sharing"),
                     danger: true,
                   }))) return;
                   try {
                     await contacts.updateBook(menuBook.id, { shareWith: null });
-                    toast.success("No longer shared");
+                    toast.success(t("No longer shared"));
                   } catch (err) {
                     toast.error((err as Error).message);
                   }
@@ -224,7 +224,7 @@ export function ContactsSidebar() {
               label={t("Delete")}
               disabled={menuBook.isDefault}
               onClick={async () => {
-                if (!(await confirmDialog({ title: `Delete “${menuBook.name}”?`, message: "The contacts in it go too.", confirmLabel: "Delete", danger: true }))) return;
+                if (!(await confirmDialog({ title: t("Delete “{name}”?", { name: menuBook.name }), message: t("The contacts in it go too."), confirmLabel: t("Delete"), danger: true }))) return;
                 try {
                   await contacts.destroyBook(menuBook.id);
                   if (sel.bookId === menuBook.id) contacts.select({ accountId: null, bookId: "all" });

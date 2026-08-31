@@ -22,7 +22,7 @@ export function CalendarDialog({ calendar, onClose }: { calendar: Partial<Calend
       const data: Partial<Calendar> = { name: name.trim(), color, description: description || null, timeZone: tz || null, includeInAvailability: avail };
       if (calendar.id) await cal.updateCalendar(calendar.id, data);
       else await cal.createCalendar(data);
-      toast.success("Calendar saved");
+      toast.success(translate("Calendar saved"));
       onClose();
     } catch (err) {
       toast.error((err as Error).message);
@@ -31,7 +31,7 @@ export function CalendarDialog({ calendar, onClose }: { calendar: Partial<Calend
     }
   };
   return (
-    <Dialog open onClose={onClose} title={calendar.id ? "Edit calendar" : "New calendar"} size="sm" footer={<><button className="btn" onClick={onClose}>{translate("Cancel")}</button><button className="btn btn-primary" disabled={busy || !name.trim()} onClick={() => void save()}>{translate("Save")}</button></>}>
+    <Dialog open onClose={onClose} title={calendar.id ? translate("Edit calendar") : translate("New calendar")} size="sm" footer={<><button className="btn" onClick={onClose}>{translate("Cancel")}</button><button className="btn btn-primary" disabled={busy || !name.trim()} onClick={() => void save()}>{translate("Save")}</button></>}>
       <div className="field"><label>{translate("Name")}</label><input className="input" autoFocus value={name} onChange={(e) => setName(e.target.value)} /></div>
       <div className="field"><label>{translate("Color")}</label><ColorSwatches value={color} onChange={setColor} /></div>
       <div className="field"><label>{translate("Description")}</label><input className="input" value={description} onChange={(e) => setDescription(e.target.value)} /></div>

@@ -110,7 +110,7 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
       try {
         setSource(await client.fetchBlobText(accountId, e.blobId, "message/rfc822"));
       } catch (err) {
-        setSource(`Could not load source: ${(err as Error).message}`);
+        setSource(translate("Could not load source: {error}", { error: (err as Error).message }));
       }
     }
   };
@@ -130,7 +130,7 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
     if (mailto) {
       const fields = draftFromMailto(mailto);
       useCompose.getState().open({ ...fields, subject: fields.subject || "unsubscribe", html: fields.html ?? "<div>unsubscribe</div>", text: fields.text ?? "unsubscribe" });
-      toast.show("Unsubscribe message prepared — just hit Send");
+      toast.show(translate("Unsubscribe message prepared — just hit Send"));
     } else if (http) {
       window.open(http, "_blank", "noopener,noreferrer");
     }
@@ -212,7 +212,7 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
               {e.cc?.length ? <><dt>{translate("Cc")}</dt><dd><AddressList list={e.cc} onContext={addrMenu.open} /></dd></> : null}
               {e.bcc?.length ? <><dt>{translate("Bcc")}</dt><dd><AddressList list={e.bcc} onContext={addrMenu.open} /></dd></> : null}
               <dt>{translate("Date")}</dt><dd>{formatFullDate(e.sentAt ?? e.receivedAt)}</dd>
-              <dt>{translate("Subject")}</dt><dd>{e.subject || "(no subject)"}</dd>
+              <dt>{translate("Subject")}</dt><dd>{e.subject || translate("(no subject)")}</dd>
               {e.messageId?.[0] && <><dt>{translate("Message-ID")}</dt><dd className="mono small">{e.messageId[0]}</dd></>}
               {e["header:List-Id:asText"] && <><dt>{translate("List")}</dt><dd>{e["header:List-Id:asText"]}</dd></>}
               <dt>{translate("Size")}</dt><dd>{formatSize(e.size)}</dd>
@@ -235,10 +235,10 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
                   setReceiptDone("sending");
                   try {
                     await sendReadReceipt(e);
-                    toast.success("Read receipt sent");
+                    toast.success(translate("Read receipt sent"));
                   } catch (err) {
                     setReceiptDone(null);
-                    toast.error(`Could not send the receipt: ${(err as Error).message}`);
+                    toast.error(translate("Could not send the receipt: {error}", { error: (err as Error).message }));
                   }
                 }}
               >
@@ -255,9 +255,9 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
                 onClick={async () => {
                   try {
                     await cancelScheduled(e.id);
-                    toast.success("Send cancelled — the message is back in Drafts");
+                    toast.success(translate("Send cancelled — the message is back in Drafts"));
                   } catch (err) {
-                    toast.error(`Could not cancel: ${(err as Error).message}`);
+                    toast.error(translate("Could not cancel: {error}", { error: (err as Error).message }));
                   }
                 }}
               >
@@ -452,9 +452,9 @@ function HtmlBody({ html, bodyStyle, themed, onShowImages }: { html: string; bod
           rewrite what someone actually wrote. */}
       <div ref={hostRef} className="body-host notranslate" translate="no" />
       {hasQuote && (
-        <button className="quote-toggle" onClick={() => setQuoteOpen((v) => !v)} title={quoteOpen ? "Hide quoted text" : "Show quoted text"}>
+        <button className="quote-toggle" onClick={() => setQuoteOpen((v) => !v)} title={quoteOpen ? translate("Hide quoted text") : translate("Show quoted text")}>
           {quoteOpen ? <ChevronUp size={12} /> : <span style={{ letterSpacing: 2 }}>{translate("•••")}</span>}
-          {quoteOpen ? "Hide quoted text" : ""}
+          {quoteOpen ? translate("Hide quoted text") : ""}
         </button>
       )}
     </>
@@ -496,7 +496,7 @@ function TextBody({ text }: { text: string }) {
       {quoted && (
         <button className="quote-toggle" onClick={() => setQuoteOpen((v) => !v)}>
           {quoteOpen ? <ChevronUp size={12} /> : <span style={{ letterSpacing: 2 }}>{translate("•••")}</span>}
-          {quoteOpen ? "Hide quoted text" : ""}
+          {quoteOpen ? translate("Hide quoted text") : ""}
         </button>
       )}
     </>
@@ -549,7 +549,7 @@ function AttachmentList({ attachments, accountId, email }: { attachments: EmailB
           </button>
         )}
       </div>
-      <Dialog open={Boolean(preview)} onClose={() => setPreview(null)} title={preview?.name ?? "Preview"} size="xl" footer={preview && <a className="btn" href={client.downloadUrl(accountId, preview.blobId!, preview.name ?? "file", preview.type)} download><Download size={16} />  {translate("Download")}</a>}>
+      <Dialog open={Boolean(preview)} onClose={() => setPreview(null)} title={preview?.name ?? translate("Preview")} size="xl" footer={preview && <a className="btn" href={client.downloadUrl(accountId, preview.blobId!, preview.name ?? "file", preview.type)} download><Download size={16} />  {translate("Download")}</a>}>
         {preview?.type.startsWith("image/") && <img src={client.downloadUrl(accountId, preview.blobId!, preview.name ?? "image", preview.type, true)} alt={preview.name ?? ""} style={{ maxHeight: "70vh", display: "block", margin: "0 auto" }} />}
         {preview?.type === "application/pdf" && <iframe title={translate("PDF")} src={client.downloadUrl(accountId, preview.blobId!, preview.name ?? "file.pdf", preview.type, true)} style={{ width: "100%", height: "70vh", border: 0 }} />}
         {preview?.type === "text/plain" && <TextAttachment url={client.downloadUrl(accountId, preview.blobId!, preview.name ?? "file.txt", preview.type, true)} />}

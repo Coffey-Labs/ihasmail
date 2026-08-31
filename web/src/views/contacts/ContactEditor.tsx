@@ -66,7 +66,7 @@ export function ContactEditor({ card, defaultBookId, onClose, onSaved }: Props) 
 
   const save = async () => {
     if (!bookId) {
-      toast.error("Choose an address book");
+      toast.error(t("Choose an address book"));
       return;
     }
     setBusy(true);
@@ -117,7 +117,7 @@ export function ContactEditor({ card, defaultBookId, onClose, onSaved }: Props) 
       } else if (removePhoto) obj.media = null;
       if (isNew) {
         const id = await contacts.createCard(obj as Partial<ContactCard>, bookId);
-        toast.success("Contact created");
+        toast.success(t("Contact created"));
         onSaved(id);
       } else {
         const patch: Record<string, unknown> = { ...obj };
@@ -125,7 +125,7 @@ export function ContactEditor({ card, defaultBookId, onClose, onSaved }: Props) 
         if (curBook !== bookId) patch.addressBookIds = { [bookId]: true };
         if (!photo && !removePhoto) delete patch.media;
         await contacts.updateCard(card.id!, patch);
-        toast.success("Contact saved");
+        toast.success(t("Contact saved"));
         onSaved(card.id!);
       }
     } catch (err) {

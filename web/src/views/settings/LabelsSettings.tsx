@@ -11,7 +11,7 @@ export function LabelsSettings() {
   const [editing, setEditing] = useState<string | null>(null);
 
   const add = async () => {
-    const name = await promptDialog({ title: "New label", placeholder: "Label name" });
+    const name = await promptDialog({ title: t("New label"), placeholder: t("Label name") });
     if (!name?.trim()) return;
     const keyword = name.trim().toLowerCase().replace(/[^a-z0-9_.-]+/g, "_").replace(/^_+|_+$/g, "") || `label${Date.now()}`;
     if (labels.some((l) => l.keyword === keyword)) return;

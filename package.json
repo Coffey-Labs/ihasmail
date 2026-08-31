@@ -23,7 +23,7 @@
     "dev:mock": "concurrently -n mock,server,web -c yellow,blue,magenta \"npm run mock -w server\" \"STALWART_URL=http://127.0.0.1:8788 npm run dev -w server\" \"npm run dev -w web\"",
     "dev:mock:no-future-release": "concurrently -n mock,server,web -c yellow,blue,magenta \"npm run mock:no-future-release -w server\" \"STALWART_URL=http://127.0.0.1:8788 npm run dev -w server\" \"npm run dev -w web\"",
     "i18n:coverage": "node scripts/i18n-coverage.mjs",
-    "i18n:check": "node scripts/i18n-catalog-check.mjs"
+    "i18n:check": "node scripts/i18n-catalog-check.mjs && node scripts/i18n-literals.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",

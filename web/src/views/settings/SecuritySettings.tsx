@@ -5,7 +5,7 @@ import { useSession } from "@/store/session";
 import { formatFullDate } from "@/lib/format";
 import { toast } from "@/ui/toast";
 import { confirmDialog, Dialog } from "@/ui/dialog";
-import { t, tNode } from "@/lib/i18n";
+import { plural, t, tNode } from "@/lib/i18n";
 
 interface SessionRow {
   id: string;
@@ -100,7 +100,7 @@ export function SecuritySettings() {
         </table>
       )}
       <div className="row mt-16">
-        <button className="btn" onClick={async () => { if (await confirmDialog({ title: "Sign out other sessions?", confirmLabel: "Sign out others" })) { const r = await apiFetch<{ revoked: number }>("/api/auth/sessions/revoke-others", { method: "POST" }); toast.success(`Signed out ${r.revoked} other session(s)`); void load(); } }}>{t("Sign out all other sessions")}</button>
+        <button className="btn" onClick={async () => { if (await confirmDialog({ title: t("Sign out other sessions?"), confirmLabel: t("Sign out others") })) { const r = await apiFetch<{ revoked: number }>("/api/auth/sessions/revoke-others", { method: "POST" }); toast.success(plural(r.revoked, { one: "Signed out {n} other session", other: "Signed out {n} other sessions" })); void load(); } }}>{t("Sign out all other sessions")}</button>
         <button className="btn btn-ghost" onClick={() => void logout()}>{t("Sign out here")}</button>
       </div>
     </div>
@@ -119,7 +119,7 @@ function PasswordForm({ otpEnabled, onChanged }: { otpEnabled: boolean; onChange
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (next !== confirm) {
-      toast.error("The new passwords don't match");
+      toast.error(t("The new passwords don't match"));
       return;
     }
     setBusy(true);
@@ -188,7 +188,7 @@ function TwoFactorOff({ reload }: { reload: () => Promise<void> }) {
       await apiFetch("/api/account/2fa/disable", { method: "POST", body: JSON.stringify({ current: password, code }) });
       setDisabling(false);
       await reload();
-      toast.success("Two-factor authentication is off");
+      toast.success(t("Two-factor authentication is off"));
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
@@ -256,16 +256,16 @@ function AppPasswords({ state, reload }: { state: SecurityState | null; reload: 
 
   const revoke = async (row: AppPasswordRow) => {
     const ok = await confirmDialog({
-      title: `Revoke "${row.description}"?`,
-      message: "Anything signed in with this password stops working immediately.",
-      confirmLabel: "Revoke",
+      title: t("Revoke “{name}”?", { name: row.description }),
+      message: t("Anything signed in with this password stops working immediately."),
+      confirmLabel: t("Revoke"),
       danger: true,
     });
     if (!ok) return;
     try {
       await apiFetch("/api/account/app-passwords/revoke", { method: "POST", body: JSON.stringify({ id: row.id }) });
       await reload();
-      toast.success("App password revoked");
+      toast.success(t("App password revoked"));
     } catch (err) {
       toast.error((err as Error).message);
     }
@@ -321,7 +321,7 @@ function CopyableSecret({ value }: { value: string }) {
         type="button"
         className="btn btn-sm btn-ghost"
         title={t("Copy")}
-        onClick={() => void navigator.clipboard?.writeText(value).then(() => toast.success("Copied"), () => toast.error("Could not copy"))}
+        onClick={() => void navigator.clipboard?.writeText(value).then(() => toast.success(t("Copied")), () => toast.error(t("Could not copy")))}
       >
         <Copy size={14} />
       </button>

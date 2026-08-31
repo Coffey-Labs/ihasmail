@@ -58,7 +58,7 @@ export function MailView({ mailboxId, threadId, search }: { mailboxId?: string; 
    */
   useEffect(() => {
     if (!isUnknownMailbox({ mailboxId, mailboxes, loaded: mailboxesLoaded, search }) || !inboxId) return;
-    toast.show("That folder no longer exists. Showing your inbox instead.");
+    toast.show(translate("That folder no longer exists. Showing your inbox instead."));
     navigate(`/mail/${inboxId}`, { replace: true });
   }, [search, mailboxId, mailboxesLoaded, mailboxes, inboxId, navigate]);
 
@@ -362,7 +362,7 @@ export function MailView({ mailboxId, threadId, search }: { mailboxId?: string; 
       )}
       {movePicker && (
         <MailboxPicker
-          title={`Move ${movePicker.ids.length} message${movePicker.ids.length === 1 ? "" : "s"} to…`}
+          title={plural(movePicker.ids.length, { one: "Move {n} message to…", other: "Move {n} messages to…" })}
           onClose={() => setMovePicker(null)}
           onPick={(mbId) => {
             setMovePicker(null);
@@ -375,7 +375,7 @@ export function MailView({ mailboxId, threadId, search }: { mailboxId?: string; 
           ids={labelPicker.ids}
           anchor={labelPicker.anchor}
           onClose={() => setLabelPicker(null)}
-          onApplied={() => toast.show("Labels updated")}
+          onApplied={() => toast.show(translate("Labels updated"))}
         />
       )}
     </div>

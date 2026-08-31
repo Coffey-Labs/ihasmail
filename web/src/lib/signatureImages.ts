@@ -10,16 +10,17 @@ import { fileCreate } from "@/lib/filenode";
 import { ensureFolder, nodeBlobId } from "@/lib/appFolder";
 import { useSession } from "@/store/session";
 import { toast } from "@/ui/toast";
+import { t } from "@/lib/i18n";
 
 /** Upload an image for use in a signature; returns a same-origin blob URL. */
 export async function uploadSignatureImage(file: File): Promise<string> {
   const accountId = useSession.getState().ownAccountFor(CAP.filenode);
   if (!accountId || !client.hasCapability(CAP.filenode)) {
-    toast.error("Images in signatures need the Files feature, which this account doesn't have.");
+    toast.error(t("Images in signatures need the Files feature, which this account doesn't have."));
     throw new Error("filenode unavailable");
   }
   if (file.size > 512 * 1024) {
-    toast.error("Please use an image under 512 KB for signatures.");
+    toast.error(t("Please use an image under 512 KB for signatures."));
     throw new Error("too large");
   }
   try {
@@ -35,7 +36,7 @@ export async function uploadSignatureImage(file: File): Promise<string> {
     const blobId = created?.blobId ?? (await nodeBlobId(accountId, created?.id)) ?? up.blobId;
     return client.downloadUrl(accountId, blobId, name, type, true);
   } catch (err) {
-    toast.error(`Could not store image: ${(err as Error).message}`);
+    toast.error(t("Could not store image: {error}", { error: (err as Error).message }));
     throw err;
   }
 }
