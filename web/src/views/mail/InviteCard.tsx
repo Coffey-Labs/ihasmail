@@ -91,7 +91,7 @@ export function InviteCard({ email, part }: { email: Email; part: EmailBodyPart 
           <h4>{ev.title || "(untitled event)"}</h4>
           {inst && <div className="small">{`${formatTimeRange(inst.start, inst.end, inst.allDay)}${ev.timeZone ? ` (${ev.timeZone})` : ""}`}</div>}
           {location && <div className="small muted row gap-4"><MapPin size={13} /> {location}</div>}
-          {organizer && <div className="small muted">Organizer: {organizer.name || participantEmail(organizer)}</div>}
+          {organizer && <div className="small muted">{t("Organizer: {name}", { name: organizer.name || participantEmail(organizer) })}</div>}
           {attendees.length > 0 && <div className="small muted">{`${attendees.length} attendee${attendees.length === 1 ? "" : "s"}`}</div>}
           {method === "REPLY" && (
             <div className="small" style={{ marginTop: 4 }}>
@@ -109,7 +109,7 @@ export function InviteCard({ email, part }: { email: Email; part: EmailBodyPart 
               <button className={`btn btn-sm ${myStatus === "declined" ? "btn-danger" : ""}`} disabled={Boolean(busy)} onClick={() => void respond("declined")}><X size={14} /> {myStatus === "declined" ? "Declined" : "No"}</button>
             </>
           ) : (
-            !existing && <button className="btn btn-sm" disabled={Boolean(busy)} onClick={() => void addToCalendar()}><Calendar size={14} /> Add to calendar</button>
+            !existing && <button className="btn btn-sm" disabled={Boolean(busy)} onClick={() => void addToCalendar()}><Calendar size={14} />  {t("Add to calendar")}</button>
           )}
           {existing && inst && <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/calendar/day/${inst.start.toISOString().slice(0, 10)}`)}>{t("Open in calendar")}</button>}
         </div>

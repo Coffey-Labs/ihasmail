@@ -16,6 +16,7 @@ import { confirmDialog } from "@/ui/dialog";
 import { toast } from "@/ui/toast";
 import { isUnknownMailbox } from "@/lib/mailboxRoute";
 import { scheduledMailboxIdFrom, useScheduled } from "@/store/scheduled";
+import { t as translate } from "@/lib/i18n";
 
 export function MailView({ mailboxId, threadId, search }: { mailboxId?: string; threadId?: string; search?: boolean }) {
   const [, navigate] = useLocation();
@@ -353,7 +354,7 @@ export function MailView({ mailboxId, threadId, search }: { mailboxId?: string; 
             <div className="no-thread">
               <img src="/img/logo.png" alt="" />
               <div>{list?.total ? `${list.total} conversation${list.total === 1 ? "" : "s"}` : "No conversation selected"}</div>
-              <div className="hint">Select a conversation to read it here · Press <kbd className="kbd">?</kbd> for shortcuts</div>
+              <div className="hint">{translate("Select a conversation to read it here · Press")} <kbd className="kbd">?</kbd>  {translate("for shortcuts")}</div>
             </div>
           )}
         </div>

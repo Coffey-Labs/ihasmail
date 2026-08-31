@@ -163,7 +163,7 @@ export function ContactEditor({ card, defaultBookId, onClose, onSaved }: Props) 
             {photoSrc ? <img src={photoSrc} alt="" /> : <Camera size={28} />}
             <input type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) onPhoto(f); e.target.value = ""; }} />
           </label>
-          {photoSrc && <button className="btn btn-ghost btn-sm" onClick={() => { setPhoto(null); setRemovePhoto(true); }}><X size={14} /> Remove photo</button>}
+          {photoSrc && <button className="btn btn-ghost btn-sm" onClick={() => { setPhoto(null); setRemovePhoto(true); }}><X size={14} />  {t("Remove photo")}</button>}
           <span className="spacer" />
           <div className="field" style={{ marginBottom: 0, width: 160 }}>
             <label>{t("Type")}</label>
@@ -234,7 +234,7 @@ export function ContactEditor({ card, defaultBookId, onClose, onSaved }: Props) 
                 <button className="icon-btn sm danger" onClick={() => setEmails(emails.filter((_, j) => j !== i))} aria-label={t("Remove")}><Trash2 size={16} /></button>
               </div>
             ))}
-            <button className="btn btn-ghost btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => setEmails([...emails, { key: newKey("e"), address: "", ctx: emails.length ? "work" : "private" }])}><Plus size={14} /> Add email</button>
+            <button className="btn btn-ghost btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => setEmails([...emails, { key: newKey("e"), address: "", ctx: emails.length ? "work" : "private" }])}><Plus size={14} />  {t("Add email")}</button>
           </div>
         </div>
         <div className="field">
@@ -247,7 +247,7 @@ export function ContactEditor({ card, defaultBookId, onClose, onSaved }: Props) 
                 <button className="icon-btn sm danger" onClick={() => setPhones(phones.filter((_, j) => j !== i))} aria-label={t("Remove")}><Trash2 size={16} /></button>
               </div>
             ))}
-            <button className="btn btn-ghost btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => setPhones([...phones, { key: newKey("p"), number: "", ctx: "mobile" }])}><Plus size={14} /> Add phone</button>
+            <button className="btn btn-ghost btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => setPhones([...phones, { key: newKey("p"), number: "", ctx: "mobile" }])}><Plus size={14} />  {t("Add phone")}</button>
           </div>
         </div>
         <div className="field">
@@ -269,7 +269,7 @@ export function ContactEditor({ card, defaultBookId, onClose, onSaved }: Props) 
                 </div>
               </div>
             ))}
-            <button className="btn btn-ghost btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => setAddrs([...addrs, { key: newKey("a"), ctx: "private", street: "", city: "", region: "", postcode: "", country: "" }])}><Plus size={14} /> Add address</button>
+            <button className="btn btn-ghost btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => setAddrs([...addrs, { key: newKey("a"), ctx: "private", street: "", city: "", region: "", postcode: "", country: "" }])}><Plus size={14} />  {t("Add address")}</button>
           </div>
         </div>
         <div className="field-row">

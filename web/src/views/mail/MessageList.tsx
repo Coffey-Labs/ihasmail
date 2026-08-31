@@ -14,7 +14,7 @@ import { useCompose } from "@/store/compose";
 import { haptic, usePullToRefresh, useTouchRow, PULL_TRIGGER } from "@/lib/touch";
 import { describeSwipe, type SwipeAction, type SwipeDescriptor, type SwipeIcon } from "@/lib/swipe";
 import { FilterFromMessageDialog } from "./FilterFromMessage";
-import { t } from "@/lib/i18n";
+import { plural, t } from "@/lib/i18n";
 
 /**
  * The glyph on the strip a swipe reveals. Sized larger than the toolbar's
@@ -248,7 +248,7 @@ export function MessageList({ title, list, openThreadId, focusId, setFocusId, on
         />
         {selCount > 0 ? (
           <>
-            <span className="tb-count">{selCount} selected</span>
+            <span className="tb-count">{plural(selCount, { one: "{n} selected", other: "{n} selected" })}</span>
             <span className="tb-sep" />
             <button className="icon-btn" title={t("Archive (e)")} onClick={() => void actions.archive()}><Archive size={19} /></button>
             <button className="icon-btn" title={isTrashOrJunk ? "Delete forever" : "Delete (#)"} onClick={() => void actions.trash()}><Trash2 size={19} /></button>

@@ -38,8 +38,8 @@ export function LabelsSettings() {
           </div>
         </div>
       ))}
-      <button className="btn" onClick={() => void add()}><Plus size={16} /> New label</button>
-      <p className="hint mt-8">Tip: press <kbd className="kbd">l</kbd> on a conversation to apply labels. Search with <code>label:name</code>.</p>
+      <button className="btn" onClick={() => void add()}><Plus size={16} />  {t("New label")}</button>
+      <p className="hint mt-8">{t("Tip: press")} <kbd className="kbd">l</kbd>  {t("on a conversation to apply labels. Search with")} <code>label:name</code>.</p>
     </div>
   );
 }

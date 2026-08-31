@@ -384,7 +384,7 @@ function MailboxMenu({ mailbox: m, onClose, onCreateChild, onShare }: { mailbox:
           reason this entry survives at all. */}
       {shared && <MenuItem icon={<Share2 size={16} />} label={t("Stop sharing")} onClick={onShare} />}
       <MenuSep />
-      <MenuTitle><span className="row gap-4"><Palette size={12} /> Colour</span></MenuTitle>
+      <MenuTitle><span className="row gap-4"><Palette size={12} />  {t("Colour")}</span></MenuTitle>
       <div className="color-grid" style={{ gridTemplateColumns: "repeat(6, 26px)", padding: "4px 10px 8px" }}>
         {CALENDAR_COLORS.map((c) => (
           <button

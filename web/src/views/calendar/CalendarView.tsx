@@ -130,7 +130,7 @@ export function CalendarView({ view: viewParam, date }: { view?: string; date?: 
             <button key={v} className={effectiveView === v ? "active" : ""} onClick={() => go(v, anchor)}>{v[0]!.toUpperCase() + v.slice(1)}</button>
           ))}
         </div>
-        {!isMobile && <button className="btn btn-primary btn-sm" onClick={() => openNew()}><Plus size={16} /> Event</button>}
+        {!isMobile && <button className="btn btn-primary btn-sm" onClick={() => openNew()}><Plus size={16} />  {translate("Event")}</button>}
       </div>
       {cal.error && <div className="error-box" style={{ margin: 12 }}>{cal.error}</div>}
       {effectiveView === "month" && <MonthView anchor={anchor} weekStart={weekStart} onDay={(d) => go("day", d)} onEvent={onEvent} onEventContext={onEventContext} onSlotContext={onSlotContext} onCreate={(d) => openNew(new Date(d.getTime() + 9 * 3600_000))} />}
@@ -169,7 +169,7 @@ function MonthView({ anchor, weekStart, onDay, onEvent, onEventContext, onSlotCo
               <div key={d.toISOString()} className={`month-cell ${d.getMonth() !== anchor.getMonth() ? "other" : ""} ${isToday(d) ? "today" : ""}`} onClick={() => onCreate(d)} onDoubleClick={() => onDay(d)} onContextMenu={(e) => onSlotContext(new Date(d.getTime() + 9 * 3600_000), new Date(d.getTime() + 10 * 3600_000), false, e)}>
                 <span className="day-num" onClick={(e) => { e.stopPropagation(); onDay(d); }}>{d.getDate() === 1 ? formatDayMonth(d) : d.getDate()}</span>
                 {shown.map((i) => <EventChip key={i.key} inst={i} day={d} onClick={(el) => onEvent(i, el)} onContext={(e) => onEventContext(i, e)} />)}
-                {evs.length > maxPer && <span className="more" onClick={(e) => { e.stopPropagation(); onDay(d); }}>+{evs.length - maxPer} more</span>}
+                {evs.length > maxPer && <span className="more" onClick={(e) => { e.stopPropagation(); onDay(d); }}>{translate("+{n} more", { n: evs.length - maxPer })}</span>}
               </div>
             );
           })}

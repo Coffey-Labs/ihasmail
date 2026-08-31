@@ -73,7 +73,7 @@ export function FilePicker({ onPick, onClose }: { onPick: (files: AttachableFile
       {files.sharedAccounts.length > 0 && (
         <div className="row wrap gap-4" style={{ marginBottom: 10 }}>
           <button className={`btn btn-sm ${viewingShare ? "" : "btn-primary"}`} onClick={() => openAccount(files.ownAccountId)}>
-            <HardDrive size={14} /> My files
+            <HardDrive size={14} />  {t("My files")}
           </button>
           {files.sharedAccounts.map((a) => (
             <button key={a.id} className={`btn btn-sm ${files.accountId === a.id ? "btn-primary" : ""}`} onClick={() => openAccount(a.id)}>

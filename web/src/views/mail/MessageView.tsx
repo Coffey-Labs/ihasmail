@@ -150,13 +150,14 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
         <div className="who">
           <div className="from" onContextMenu={(ev) => from && addrMenu.open(ev, from)}>
             <span className="addr">{displayName(from)}</span>
-            {expanded && from && <span className="email addr">&lt;{from.email}&gt;</span>}
+            {/* An address, not a sentence. */}
+            {expanded && from && <span className="email addr notranslate" translate="no">&lt;{from.email}&gt;</span>}
             {isHighPriority && <span className="tag" style={{ background: "var(--danger)" }}>{translate("Important")}</span>}
-            {authFailed && <span className="tag" style={{ background: "var(--warn)" }} title={e["header:Authentication-Results:asText"] ?? ""}><ShieldAlert size={12} /> Unverified</span>}
+            {authFailed && <span className="tag" style={{ background: "var(--warn)" }} title={e["header:Authentication-Results:asText"] ?? ""}><ShieldAlert size={12} />  {translate("Unverified")}</span>}
           </div>
           {expanded ? (
             <div className="to">
-              <span className="truncate">to {summarizeRecipients(e)}</span>
+              <span className="truncate">{translate("to {recipients}", { recipients: summarizeRecipients(e) })}</span>
               <button onClick={(ev) => { ev.stopPropagation(); setDetails((v) => !v); }} aria-label={translate("Show details")} title={translate("Show details")}>
                 {details ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
               </button>
@@ -222,9 +223,10 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
             <div className="receipt-banner" style={{ margin: "0 16px 8px" }}>
               <CheckCheck size={16} />
               <span className="grow">
-                The sender asked for a read receipt.
+                
+                {translate("The sender asked for a read receipt.")}
                 {receipt.redirected && (
-                  <> It would go to <strong>{receipt.to!.email}</strong>, which is not where the message came from.</>
+                  <>  {translate("It would go to")} <strong>{receipt.to!.email}</strong>{translate(", which is not where the message came from.")}</>
                 )}
               </span>
               <button
@@ -248,7 +250,7 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
           {scheduled && (
             <div className="scheduled-banner" style={{ margin: "0 16px 8px" }}>
               <Clock size={16} />
-              <span className="grow">Waiting on the server — goes out {formatScheduleTime(new Date(scheduled.sendAt))}.</span>
+              <span className="grow">{translate("Waiting on the server — goes out {when}.", { when: formatScheduleTime(new Date(scheduled.sendAt)) })}</span>
               <button
                 onClick={async () => {
                   try {
@@ -269,7 +271,7 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
               <ImageIcon size={16} />
               <span className="grow">{translate("Remote images are blocked to protect your privacy.")}</span>
               <button onClick={() => setAllowRemote(true)}>{translate("Show images")}</button>
-              {from && <button onClick={() => updateSettings({ trustedImageSenders: [...settings.trustedImageSenders, from.email.toLowerCase()] })}>Always from {from.email}</button>}
+              {from && <button onClick={() => updateSettings({ trustedImageSenders: [...settings.trustedImageSenders, from.email.toLowerCase()] })}>{translate("Always from {email}", { email: from.email })}</button>}
             </div>
           )}
           {icsPart && <InviteCard email={e} part={icsPart} />}
@@ -543,15 +545,15 @@ function AttachmentList({ attachments, accountId, email }: { attachments: EmailB
         })}
         {attachments.length > 1 && (
           <button className="btn btn-ghost btn-sm" style={{ alignSelf: "center" }} onClick={() => { for (const a of attachments) { if (!a.blobId) continue; const l = document.createElement("a"); l.href = client.downloadUrl(accountId, a.blobId, a.name ?? "attachment", a.type); l.download = a.name ?? ""; l.click(); } }}>
-            <Download size={14} /> Download all
+            <Download size={14} />  {translate("Download all")}
           </button>
         )}
       </div>
-      <Dialog open={Boolean(preview)} onClose={() => setPreview(null)} title={preview?.name ?? "Preview"} size="xl" footer={preview && <a className="btn" href={client.downloadUrl(accountId, preview.blobId!, preview.name ?? "file", preview.type)} download><Download size={16} /> Download</a>}>
+      <Dialog open={Boolean(preview)} onClose={() => setPreview(null)} title={preview?.name ?? "Preview"} size="xl" footer={preview && <a className="btn" href={client.downloadUrl(accountId, preview.blobId!, preview.name ?? "file", preview.type)} download><Download size={16} />  {translate("Download")}</a>}>
         {preview?.type.startsWith("image/") && <img src={client.downloadUrl(accountId, preview.blobId!, preview.name ?? "image", preview.type, true)} alt={preview.name ?? ""} style={{ maxHeight: "70vh", display: "block", margin: "0 auto" }} />}
         {preview?.type === "application/pdf" && <iframe title={translate("PDF")} src={client.downloadUrl(accountId, preview.blobId!, preview.name ?? "file.pdf", preview.type, true)} style={{ width: "100%", height: "70vh", border: 0 }} />}
         {preview?.type === "text/plain" && <TextAttachment url={client.downloadUrl(accountId, preview.blobId!, preview.name ?? "file.txt", preview.type, true)} />}
-        <p className="hint" style={{ marginTop: 8 }}>From: {displayName(email.from?.[0])}</p>
+        <p className="hint" style={{ marginTop: 8 }}>{translate("From: {sender}", { sender: displayName(email.from?.[0]) })}</p>
       </Dialog>
     </>
   );

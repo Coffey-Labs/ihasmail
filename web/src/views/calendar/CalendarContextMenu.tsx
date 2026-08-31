@@ -116,7 +116,7 @@ export function CalendarContextMenu({ ctx, onClose, onOpen, onEdit, onCreate }: 
       {canEdit && (
         <>
           <MenuSep />
-          <MenuTitle><span className="row gap-4"><Tag size={12} /> Category</span></MenuTitle>
+          <MenuTitle><span className="row gap-4"><Tag size={12} />  {t("Category")}</span></MenuTitle>
           {categories.map((c) => (
             <MenuItem key={c.name} label={<span className="row gap-8"><span className="label-dot" style={{ background: c.color, width: 12, height: 12 }} />{c.name}</span>} checked={currentCat?.name === c.name} onClick={() => { onClose(); setCategory(currentCat?.name === c.name ? null : c); }} />
           ))}

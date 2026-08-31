@@ -1,8 +1,15 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { currentLanguage, interpolate, plural, setCatalog, t, type Catalog } from "@/lib/i18n";
+import { renderToStaticMarkup } from "react-dom/server";
+import { currentLanguage, interpolate, plural, setCatalog, t, tNode, type Catalog } from "@/lib/i18n";
 
 const de: Catalog = {
-  strings: { "Archive": "Archivieren", "Move {n} to {folder}": "{n} nach {folder} verschieben" },
+  strings: {
+    "Archive": "Archivieren",
+    "Move {n} to {folder}": "{n} nach {folder} verschieben",
+    // German puts the parts in a different order, which is the whole reason
+    // the element is a named hole rather than a split sentence.
+    "Open {scheme} links here": "{scheme}-Links hier öffnen",
+  },
   plurals: { "{n} messages": { one: "{n} Nachricht", other: "{n} Nachrichten" } },
 };
 /* Russian is the reason plural() does not take (one, other): it needs three
@@ -75,5 +82,30 @@ describe("plural", () => {
   it("takes extra variables alongside the count", () => {
     expect(plural(2, { one: "{n} message in {folder}", other: "{n} messages in {folder}" }, { folder: "Inbox" }))
       .toBe("2 messages in Inbox");
+  });
+});
+
+describe("tNode", () => {
+  const render = (node: React.ReactNode) => renderToStaticMarkup(<>{node}</>);
+
+  it("keeps an element inside the sentence", () => {
+    expect(render(tNode("Open {scheme} links here", { scheme: <code>mailto:</code> })))
+      .toBe("Open <code>mailto:</code> links here");
+  });
+
+  it("lets a translator move the element", () => {
+    // Splitting the sentence into two t() calls could not do this: the
+    // fragments would render in the English order whatever the catalogue said.
+    setCatalog("de", de);
+    expect(render(tNode("Open {scheme} links here", { scheme: <code>mailto:</code> })))
+      .toBe("<code>mailto:</code>-Links hier öffnen");
+  });
+
+  it("leaves a placeholder alone when nothing is supplied for it", () => {
+    expect(render(tNode("Open {scheme} links here", {}))).toBe("Open {scheme} links here");
+  });
+
+  it("takes plain variables alongside elements", () => {
+    expect(render(tNode("{count} of {scheme}", { scheme: <b>x</b> }, { count: 3 }))).toBe("3 of <b>x</b>");
   });
 });

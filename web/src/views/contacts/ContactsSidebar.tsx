@@ -170,10 +170,10 @@ export function ContactsSidebar() {
       {/* Import and export lived in the pane this replaced. */}
       <div style={{ padding: "12px 8px" }} className="col gap-8">
         <label className="btn btn-sm btn-block">
-          <Upload size={14} /> Import vCard
+          <Upload size={14} />  {t("Import vCard")}
           <input type="file" accept=".vcf,text/vcard" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) onImport(f); e.target.value = ""; }} />
         </label>
-        <button className="btn btn-sm btn-block" onClick={onExport}><Download size={14} /> Export {sel.bookId === "all" ? "all" : "book"}</button>
+        <button className="btn btn-sm btn-block" onClick={onExport}><Download size={14} /> {sel.bookId === "all" ? t("Export all") : t("Export book")}</button>
       </div>
 
       <Popover anchor={menu.anchor} onClose={menu.close} width={210}>

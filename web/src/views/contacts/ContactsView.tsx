@@ -166,8 +166,8 @@ function ContactDetail({ card: c, onBack, onEdit, narrow, onEmail }: { card: Con
       <div className="row" style={{ marginBottom: 12 }}>
         {narrow && <button className="icon-btn" onClick={onBack} aria-label={translate("Back")}><ArrowLeft size={20} /></button>}
         <span className="spacer" />
-        <button className="btn btn-sm" onClick={onEdit}><Pencil size={14} /> Edit</button>
-        <button className="btn btn-sm" onClick={() => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([toVCard(c)], { type: "text/vcard" })); a.download = `${name.replace(/[^\w.-]+/g, "_")}.vcf`; a.click(); }}><Download size={14} /> vCard</button>
+        <button className="btn btn-sm" onClick={onEdit}><Pencil size={14} />  {translate("Edit")}</button>
+        <button className="btn btn-sm" onClick={() => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([toVCard(c)], { type: "text/vcard" })); a.download = `${name.replace(/[^\w.-]+/g, "_")}.vcf`; a.click(); }}><Download size={14} />  {translate("vCard")}</button>
         <button className="btn btn-sm btn-ghost" style={{ color: "var(--danger)" }} onClick={async () => { if (await confirmDialog({ title: `Delete ${name}?`, confirmLabel: "Delete", danger: true })) { try { await contacts.destroyCards([c.id]); toast.success("Contact deleted"); navigate("/contacts"); } catch (err) { toast.error((err as Error).message); } } }}><Trash2 size={14} /></button>
       </div>
       <div className="contact-hero">
@@ -223,13 +223,13 @@ function ContactDetail({ card: c, onBack, onEdit, narrow, onEmail }: { card: Con
         </div>
       )}
       {c.kind === "group" && (
-        <div className="contact-section"><h3>Members ({Object.keys(c.members ?? {}).length})</h3>
+        <div className="contact-section"><h3>{translate("Members ({count})", { count: Object.keys(c.members ?? {}).length })}</h3>
           {members.map((m) => <div key={m.id} className="contact-kv"><span className="k"><Avatar who={{ name: contactDisplayName(m), email: contactEmails(m)[0]?.email }} size="sm" /></span><span className="v"><a href={`/contacts/${m.id}`} onClick={(e) => { e.preventDefault(); navigate(`/contacts/${m.id}`); }}>{contactDisplayName(m)}</a> <span className="hint">{contactEmails(m)[0]?.email}</span></span></div>)}
-          {members.length > 0 && <button className="btn btn-sm mt-8" onClick={() => useCompose.getState().open({ to: members.flatMap((m) => contactEmails(m).slice(0, 1)) })}><Mail size={14} /> Email group</button>}
+          {members.length > 0 && <button className="btn btn-sm mt-8" onClick={() => useCompose.getState().open({ to: members.flatMap((m) => contactEmails(m).slice(0, 1)) })}><Mail size={14} />  {translate("Email group")}</button>}
         </div>
       )}
       {c.keywords && Object.keys(c.keywords).length > 0 && <div className="row wrap gap-4 mt-8">{Object.keys(c.keywords).map((k) => <span key={k} className="chip"><Pin size={12} /> {k}</span>)}</div>}
-      {c.updated && <p className="hint mt-16"><CalIcon size={12} /> Updated {formatDate(new Date(c.updated))}</p>}
+      {c.updated && <p className="hint mt-16"><CalIcon size={12} /> {translate("Updated {date}", { date: formatDate(new Date(c.updated)) })}</p>}
     </div>
   );
 }

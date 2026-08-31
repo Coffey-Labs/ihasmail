@@ -59,7 +59,7 @@ export function SecuritySettings() {
   return (
     <div>
       <h1>{t("Security & sessions")}</h1>
-      <p className="lead">You're signed in as <b>{session?.username}</b>. Your password is never stored in the browser; the server keeps it encrypted per-session for talking to Stalwart.</p>
+      <p className="lead">{t("You're signed in as")} <b>{session?.username}</b>{t(". Your password is never stored in the browser; the server keeps it encrypted per-session for talking to Stalwart.")}</p>
 
       <h2>{t("Password")}</h2>
       {unsupported ? (
@@ -303,9 +303,9 @@ function AppPasswords({ state, reload }: { state: SecurityState | null; reload: 
         footer={<button className="btn btn-primary" onClick={() => setIssued(null)}>{t("Done")}</button>}>
         {issued && (
           <div>
-            <p>Copy it into <b>{issued.description}</b> now — it isn't shown again.</p>
+            <p>{t("Copy it into")} <b>{issued.description}</b>  {t("now — it isn't shown again.")}</p>
             <CopyableSecret value={issued.secret} />
-            <p className="hint mt-8"><Smartphone size={13} style={{ verticalAlign: "-2px" }} /> Use your usual address as the username.</p>
+            <p className="hint mt-8"><Smartphone size={13} style={{ verticalAlign: "-2px" }} />  {t("Use your usual address as the username.")}</p>
           </div>
         )}
       </Dialog>

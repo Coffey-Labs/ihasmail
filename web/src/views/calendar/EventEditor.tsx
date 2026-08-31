@@ -285,7 +285,7 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
           )}
         </div>
         <div className="row wrap" style={{ gap: 16, marginBottom: 8 }}>
-          <label className="check"><input type="checkbox" checked={allDay} onChange={(e) => { setAllDay(e.target.checked); if (e.target.checked) { const s = new Date(start); s.setHours(0, 0, 0, 0); setStart(s); setEnd(new Date(s.getTime() + Math.max(DAY_MS, Math.ceil((end.getTime() - s.getTime()) / DAY_MS) * DAY_MS))); } }} /> All day</label>
+          <label className="check"><input type="checkbox" checked={allDay} onChange={(e) => { setAllDay(e.target.checked); if (e.target.checked) { const s = new Date(start); s.setHours(0, 0, 0, 0); setStart(s); setEnd(new Date(s.getTime() + Math.max(DAY_MS, Math.ceil((end.getTime() - s.getTime()) / DAY_MS) * DAY_MS))); } }} />  {translate("All day")}</label>
           {!allDay && (
             <select className="select" style={{ width: "auto", height: 32 }} value={tz} onChange={(e) => setTz(e.target.value)} title={translate("Time zone")}>
               {!listTimeZones().includes(tz) && <option value={tz}>{tz}</option>}
@@ -296,9 +296,9 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
           <select className="select" style={{ width: "auto", height: 32 }} value={preset} onChange={(e) => { const p = e.target.value as RecurrencePreset; setPreset(p); if (p === "custom") setRule(rule ?? { "@type": "RecurrenceRule", frequency: "weekly", byDay: [{ "@type": "NDay", day: WEEKDAYS[(start.getDay() + 6) % 7]!.key }] }); else setRule(ruleFromPreset(p, start)); }}>
             <option value="none">{translate("Does not repeat")}</option>
             <option value="daily">{translate("Daily")}</option>
-            <option value="weekly">Weekly on {formatWeekday(start, "long")}</option>
+            <option value="weekly">{translate("Weekly on {weekday}", { weekday: formatWeekday(start, "long") })}</option>
             <option value="weekdays">{translate("Every weekday")}</option>
-            <option value="monthly">Monthly on day {start.getDate()}</option>
+            <option value="monthly">{translate("Monthly on day {day}", { day: start.getDate() })}</option>
             <option value="yearly">{translate("Yearly")}</option>
             <option value="custom">{translate("Custom…")}</option>
           </select>
@@ -342,7 +342,7 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
         </div>
         <div className="field"><label>{translate("Meeting link")}</label><input className="input" value={vurl} onChange={(e) => setVurl(e.target.value)} placeholder={translate("https://meet.example.com/…")} /></div>
         <div className="field">
-          <label><Users size={13} /> Guests</label>
+          <label><Users size={13} />  {translate("Guests")}</label>
           <div className="input" style={{ height: "auto", minHeight: 38, padding: "4px 8px" }}>
             <RecipientInput value={attendees} onChange={setAttendees} placeholder={translate("Add guests by name or email")} />
           </div>
@@ -351,7 +351,7 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
               <Switch checked={sendInvites} onChange={setSendInvites} label={translate("Send invitation emails to guests")} />
               {Object.keys(fb).length > 0 && (
                 <div className="freebusy">
-                  <div className="hint">Availability on {formatNumericDate(start)}</div>
+                  <div className="hint">{translate("Availability on {date}", { date: formatNumericDate(start) })}</div>
                   {attendees.filter((a) => fb[a.email]).map((a) => (
                     <div key={a.email} className="fb-row">
                       <span className="truncate" style={{ width: 140 }}>{a.name ?? a.email}</span>
@@ -383,7 +383,7 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
                 <button className="icon-btn sm danger" onClick={() => setAlerts(alerts.filter((_, j) => j !== i))} aria-label={translate("Remove reminder")}><Trash2 size={16} /></button>
               </div>
             ))}
-            <button className="btn btn-ghost btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => setAlerts([...alerts, 10])}><Plus size={14} /> Add reminder</button>
+            <button className="btn btn-ghost btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => setAlerts([...alerts, 10])}><Plus size={14} />  {translate("Add reminder")}</button>
           </div>
         </div>
         <button className="btn btn-ghost btn-sm" onClick={() => setShowMore((v) => !v)}>{showMore ? "Fewer options" : "More options"}</button>
@@ -400,7 +400,7 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
                 {categories.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
               </select>
             </div>
-            <div className="field"><label>{translate("Color")}</label><div className="row wrap"><ColorSwatches value={color} onChange={setColor} />{color && <button className="btn btn-ghost btn-sm" onClick={() => setColor(null)}>Use {category ? "category" : "calendar"} color</button>}</div></div>
+            <div className="field"><label>{translate("Color")}</label><div className="row wrap"><ColorSwatches value={color} onChange={setColor} />{color && <button className="btn btn-ghost btn-sm" onClick={() => setColor(null)}>{category ? translate("Use category color") : translate("Use calendar color")}</button>}</div></div>
           </div>
         )}
       </div>

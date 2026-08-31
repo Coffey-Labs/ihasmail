@@ -120,9 +120,9 @@ export function FilesView({ nodeId }: { nodeId?: string }) {
             </span>
           ))}
         </div>
-        <button className="btn btn-sm" onClick={() => inputRef.current?.click()}><Upload size={16} /> Upload</button>
+        <button className="btn btn-sm" onClick={() => inputRef.current?.click()}><Upload size={16} />  {t("Upload")}</button>
         <input ref={inputRef} type="file" multiple hidden onChange={(e) => { const l = Array.from(e.target.files ?? []); if (l.length) void files.upload(parentId, l); e.target.value = ""; }} />
-        <button className="btn btn-sm" onClick={async () => { const n = await promptDialog({ title: "New folder", placeholder: "Folder name" }); if (n?.trim()) { try { await files.mkdir(parentId, n.trim()); } catch (err) { toast.error((err as Error).message); } } }}><FolderPlus size={16} /> New folder</button>
+        <button className="btn btn-sm" onClick={async () => { const n = await promptDialog({ title: "New folder", placeholder: "Folder name" }); if (n?.trim()) { try { await files.mkdir(parentId, n.trim()); } catch (err) { toast.error((err as Error).message); } } }}><FolderPlus size={16} />  {t("New folder")}</button>
       </div>
       {files.uploads.length > 0 && (
         <div className="list-hint" style={{ flexDirection: "column", alignItems: "stretch", gap: 4 }}>
