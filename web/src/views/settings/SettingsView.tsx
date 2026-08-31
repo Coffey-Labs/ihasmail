@@ -44,7 +44,7 @@ export function SettingsView({ section }: { section?: string }) {
         {SECTIONS.map((s) => (
           <Link key={s.id} href={`/settings/${s.id}`} className={`nav-item ${section === s.id ? "active" : ""}`}>
             {s.icon}
-            <span className="nav-label">{s.label}</span>
+            <span className="nav-label">{t(s.label)}</span>
           </Link>
         ))}
         <div className="nav-section" style={{ paddingLeft: 8 }}><span>{t("Shortcuts")}</span></div>

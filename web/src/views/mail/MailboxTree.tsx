@@ -15,6 +15,7 @@ import { loadRaw, saveJson } from "@/lib/storage";
 import { canDropFolder, folderColor, movable } from "@/lib/folderMove";
 import { haptic, useTouchRow } from "@/lib/touch";
 import { t } from "@/lib/i18n";
+import { mailboxDisplayName } from "@/lib/mailboxName";
 
 const ROLE_ICONS: Record<string, ReactNode> = {
   inbox: <Inbox size={20} />,
@@ -63,9 +64,9 @@ export function MailboxTree() {
         setExpanded(next);
         saveJson("mbx-expanded", next);
       }
-      toast.success(parentId ? `“${m?.name}” moved into “${mailboxes[parentId]?.name}”` : `“${m?.name}” moved to the top level`);
+      toast.success(parentId ? t("“{name}” moved into “{parent}”", { name: mailboxDisplayName(m), parent: mailboxDisplayName(mailboxes[parentId]) }) : t("“{name}” moved to the top level", { name: mailboxDisplayName(m) }));
     } catch (err) {
-      toast.error(`Could not move “${m?.name}”: ${(err as Error).message}`);
+      toast.error(t("Could not move “{name}”: {reason}", { name: mailboxDisplayName(m), reason: (err as Error).message }));
     }
   };
 
@@ -143,7 +144,7 @@ export function MailboxTree() {
             if (id) void moveFolder(id, null);
           }}
         >
-          <span>{draggingId && canDropOn(null) ? "Drop here for the top level" : "Folders"}</span>
+          <span>{draggingId && canDropOn(null) ? t("Drop here for the top level") : t("Folders")}</span>
           <button className="icon-btn" title={t("New folder")} aria-label={t("New folder")} onClick={() => void createFolder(null)}>
             <Plus size={16} />
           </button>
@@ -152,7 +153,7 @@ export function MailboxTree() {
           <FolderRow
             key={m.id}
             mailbox={m}
-            label={m.name}
+            label={mailboxDisplayName(m)}
             depth={depth}
             hasChildren={hasChildren}
             open={open}
@@ -332,7 +333,9 @@ function MailboxMenu({ mailbox: m, onClose, onCreateChild, onShare }: { mailbox:
     return n;
   });
   const rename = async () => {
-    const name = await promptDialog({ title: "Rename folder", defaultValue: m.name });
+    const name = await // The server's own name, never the localised one: this box writes
+    // back whatever it is prefilled with.
+    promptDialog({ title: t("Rename folder"), defaultValue: m.name });
     if (!name?.trim() || name.trim() === m.name) return;
     try {
       await useMail.getState().updateMailbox(m.id, { name: name.trim() });
@@ -341,7 +344,7 @@ function MailboxMenu({ mailbox: m, onClose, onCreateChild, onShare }: { mailbox:
     }
   };
   const remove = async () => {
-    const ok = await confirmDialog({ title: `Delete “${m.name}”?`, message: `This permanently deletes the folder and its ${m.totalEmails} message(s).`, confirmLabel: "Delete", danger: true });
+    const ok = await confirmDialog({ title: t("Delete “{name}”?", { name: mailboxDisplayName(m) }), message: `This permanently deletes the folder and its ${m.totalEmails} message(s).`, confirmLabel: "Delete", danger: true });
     if (!ok) return;
     try {
       await useMail.getState().destroyMailbox(m.id, true);
@@ -351,7 +354,7 @@ function MailboxMenu({ mailbox: m, onClose, onCreateChild, onShare }: { mailbox:
       toast.error((err as Error).message);
     }
   };
-  const empty = () => confirmAndEmpty({ id: m.id, name: m.name, role: m.role, totalEmails: m.totalEmails });
+  const empty = () => confirmAndEmpty({ id: m.id, name: mailboxDisplayName(m), role: m.role, totalEmails: m.totalEmails });
   const isSpecial = Boolean(m.role) && m.role !== "subscribed";
   const color = folderColor(colors, m.id);
   const setColor = (c: string | null) => {

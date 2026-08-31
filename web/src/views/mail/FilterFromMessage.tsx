@@ -8,7 +8,7 @@ import { RuleDialog } from "../settings/RuleDialog";
 import { toast } from "@/ui/toast";
 import { Spinner } from "@/ui/misc";
 import { Dialog } from "@/ui/dialog";
-import { t } from "@/lib/i18n";
+import { t, tNode } from "@/lib/i18n";
 
 /** "Filter messages like this…" — creates a Sieve rule seeded from a message, optionally applying it to the current folder. */
 export function FilterFromMessageDialog({ email, mailboxId, onClose }: { email: Email; mailboxId: Id | null; onClose: () => void }) {
@@ -47,7 +47,7 @@ export function FilterFromMessageDialog({ email, mailboxId, onClose }: { email: 
         {damage ? (
           <p>{t("Your filter script {damage}, so only part of it arrived. Adding a rule would write that part back over the whole thing. Reload the page and try again.", { damage })}</p>
         ) : loaded ? (
-          <p>{t("Your active Sieve script was written by hand, so rules can't be added automatically. Open")} <b>{t("Settings → Filters & rules")}</b>  {t("to edit the script or switch to managed rules.")}</p>
+          <p>{tNode("Your active Sieve script was written by hand, so rules can't be added automatically. Open {where} to edit the script or switch to managed rules.", { where: <b>{t("Settings → Filters & rules")}</b> })}</p>
         ) : (
           <p>{t("Your filter script couldn't be read just now, so adding a rule would risk overwriting it. Reload the page and try again.")}</p>
         )}

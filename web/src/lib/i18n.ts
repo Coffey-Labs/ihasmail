@@ -62,6 +62,30 @@ export function t(source: string, vars?: Vars): string {
 }
 
 /**
+ * Translate where the English word is doing two jobs.
+ *
+ * English-as-key has one real weakness and this is it: "Archive" is the button
+ * that archives a message and the folder the message lands in, and German
+ * needs "Archivieren" for the first and "Archiv" for the second. One key
+ * cannot hold both. "Important" is the same — a priority tag and a folder.
+ *
+ * So a context can be given, and the lookup becomes context + source while the
+ * fallback stays the plain English. A translator sees the context and knows
+ * which sense to render; a catalogue that has not got round to it still
+ * renders the English word, which was right in English all along.
+ *
+ * The separator is a control character rather than a punctuation mark, which
+ * is the gettext convention and for the same reason: no English string can
+ * contain it by accident.
+ */
+export const CONTEXT_SEPARATOR = "\u0004";
+
+export function tc(context: string, source: string, vars?: Vars): string {
+  const keyed = current.strings[`${context}${CONTEXT_SEPARATOR}${source}`];
+  return interpolate(keyed ?? current.strings[source] ?? source, vars);
+}
+
+/**
  * Translate a counted thing.
  *
  * Two forms is an English assumption and does not survive the second phase of
@@ -119,6 +143,12 @@ export function tNode(source: string, parts: Record<string, ReactNode>, vars?: V
   return out;
 }
 
+/** Subscribe to catalogue changes without React. Used by the tests. */
+export function subscribeForTest(fn: () => void): () => void {
+  listeners.add(fn);
+  return () => void listeners.delete(fn);
+}
+
 /** The language in force, for anything that needs the tag itself. */
 export function currentLanguage(): string {
   return currentTag;
@@ -132,6 +162,23 @@ export function currentLanguage(): string {
  * language's rules against another's forms.
  */
 export function setCatalog(tag: string, catalog: Catalog): void {
+  /*
+   * Publishing only when something actually changed is not an optimisation
+   * here, it is the thing that stops an infinite loop.
+   *
+   * The root keys its tree on the language version, so a publish remounts
+   * everything. Remounting re-runs the effect that fetches the account's
+   * settings file, which calls `hydrate`, which calls `applyLang`, which lands
+   * back here -- with the identical tag and the identical catalogue. Publishing
+   * that non-change bumped the version again and went round for ever: the
+   * message list refetched on every pass, which is what it looked like from
+   * the outside.
+   *
+   * Reference equality is enough. `EMPTY` is a module constant and a
+   * dynamically imported catalogue is cached, so the same language really does
+   * hand back the same object.
+   */
+  if (currentTag === tag && current === catalog) return;
   currentTag = tag;
   current = catalog;
   publish();

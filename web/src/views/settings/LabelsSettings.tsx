@@ -3,7 +3,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { useSettings } from "@/store/settings";
 import { CALENDAR_COLORS, ColorSwatches } from "@/ui/misc";
 import { promptDialog } from "@/ui/dialog";
-import { t } from "@/lib/i18n";
+import { t, tNode } from "@/lib/i18n";
 
 export function LabelsSettings() {
   const labels = useSettings((s) => s.settings.labels);
@@ -39,7 +39,7 @@ export function LabelsSettings() {
         </div>
       ))}
       <button className="btn" onClick={() => void add()}><Plus size={16} />  {t("New label")}</button>
-      <p className="hint mt-8">{t("Tip: press")} <kbd className="kbd">l</kbd>  {t("on a conversation to apply labels. Search with")} <code>label:name</code>.</p>
+      <p className="hint mt-8">{tNode("Tip: press {key} on a conversation to apply labels. Search with {operator}.", { key: <kbd className="kbd">l</kbd>, operator: <code>label:name</code> })}</p>
     </div>
   );
 }

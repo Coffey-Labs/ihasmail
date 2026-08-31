@@ -24,6 +24,28 @@ export interface DateTimePrefs {
 
 const DEFAULT_PREFS: DateTimePrefs = { locale: "", dateFormat: "auto", timeFormat: "auto" };
 
+/**
+ * The interface language, when one has been chosen over the default.
+ *
+ * Formatting and interface language are separate settings on purpose -- German
+ * dates with an English interface is a real preference. But somebody who picks
+ * German and is then shown "September" and "Monday" has not got what they
+ * asked for: choosing a language *is* a statement about language, and month
+ * names are language.
+ *
+ * So it joins the automatic chain, ahead of the server and the browser, and
+ * only while the formatting locale is left on "Automatic". Setting one
+ * explicitly still wins over everything, which is what that setting is for.
+ * English is not counted, because it is the default nobody has to choose --
+ * an English interface on a German browser should keep German dates, as it
+ * always has.
+ */
+let uiLanguage: string | null = null;
+
+export function setUiLanguageForFormatting(tag: string | null | undefined): void {
+  uiLanguage = tag && tag !== "en" ? tag : null;
+}
+
 let prefs: DateTimePrefs = DEFAULT_PREFS;
 let serverLocale: string | null = null;
 
@@ -90,9 +112,9 @@ export function normalizeLocale(raw: string | null | undefined): string | null {
   }
 }
 
-/** The locale Intl should use: explicit choice → server → browser default. */
+/** Explicit choice → chosen interface language → server → browser default. */
 export function resolvedLocale(): string | undefined {
-  return prefs.locale || serverLocale || undefined;
+  return prefs.locale || uiLanguage || serverLocale || undefined;
 }
 
 /** Where the effective locale came from — used to label the "Automatic" option. */
@@ -524,7 +546,7 @@ let optionsExtras = "";
  * outside the generated list is still selectable).
  */
 export function localeOptions(): LocaleOption[] {
-  const extras = `${serverLocale ?? ""}|${prefs.locale}`;
+  const extras = `${serverLocale ?? ""}|${prefs.locale}|${uiLanguage ?? ""}`;
   if (optionsCache && optionsExtras === extras) return optionsCache;
   const tags = new Set<string>(LOCALE_TAGS);
   if (serverLocale) tags.add(serverLocale);

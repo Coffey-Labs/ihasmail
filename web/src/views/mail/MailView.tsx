@@ -16,7 +16,8 @@ import { confirmDialog } from "@/ui/dialog";
 import { toast } from "@/ui/toast";
 import { isUnknownMailbox } from "@/lib/mailboxRoute";
 import { scheduledMailboxIdFrom, useScheduled } from "@/store/scheduled";
-import { t as translate } from "@/lib/i18n";
+import { plural, t as translate, tNode } from "@/lib/i18n";
+import { mailboxDisplayName } from "@/lib/mailboxName";
 
 export function MailView({ mailboxId, threadId, search }: { mailboxId?: string; threadId?: string; search?: boolean }) {
   const [, navigate] = useLocation();
@@ -306,7 +307,7 @@ export function MailView({ mailboxId, threadId, search }: { mailboxId?: string; 
     [emails, mailboxId, mailboxes, openThread, openDraft],
   );
 
-  const title = search ? `Search: ${listQuery?.label ?? q}` : (mailboxId && mailboxes[mailboxId]?.name) || "Mail";
+  const title = search ? translate("Search: {query}", { query: listQuery?.label ?? q }) : (mailboxId && mailboxDisplayName(mailboxes[mailboxId])) || translate("Mail");
   const reading = Boolean(threadId);
   const paneClass = settings.readingPane === "bottom" ? "pane-bottom" : settings.readingPane === "off" ? "pane-off" : "pane-right";
   const showList = !(settings.readingPane === "off" && reading) && !(narrow && reading);
@@ -353,8 +354,8 @@ export function MailView({ mailboxId, threadId, search }: { mailboxId?: string; 
           ) : (
             <div className="no-thread">
               <img src="/img/logo.png" alt="" />
-              <div>{list?.total ? `${list.total} conversation${list.total === 1 ? "" : "s"}` : "No conversation selected"}</div>
-              <div className="hint">{translate("Select a conversation to read it here · Press")} <kbd className="kbd">?</kbd>  {translate("for shortcuts")}</div>
+              <div>{list?.total ? plural(list.total, { one: "{n} conversation", other: "{n} conversations" }) : translate("No conversation selected")}</div>
+              <div className="hint">{tNode("Select a conversation to read it here · Press {key} for shortcuts", { key: <kbd className="kbd">?</kbd> })}</div>
             </div>
           )}
         </div>
