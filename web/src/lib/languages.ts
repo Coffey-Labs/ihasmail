@@ -38,6 +38,9 @@ export interface UiLanguage {
 export const UI_LANGUAGES: readonly UiLanguage[] = [
   { tag: "en", name: "English" },
   { tag: "de", name: "Deutsch", beta: true },
+  { tag: "es", name: "Español", beta: true },
+  { tag: "fr", name: "Français", beta: true },
+  { tag: "nl", name: "Nederlands", beta: true },
   { tag: "pt-BR", name: "Português (Brasil)", beta: true },
 ];
 
