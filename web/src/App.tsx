@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from "react";
+import { Fragment, lazy, Suspense, useEffect } from "react";
 import { Route, Switch, Redirect, useLocation } from "wouter";
 import { useSession } from "@/store/session";
 import { useMail } from "@/store/mail";
@@ -20,6 +20,7 @@ import { setUnreadBadge } from "@/lib/notify";
 import { useSettings, syncedPart } from "@/store/settings";
 import { armSettingsSync, loadRemoteSettings, queueSettingsPush, settingsSyncAvailable } from "@/lib/settingsSync";
 import { listenForVerification, renewWebPush } from "@/lib/webpushEnable";
+import { useLanguageVersion } from "@/lib/i18n";
 
 const ContactsView = lazy(() => import("@/views/contacts/ContactsView").then((m) => ({ default: m.ContactsView })));
 const CalendarView = lazy(() => import("@/views/calendar/CalendarView").then((m) => ({ default: m.CalendarView })));
@@ -29,6 +30,18 @@ const SettingsView = lazy(() => import("@/views/settings/SettingsView").then((m)
 export function App() {
   const status = useSession((s) => s.status);
   const bootstrap = useSession((s) => s.bootstrap);
+  /*
+   * Subscribed once, here, and used as a key below.
+   *
+   * `t()` is a plain function rather than a hook, so a component has no way of
+   * knowing its strings just changed. Rather than make every one of the
+   * thousand call sites a subscriber -- which would turn extracting a string
+   * from "wrap it" into "wrap it and add a hook" -- the whole tree is thrown
+   * away and rebuilt when the catalogue changes. Picking a language is a
+   * once-in-an-account event; paying for it there is far cheaper than paying
+   * for it on every render everywhere.
+   */
+  const languageVersion = useLanguageVersion();
   useEffect(() => {
     void bootstrap();
   }, [bootstrap]);
@@ -42,7 +55,7 @@ export function App() {
   }
   return (
     <>
-      {status === "anonymous" ? <LoginPage /> : <AuthedApp />}
+      <Fragment key={languageVersion}>{status === "anonymous" ? <LoginPage /> : <AuthedApp />}</Fragment>
       <ToastHost />
       <ConfirmHost />
     </>

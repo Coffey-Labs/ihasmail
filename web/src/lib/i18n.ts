@@ -1,0 +1,147 @@
+import { useSyncExternalStore } from "react";
+import { DEFAULT_UI_LANGUAGE, resolveUiLanguage } from "@/lib/languages";
+
+/**
+ * Translation, in about as little machinery as the job takes.
+ *
+ * The English text is the key. `t("Archive")` looks "Archive" up in whatever
+ * catalogue is loaded and returns the English if it is not there, which buys
+ * three things worth more than tidy symbolic keys: there is no English
+ * catalogue to keep in step with the code, a missing translation degrades to
+ * readable English rather than to `mail.list.archive`, and extracting a string
+ * is wrapping it rather than inventing a name for it. Names are where
+ * extraction stalls -- 55 components is a lot of small naming arguments.
+ *
+ * The cost is that changing English copy orphans its translations. That is the
+ * right trade here: the copy is the product, and a stale translation should
+ * fall back to the new English rather than keep showing the old sentence in
+ * German.
+ */
+
+export type Vars = Record<string, string | number>;
+
+/** One entry per plural category the language actually uses. */
+export type PluralForms = Partial<Record<Intl.LDMLPluralRule, string>> & { other: string };
+
+export interface Catalog {
+  /** English source → translation. */
+  strings: Record<string, string>;
+  /** English `other` form → the forms this language needs. */
+  plurals: Record<string, PluralForms>;
+}
+
+const EMPTY: Catalog = { strings: {}, plurals: {} };
+
+let current: Catalog = EMPTY;
+let currentTag: string = DEFAULT_UI_LANGUAGE;
+let version = 0;
+const listeners = new Set<() => void>();
+
+function publish(): void {
+  version += 1;
+  for (const fn of listeners) fn();
+}
+
+/**
+ * Fill in `{name}` placeholders.
+ *
+ * Named rather than positional, because a translator reorders a sentence and
+ * positional arguments do not survive that -- German puts the verb last, and
+ * "{0} of {1}" becomes a different order with the same meaning.
+ */
+export function interpolate(template: string, vars?: Vars): string {
+  if (!vars) return template;
+  return template.replace(/\{(\w+)\}/g, (whole, key: string) =>
+    Object.prototype.hasOwnProperty.call(vars, key) ? String(vars[key]) : whole,
+  );
+}
+
+/** Translate, falling back to the English that was passed in. */
+export function t(source: string, vars?: Vars): string {
+  return interpolate(current.strings[source] ?? source, vars);
+}
+
+/**
+ * Translate a counted thing.
+ *
+ * Two forms is an English assumption and does not survive the second phase of
+ * this: Russian and Ukrainian use three, and picking between them is not
+ * `n === 1`. `Intl.PluralRules` knows the rule for every language the browser
+ * knows, so the catalogue supplies the forms and the runtime picks.
+ *
+ * The English `other` form is the key, so a call site reads as the sentence it
+ * produces and needs no invented name.
+ */
+export function plural(n: number, forms: PluralForms, vars?: Vars): string {
+  const entry = current.plurals[forms.other] ?? forms;
+  let category: Intl.LDMLPluralRule = "other";
+  try {
+    category = new Intl.PluralRules(currentTag).select(n);
+  } catch {
+    /* an unknown tag: "other" is the safe form and English's only plural */
+  }
+  return interpolate(entry[category] ?? entry.other, { n, ...vars });
+}
+
+/** The language in force, for anything that needs the tag itself. */
+export function currentLanguage(): string {
+  return currentTag;
+}
+
+/**
+ * Put a catalogue in force.
+ *
+ * Exported for tests and for the loader; nothing else should call it, because
+ * the tag and the catalogue have to move together or `plural` selects with one
+ * language's rules against another's forms.
+ */
+export function setCatalog(tag: string, catalog: Catalog): void {
+  currentTag = tag;
+  current = catalog;
+  publish();
+}
+
+/**
+ * Load and apply a language.
+ *
+ * English is the built-in: it is the source text, so there is nothing to fetch
+ * and no chance of a missing catalogue leaving the app blank. Everything else
+ * is a dynamic import, so a reader who never leaves English never downloads a
+ * catalogue -- which matters, because the main bundle is already large enough
+ * to warn about.
+ */
+export async function loadLanguage(tag: string): Promise<void> {
+  const resolved = resolveUiLanguage(tag);
+  if (resolved === DEFAULT_UI_LANGUAGE) {
+    setCatalog(DEFAULT_UI_LANGUAGE, EMPTY);
+    return;
+  }
+  try {
+    const mod = (await import(`../locales/${resolved}.ts`)) as { catalog: Catalog };
+    setCatalog(resolved, mod.catalog);
+  } catch {
+    // A catalogue that will not load leaves English in force rather than a
+    // half-rendered page. `resolveUiLanguage` should already have prevented
+    // this; it being reachable at all is why it is caught.
+    setCatalog(DEFAULT_UI_LANGUAGE, EMPTY);
+  }
+}
+
+/**
+ * Re-render when the language changes.
+ *
+ * Used once, at the root, to key the tree — rather than at each of the
+ * thousand call sites, which would make `t()` a hook and extraction far more
+ * invasive than wrapping a string. Language changes are rare enough that
+ * re-rendering everything is the cheaper design.
+ */
+export function useLanguageVersion(): number {
+  return useSyncExternalStore(
+    (fn) => {
+      listeners.add(fn);
+      return () => listeners.delete(fn);
+    },
+    () => version,
+    () => version,
+  );
+}
