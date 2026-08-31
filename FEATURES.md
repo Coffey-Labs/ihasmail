@@ -75,7 +75,57 @@ the few settings that does not follow the account.
 - **Density** comfortable, cozy or compact, which changes row height as well as padding.
 - **Font size** small, medium or large.
 - **Sidebar** collapsible to icons; a drawer on mobile.
-- **Mobile layout** with a bottom tab bar, full-screen composer and full-screen reading.
+- **Mobile layout** with a bottom tab bar, full-screen composer and full-screen
+  reading. Full-screen surfaces measure in `dvh` rather than `vh`, because a
+  phone browser's `100vh` is the taller viewport that ignores the address bar —
+  a composer sized that way puts Send behind the toolbar. The tab bar, drawer,
+  dialogs and compose button all keep clear of the notch and the home
+  indicator; `index.html` asks for `viewport-fit=cover`, so the app paints
+  under both and the stylesheet is what keeps anything readable out from
+  beneath them.
+
+### On a touchscreen
+
+Five gestures, every one of them decided by `(pointer: coarse)` rather than by
+screen width. The two questions are different and both get asked: a tablet in
+landscape is a wide screen that swipes, and a phone plugged into a mouse is a
+narrow one that should not. A mouse keeps drag-and-drop onto folders, which
+shares the same pointer stream and would otherwise be fighting a swipe for
+every drag.
+
+- **Swipe a row** sideways to act on it. Each direction is a setting — right
+  archives and left deletes by default, which is what the mail app the phone
+  came with already does. Either direction can be set to archive, delete,
+  report spam, read/unread, star or move to… — or to nothing, which turns that
+  direction off. The coloured strip revealed behind the row names what will
+  actually happen *in the folder it is happening in*: "Delete forever" out of
+  Deleted Items, "Not spam" inside Junk Mail. Where an action
+  is meaningless there — archiving out of the archive, calling your own drafts
+  spam — the row will not move that way at all, because a row that slides open
+  to reveal a word and then does nothing is worse than one that does not slide.
+- **Hold a row** to select it, which is how selection starts on a phone.
+  Checkboxes are visible wherever there is no hover, but a checkbox beside an
+  avatar is not what a thumb aims at. Once one row is selected, plain taps
+  toggle the rest.
+- **Hold a folder** in the drawer for the menu its ⋮ button opens.
+- **Pull the message list** down to refresh it.
+- **Drag in from the left edge** of a conversation to go back to the list.
+
+The toolbar's refresh button and the thread's back arrow both stay. A gesture
+with no visible control is one only the people who already know about it can
+use, and none of these announce themselves.
+
+Each threshold crossing taps the vibration motor where there is one, which is
+confirmation for the hand rather than the eye — a swipe fires at the moment the
+finger passes a line it cannot see. iOS supports none of that and never has, so
+it is silently nothing there.
+
+The arithmetic lives in `web/src/lib/touch.ts`, away from the components and
+under test, because the numbers are the whole thing. The axis lock is
+deliberately biased towards the vertical: scrolling is what a finger on a
+message list is doing almost every time, and a scroll misread as a swipe grabs
+the list out from under the reader, while a swipe misread as a scroll costs one
+more attempt. A drag that is merely more sideways than not stays a scroll.
 
 ## The message list
 
@@ -85,7 +135,8 @@ the few settings that does not follow the account.
 - **Infinite scroll** with server-side paging, 50 at a time by default.
 - **Conversation view** groups a thread into one row, with the thread's own
   message count; it can be switched off to list messages individually.
-- **Multi-select** with `x`, shift-click for ranges, `Ctrl/Cmd+A` for all.
+- **Multi-select** with `x`, shift-click for ranges, `Ctrl/Cmd+A` for all, and
+  a long press on a touchscreen.
 - **Drag and drop** onto any folder in the tree, moving the selection or the
   row under the cursor.
 - **Context menu** on any row: reply, forward, archive, delete, spam, read/unread,
@@ -529,6 +580,12 @@ size, sidebar state, the two pane sizes, and the notification toggles, which
 track a permission the browser grants per device. The list is written as the
 exceptions rather than the rule, so a setting added later syncs by default.
 
+The swipe actions are a deliberate non-exception, and look like one at a
+glance: they only do anything on a touchscreen, so they read as belonging to
+the device. But someone who has decided that a left swipe deletes has decided
+it for their phone and their tablet both, and the desktop that ignores them is
+the odd one out rather than the case to design around.
+
 Two limits: conflicts are last-write-wins, and a change made on one device does
 not reach another that already has ihasmail open until it signs in again.
 
@@ -537,7 +594,7 @@ not reach another that already has ihasmail open until it signs in again.
 | Section | Holds |
 | --- | --- |
 | **General** | Reading pane, mark-as-read delay, auto-advance, remote images, conversation view, snippets, avatars, confirm-before-delete; compose format, undo-send window, quoting, signature placement, attachment reminder, read-receipt policy, spell check; time zone, week start, language & region, date format, time format; `mailto:` handler; export / import / reset |
-| **Appearance** | Theme, accent colour, density, font size, sidebar |
+| **Appearance** | Theme, accent colour, density, font size, sidebar, swipe actions |
 | **Identities & signatures** | Addresses, names, Reply-To, HTML signatures, the default, and which to hide from the picker |
 | **Filters & rules** | The visual builder and raw Sieve editor |
 | **Out of office** | Vacation response |
