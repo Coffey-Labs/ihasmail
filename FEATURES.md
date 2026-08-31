@@ -631,10 +631,10 @@ Settings **export** to a JSON file and **import** back, and reset to defaults.
 
 ## Interface language
 
-Nine languages, chosen in **Appearance → Language**, and separate from the
-date-and-time locale above. Wanting German dates on an English interface is a
-real preference and so is the reverse, which is why they are two settings and
-not one.
+Ten languages — English and nine translations — chosen in **Appearance →
+Language**, and separate from the date-and-time locale above. Wanting German
+dates on an English interface is a real preference and so is the reverse, which
+is why they are two settings and not one.
 
 | | |
 | --- | --- |
@@ -642,7 +642,7 @@ not one.
 | Deutsch · Español · Français · Nederlands · Português (Brasil) | Beta |
 | Русский · Українська · 简体中文 · 日本語 | Beta |
 
-**Every language but English is marked Beta, and the label is not modesty.**
+**All nine translations are marked Beta, and the label is not modesty.**
 The catalogues were produced by AI against standard dictionaries and have not
 been read by anybody who speaks the language. That is stated in Settings, next
 to a link for reporting anything that reads wrongly, because the alternative —
