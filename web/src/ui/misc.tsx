@@ -67,6 +67,15 @@ export function useMediaQuery(q: string): boolean {
 
 export const useIsMobile = () => useMediaQuery("(max-width: 768px)");
 export const useIsNarrow = () => useMediaQuery("(max-width: 900px)");
+/**
+ * Whether the thing doing the pointing is a finger.
+ *
+ * The touch gestures hang off this rather than off `useIsMobile`, because the
+ * two are different questions and both get asked: a tablet in landscape is a
+ * wide screen that swipes, and a phone plugged into a mouse is a narrow one
+ * that should not. Width decides the layout; this decides the gestures.
+ */
+export const useIsTouch = () => useMediaQuery("(pointer: coarse)");
 
 export function Kbd({ keys }: { keys: string }) {
   return (
