@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_SETTINGS, DEVICE_KEYS, acceptRemote, syncedPart, type Settings } from "@/store/settings";
+import { DEFAULT_SETTINGS, DEVICE_KEYS, acceptRemote, mergeRemote, syncedPart, type Settings } from "@/store/settings";
 import { isAppFolder } from "../appFolder";
+import { settingsAlreadyLoadedFor, stopSettingsSync } from "../settingsSync";
 
 /**
  * Settings used to live only in localStorage, so nothing followed the user
@@ -79,5 +80,49 @@ describe("the client's own folder", () => {
 
   it("is not a file that happens to be called that", () => {
     expect(isAppFolder({ name: "ihasmail", parentId: null, nodeType: "file" })).toBe(false);
+  });
+});
+
+/**
+ * Picking a language used to come undone.
+ *
+ * The subtree that reads the account's settings file is keyed on the language
+ * version, so choosing a language throws it away and builds it again. The
+ * remount re-read the file — which still held the old language, because the
+ * write is debounced by three seconds — and applied it, putting the old
+ * language back. Reported as "sometimes it takes several clicks": the click
+ * that appeared to work was the one made after the previous write had landed.
+ */
+describe("a change made but not yet written up", () => {
+  it("is not read back over by the file it has not reached yet", () => {
+    const current: Settings = { ...DEFAULT_SETTINGS, uiLanguage: "ja" };
+    const file = { uiLanguage: "en", theme: "dark" };
+    const merged = mergeRemote(current, file, new Set(["uiLanguage"]));
+    expect(merged.uiLanguage).toBe("ja");
+    // Only the queued key is held back; the rest of the file still applies.
+    expect(merged.theme).toBe("dark");
+  });
+
+  it("applies the whole file when nothing is queued", () => {
+    const current: Settings = { ...DEFAULT_SETTINGS, uiLanguage: "ja" };
+    const merged = mergeRemote(current, { uiLanguage: "en" });
+    expect(merged.uiLanguage).toBe("en");
+  });
+
+  it("reads the file again for an account after a sign-out", () => {
+    stopSettingsSync();
+    expect(settingsAlreadyLoadedFor("a1")).toBe(false);
+    // The remount that a language change causes must not read it a second time.
+    expect(settingsAlreadyLoadedFor("a1")).toBe(true);
+    // Signing out drops the claim, so signing back in reads the file rather
+    // than trusting whatever the previous session left behind.
+    stopSettingsSync();
+    expect(settingsAlreadyLoadedFor("a1")).toBe(false);
+    stopSettingsSync();
+  });
+
+  it("treats a missing account as already loaded, so nothing is fetched", () => {
+    expect(settingsAlreadyLoadedFor(null)).toBe(true);
+    expect(settingsAlreadyLoadedFor(undefined)).toBe(true);
   });
 });
