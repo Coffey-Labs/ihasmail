@@ -147,6 +147,73 @@ export function subscriptionPayload(sub: PushSubscription, accountId: Id | null,
   return body;
 }
 
+/**
+ * Whether push was switched on *in this browser*.
+ *
+ * Device-local on purpose. A subscription is a browser and an endpoint, not an
+ * account: turning it on for a phone says nothing about the desktop, and the
+ * account-wide settings file is the wrong place to record it. It is also not in
+ * `KEEP_ON_SIGN_OUT`, so signing out forgets it, which matches sign-out already
+ * destroying the subscription itself.
+ */
+const ENABLED_KEY = "ihasmail:pushEnabled";
+
+export function pushEnabledHere(): boolean {
+  if (!isDeviceTrusted()) return false;
+  try {
+    return localStorage.getItem(ENABLED_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function setPushEnabledHere(on: boolean): void {
+  try {
+    if (on) localStorage.setItem(ENABLED_KEY, "1");
+    else localStorage.removeItem(ENABLED_KEY);
+  } catch {
+    /* private mode: push will not survive the session there anyway */
+  }
+}
+
+/**
+ * How close to expiry a subscription is re-registered rather than left alone.
+ *
+ * Two days against a ceiling of seven, so an app opened even once over a
+ * weekend keeps its notifications. Renewing is a single idempotent call, so
+ * being early costs almost nothing and being late costs everything.
+ */
+export const RENEW_WITHIN_MS = 2 * 24 * 60 * 60 * 1000;
+
+/** This browser's registered subscription, out of everything the account has. */
+export function findSubscription(subs: JmapPushSubscription[], deviceId: string): JmapPushSubscription | null {
+  return subs.find((s) => s.deviceClientId === deviceId) ?? null;
+}
+
+/**
+ * Whether this browser's subscription needs registering again.
+ *
+ * A JMAP push subscription expires -- seven days is the ceiling -- and it is
+ * the client's job to re-register before it does. Nothing did: `enableWebPush`
+ * was reachable only from the Settings switch, so the
+ * first version of this quietly stopped delivering within a week of being
+ * turned on, and stayed off until somebody thought to toggle it. On a phone,
+ * where the app is opened for a minute at a time and Settings almost never,
+ * that is indistinguishable from the feature not working.
+ *
+ * An expiry that will not parse counts as needing renewal. It should never
+ * happen; if it does, one extra write is the cheaper way to be wrong.
+ */
+export function needsRenewal(subs: JmapPushSubscription[], deviceId: string, now: number = Date.now()): boolean {
+  const mine = findSubscription(subs, deviceId);
+  if (!mine) return true;
+  // No expiry: the server is not going to take it away, so leave it alone.
+  if (!mine.expires) return false;
+  const at = Date.parse(mine.expires);
+  if (Number.isNaN(at)) return true;
+  return at - now <= RENEW_WITHIN_MS;
+}
+
 export async function listSubscriptions(): Promise<JmapPushSubscription[]> {
   const res = await client.call<GetResponse<JmapPushSubscription>>("PushSubscription/get", { ids: null }, [CAP.core, VAPID_CAP]);
   return res.list;
@@ -200,4 +267,5 @@ export async function unsubscribeThisDevice(): Promise<void> {
   } catch {
     /* signing out must not fail over this */
   }
+  setPushEnabledHere(false);
 }

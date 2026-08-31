@@ -4,9 +4,13 @@ import {
   applicationServerKey,
   decodeApplicationServerKey,
   encodeKey,
+  findSubscription,
+  needsRenewal,
+  RENEW_WITHIN_MS,
   subscriptionPayload,
   supportsEmailPush,
   webPushAvailable,
+  type JmapPushSubscription,
 } from "@/lib/webpush";
 import type { JmapSession } from "@/jmap/types";
 
@@ -173,5 +177,66 @@ describe("the emailPush filter", () => {
     expect(filter).not.toHaveProperty("inMailbox");
     // Still narrowed to unread: notifying more widely beats not notifying.
     expect(filter.notKeyword).toBe("$seen");
+  });
+});
+
+/**
+ * Keeping a subscription alive.
+ *
+ * The failure this guards against leaves no trace anywhere: the switch says
+ * background notifications are on, the browser still holds a subscription, and
+ * the server quietly stopped delivering days ago because the registration
+ * expired and nothing renewed it. Nobody reports that as a bug — they report
+ * that push "doesn't really work".
+ */
+const sub = (deviceClientId: string, expires: string | null): JmapPushSubscription =>
+  ({ id: `i-${deviceClientId}`, deviceClientId, url: "https://push.example/x", expires });
+
+const MINE = "ihasmail-this-browser";
+const NOW = Date.parse("2026-09-01T12:00:00Z");
+const inDays = (n: number) => new Date(NOW + n * 24 * 60 * 60 * 1000).toISOString();
+
+describe("finding this browser's subscription", () => {
+  it("matches on the device id rather than taking the first one", () => {
+    const subs = [sub("ihasmail-desktop", null), sub(MINE, null), sub("ihasmail-tablet", null)];
+    expect(findSubscription(subs, MINE)?.deviceClientId).toBe(MINE);
+  });
+
+  it("finds nothing when only other devices are registered", () => {
+    // The bug this replaces: any subscription at all counted as this one, so a
+    // phone that had never registered read as already on and stayed silent.
+    expect(findSubscription([sub("ihasmail-desktop", null)], MINE)).toBe(null);
+  });
+});
+
+describe("needsRenewal", () => {
+  it("renews when this browser is not registered at all", () => {
+    expect(needsRenewal([], MINE, NOW)).toBe(true);
+    expect(needsRenewal([sub("ihasmail-desktop", inDays(6))], MINE, NOW)).toBe(true);
+  });
+
+  it("leaves a subscription alone while it has time on it", () => {
+    expect(needsRenewal([sub(MINE, inDays(6))], MINE, NOW)).toBe(false);
+    expect(needsRenewal([sub(MINE, inDays(3))], MINE, NOW)).toBe(false);
+  });
+
+  it("renews inside the window, so a weekend does not lose it", () => {
+    expect(needsRenewal([sub(MINE, inDays(2))], MINE, NOW)).toBe(true);
+    expect(needsRenewal([sub(MINE, inDays(1))], MINE, NOW)).toBe(true);
+    expect(RENEW_WITHIN_MS).toBeLessThan(7 * 24 * 60 * 60 * 1000);
+  });
+
+  it("renews one that has already lapsed", () => {
+    expect(needsRenewal([sub(MINE, inDays(-1))], MINE, NOW)).toBe(true);
+  });
+
+  it("leaves a subscription with no expiry alone", () => {
+    // A server that never expires one has nothing to renew, and rewriting the
+    // registration on every cold start would be a JMAP call for nothing.
+    expect(needsRenewal([sub(MINE, null)], MINE, NOW)).toBe(false);
+  });
+
+  it("renews rather than trusts an expiry it cannot read", () => {
+    expect(needsRenewal([sub(MINE, "whenever")], MINE, NOW)).toBe(true);
   });
 });

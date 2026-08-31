@@ -658,6 +658,17 @@ you to the one you were on.
   run. Where the server also implements `emailpush`, the payload carries the
   sender, subject and preview; without it the notification says only that mail
   arrived. Offered only on a device you said was yours.
+- **The subscription is renewed on every app start**, because a JMAP push
+  subscription expires — seven days is the ceiling — and re-registering before
+  it lapses is the client's job. Renewal can only happen with a page open:
+  registering is a JMAP call and the service worker has no session to make one
+  with. So the guarantee is that background notifications keep working as long
+  as ihasmail is opened now and again, and the two-day renewal window means
+  once a week is enough. A browser that dropped or rotated its subscription on
+  its own is re-subscribed at the same moment, rather than left with a switch
+  that says push is on and a browser that is no longer listening.
+  Registration is per browser, not per account: a phone having push does not
+  make it on for the desktop, and each device tracks its own.
 - **Stale build reload** — when the server starts serving a build the open tab
   did not come from, the tab reloads itself rather than going on talking to a
   newer server with older JavaScript. It waits for a moment that is safe: an

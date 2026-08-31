@@ -27,6 +27,8 @@ const NO_FUTURE_RELEASE = process.env.MOCK_NO_FUTURE_RELEASE === "1";
 /** What the session advertises, matching Stalwart's own 30 days. */
 const MAX_DELAYED_SEND = 86400 * 30;
 const ACCOUNT = "a1";
+/** How long a push subscription lives before the server drops it. */
+const PUSH_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 /** An account somebody has shared with the demo user. See the session below. */
 const SHARED_ACCOUNT = "a2";
 const SHARED_CAPS: Obj = {
@@ -772,8 +774,18 @@ const handlers: Record<string, Handler> = {
       const clash = pushSubscriptions.findIndex((s) => s.deviceClientId === deviceId);
       if (clash >= 0) pushSubscriptions.splice(clash, 1);
       const id = `ps${randomUUID().slice(0, 6)}`;
-      pushSubscriptions.push({ id, deviceClientId: deviceId, url: o.url, types: o.types ?? null, emailPush: o.emailPush ?? null, expires: null, keys, verified: false, code: `v${randomUUID().slice(0, 8)}` });
-      created[cid] = { id, expires: null };
+      /*
+       * A subscription expires, and this used to hand back `expires: null`.
+       * That is the one shape that makes the client's real problem invisible in
+       * development: JMAP puts a ceiling of seven days on a push subscription
+       * and expects the client to re-register before it lapses, so a client
+       * that never renews works perfectly against a mock that never expires
+       * anything and goes silent a week after being deployed. Seven days here,
+       * so "does this client renew?" is a question the mock can answer.
+       */
+      const expires = new Date(Date.now() + PUSH_TTL_MS).toISOString();
+      pushSubscriptions.push({ id, deviceClientId: deviceId, url: o.url, types: o.types ?? null, emailPush: o.emailPush ?? null, expires, keys, verified: false, code: `v${randomUUID().slice(0, 8)}` });
+      created[cid] = { id, expires };
       state.n++;
     }
     for (const [id, patch] of Object.entries((a.update as Obj) ?? {})) {

@@ -19,7 +19,7 @@ import { ComposerDock } from "@/views/compose/ComposerDock";
 import { setUnreadBadge } from "@/lib/notify";
 import { useSettings, syncedPart } from "@/store/settings";
 import { armSettingsSync, loadRemoteSettings, queueSettingsPush, settingsSyncAvailable } from "@/lib/settingsSync";
-import { listenForVerification } from "@/lib/webpushEnable";
+import { listenForVerification, renewWebPush } from "@/lib/webpushEnable";
 
 const ContactsView = lazy(() => import("@/views/contacts/ContactsView").then((m) => ({ default: m.ContactsView })));
 const CalendarView = lazy(() => import("@/views/calendar/CalendarView").then((m) => ({ default: m.CalendarView })));
@@ -91,6 +91,16 @@ function AuthedApp() {
     // A push subscription stays silent until its verification code is echoed
     // back, and the code may have arrived while no tab was open.
     listenForVerification();
+    /*
+     * And a subscription expires -- seven days is the ceiling JMAP puts on one,
+     * and re-registering before that is the client's job. Nothing did it, so
+     * background notifications lapsed within a week of being switched on and
+     * only came back if somebody
+     * happened to toggle the switch. Opening the app is the only moment this
+     * can be done -- registering is a JMAP call, and the service worker has no
+     * session to make one with -- so it is done on every start.
+     */
+    void renewWebPush();
     const pending = new Map<string, Set<string>>();
     let timer: number | null = null;
     const unsub = push.subscribe((acct, type) => {
