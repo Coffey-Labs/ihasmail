@@ -81,7 +81,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </Link>
         <SearchBar />
         <div className="topbar-actions">
-          <span className="push-status hide-mobile" role="img" aria-label={PUSH_LABEL[pushState]} title={PUSH_LABEL[pushState]}>
+          <span className="push-status hide-mobile" role="img" aria-label={t(PUSH_LABEL[pushState])} title={t(PUSH_LABEL[pushState])}>
             <span className={`push-dot ${pushState}`} />
           </span>
           <button className="icon-btn hide-mobile" aria-label={t("Keyboard shortcuts")} title={t("Keyboard shortcuts (?)")} onClick={() => setHelpOpen(true)}>
@@ -132,7 +132,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             }}
           >
             {section === "files" ? <Upload size={22} /> : section === "calendar" || section === "contacts" ? <Plus size={22} /> : <PenSquare size={22} />}
-            <span>{section === "calendar" ? "New event" : section === "contacts" ? "New contact" : section === "files" ? "Upload" : "Compose"}</span>
+            <span>{section === "calendar" ? t("New event") : section === "contacts" ? t("New contact") : section === "files" ? t("Upload") : t("Compose")}</span>
           </button>
           <div className="sidebar-scroll">
             {(section === "mail" || section === "search") && <MailboxTree />}

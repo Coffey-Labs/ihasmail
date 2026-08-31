@@ -159,7 +159,7 @@ export function GeneralSettings() {
           <select className="select" value={s.dateFormat} onChange={(e) => update({ dateFormat: e.target.value as DateFormat })}>
             {DATE_FORMATS.map((f) => (
               <option key={f.value} value={f.value}>
-                {f.label} ({withPrefs({ locale: s.locale, dateFormat: f.value }, () => formatDate(SAMPLE))})
+                {t(f.label)} ({withPrefs({ locale: s.locale, dateFormat: f.value }, () => formatDate(SAMPLE))})
               </option>
             ))}
           </select>

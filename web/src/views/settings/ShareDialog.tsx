@@ -142,7 +142,7 @@ export function ShareDialog({ kind, id, name, shareWith, onClose }: { kind: Kind
                   {RIGHTS[kind].map((rt) => (
                     <label key={rt.key} className="check" style={{ padding: "2px 6px" }}>
                       <input type="checkbox" checked={Boolean(r[rt.key])} onChange={(e) => setRights({ ...rights, [pid]: { ...r, [rt.key]: e.target.checked } })} />
-                      <span className="small">{rt.label}</span>
+                      <span className="small">{t(rt.label)}</span>
                     </label>
                   ))}
                 </div>

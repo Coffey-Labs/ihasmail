@@ -24,7 +24,7 @@ import { useScheduled } from "@/store/scheduled";
 import { formatScheduleTime } from "@/lib/schedule";
 import { mdnDecision, refusalText } from "@/lib/mdn";
 import { sendReadReceipt } from "@/store/mdn";
-import { t as translate } from "@/lib/i18n";
+import { t as translate, tNode } from "@/lib/i18n";
 
 interface Props {
   email: Email;
@@ -226,7 +226,7 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
                 
                 {translate("The sender asked for a read receipt.")}
                 {receipt.redirected && (
-                  <>  {translate("It would go to")} <strong>{receipt.to!.email}</strong>{translate(", which is not where the message came from.")}</>
+                  <>{tNode("It would go to {address}, which is not where the message came from.", { address: <strong className="notranslate" translate="no">{receipt.to!.email}</strong> })}</>
                 )}
               </span>
               <button

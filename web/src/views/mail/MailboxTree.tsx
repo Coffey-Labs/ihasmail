@@ -143,7 +143,7 @@ export function MailboxTree() {
             if (id) void moveFolder(id, null);
           }}
         >
-          <span>{draggingId && canDropOn(null) ? "Drop here for the top level" : "Folders"}</span>
+          <span>{draggingId && canDropOn(null) ? t("Drop here for the top level") : t("Folders")}</span>
           <button className="icon-btn" title={t("New folder")} aria-label={t("New folder")} onClick={() => void createFolder(null)}>
             <Plus size={16} />
           </button>

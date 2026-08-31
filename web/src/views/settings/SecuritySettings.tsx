@@ -5,7 +5,7 @@ import { useSession } from "@/store/session";
 import { formatFullDate } from "@/lib/format";
 import { toast } from "@/ui/toast";
 import { confirmDialog, Dialog } from "@/ui/dialog";
-import { t } from "@/lib/i18n";
+import { t, tNode } from "@/lib/i18n";
 
 interface SessionRow {
   id: string;
@@ -59,7 +59,7 @@ export function SecuritySettings() {
   return (
     <div>
       <h1>{t("Security & sessions")}</h1>
-      <p className="lead">{t("You're signed in as")} <b>{session?.username}</b>{t(". Your password is never stored in the browser; the server keeps it encrypted per-session for talking to Stalwart.")}</p>
+      <p className="lead">{tNode("You're signed in as {user}. Your password is never stored in the browser; the server keeps it encrypted per-session for talking to Stalwart.", { user: <b className="notranslate" translate="no">{session?.username}</b> })}</p>
 
       <h2>{t("Password")}</h2>
       {unsupported ? (
@@ -303,7 +303,7 @@ function AppPasswords({ state, reload }: { state: SecurityState | null; reload: 
         footer={<button className="btn btn-primary" onClick={() => setIssued(null)}>{t("Done")}</button>}>
         {issued && (
           <div>
-            <p>{t("Copy it into")} <b>{issued.description}</b>  {t("now — it isn't shown again.")}</p>
+            <p>{tNode("Copy it into {name} now — it isn't shown again.", { name: <b>{issued.description}</b> })}</p>
             <CopyableSecret value={issued.secret} />
             <p className="hint mt-8"><Smartphone size={13} style={{ verticalAlign: "-2px" }} />  {t("Use your usual address as the username.")}</p>
           </div>

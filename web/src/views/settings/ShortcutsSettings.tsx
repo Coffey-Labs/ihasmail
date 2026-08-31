@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { keyboard } from "@/lib/keyboard";
 import { Kbd } from "@/ui/misc";
-import { t } from "@/lib/i18n";
+import { t, tNode } from "@/lib/i18n";
 
 export function ShortcutsSettings() {
   const list = useMemo(() => keyboard.list(), []);
@@ -17,7 +17,7 @@ export function ShortcutsSettings() {
   return (
     <div>
       <h1>{t("Keyboard shortcuts")}</h1>
-      <p className="lead">{t("Gmail-style shortcuts are always on. Press")} <kbd className="kbd">?</kbd>  {t("anywhere to see this list.")}</p>
+      <p className="lead">{tNode("Gmail-style shortcuts are always on. Press {key} anywhere to see this list.", { key: <kbd className="kbd">?</kbd> })}</p>
       <div className="shortcut-grid">
         {groups.map(([group, items]) => (
           <div key={group}>

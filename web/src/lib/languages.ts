@@ -23,11 +23,25 @@ export interface UiLanguage {
   tag: string;
   /** The language's name in that language, which is how a picker should read. */
   name: string;
+  /**
+   * Machine-translated and not yet checked by somebody who speaks it.
+   *
+   * Stays true until a native speaker has actually read the catalogue and said
+   * so. It is not a measure of how complete the file is -- a catalogue can be
+   * word-for-word finished and still read like a machine wrote it, which is
+   * the thing this flag is about. Removing it is a deliberate act by a person,
+   * not something a coverage number earns.
+   */
+  beta?: boolean;
 }
 
 export const UI_LANGUAGES: readonly UiLanguage[] = [
   { tag: "en", name: "English" },
+  { tag: "de", name: "Deutsch", beta: true },
 ];
+
+/** Where to report a bad translation. Beta languages depend on it. */
+export const TRANSLATION_ISSUE_URL = "https://github.com/Coffey-Labs/ihasmail/issues/new?title=Translation%3A%20";
 
 export const DEFAULT_UI_LANGUAGE = "en";
 

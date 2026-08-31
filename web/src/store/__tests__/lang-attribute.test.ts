@@ -34,8 +34,15 @@ describe("applyLang", () => {
     expect(document.documentElement.lang).toBe("en");
   });
 
-  it("falls back to English rather than claiming a language it cannot render", () => {
+  it("serves a language whose catalogue is shipped", () => {
     applyLang({ ...DEFAULT_SETTINGS, uiLanguage: "de" });
+    expect(document.documentElement.lang).toBe("de");
+  });
+
+  it("falls back to English rather than claiming a language it cannot render", () => {
+    // A tag no catalogue exists for -- an account carrying a preference from a
+    // build that shipped more languages than this one.
+    applyLang({ ...DEFAULT_SETTINGS, uiLanguage: "fr" });
     expect(document.documentElement.lang).toBe("en");
   });
 
