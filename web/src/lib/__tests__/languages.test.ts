@@ -22,16 +22,22 @@ describe("resolveUiLanguage", () => {
     // The account travels between machines and can outlive a catalogue. A
     // page that says lang="fr" while rendering English is worse than one that
     // admits to English: it stops the reader translating it themselves.
-    expect(resolveUiLanguage("fr")).toBe("en");
+    // Derived rather than named, so shipping another language does not turn
+    // this into a failing test that is really just out of date.
+    const unshipped = ["cy", "is", "mt", "eu"].find((tag) => !UI_LANGUAGES.some((l) => l.tag === tag))!;
+    expect(resolveUiLanguage(unshipped)).toBe("en");
     expect(resolveUiLanguage("xx-XX")).toBe("en");
   });
 
   it("carries the Beta flag until a person has signed the language off", () => {
     // Not a completeness measure. A catalogue can be word-for-word finished
     // and still read like a machine wrote it, which is what this marks.
-    const de = UI_LANGUAGES.find((l) => l.tag === "de");
-    expect(de?.beta).toBe(true);
-    expect(UI_LANGUAGES.find((l) => l.tag === "en")?.beta).toBeUndefined();
+    // Every shipped language except English is unreviewed, and stays marked
+    // until a person says otherwise.
+    for (const l of UI_LANGUAGES) {
+      if (l.tag === "en") expect(l.beta).toBeUndefined();
+      else expect(l.beta).toBe(true);
+    }
   });
 
   it("honours one that is", () => {
