@@ -83,6 +83,137 @@ export function isOccurrence(event: CalendarEvent): boolean {
   return event.baseEventId != null && event.baseEventId !== event.id;
 }
 
+/**
+ * What `CalendarEvent/set` will not take on a single occurrence, and why the
+ * client has to know rather than letting the server sort it out.
+ *
+ * 0.16.20's per-occurrence validator sorts properties into three groups, and
+ * only one of them is honest about itself:
+ *
+ * - **Rejected** — `invalidProperties`, *"This property cannot be modified on a
+ *   single occurrence."* Loud, and fine.
+ * - **Inherited** — dropped from the patch, and the response still says the
+ *   update succeeded. Nothing anywhere reports it.
+ * - Everything else, which is applied to the override.
+ *
+ * The middle group is the whole problem. It is the same failure as [#26], where
+ * a participant map addressed the RFC 8984 way was discarded without an error
+ * and the client showed the guests as saved: a successful response is not
+ * evidence that anything was written. So a per-occurrence patch is checked here
+ * before it is sent — rejected properties throw, inherited ones are reported to
+ * the caller — rather than being posted hopefully and believed.
+ *
+ * [#26]: https://github.com/Coffey-Labs/ihasmail/issues/26
+ */
+const OCCURRENCE_REJECTED = new Set([
+  "baseEventId", "calendarIds", "isDraft", "isOrigin", "utcStart", "utcEnd",
+  "useDefaultAlerts", "mayInviteSelf", "mayInviteOthers", "hideAttendees",
+]);
+
+/** Applied to the series and never to one date; dropped in silence if sent. */
+const OCCURRENCE_INHERITED = new Set([
+  "@type", "method", "organizerCalendarAddress", "privacy", "prodId",
+  "recurrenceId", "recurrenceIdTimeZone", "sentBy", "uid",
+  "recurrenceOverrides", "recurrenceRule", "relatedTo",
+]);
+
+/**
+ * A `notUpdated`/`notDestroyed` entry, kept whole rather than flattened.
+ *
+ * Some refusals are worth acting on rather than only showing: 0.16.20 will not
+ * edit an occurrence that belongs to a this-and-future change, and the useful
+ * response to that is to offer the series, which needs the reason and not just
+ * its text.
+ */
+export class CalendarSetError extends Error {
+  constructor(readonly setError: { type: string; description?: string; properties?: string[] }) {
+    super(setErrorMessage(setError));
+    this.name = "CalendarSetError";
+  }
+}
+
+/** Whether a refusal was "this occurrence belongs to a this-and-future change". */
+export function isThisAndFutureRefusal(err: unknown): boolean {
+  return err instanceof CalendarSetError && /this-and-future/i.test(err.setError.description ?? "");
+}
+
+/**
+ * A synthetic id is only true until the next write, so an occurrence is
+ * re-resolved from its `recurrenceId` immediately before it is touched.
+ *
+ * **Confirmed live on 0.16.20 (2026-08-31.)** Stalwart's synthetic ids encode a
+ * position in the expanded series, and writing a `recurrenceOverrides` entry
+ * adds a component that renumbers it. A five-week series held ids `e i m q u`
+ * over 03-01…03-29; after one override was written to 03-08 the *same ids*
+ * addressed 03-01, 03-15, 03-29, 03-08, 03-22. Not one of them was rejected —
+ * `i` simply meant a week later than it had a moment before.
+ *
+ * So an id cached across a write silently points at a different date, and a
+ * delete aimed at one occurrence removes another. `recurrenceId` is the stable
+ * name for a slot in a series — it is the date itself — so that is what we hold
+ * and what we look the current id up by.
+ */
+async function currentOccurrenceId(accountId: Id, event: CalendarEvent): Promise<Id> {
+  const base = event.baseEventId;
+  const rid = event.recurrenceId;
+  // A one-off, or an object with nothing to re-resolve from: its own id is all
+  // there is, and there is no series for a write to have renumbered.
+  if (!base || !rid) return event.id;
+
+  const around = new Date(rid);
+  if (Number.isNaN(around.getTime())) return event.id;
+  const from = new Date(around.getTime() - DAY_MS);
+  const to = new Date(around.getTime() + DAY_MS);
+
+  const res = await client.chain([
+    ["CalendarEvent/query", { accountId, filter: { after: toLocalDateTime(from), before: toLocalDateTime(to) }, expandRecurrences: true, limit: 200 }, "q"],
+    ["CalendarEvent/get", { accountId, "#ids": { resultOf: "q", name: "CalendarEvent/query", path: "/ids" }, properties: ["id", "baseEventId", "recurrenceId"] }, "g"],
+  ]);
+  const list = (res.get("g")?.[0] as unknown as GetResponse<CalendarEvent> | undefined)?.list ?? [];
+  const found = list.find((e) => e.baseEventId === base && e.recurrenceId === rid);
+  if (!found) {
+    // The date is gone -- already excluded, or the series no longer reaches it.
+    // Better to say so than to act on an id that means something else now.
+    throw new Error("That occurrence is no longer part of this series. Reload the calendar and try again.");
+  }
+  return found.id;
+}
+
+export class OccurrenceScopeError extends Error {
+  constructor(readonly property: string) {
+    super(`"${property}" applies to the whole series and cannot be changed for one occurrence.`);
+    this.name = "OccurrenceScopeError";
+  }
+}
+
+/**
+ * A patch narrowed to what one occurrence will actually accept.
+ *
+ * Throws `OccurrenceScopeError` on a property the server would refuse, and
+ * returns the inherited ones it removed so a caller can say what it could not
+ * do for this date alone instead of claiming it did.
+ *
+ * Patch *pointers* are judged on their first token, the way the server does:
+ * `participants/{key}/participationStatus` is allowed, and
+ * `participants/{key}/calendarAddress` is one of the silent drops.
+ */
+export function occurrencePatch(patch: Record<string, unknown>): { patch: Record<string, unknown>; dropped: string[] } {
+  const out: Record<string, unknown> = {};
+  const dropped: string[] = [];
+  for (const [key, value] of Object.entries(patch)) {
+    const [head, , third] = key.split("/");
+    const root = head ?? key;
+    if (OCCURRENCE_REJECTED.has(root)) throw new OccurrenceScopeError(root);
+    if (OCCURRENCE_INHERITED.has(root)) { dropped.push(root); continue; }
+    if (root === "participants" && third === "calendarAddress") { dropped.push(key); continue; }
+    // `id` is immutable; the server errors on a value that is not the event's
+    // own, and ignores one that is. Neither is worth sending.
+    if (root === "id") { dropped.push(root); continue; }
+    out[key] = value;
+  }
+  return { patch: out, dropped };
+}
+
 /** A calendar somebody else shared, and the account it lives in. */
 export interface SharedCalendar {
   accountId: Id;
@@ -122,7 +253,8 @@ interface CalendarState {
   instancesIn(start: Date, end: Date): EventInstance[];
   getEvent(id: Id): Promise<CalendarEvent | null>;
   createEvent(event: Partial<CalendarEvent>, calendarId: Id, sendInvites: boolean): Promise<Id>;
-  updateEvent(event: CalendarEvent, patch: Record<string, unknown>, sendInvites: boolean, scope: EventScope): Promise<void>;
+  /** Returns the properties that had to be left to the series, if any. */
+  updateEvent(event: CalendarEvent, patch: Record<string, unknown>, sendInvites: boolean, scope: EventScope): Promise<string[]>;
   destroyEvent(event: CalendarEvent, sendInvites: boolean, scope: EventScope): Promise<void>;
   rsvp(event: CalendarEvent, status: "accepted" | "tentative" | "declined", comment?: string): Promise<void>;
   createCalendar(data: Partial<Calendar>): Promise<Id>;
@@ -398,19 +530,24 @@ export const useCalendar = create<CalendarState>((set, get) => ({
 
   async updateEvent(event, patch, sendInvites, scope) {
     const accountId = get().accountId!;
-    const id = eventIdForScope(event, scope);
-    const res = await client.call<SetResponse>("CalendarEvent/set", { accountId, update: { [id]: patch }, sendSchedulingMessages: sendInvites });
+    const id = scope === "occurrence" ? await currentOccurrenceId(accountId, event) : eventIdForScope(event, scope);
+    // An occurrence takes less than the series does, and says so about only
+    // half of it. Narrow the patch here rather than posting it hopefully.
+    const { patch: body, dropped } = scope === "occurrence" ? occurrencePatch(patch) : { patch, dropped: [] as string[] };
+    if (!Object.keys(body).length) return dropped;
+    const res = await client.call<SetResponse>("CalendarEvent/set", { accountId, update: { [id]: body }, sendSchedulingMessages: sendInvites });
     const err = res.notUpdated?.[id];
-    if (err) throw new Error(setErrorMessage(err));
+    if (err) throw new CalendarSetError(err);
     get().invalidate();
+    return dropped;
   },
 
   async destroyEvent(event, sendInvites, scope) {
     const accountId = get().accountId!;
-    const id = eventIdForScope(event, scope);
+    const id = scope === "occurrence" ? await currentOccurrenceId(accountId, event) : eventIdForScope(event, scope);
     const res = await client.call<SetResponse>("CalendarEvent/set", { accountId, destroy: [id], sendSchedulingMessages: sendInvites });
     const err = res.notDestroyed?.[id];
-    if (err) throw new Error(setErrorMessage(err));
+    if (err) throw new CalendarSetError(err);
     set((s) => {
       const events = { ...s.events };
       // Drop both ids: the one that was sent, and the object as the caller

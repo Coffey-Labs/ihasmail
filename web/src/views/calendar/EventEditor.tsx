@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Trash2, Users } from "lucide-react";
 import type { BusyPeriod, CalendarEvent, EmailAddress, JSCalendarAlert, JSCalendarParticipant, JSCalendarRecurrenceRule, JSCalendarNDay } from "@/jmap/types";
-import { useCalendar, myParticipantKeys, isRecurring, eventRule, makeParticipant, participantEmail } from "@/store/calendar";
+import { useCalendar, myParticipantKeys, isRecurring, isOccurrence, eventRule, makeParticipant, participantEmail, type EventScope } from "@/store/calendar";
 import { useSettings } from "@/store/settings";
 import { useSession } from "@/store/session";
 import { useContacts } from "@/store/contacts";
@@ -14,6 +14,7 @@ import { browserTimeZone, dateToZonedLocal, formatDuration, fromInputDateTime, l
 import { formatClock, formatNumericDate, formatWeekday } from "@/lib/datetime";
 import { WEEKDAYS, describeRule, presetFor, ruleFromPreset, type RecurrencePreset } from "@/lib/recurrence";
 import { newKey } from "@/lib/contacts";
+import { askEditScope, droppedMessage, runScoped } from "./scope";
 
 export interface EditorInit {
   event?: CalendarEvent;
@@ -24,25 +25,68 @@ export interface EditorInit {
 
 const ALERT_OPTIONS = [0, 5, 10, 15, 30, 60, 120, 1440, 2880, 10080];
 
+/**
+ * Fields this form always sends that a single occurrence will not take.
+ *
+ * `useDefaultAlerts` and `calendarIds` are refused with `invalidProperties`;
+ * the rest are dropped from the patch while the response still reports
+ * success. Both halves are reasons not to send them — the second more so,
+ * because nothing would say it had happened.
+ */
+const OCCURRENCE_OMIT = new Set(["useDefaultAlerts", "calendarIds", "recurrenceRule", "privacy", "organizerCalendarAddress"]);
+
 export function EventEditor({ init, onClose }: { init: EditorInit; onClose: () => void }) {
   const cal = useCalendar();
   const settings = useSettings((s) => s.settings);
   const session = useSession((s) => s.session);
   const [base, setBase] = useState<CalendarEvent | null | undefined>(init.event && !init.event.baseEventId ? init.event : undefined);
+  const [scope, setScope] = useState<EventScope | undefined>(init.event?.baseEventId ? undefined : "series");
   const editing = Boolean(init.event);
 
-  // Load base event for recurring instances
+  /*
+   * Which event this form is even about has to be settled before it opens.
+   *
+   * A form populated from the master shows the series' start date, so editing
+   * Wednesday's standup would offer to move Monday's — right for the series and
+   * wrong for one date. So the scope is asked first, and the occurrence itself
+   * is what the form loads when the answer is "this occurrence".
+   */
+  /*
+   * Asked once per event, and deliberately not tied to the effect's lifetime.
+   *
+   * Two things make the obvious version wrong. A dialog is queued in a store
+   * the moment it is requested, so it outlives the effect that asked for it: a
+   * re-run queues a second prompt the first answer cannot retract, and the
+   * reader is asked the same question twice. And gating the *answer* on a
+   * cleanup flag is worse — React's StrictMode runs mount, cleanup, mount, so
+   * the flag is already set by the time anyone clicks and the editor never
+   * opens at all. The ref is what makes this once; the answer is applied
+   * whenever it arrives.
+   */
+  const asked = useRef<string | null>(null);
   useEffect(() => {
-    if (init.event?.baseEventId) void cal.getEvent(init.event.baseEventId).then((e) => setBase(e));
-    else if (!init.event) setBase(null);
+    const ev = init.event;
+    if (!ev) { setBase(null); setScope("series"); return; }
+    if (!ev.baseEventId) { setBase(ev); setScope("series"); return; }
+    if (asked.current === ev.id) return;
+    asked.current = ev.id;
+    void (async () => {
+      const chosen = isRecurring(ev) && isOccurrence(ev) ? await askEditScope(ev) : "series";
+      if (!chosen) { onClose(); return; }
+      setScope(chosen);
+      if (chosen === "occurrence") setBase(ev);
+      else void cal.getEvent(ev.baseEventId!).then(setBase);
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [init.event?.id]);
 
-  if (base === undefined) return null;
-  return <EventForm key={base?.id ?? "new"} init={init} base={base} editing={editing} onClose={onClose} settingsTz={settings.timeZone ?? browserTimeZone} defaultAlert={settings.defaultAlertMinutes} myEmail={session?.username ?? ""} />;
+  if (base === undefined || scope === undefined) return null;
+  return <EventForm key={base?.id ?? "new"} init={init} base={base} scope={scope} editing={editing} onClose={onClose} settingsTz={settings.timeZone ?? browserTimeZone} defaultAlert={settings.defaultAlertMinutes} myEmail={session?.username ?? ""} />;
 }
 
-function EventForm({ init, base, editing, onClose, settingsTz, defaultAlert, myEmail }: { init: EditorInit; base: CalendarEvent | null; editing: boolean; onClose: () => void; settingsTz: string; defaultAlert: number; myEmail: string }) {
+function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAlert, myEmail }: { init: EditorInit; base: CalendarEvent | null; scope: EventScope; editing: boolean; onClose: () => void; settingsTz: string; defaultAlert: number; myEmail: string }) {
+  /** This form is editing one date rather than the series behind it. */
+  const oneDate = scope === "occurrence";
   const cal = useCalendar();
   const contacts = useContacts();
   const ev = base;
@@ -175,13 +219,23 @@ function EventForm({ init, base, editing, onClose, settingsTz, defaultAlert, myE
       };
       const invites = sendInvites && attendees.length > 0;
       if (ev) {
+        /*
+         * A single occurrence takes less than the series does. Four of the
+         * fields this form always sends are among them — `useDefaultAlerts`
+         * and `calendarIds` are refused outright, `recurrenceRule`,
+         * `privacy` and `organizerCalendarAddress` are dropped in silence —
+         * so they are left out here rather than sent and believed. The store
+         * still checks; this is what stops it having to complain.
+         */
+        const source = oneDate
+          ? Object.fromEntries(Object.entries(obj).filter(([k]) => !OCCURRENCE_OMIT.has(k)))
+          : obj;
         const patch: Record<string, unknown> = {};
-        for (const [k, v] of Object.entries(obj)) patch[k] = v === undefined ? null : v;
-        if (Object.keys(ev.calendarIds)[0] !== calendarId) patch.calendarIds = { [calendarId]: true };
-        // `ev` is the master: EventEditor resolves `baseEventId` when it opens
-        // on an occurrence, so the whole series is what this form edits.
-        await cal.updateEvent(ev, patch, invites, "series");
-        toast.success("Event updated");
+        for (const [k, v] of Object.entries(source)) patch[k] = v === undefined ? null : v;
+        if (!oneDate && Object.keys(ev.calendarIds)[0] !== calendarId) patch.calendarIds = { [calendarId]: true };
+        const dropped = await runScoped(scope, (s) => cal.updateEvent(ev, patch, invites, s));
+        if (!dropped) { setBusy(false); return; }
+        toast.success(droppedMessage(dropped) ?? (oneDate ? "This occurrence updated" : "Event updated"));
       } else {
         const clean: Record<string, unknown> = {};
         for (const [k, v] of Object.entries(obj)) if (v !== undefined) clean[k] = v;
@@ -206,7 +260,13 @@ function EventForm({ init, base, editing, onClose, settingsTz, defaultAlert, myE
   return (
     <Dialog open onClose={onClose} title={editing ? "Edit event" : "New event"} size="lg" footer={<><button className="btn" onClick={onClose}>Cancel</button><button className="btn btn-primary" disabled={busy} onClick={() => void save()}>{busy ? "Saving…" : editing ? "Save" : attendees.length && sendInvites ? "Send invites" : "Create"}</button></>}>
       <div className="event-form">
-        {ev && isRecurring(ev) && <div className="info-box mb-16">This is a recurring event — changes apply to the whole series.</div>}
+        {ev && isRecurring(ev) && (
+          <div className="info-box mb-16">
+            {oneDate
+              ? `Editing ${formatNumericDate(start)} only — the rest of the series is unchanged. Repeat, calendar and privacy belong to the series and are not shown.`
+              : "This is a recurring event — changes apply to the whole series."}
+          </div>
+        )}
         <div className="field"><input className="input" style={{ fontSize: "1.1em", height: 44 }} placeholder="Add title" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} /></div>
         <div className="time-row mb-8">
           {allDay ? (
@@ -231,6 +291,7 @@ function EventForm({ init, base, editing, onClose, settingsTz, defaultAlert, myE
               {listTimeZones().map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
           )}
+          {!oneDate && (
           <select className="select" style={{ width: "auto", height: 32 }} value={preset} onChange={(e) => { const p = e.target.value as RecurrencePreset; setPreset(p); if (p === "custom") setRule(rule ?? { "@type": "RecurrenceRule", frequency: "weekly", byDay: [{ "@type": "NDay", day: WEEKDAYS[(start.getDay() + 6) % 7]!.key }] }); else setRule(ruleFromPreset(p, start)); }}>
             <option value="none">Does not repeat</option>
             <option value="daily">Daily</option>
@@ -240,8 +301,9 @@ function EventForm({ init, base, editing, onClose, settingsTz, defaultAlert, myE
             <option value="yearly">Yearly</option>
             <option value="custom">Custom…</option>
           </select>
+          )}
         </div>
-        {preset === "custom" && (
+        {!oneDate && preset === "custom" && (
           <div className="card" style={{ marginBottom: 12 }}>
             <div className="row wrap" style={{ gap: 8 }}>
               <span>Repeat every</span>
@@ -271,7 +333,7 @@ function EventForm({ init, base, editing, onClose, settingsTz, defaultAlert, myE
         )}
         <div className="field-row">
           <div className="field"><label>Calendar</label>
-            <select className="select" value={calendarId} onChange={(e) => setCalendarId(e.target.value)}>
+            <select className="select" value={calendarId} disabled={oneDate} title={oneDate ? "An occurrence cannot be moved to another calendar on its own" : undefined} onChange={(e) => setCalendarId(e.target.value)}>
               {calendars.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
@@ -329,7 +391,7 @@ function EventForm({ init, base, editing, onClose, settingsTz, defaultAlert, myE
             <div className="field-row">
               <div className="field"><label>Status</label><select className="select" value={status} onChange={(e) => setStatus(e.target.value as typeof status)}><option value="confirmed">Confirmed</option><option value="tentative">Tentative</option><option value="cancelled">Cancelled</option></select></div>
               <div className="field"><label>Show as</label><select className="select" value={freeBusy} onChange={(e) => setFreeBusy(e.target.value as typeof freeBusy)}><option value="busy">Busy</option><option value="free">Free</option></select></div>
-              <div className="field"><label>Visibility</label><select className="select" value={privacy} onChange={(e) => setPrivacy(e.target.value as typeof privacy)}><option value="public">Default</option><option value="private">Private</option><option value="secret">Secret</option></select></div>
+              {!oneDate && <div className="field"><label>Visibility</label><select className="select" value={privacy} onChange={(e) => setPrivacy(e.target.value as typeof privacy)}><option value="public">Default</option><option value="private">Private</option><option value="secret">Secret</option></select></div>}
             </div>
             <div className="field"><label>Category</label>
               <select className="select" value={category} onChange={(e) => setCategory(e.target.value)}>

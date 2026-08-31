@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { AlignLeft, Bell, Calendar as CalIcon, Check, Clock, HelpCircle, Link2, MapPin, Pencil, Repeat, Trash2, Users, X, Mail } from "lucide-react";
-import { useCalendar, myParticipantKeys, isRecurring, eventRule, participantEmail, type EventInstance } from "@/store/calendar";
+import { useCalendar, myParticipantKeys, isRecurring, isOccurrence, eventRule, participantEmail, type EventInstance, type EventScope } from "@/store/calendar";
 import { Popover, type Anchor } from "@/ui/popover";
 import { confirmDialog } from "@/ui/dialog";
 import { toast } from "@/ui/toast";
+import { askDeleteScope, runScoped } from "./scope";
 import { formatTimeRange, humanDuration, parseDuration } from "@/lib/dates";
 import { describeRule } from "@/lib/recurrence";
 import { useCompose } from "@/store/compose";
@@ -28,13 +29,20 @@ export function EventPopover({ inst, anchor, onClose, onEdit }: { inst: EventIns
   const openCompose = useCompose((s) => s.open);
 
   const del = async () => {
-    const recurring = isRecurring(ev);
-    const ok = await confirmDialog({ title: recurring ? "Delete all occurrences?" : "Delete this event?", message: recurring ? "This will delete the entire series." : undefined, confirmLabel: "Delete", danger: true });
-    if (!ok) return;
+    // A series asks which; anything else is a plain confirm. `askDeleteScope`
+    // returns null for a dismissed dialog, which is a cancel and not a series.
+    let scope: EventScope | null = "series";
+    if (isRecurring(ev) && isOccurrence(ev)) {
+      scope = await askDeleteScope(ev);
+    } else {
+      const ok = await confirmDialog({ title: "Delete this event?", confirmLabel: "Delete", danger: true });
+      if (!ok) scope = null;
+    }
+    if (!scope) return;
     setBusy(true);
     try {
-      await cal.destroyEvent(ev, participants.length > 1, "series");
-      toast.success("Event deleted");
+      await runScoped(scope, (s) => cal.destroyEvent(ev, participants.length > 1, s));
+      toast.success(scope === "occurrence" ? "Occurrence deleted" : "Event deleted");
       onClose();
     } catch (err) {
       toast.error((err as Error).message);

@@ -310,6 +310,11 @@ a.menu-item:hover { color: var(--fg); }
 .dialog-body { padding: 8px 20px 16px; overflow: auto; }
 .dialog-foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 12px 20px 16px; border-top: 1px solid var(--border); }
 .dialog-foot .left { margin-right: auto; }
+/* "This occurrence or the whole series" — one button per answer, stacked, so
+   the destructive one is read rather than landed on by muscle memory. */
+.dialog-choices { display: flex; flex-direction: column; gap: 8px; }
+.dialog-choice { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; text-align: left; padding: 10px 12px; height: auto; }
+.dialog-choice small { font-weight: 400; opacity: 0.75; }
 
 /* Toasts ----------------------------------------------------------------- */
 .toast-host { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 3000; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; padding: 0 12px; width: 100%; max-width: 520px; }

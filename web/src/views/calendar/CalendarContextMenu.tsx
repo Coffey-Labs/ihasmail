@@ -1,13 +1,13 @@
 import { Calendar as CalIcon, CalendarDays, Copy, ExternalLink, Palette, Pencil, Plus, Tag, Trash2, X } from "lucide-react";
 import { useLocation } from "wouter";
 import type { CalendarEvent } from "@/jmap/types";
-import { useCalendar, isRecurring, type EventInstance } from "@/store/calendar";
+import { useCalendar, isRecurring, isOccurrence, type EventInstance, type EventScope } from "@/store/calendar";
 import { useSettings } from "@/store/settings";
 import { formatDayMonth } from "@/lib/datetime";
 import { MenuItem, MenuSep, MenuTitle, Popover, type Anchor } from "@/ui/popover";
-import { CALENDAR_COLORS } from "@/ui/misc";
 import { confirmDialog } from "@/ui/dialog";
 import { toast } from "@/ui/toast";
+import { askDeleteScope, askEditScope, droppedMessage, runScoped } from "./scope";
 import { toLocalDateOnly } from "@/lib/dates";
 import { formatTime } from "@/lib/format";
 
@@ -65,14 +65,18 @@ export function CalendarContextMenu({ ctx, onClose, onOpen, onEdit, onCreate }: 
   const participants = Object.keys(ev.participants ?? {}).length;
 
   const patch = async (p: Record<string, unknown>, msg: string) => {
+    const scope = await askEditScope(ev);
+    if (!scope) return;
     try {
-      await cal.updateEvent(ev, p, false, "series");
-      toast.success(msg);
+      const dropped = await runScoped(scope, (s) => cal.updateEvent(ev, p, false, s));
+      if (!dropped) return;
+      // A per-occurrence change can be accepted in part. Say which part.
+      toast.success(droppedMessage(dropped) ?? (scope === "occurrence" ? `${msg} for this date` : msg));
     } catch (err) {
       toast.error((err as Error).message);
     }
   };
-  const setColor = (color: string | null) => void patch({ color }, color ? "Colour updated" : "Colour reset");
+  const setColor = (color: string | null) => void patch({ color }, color ? "Colour updated" : "Custom colour removed");
   const setCategory = (cat: { name: string; color: string } | null) => {
     const categoriesPatch = cat ? { [cat.name]: true } : null;
     void patch({ categories: categoriesPatch, color: cat ? cat.color : null }, cat ? `Categorised as ${cat.name}` : "Category cleared");
@@ -88,11 +92,16 @@ export function CalendarContextMenu({ ctx, onClose, onOpen, onEdit, onCreate }: 
   };
   const del = async () => {
     onClose();
-    const recurring = isRecurring(ev);
-    if (!(await confirmDialog({ title: recurring ? "Delete all occurrences?" : "Delete this event?", confirmLabel: "Delete", danger: true }))) return;
+    let scope: EventScope | null = "series";
+    if (isRecurring(ev) && isOccurrence(ev)) {
+      scope = await askDeleteScope(ev);
+    } else if (!(await confirmDialog({ title: "Delete this event?", confirmLabel: "Delete", danger: true }))) {
+      scope = null;
+    }
+    if (!scope) return;
     try {
-      await cal.destroyEvent(ev, participants > 1, "series");
-      toast.success("Event deleted");
+      await runScoped(scope, (s) => cal.destroyEvent(ev, participants > 1, s));
+      toast.success(scope === "occurrence" ? "Occurrence deleted" : "Event deleted");
     } catch (err) {
       toast.error((err as Error).message);
     }
@@ -112,14 +121,17 @@ export function CalendarContextMenu({ ctx, onClose, onOpen, onEdit, onCreate }: 
           ))}
           <MenuItem icon={<X size={16} />} label="No category" disabled={!currentCat} onClick={() => { onClose(); setCategory(null); }} />
           <MenuItem icon={<Tag size={16} />} label="Manage categories…" onClick={() => { onClose(); navigate("/settings/calendar"); }} />
-          <MenuSep />
-          <MenuTitle><span className="row gap-4"><Palette size={12} /> Colour</span></MenuTitle>
-          <div className="color-grid" style={{ gridTemplateColumns: "repeat(6, 26px)", padding: "4px 10px 8px" }}>
-            {CALENDAR_COLORS.map((c) => (
-              <button key={c} type="button" style={{ background: c, width: 26, height: 26, outline: ev.color?.toLowerCase() === c ? "2px solid var(--fg)" : undefined, outlineOffset: 1 }} aria-label={c} onClick={() => { onClose(); setColor(c); }} />
-            ))}
-          </div>
-          {ev.color && <MenuItem icon={<X size={16} />} label="Use calendar colour" onClick={() => { onClose(); setColor(null); }} />}
+          {/*
+            A colour is what a category already carries, so a second way to set
+            one just made two things that could disagree. Picking a category is
+            now the only way to colour an event here.
+
+            Clearing one stays, though, and only when there is one to clear: an
+            event that already has an explicit colour — set before this, or by
+            another client — would otherwise ignore its category for ever with
+            nothing on the menu to say why.
+          */}
+          {ev.color && <MenuItem icon={<Palette size={16} />} label="Clear custom colour" onClick={() => { onClose(); setColor(null); }} />}
           <MenuSep />
           <MenuItem danger icon={<Trash2 size={16} />} label="Delete" onClick={() => void del()} />
         </>
