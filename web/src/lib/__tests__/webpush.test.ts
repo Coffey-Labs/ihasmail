@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { client } from "@/jmap/client";
 import {
   applicationServerKey,
@@ -8,10 +8,14 @@ import {
   needsRenewal,
   RENEW_WITHIN_MS,
   subscriptionPayload,
+  pushEnabledHere,
+  setPushEnabledHere,
   supportsEmailPush,
+  unsubscribeThisDevice,
   webPushAvailable,
   type JmapPushSubscription,
 } from "@/lib/webpush";
+import { setDeviceTrusted } from "@/lib/storage";
 import type { JmapSession } from "@/jmap/types";
 
 /**
@@ -238,5 +242,64 @@ describe("needsRenewal", () => {
 
   it("renews rather than trusts an expiry it cannot read", () => {
     expect(needsRenewal([sub(MINE, "whenever")], MINE, NOW)).toBe(true);
+  });
+});
+
+/**
+ * Whether push is on *in this browser* is the flag the renewal on app start
+ * keys off, so the two endings that can clear it have to be told apart.
+ *
+ * Signing out clears it, alongside destroying the subscription itself: a
+ * browser left notifying for a mailbox nobody is signed into is somebody
+ * else's mail on a shared machine. A session merely expiring must not, because
+ * that path -- which is what a deploy does to everyone at once -- leaves the
+ * subscription registered and has no session left to remove it with. That half
+ * is enforced by `KEEP_ON_SIGN_OUT` and tested in storage.test.ts.
+ */
+describe("remembering that push is on here", () => {
+  let store: Map<string, string>;
+
+  beforeEach(() => {
+    store = new Map();
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: {
+        getItem: (k: string) => store.get(k) ?? null,
+        setItem: (k: string, v: string) => void store.set(k, v),
+        removeItem: (k: string) => void store.delete(k),
+      },
+    });
+    setDeviceTrusted(true);
+  });
+
+  afterEach(() => {
+    setDeviceTrusted(false);
+    Reflect.deleteProperty(globalThis, "localStorage");
+  });
+
+  it("round-trips, and is off until something turns it on", () => {
+    expect(pushEnabledHere()).toBe(false);
+    setPushEnabledHere(true);
+    expect(pushEnabledHere()).toBe(true);
+    setPushEnabledHere(false);
+    expect(pushEnabledHere()).toBe(false);
+  });
+
+  it("stays off on a device nobody said was theirs", () => {
+    // Push is refused there anyway; reading the flag as set would start the
+    // renewal trying on every load for a subscription that cannot exist.
+    setPushEnabledHere(true);
+    setDeviceTrusted(false);
+    expect(pushEnabledHere()).toBe(false);
+  });
+
+  it("is cleared by signing out, even when the server end cannot be reached", () => {
+    setPushEnabledHere(true);
+    vi.spyOn(client, "call").mockRejectedValue(new Error("offline"));
+    return unsubscribeThisDevice().then(() => {
+      // The subscription may well survive at the server; this browser must
+      // still stop believing it has push, or renewal would resurrect it.
+      expect(pushEnabledHere()).toBe(false);
+    });
   });
 });
