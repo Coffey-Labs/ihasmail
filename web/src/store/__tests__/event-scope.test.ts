@@ -38,11 +38,25 @@ const MASTER: CalendarEvent = { ...OCCURRENCE, id: "i", baseEventId: undefined, 
 
 interface SetCall { update?: Record<string, unknown>; destroy?: string[] }
 
-function server() {
+/**
+ * A server that renumbers, the way 0.16.20 does.
+ *
+ * `resolvesTo` is the id the occurrence answers to *now* — deliberately not the
+ * id the cached object carries, because that is exactly the situation a write
+ * to the series leaves behind. A store that sends the id it was handed rather
+ * than the one it looked up will send `iaaaaas` and these tests will say so.
+ */
+function server(opts: { resolvesTo?: string | null } = {}) {
   const calls: SetCall[] = [];
+  const resolved = opts.resolvesTo === undefined ? OCCURRENCE.id : opts.resolvesTo;
   const fetchMock = vi.fn(async (_url: string, init: RequestInit) => {
     const body = JSON.parse(init.body as string) as { methodCalls: [string, Record<string, unknown>, string][] };
     const methodResponses = body.methodCalls.map(([name, args, id]) => {
+      if (name === "CalendarEvent/get" && id === "g") {
+        // The re-resolution lookup: same recurrenceId, whatever id it wears now.
+        const list = resolved ? [{ ...OCCURRENCE, id: resolved }] : [];
+        return [name, { accountId: "a1", state: "1", list, notFound: [] }, id];
+      }
       if (name === "CalendarEvent/set") {
         calls.push({ update: args.update as Record<string, unknown>, destroy: args.destroy as string[] });
         return [name, {
@@ -115,10 +129,21 @@ describe("destroyEvent", () => {
     expect(calls[0]!.destroy).not.toContain("iaaaaas");
   });
 
-  it("sends the synthetic id for a single occurrence", async () => {
-    const calls = server();
+  it("sends the id the occurrence answers to now, not the one it was handed", async () => {
+    // The live finding: writing one override renumbers the series, so an id
+    // cached a moment ago addresses a different date. `recurrenceId` is the
+    // stable handle, so the store looks the current id up by it.
+    const calls = server({ resolvesTo: "renumbered7" });
     await useCalendar.getState().destroyEvent(OCCURRENCE, false, "occurrence");
-    expect(calls[0]!.destroy).toEqual(["iaaaaas"]);
+    expect(calls[0]!.destroy).toEqual(["renumbered7"]);
+    expect(calls[0]!.destroy).not.toContain("iaaaaas");
+  });
+
+  it("refuses rather than guessing when the date is no longer in the series", async () => {
+    const calls = server({ resolvesTo: null });
+    await expect(useCalendar.getState().destroyEvent(OCCURRENCE, false, "occurrence"))
+      .rejects.toThrow(/no longer part of this series/i);
+    expect(calls).toEqual([]);
   });
 
   it("drops the occurrence from the cache without evicting the master", async () => {
@@ -137,10 +162,10 @@ describe("updateEvent", () => {
     expect(Object.keys(calls[0]!.update!)).toEqual(["i"]);
   });
 
-  it("patches the instance for a single occurrence", async () => {
-    const calls = server();
+  it("patches the id the occurrence answers to now", async () => {
+    const calls = server({ resolvesTo: "renumbered7" });
     await useCalendar.getState().updateEvent(OCCURRENCE, { color: "#f00" }, false, "occurrence");
-    expect(Object.keys(calls[0]!.update!)).toEqual(["iaaaaas"]);
+    expect(Object.keys(calls[0]!.update!)).toEqual(["renumbered7"]);
   });
 });
 

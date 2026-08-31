@@ -5,7 +5,7 @@
  */
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
-import { expandOccurrences, occurrenceAt, occurrenceView, parseSyntheticId, splitOccurrencePatch, syntheticId, type Occurrence } from "./recurrence.js";
+import { expandOccurrences, occurrenceAt, occurrenceView, parseSyntheticId, slotOfOccurrence, splitOccurrencePatch, syntheticId, type Occurrence } from "./recurrence.js";
 import { parseOtpauthUrl, verifyTotp } from "../totp.js";
 import { holdUntilOf, undoStatusOf } from "./futurerelease.js";
 
@@ -414,7 +414,7 @@ function resolveEvent(list: Obj[], id: string): { base: Obj; occ?: Occurrence } 
   if (!parsed) return null;
   const base = list.find((x) => x.id === parsed.baseId);
   if (!base) return null;
-  const occ = occurrenceAt(base, parsed.index);
+  const occ = occurrenceAt(base, parsed.slot);
   return occ ? { base, occ } : null;
 }
 
@@ -929,7 +929,7 @@ const handlers: Record<string, Handler> = {
     const from = filter.after ? new Date(filter.after as string) : new Date(-8640000000000);
     const to = filter.before ? new Date(filter.before as string) : new Date(8640000000000);
     const ids: string[] = [];
-    for (const e of matching) for (const occ of expandOccurrences(e, from, to)) ids.push(syntheticId(e.id as string, occ.index));
+    for (const e of matching) for (const occ of expandOccurrences(e, from, to)) ids.push(syntheticId(e.id as string, slotOfOccurrence(e, occ)));
     return { accountId: a.accountId ?? ACCOUNT, queryState: "1", canCalculateChanges: false, position: 0, ids, total: ids.length };
   },
   "CalendarEvent/get": (a) => {

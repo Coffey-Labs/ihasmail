@@ -25,18 +25,41 @@ const MAX_ITERATIONS = 750;
 const DAYS = ["su", "mo", "tu", "we", "th", "fr", "sa"];
 
 /**
- * The id an occurrence is addressed by.
+ * The id an occurrence is addressed by, which is only true until the next write.
  *
  * Stalwart's are opaque; the mock's are parseable because it has to resolve
- * them, and nothing in ihasmail may read either. The index counts from the
- * start of the series and survives an excluded date, so an id keeps meaning the
- * same occurrence after one of its neighbours is deleted.
+ * them, and nothing in ihasmail may read either.
+ *
+ * They are also deliberately **unstable**, because the real ones are.
+ * **Confirmed live on 0.16.20 (2026-08-31):** a synthetic id encodes a position
+ * in the expanded series, and writing a `recurrenceOverrides` entry adds a
+ * component that renumbers it. A five-week series held `e i m q u` over
+ * 03-01…03-29; after one override was written to 03-08 the same ids addressed
+ * 03-01, 03-15, 03-29, 03-08, 03-22. Nothing was rejected — they just meant
+ * different dates.
+ *
+ * That is the hazard worth reproducing, and note which way round it goes: a
+ * stale id is not *invalid*, it is *wrong*. A mock that expired them instead
+ * would hand back a loud `notFound` and let a client that caches ids look
+ * careful. So the numbering is shifted by the number of overrides — an
+ * arbitrary stand-in for Stalwart's renumbering, with the one property that
+ * matters: hold an id across a write and it silently addresses another date.
  */
-export const syntheticId = (baseId: string, index: number): string => `${baseId}-o${index}`;
+export const syntheticId = (baseId: string, slot: number): string => `${baseId}-o${slot}`;
 
-export function parseSyntheticId(id: string): { baseId: string; index: number } | null {
+export function parseSyntheticId(id: string): { baseId: string; slot: number } | null {
   const m = /^(.+)-o(\d+)$/.exec(id);
-  return m ? { baseId: m[1]!, index: Number(m[2]) } : null;
+  return m ? { baseId: m[1]!, slot: Number(m[2]) } : null;
+}
+
+/** How far the id numbering has been rotated away from the series order. */
+function rotation(base: Obj): number {
+  return Object.keys((base.recurrenceOverrides as Record<string, Obj> | undefined) ?? {}).length;
+}
+
+/** The id slot this occurrence currently answers to. */
+export function slotOfOccurrence(base: Obj, occ: Occurrence): number {
+  return occ.index + rotation(base);
 }
 
 /** `2026-08-31T09:00:00` — the naive local form the mock stores `start` in. */
@@ -81,8 +104,8 @@ export function expandOccurrences(base: Obj, from: Date, to: Date): Occurrence[]
   const emit = (index: number, at: Date): boolean => {
     const recurrenceId = localDateTime(at);
     const override = overrides[recurrenceId];
-    // An excluded date still consumes its index: ids have to stay stable when a
-    // neighbour is deleted, or every occurrence after it silently renumbers.
+    // An excluded date is simply gone from the expansion. Its slot is not
+    // reserved -- see `syntheticId` for why nothing here pretends otherwise.
     if (override?.excluded === true) return true;
     if (at >= from && at < to) {
       out.push({ index, recurrenceId, start: recurrenceId, ...(override ? { override } : {}) });
@@ -141,7 +164,7 @@ export function occurrenceView(base: Obj, occ: Occurrence): Obj {
   const view: Obj = { ...base };
   for (const k of SERIES_ONLY) delete view[k];
   Object.assign(view, occ.override ?? {});
-  view.id = syntheticId(base.id as string, occ.index);
+  view.id = syntheticId(base.id as string, slotOfOccurrence(base, occ));
   view.baseEventId = base.id;
   view.start = occ.start;
   // Only a genuine instance of a series carries one. A one-off expanded into
@@ -192,8 +215,10 @@ export function splitOccurrencePatch(patch: Obj): { rejected?: string; applied: 
   return { applied };
 }
 
-/** One occurrence by its index, wherever in the series it falls. */
-export function occurrenceAt(base: Obj, index: number): Occurrence | null {
+/** The occurrence a slot currently addresses — which is not a fixed thing. */
+export function occurrenceAt(base: Obj, slot: number): Occurrence | null {
+  const index = slot - rotation(base);
+  if (index < 0) return null;
   const all = expandOccurrences(base, new Date(-8640000000000), new Date(8640000000000));
   return all.find((o) => o.index === index) ?? null;
 }

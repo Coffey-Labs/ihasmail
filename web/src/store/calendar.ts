@@ -137,6 +137,48 @@ export function isThisAndFutureRefusal(err: unknown): boolean {
   return err instanceof CalendarSetError && /this-and-future/i.test(err.setError.description ?? "");
 }
 
+/**
+ * A synthetic id is only true until the next write, so an occurrence is
+ * re-resolved from its `recurrenceId` immediately before it is touched.
+ *
+ * **Confirmed live on 0.16.20 (2026-08-31.)** Stalwart's synthetic ids encode a
+ * position in the expanded series, and writing a `recurrenceOverrides` entry
+ * adds a component that renumbers it. A five-week series held ids `e i m q u`
+ * over 03-01…03-29; after one override was written to 03-08 the *same ids*
+ * addressed 03-01, 03-15, 03-29, 03-08, 03-22. Not one of them was rejected —
+ * `i` simply meant a week later than it had a moment before.
+ *
+ * So an id cached across a write silently points at a different date, and a
+ * delete aimed at one occurrence removes another. `recurrenceId` is the stable
+ * name for a slot in a series — it is the date itself — so that is what we hold
+ * and what we look the current id up by.
+ */
+async function currentOccurrenceId(accountId: Id, event: CalendarEvent): Promise<Id> {
+  const base = event.baseEventId;
+  const rid = event.recurrenceId;
+  // A one-off, or an object with nothing to re-resolve from: its own id is all
+  // there is, and there is no series for a write to have renumbered.
+  if (!base || !rid) return event.id;
+
+  const around = new Date(rid);
+  if (Number.isNaN(around.getTime())) return event.id;
+  const from = new Date(around.getTime() - DAY_MS);
+  const to = new Date(around.getTime() + DAY_MS);
+
+  const res = await client.chain([
+    ["CalendarEvent/query", { accountId, filter: { after: toLocalDateTime(from), before: toLocalDateTime(to) }, expandRecurrences: true, limit: 200 }, "q"],
+    ["CalendarEvent/get", { accountId, "#ids": { resultOf: "q", name: "CalendarEvent/query", path: "/ids" }, properties: ["id", "baseEventId", "recurrenceId"] }, "g"],
+  ]);
+  const list = (res.get("g")?.[0] as unknown as GetResponse<CalendarEvent> | undefined)?.list ?? [];
+  const found = list.find((e) => e.baseEventId === base && e.recurrenceId === rid);
+  if (!found) {
+    // The date is gone -- already excluded, or the series no longer reaches it.
+    // Better to say so than to act on an id that means something else now.
+    throw new Error("That occurrence is no longer part of this series. Reload the calendar and try again.");
+  }
+  return found.id;
+}
+
 export class OccurrenceScopeError extends Error {
   constructor(readonly property: string) {
     super(`"${property}" applies to the whole series and cannot be changed for one occurrence.`);
@@ -488,7 +530,7 @@ export const useCalendar = create<CalendarState>((set, get) => ({
 
   async updateEvent(event, patch, sendInvites, scope) {
     const accountId = get().accountId!;
-    const id = eventIdForScope(event, scope);
+    const id = scope === "occurrence" ? await currentOccurrenceId(accountId, event) : eventIdForScope(event, scope);
     // An occurrence takes less than the series does, and says so about only
     // half of it. Narrow the patch here rather than posting it hopefully.
     const { patch: body, dropped } = scope === "occurrence" ? occurrencePatch(patch) : { patch, dropped: [] as string[] };
@@ -502,7 +544,7 @@ export const useCalendar = create<CalendarState>((set, get) => ({
 
   async destroyEvent(event, sendInvites, scope) {
     const accountId = get().accountId!;
-    const id = eventIdForScope(event, scope);
+    const id = scope === "occurrence" ? await currentOccurrenceId(accountId, event) : eventIdForScope(event, scope);
     const res = await client.call<SetResponse>("CalendarEvent/set", { accountId, destroy: [id], sendSchedulingMessages: sendInvites });
     const err = res.notDestroyed?.[id];
     if (err) throw new CalendarSetError(err);

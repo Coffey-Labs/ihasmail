@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { expandOccurrences, occurrenceAt, occurrenceView, parseSyntheticId, splitOccurrencePatch, syntheticId } from "./recurrence.js";
+import { expandOccurrences, occurrenceAt, occurrenceView, parseSyntheticId, slotOfOccurrence, splitOccurrencePatch, syntheticId } from "./recurrence.js";
 
 /**
  * The mock expands recurrences so that per-occurrence editing can be developed
@@ -44,18 +44,17 @@ describe("expandOccurrences", () => {
     assert.equal(expandOccurrences(ev, a, b).length, 3);
   });
 
-  it("skips an excluded date but does not renumber the ones after it", () => {
-    // The whole reason an index rather than a position is the id: deleting
-    // Tuesday must not turn Wednesday's id into Tuesday's.
+  it("drops an excluded date from the expansion, keeping the series positions", () => {
     const ev = { ...series(), recurrenceOverrides: { "2026-09-08T09:00:00": { excluded: true } } };
     const [a, b] = week("2026-09-07T00:00:00", "2026-09-14T00:00:00");
     const out = expandOccurrences(ev, a, b);
     assert.deepEqual(out.map((o) => o.start), [
       "2026-09-07T09:00:00", "2026-09-09T09:00:00", "2026-09-10T09:00:00", "2026-09-11T09:00:00",
     ]);
-    // Wednesday is still index 2, as it was before Tuesday went.
+    // The position within the series is unchanged — Wednesday is still the
+    // third date the rule produces, whatever happened to Tuesday. It is the
+    // *id* built on top of that which moves, and only after a write.
     assert.equal(out[1]!.index, 2);
-    assert.equal(occurrenceAt(ev, 2)!.start, "2026-09-09T09:00:00");
   });
 
   it("carries an override onto the occurrence it keys", () => {
@@ -91,14 +90,17 @@ describe("occurrenceView", () => {
 
   it("lets an override win over the series", () => {
     const base = { ...series(), recurrenceOverrides: { "2026-09-08T09:00:00": { title: "Moved" } } };
-    const view = occurrenceView(base, occurrenceAt(base, 1)!);
+    // Slot 2, not 1: one override has already shifted the numbering. Reaching
+    // for the id this occurrence had *before* the write is the bug below.
+    const view = occurrenceView(base, occurrenceAt(base, 2)!);
+    assert.equal(view.start, "2026-09-08T09:00:00");
     assert.equal(view.title, "Moved");
   });
 });
 
 describe("parseSyntheticId", () => {
   it("round-trips", () => {
-    assert.deepEqual(parseSyntheticId(syntheticId("ev1", 12)), { baseId: "ev1", index: 12 });
+    assert.deepEqual(parseSyntheticId(syntheticId("ev1", 12)), { baseId: "ev1", slot: 12 });
   });
   it("does not claim a stored id", () => {
     assert.equal(parseSyntheticId("ev1"), null);
@@ -129,5 +131,38 @@ describe("splitOccurrencePatch", () => {
     assert.deepEqual(splitOccurrencePatch({ "participants/me/participationStatus": "accepted" }).applied,
       { "participants/me/participationStatus": "accepted" });
     assert.deepEqual(splitOccurrencePatch({ "participants/me/calendarAddress": "mailto:x@y" }).applied, {});
+  });
+});
+
+
+describe("synthetic ids are only true until the next write", () => {
+  /*
+   * Confirmed live on 0.16.20 (2026-08-31): writing one `recurrenceOverrides`
+   * entry renumbered a five-week series so that the *same* ids addressed
+   * different dates. Nothing was rejected. The mock reproduces the shape of
+   * that rather than the exact permutation, because the property that bites is
+   * not which date an id moves to but that it moves at all, silently.
+   */
+  it("makes a cached id address a different date after an override is written", () => {
+    const before = series();
+    const held = syntheticId("ev1", slotOfOccurrence(before, occurrenceAt(before, 3)!));
+    const dateBefore = occurrenceAt(before, parseSyntheticId(held)!.slot)!.start;
+
+    const after = { ...before, recurrenceOverrides: { "2026-09-07T09:00:00": { title: "changed" } } };
+    const dateAfter = occurrenceAt(after, parseSyntheticId(held)!.slot)!.start;
+
+    assert.notEqual(dateAfter, dateBefore);
+    // And crucially it still resolves — a stale id is wrong, not invalid, so a
+    // client that trusts it gets a confident answer about the wrong day.
+    assert.ok(dateAfter);
+  });
+
+  it("keeps recurrenceId meaning the same date across a write, which is why it is the handle", () => {
+    const before = series();
+    const occ = occurrenceAt(before, 3)!;
+    const after = { ...before, recurrenceOverrides: { "2026-09-07T09:00:00": { title: "changed" } } };
+    const same = expandOccurrences(after, new Date("2026-09-01T00:00:00"), new Date("2026-10-01T00:00:00"))
+      .find((o) => o.recurrenceId === occ.recurrenceId);
+    assert.equal(same!.start, occ.start);
   });
 });
