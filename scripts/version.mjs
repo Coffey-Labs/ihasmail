@@ -5,12 +5,12 @@
  *   +pr129     the pull request it arrived through
  *
  * The date leads because ihasmail's version used to be `2.16.<pr>`, where `16`
- * was the Stalwart generation it targeted -- and Stalwart 1.0 leaves that with
- * nowhere to go. `2.1` would have sorted *below* the `2.16` already deployed,
- * so every image and About screen would have read as a downgrade. Tying our
+ * was the Stalwart generation it targeted -- and Stalwart 1.0 will leave that
+ * with nowhere to go. `2.1` would sort *below* the `2.16` already deployed, so
+ * every image and About screen would read as a downgrade. Tying our
  * numbering to somebody else's was the mistake; which Stalwart a build needs is
  * said properly in the README badge and KNOWN-ISSUES, where it can be precise
- * ("0.16 or newer; tested against 0.16.19") rather than one digit.
+ * ("0.16 or newer; tested against 0.16.20") rather than one digit.
  *
  * The pull request moved into build metadata, after the `+`, because it is
  * provenance rather than a position in a sequence: at a hundred merges a week

@@ -181,9 +181,9 @@ to look wrong: a version with no `+pr` or `+g` means whoever built the image did
 not pass one.
 
 The version says nothing about Stalwart, deliberately. It used to: `2.16.x` had
-`16` for the 0.16 generation it targeted, which left nowhere to go when Stalwart
-reached 1.0 — `2.1` sorts *below* the `2.16` already deployed, so every image and
-About screen would have read as a downgrade. Which Stalwart a build needs is
+`16` for the 0.16 generation it targeted, which leaves nowhere to go once
+Stalwart reaches 1.0 — `2.1` sorts *below* the `2.16` already deployed, so every
+image and About screen would read as a downgrade. Which Stalwart a build needs is
 stated where it can be precise, in the badge at the top of this file and in
 [KNOWN-ISSUES.md](KNOWN-ISSUES.md), rather than compressed into one digit.
 
