@@ -4,7 +4,6 @@ import type { CalendarEvent } from "@/jmap/types";
 import { useCalendar, isRecurring, isOccurrence, type EventInstance, type EventScope } from "@/store/calendar";
 import { useSettings } from "@/store/settings";
 import { formatDayMonth } from "@/lib/datetime";
-import { CALENDAR_COLORS } from "@/ui/misc";
 import { MenuItem, MenuSep, MenuTitle, Popover, type Anchor } from "@/ui/popover";
 import { confirmDialog } from "@/ui/dialog";
 import { toast } from "@/ui/toast";
@@ -77,7 +76,7 @@ export function CalendarContextMenu({ ctx, onClose, onOpen, onEdit, onCreate }: 
       toast.error((err as Error).message);
     }
   };
-  const setColor = (color: string | null) => void patch({ color }, color ? "Colour updated" : "Colour reset");
+  const setColor = (color: string | null) => void patch({ color }, color ? "Colour updated" : "Custom colour removed");
   const setCategory = (cat: { name: string; color: string } | null) => {
     const categoriesPatch = cat ? { [cat.name]: true } : null;
     void patch({ categories: categoriesPatch, color: cat ? cat.color : null }, cat ? `Categorised as ${cat.name}` : "Category cleared");
@@ -122,14 +121,17 @@ export function CalendarContextMenu({ ctx, onClose, onOpen, onEdit, onCreate }: 
           ))}
           <MenuItem icon={<X size={16} />} label="No category" disabled={!currentCat} onClick={() => { onClose(); setCategory(null); }} />
           <MenuItem icon={<Tag size={16} />} label="Manage categories…" onClick={() => { onClose(); navigate("/settings/calendar"); }} />
-          <MenuSep />
-          <MenuTitle><span className="row gap-4"><Palette size={12} /> Colour</span></MenuTitle>
-          <div className="color-grid" style={{ gridTemplateColumns: "repeat(6, 26px)", padding: "4px 10px 8px" }}>
-            {CALENDAR_COLORS.map((c) => (
-              <button key={c} type="button" style={{ background: c, width: 26, height: 26, outline: ev.color?.toLowerCase() === c ? "2px solid var(--fg)" : undefined, outlineOffset: 1 }} aria-label={c} onClick={() => { onClose(); setColor(c); }} />
-            ))}
-          </div>
-          {ev.color && <MenuItem icon={<X size={16} />} label="Use calendar colour" onClick={() => { onClose(); setColor(null); }} />}
+          {/*
+            A colour is what a category already carries, so a second way to set
+            one just made two things that could disagree. Picking a category is
+            now the only way to colour an event here.
+
+            Clearing one stays, though, and only when there is one to clear: an
+            event that already has an explicit colour — set before this, or by
+            another client — would otherwise ignore its category for ever with
+            nothing on the menu to say why.
+          */}
+          {ev.color && <MenuItem icon={<Palette size={16} />} label="Clear custom colour" onClick={() => { onClose(); setColor(null); }} />}
           <MenuSep />
           <MenuItem danger icon={<Trash2 size={16} />} label="Delete" onClick={() => void del()} />
         </>
