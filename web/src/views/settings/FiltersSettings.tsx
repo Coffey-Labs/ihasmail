@@ -9,6 +9,7 @@ import { confirmDialog, promptDialog } from "@/ui/dialog";
 import { Switch, Spinner } from "@/ui/misc";
 import { toast } from "@/ui/toast";
 import type { SieveScript } from "@/jmap/types";
+import { t } from "@/lib/i18n";
 
 export function FiltersSettings() {
   const sieve = useSieve();
@@ -21,16 +22,16 @@ export function FiltersSettings() {
   if (!sieve.available) {
     return (
       <div>
-        <h1>Filters & rules</h1>
-        <p className="lead">Sieve filtering is not available for this account.</p>
+        <h1>{t("Filters & rules")}</h1>
+        <p className="lead">{t("Sieve filtering is not available for this account.")}</p>
       </div>
     );
   }
 
   return (
     <div>
-      <h1>Filters & rules</h1>
-      <p className="lead">Sort incoming mail automatically. Rules run on the server (Sieve), so they work for every client you use.</p>
+      <h1>{t("Filters & rules")}</h1>
+      <p className="lead">{t("Sort incoming mail automatically. Rules run on the server (Sieve), so they work for every client you use.")}</p>
       <div className="view-switch" style={{ marginBottom: 16 }}>
         <button className={tab === "rules" ? "active" : ""} onClick={() => setTab("rules")}><Wand2 size={15} /> Rules</button>
         <button className={tab === "scripts" ? "active" : ""} onClick={() => setTab("scripts")}><Code size={15} /> Scripts (advanced)</button>
@@ -86,9 +87,9 @@ function RulesEditor() {
   if (damage) {
     return (
       <div className="warn-box">
-        <div className="row gap-8" style={{ marginBottom: 8 }}><AlertTriangle size={18} /> <b>Only part of your filter script arrived.</b></div>
+        <div className="row gap-8" style={{ marginBottom: 8 }}><AlertTriangle size={18} /> <b>{t("Only part of your filter script arrived.")}</b></div>
         <p style={{ margin: "0 0 8px" }}>It {damage}, so the rules in it can't be shown or edited — saving what did arrive would write it back over the rest. Reload the page to try again. Your rules are still on the server; nothing here has changed them.</p>
-        <button className="btn" onClick={() => window.location.reload()}>Reload</button>
+        <button className="btn" onClick={() => window.location.reload()}>{t("Reload")}</button>
       </div>
     );
   }
@@ -97,8 +98,8 @@ function RulesEditor() {
     return (
       <div className="warn-box">
         <div className="row gap-8" style={{ marginBottom: 8 }}><AlertTriangle size={18} /> <b>Your active script “{script?.name}” was written by hand.</b></div>
-        <p style={{ margin: "0 0 8px" }}>The visual rule editor only manages scripts it created. You can edit the script in the <b>Scripts</b> tab, or start fresh with rules (the existing script will be kept but deactivated).</p>
-        <button className="btn" onClick={async () => { if (await confirmDialog({ title: "Switch to rules?", message: `“${script?.name}” will be deactivated (not deleted) and a new “ihasmail” script will take over.`, confirmLabel: "Continue" })) void save([]); }}>Start with rules</button>
+        <p style={{ margin: "0 0 8px" }}>The visual rule editor only manages scripts it created. You can edit the script in the <b>{t("Scripts")}</b> tab, or start fresh with rules (the existing script will be kept but deactivated).</p>
+        <button className="btn" onClick={async () => { if (await confirmDialog({ title: "Switch to rules?", message: `“${script?.name}” will be deactivated (not deleted) and a new “ihasmail” script will take over.`, confirmLabel: "Continue" })) void save([]); }}>{t("Start with rules")}</button>
       </div>
     );
   }
@@ -106,7 +107,7 @@ function RulesEditor() {
   return (
     <div>
       {activeIsOther && <div className="warn-box mb-16">Another script (“{script?.name}”) is active. Saving rules here will activate the “ihasmail” script instead.</div>}
-      {list.length === 0 && <div className="empty" style={{ padding: 32 }}><Wand2 size={32} /><h3>No filters yet</h3><p>Create a rule to move newsletters to a folder, flag important senders, or forward mail.</p></div>}
+      {list.length === 0 && <div className="empty" style={{ padding: 32 }}><Wand2 size={32} /><h3>{t("No filters yet")}</h3><p>{t("Create a rule to move newsletters to a folder, flag important senders, or forward mail.")}</p></div>}
       {list.map((r, i) => (
         <div
           key={r.id}
@@ -132,7 +133,7 @@ function RulesEditor() {
           <div className="row">
             <span
               className="drag-handle"
-              title="Drag to reorder"
+              title={t("Drag to reorder")}
               aria-hidden="true"
               onPointerDown={() => setArmed(r.id)}
               onPointerUp={() => setArmed(null)}
@@ -142,21 +143,21 @@ function RulesEditor() {
               <div style={{ fontWeight: 600 }}>{r.name}</div>
               <div className="hint truncate">{describeRule(r)}</div>
             </div>
-            <button className="icon-btn sm" disabled={i === 0} aria-label="Move up" onClick={() => { const n = [...list]; [n[i - 1], n[i]] = [n[i]!, n[i - 1]!]; setLocal(n); }}><ArrowUp size={16} /></button>
-            <button className="icon-btn sm" disabled={i === list.length - 1} aria-label="Move down" onClick={() => { const n = [...list]; [n[i + 1], n[i]] = [n[i]!, n[i + 1]!]; setLocal(n); }}><ArrowDown size={16} /></button>
-            <button className="icon-btn sm danger" aria-label="Delete rule" onClick={() => setLocal(list.filter((x) => x.id !== r.id))}><Trash2 size={16} /></button>
+            <button className="icon-btn sm" disabled={i === 0} aria-label={t("Move up")} onClick={() => { const n = [...list]; [n[i - 1], n[i]] = [n[i]!, n[i - 1]!]; setLocal(n); }}><ArrowUp size={16} /></button>
+            <button className="icon-btn sm" disabled={i === list.length - 1} aria-label={t("Move down")} onClick={() => { const n = [...list]; [n[i + 1], n[i]] = [n[i]!, n[i + 1]!]; setLocal(n); }}><ArrowDown size={16} /></button>
+            <button className="icon-btn sm danger" aria-label={t("Delete rule")} onClick={() => setLocal(list.filter((x) => x.id !== r.id))}><Trash2 size={16} /></button>
           </div>
         </div>
       ))}
       <div className="row" style={{ marginTop: 12 }}>
         <button className="btn" onClick={() => setEditing(newRule())}><Plus size={16} /> New rule</button>
         <span className="spacer" />
-        {dirty && <button className="btn btn-ghost" onClick={() => setLocal(null)}>Discard changes</button>}
+        {dirty && <button className="btn btn-ghost" onClick={() => setLocal(null)}>{t("Discard changes")}</button>}
         <button className="btn btn-primary" disabled={!dirty || saving} onClick={() => void save(list)}>{saving ? "Saving…" : "Save filters"}</button>
       </div>
       {content && (
         <details style={{ marginTop: 20 }}>
-          <summary className="hint" style={{ cursor: "pointer" }}>Preview generated Sieve script</summary>
+          <summary className="hint" style={{ cursor: "pointer" }}>{t("Preview generated Sieve script")}</summary>
           <pre className="code notranslate" translate="no" style={{ minHeight: 120, marginTop: 8 }}>{rulesToSieve(list)}</pre>
         </details>
       )}
@@ -227,18 +228,18 @@ function ScriptsEditor() {
     if (sel !== null || name !== "" || content !== "") {
       return (
         <div>
-          <div className="field"><label>Script name</label><input className="input" value={name} onChange={(e) => setName(e.target.value)} disabled={Boolean(sel)} /></div>
+          <div className="field"><label>{t("Script name")}</label><input className="input" value={name} onChange={(e) => setName(e.target.value)} disabled={Boolean(sel)} /></div>
           <div className="field">
-            <label>Sieve source</label>
+            <label>{t("Sieve source")}</label>
             <textarea className="code notranslate" translate="no" value={content} onChange={(e) => setContent(e.target.value)} spellCheck={false} style={{ minHeight: 320 }} />
           </div>
           {validation && <div className="error-box mb-16">{validation}</div>}
           <div className="row">
-            <button className="btn btn-ghost" onClick={() => { setSel(null); setName(""); setContent(""); }}>Cancel</button>
+            <button className="btn btn-ghost" onClick={() => { setSel(null); setName(""); setContent(""); }}>{t("Cancel")}</button>
             <button className="btn" disabled={busy} onClick={async () => { setBusy(true); const err = await sieve.validate(content); setValidation(err); setBusy(false); if (!err) toast.success("Script is valid"); }}><Play size={14} /> Validate</button>
             <span className="spacer" />
-            <button className="btn" disabled={busy} onClick={() => void save(false)}>Save</button>
-            <button className="btn btn-primary" disabled={busy} onClick={() => void save(true)}>Save & activate</button>
+            <button className="btn" disabled={busy} onClick={() => void save(false)}>{t("Save")}</button>
+            <button className="btn btn-primary" disabled={busy} onClick={() => void save(true)}>{t("Save & activate")}</button>
           </div>
         </div>
       );
@@ -247,14 +248,14 @@ function ScriptsEditor() {
 
   return (
     <div>
-      <p className="hint">Advanced: manage raw Sieve scripts. Only one script can be active at a time.</p>
+      <p className="hint">{t("Advanced: manage raw Sieve scripts. Only one script can be active at a time.")}</p>
       {sieve.scripts.map((s) => (
         <div key={s.id} className="card">
           <div className="card-head">
-            <h3><span>{s.name} </span>{s.isActive && <span className="tag" style={{ background: "var(--success)" }}>active</span>}</h3>
-            <button className="btn btn-sm" onClick={() => void open(s)}>Edit</button>
+            <h3><span>{s.name} </span>{s.isActive && <span className="tag" style={{ background: "var(--success)" }}>{t("active")}</span>}</h3>
+            <button className="btn btn-sm" onClick={() => void open(s)}>{t("Edit")}</button>
             <button className="btn btn-sm" onClick={async () => { try { await sieve.activate(s.isActive ? null : s.id); } catch (err) { toast.error((err as Error).message); } }}><Power size={14} /> {s.isActive ? "Deactivate" : "Activate"}</button>
-            <button className="icon-btn sm danger" aria-label="Delete script" onClick={async () => { if (await confirmDialog({ title: `Delete script “${s.name}”?`, confirmLabel: "Delete", danger: true })) { try { await sieve.destroy(s.id); } catch (err) { toast.error((err as Error).message); } } }}><Trash2 size={16} /></button>
+            <button className="icon-btn sm danger" aria-label={t("Delete script")} onClick={async () => { if (await confirmDialog({ title: `Delete script “${s.name}”?`, confirmLabel: "Delete", danger: true })) { try { await sieve.destroy(s.id); } catch (err) { toast.error((err as Error).message); } } }}><Trash2 size={16} /></button>
           </div>
         </div>
       ))}

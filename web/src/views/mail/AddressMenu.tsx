@@ -8,6 +8,7 @@ import { formatAddress } from "@/lib/address";
 import { MenuItem, MenuSep, Popover, type Anchor } from "@/ui/popover";
 import { toast } from "@/ui/toast";
 import { ContactEditor } from "../contacts/ContactEditor";
+import { t } from "@/lib/i18n";
 
 /**
  * Right-click on anyone named in a message — sender, recipients, Reply-To — to
@@ -43,16 +44,16 @@ export function useAddressMenu() {
           <div className="menu-title truncate">{formatAddress(menu.address)}</div>
           {contacts.available && (
             known ? (
-              <MenuItem icon={<Pencil size={16} />} label="Edit contact" onClick={() => { setEditing(known); close(); }} />
+              <MenuItem icon={<Pencil size={16} />} label={t("Edit contact")} onClick={() => { setEditing(known); close(); }} />
             ) : (
-              <MenuItem icon={<UserPlus size={16} />} label="Add to contacts" onClick={() => { setEditing(contactFromAddress(menu.address)); close(); }} />
+              <MenuItem icon={<UserPlus size={16} />} label={t("Add to contacts")} onClick={() => { setEditing(contactFromAddress(menu.address)); close(); }} />
             )
           )}
-          <MenuItem icon={<Mail size={16} />} label="New message to this address" onClick={() => { openCompose({ to: [menu.address] }); close(); }} />
+          <MenuItem icon={<Mail size={16} />} label={t("New message to this address")} onClick={() => { openCompose({ to: [menu.address] }); close(); }} />
           <MenuSep />
           <MenuItem
             icon={<Copy size={16} />}
-            label="Copy email address"
+            label={t("Copy email address")}
             onClick={() => {
               void navigator.clipboard?.writeText(menu.address.email).then(
                 () => toast.show("Address copied"),
@@ -85,7 +86,7 @@ export function AddressList({ list, onContext, empty = "—" }: { list: EmailAdd
       {list.map((a, i) => (
         <span key={`${a.email}-${i}`}>
           {i > 0 && ", "}
-          <span className="addr" onContextMenu={(ev) => onContext(ev, a)} title="Right-click for options">{formatAddress(a)}</span>
+          <span className="addr" onContextMenu={(ev) => onContext(ev, a)} title={t("Right-click for options")}>{formatAddress(a)}</span>
         </span>
       ))}
     </>

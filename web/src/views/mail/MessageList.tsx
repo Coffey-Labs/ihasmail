@@ -14,6 +14,7 @@ import { useCompose } from "@/store/compose";
 import { haptic, usePullToRefresh, useTouchRow, PULL_TRIGGER } from "@/lib/touch";
 import { describeSwipe, type SwipeAction, type SwipeDescriptor, type SwipeIcon } from "@/lib/swipe";
 import { FilterFromMessageDialog } from "./FilterFromMessage";
+import { t } from "@/lib/i18n";
 
 /**
  * The glyph on the strip a swipe reveals. Sized larger than the toolbar's
@@ -231,14 +232,14 @@ export function MessageList({ title, list, openThreadId, focusId, setFocusId, on
     <div className="mail-list-pane">
       <div className="list-toolbar">
         {isMobile && isSearch && (
-          <button className="icon-btn" onClick={() => navigate("/mail")} aria-label="Back">
+          <button className="icon-btn" onClick={() => navigate("/mail")} aria-label={t("Back")}>
             <ArrowLeft size={20} />
           </button>
         )}
         <input
           type="checkbox"
           className="select-all"
-          aria-label="Select all"
+          aria-label={t("Select all")}
           checked={allSelected}
           ref={(el) => {
             if (el) el.indeterminate = selCount > 0 && !allSelected;
@@ -249,14 +250,14 @@ export function MessageList({ title, list, openThreadId, focusId, setFocusId, on
           <>
             <span className="tb-count">{selCount} selected</span>
             <span className="tb-sep" />
-            <button className="icon-btn" title="Archive (e)" onClick={() => void actions.archive()}><Archive size={19} /></button>
+            <button className="icon-btn" title={t("Archive (e)")} onClick={() => void actions.archive()}><Archive size={19} /></button>
             <button className="icon-btn" title={isTrashOrJunk ? "Delete forever" : "Delete (#)"} onClick={() => void actions.trash()}><Trash2 size={19} /></button>
             <button className="icon-btn hide-mobile" title={mailbox?.role === "junk" ? "Not spam" : "Report spam (!)"} onClick={() => void actions.spam()}>{mailbox?.role === "junk" ? <ShieldCheck size={19} /> : <AlertOctagon size={19} />}</button>
             <span className="tb-sep" />
-            <button className="icon-btn" title="Mark as read (Shift+I)" onClick={() => void actions.read(true)}><MailOpen size={19} /></button>
-            <button className="icon-btn hide-mobile" title="Mark as unread (Shift+U)" onClick={() => void actions.read(false)}><Mail size={19} /></button>
-            <button className="icon-btn" title="Move to (v)" onClick={() => actions.move()}><FolderInput size={19} /></button>
-            <button className="icon-btn hide-mobile" title="Labels (l)" onClick={(e) => actions.label(undefined, { x: e.clientX, y: e.clientY })}><Tag size={19} /></button>
+            <button className="icon-btn" title={t("Mark as read (Shift+I)")} onClick={() => void actions.read(true)}><MailOpen size={19} /></button>
+            <button className="icon-btn hide-mobile" title={t("Mark as unread (Shift+U)")} onClick={() => void actions.read(false)}><Mail size={19} /></button>
+            <button className="icon-btn" title={t("Move to (v)")} onClick={() => actions.move()}><FolderInput size={19} /></button>
+            <button className="icon-btn hide-mobile" title={t("Labels (l)")} onClick={(e) => actions.label(undefined, { x: e.clientX, y: e.clientY })}><Tag size={19} /></button>
             {/*
               The three buttons above marked hide-mobile have nowhere to go on
               a phone, and used to simply not exist there: selecting mail on a
@@ -267,18 +268,18 @@ export function MessageList({ title, list, openThreadId, focusId, setFocusId, on
             {isMobile && (
               <>
                 <span className="spacer" />
-                <button className="icon-btn" onClick={selMenu.open} aria-label="More actions"><MoreVertical size={19} /></button>
+                <button className="icon-btn" onClick={selMenu.open} aria-label={t("More actions")}><MoreVertical size={19} /></button>
                 <Popover anchor={selMenu.anchor} onClose={selMenu.close} align="end" width={240}>
                   <MenuItem
                     icon={mailbox?.role === "junk" ? <ShieldCheck size={16} /> : <AlertOctagon size={16} />}
                     label={mailbox?.role === "junk" ? "Not spam" : "Report spam"}
                     onClick={() => void actions.spam()}
                   />
-                  <MenuItem icon={<Mail size={16} />} label="Mark as unread" onClick={() => void actions.read(false)} />
-                  <MenuItem icon={<Tag size={16} />} label="Label…" onClick={() => actions.label(undefined, { x: window.innerWidth / 2, y: 100 })} />
+                  <MenuItem icon={<Mail size={16} />} label={t("Mark as unread")} onClick={() => void actions.read(false)} />
+                  <MenuItem icon={<Tag size={16} />} label={t("Label…")} onClick={() => actions.label(undefined, { x: window.innerWidth / 2, y: 100 })} />
                   <MenuSep />
-                  <MenuItem icon={<CheckSquare size={16} />} label="Select all" onClick={selectAll} />
-                  <MenuItem icon={<X size={16} />} label="Clear selection" onClick={clearSelection} />
+                  <MenuItem icon={<CheckSquare size={16} />} label={t("Select all")} onClick={selectAll} />
+                  <MenuItem icon={<X size={16} />} label={t("Clear selection")} onClick={clearSelection} />
                 </Popover>
               </>
             )}
@@ -288,20 +289,20 @@ export function MessageList({ title, list, openThreadId, focusId, setFocusId, on
             <span className="tb-title">{title}</span>
             {list && !list.loading && <span className="tb-count">{list.total.toLocaleString()}</span>}
             <span className="spacer" />
-            <button className={`icon-btn ${refreshing ? "active" : ""}`} title="Refresh" onClick={() => void doRefresh()} aria-label="Refresh">
+            <button className={`icon-btn ${refreshing ? "active" : ""}`} title={t("Refresh")} onClick={() => void doRefresh()} aria-label={t("Refresh")}>
               <RefreshCw size={18} className={refreshing ? "spin" : ""} style={refreshing ? { animation: "spin .8s linear infinite" } : undefined} />
             </button>
-            <button className="icon-btn" onClick={moreMenu.open} aria-label="More">
+            <button className="icon-btn" onClick={moreMenu.open} aria-label={t("More")}>
               <MoreVertical size={18} />
             </button>
             <Popover anchor={moreMenu.anchor} onClose={moreMenu.close} align="end" width={240}>
-              <MenuTitle>Reading pane</MenuTitle>
-              <MenuItem icon={<PanelRight size={16} />} label="Right of the list" checked={settings.readingPane === "right"} onClick={() => updateSettings({ readingPane: "right" })} />
-              <MenuItem icon={<PanelBottom size={16} />} label="Below the list" checked={settings.readingPane === "bottom"} onClick={() => updateSettings({ readingPane: "bottom" })} />
-              <MenuItem icon={<PanelTop size={16} />} label="Hidden (open full width)" checked={settings.readingPane === "off"} onClick={() => updateSettings({ readingPane: "off" })} />
+              <MenuTitle>{t("Reading pane")}</MenuTitle>
+              <MenuItem icon={<PanelRight size={16} />} label={t("Right of the list")} checked={settings.readingPane === "right"} onClick={() => updateSettings({ readingPane: "right" })} />
+              <MenuItem icon={<PanelBottom size={16} />} label={t("Below the list")} checked={settings.readingPane === "bottom"} onClick={() => updateSettings({ readingPane: "bottom" })} />
+              <MenuItem icon={<PanelTop size={16} />} label={t("Hidden (open full width)")} checked={settings.readingPane === "off"} onClick={() => updateSettings({ readingPane: "off" })} />
               <MenuSep />
-              <MenuItem icon={<CheckSquare size={16} />} label="Select all" onClick={selectAll} />
-              <MenuItem icon={<MailOpen size={16} />} label="Mark all as read" onClick={() => mailboxId && void useMail.getState().markMailboxRead(mailboxId)} disabled={!mailboxId} />
+              <MenuItem icon={<CheckSquare size={16} />} label={t("Select all")} onClick={selectAll} />
+              <MenuItem icon={<MailOpen size={16} />} label={t("Mark all as read")} onClick={() => mailboxId && void useMail.getState().markMailboxRead(mailboxId)} disabled={!mailboxId} />
               {mailbox && canEmpty(mailbox.role) && (
                 <>
                   <MenuSep />
@@ -321,7 +322,7 @@ export function MessageList({ title, list, openThreadId, focusId, setFocusId, on
       {list?.error && (
         <div className="list-hint">
           <span className="grow" style={{ color: "var(--danger)" }}>{list.error}</span>
-          <button onClick={() => void doRefresh()}>Retry</button>
+          <button onClick={() => void doRefresh()}>{t("Retry")}</button>
         </div>
       )}
       {/*
@@ -336,9 +337,10 @@ export function MessageList({ title, list, openThreadId, focusId, setFocusId, on
       {mailbox?.role === "junk" && !!mailbox.totalEmails && !selCount && (
         <div className="list-hint">
           <span className="grow">
-            Deleting spam is permanent — it does not go to Deleted Items first.
+            
+            {t("Deleting spam is permanent — it does not go to Deleted Items first.")}
           </span>
-          <button onClick={() => void confirmAndEmpty(mailbox)}>Delete all spam now</button>
+          <button onClick={() => void confirmAndEmpty(mailbox)}>{t("Delete all spam now")}</button>
         </div>
       )}
       <div
@@ -457,19 +459,19 @@ export function MessageList({ title, list, openThreadId, focusId, setFocusId, on
         </div>
       </div>
       <Popover anchor={ctxMenu.anchor} onClose={ctxMenu.close} width={250}>
-        <MenuItem icon={<Reply size={16} />} label="Reply" onClick={() => { const e = ctxRow ? emails[ctxRow] : undefined; if (e) void useCompose.getState().reply(e, "reply"); }} />
-        <MenuItem icon={<Forward size={16} />} label="Forward" onClick={() => { const e = ctxRow ? emails[ctxRow] : undefined; if (e) void useCompose.getState().reply(e, "forward"); }} />
+        <MenuItem icon={<Reply size={16} />} label={t("Reply")} onClick={() => { const e = ctxRow ? emails[ctxRow] : undefined; if (e) void useCompose.getState().reply(e, "reply"); }} />
+        <MenuItem icon={<Forward size={16} />} label={t("Forward")} onClick={() => { const e = ctxRow ? emails[ctxRow] : undefined; if (e) void useCompose.getState().reply(e, "forward"); }} />
         <MenuSep />
-        <MenuItem icon={<Archive size={16} />} label="Archive" kbd="e" onClick={() => void actions.archive(ctxTargets)} />
-        <MenuItem icon={<Trash2 size={16} />} label="Delete" kbd="#" onClick={() => void actions.trash(ctxTargets)} />
+        <MenuItem icon={<Archive size={16} />} label={t("Archive")} kbd="e" onClick={() => void actions.archive(ctxTargets)} />
+        <MenuItem icon={<Trash2 size={16} />} label={t("Delete")} kbd="#" onClick={() => void actions.trash(ctxTargets)} />
         <MenuItem icon={<AlertOctagon size={16} />} label={mailbox?.role === "junk" ? "Not spam" : "Report spam"} kbd="!" onClick={() => void actions.spam(ctxTargets)} />
         <MenuSep />
         <MenuItem icon={someUnread ? <MailOpen size={16} /> : <Mail size={16} />} label={someUnread ? "Mark as read" : "Mark as unread"} onClick={() => void actions.read(someUnread, ctxTargets)} />
         <MenuItem icon={<Star size={16} />} label={someUnstarred ? "Add star" : "Remove star"} kbd="s" onClick={() => void actions.star(someUnstarred, ctxTargets)} />
-        <MenuItem icon={<FolderInput size={16} />} label="Move to…" kbd="v" onClick={() => actions.move(ctxTargets)} />
-        <MenuItem icon={<Tag size={16} />} label="Label…" kbd="l" onClick={() => actions.label(ctxTargets, ctxMenu.anchor ?? { x: 0, y: 0 })} />
+        <MenuItem icon={<FolderInput size={16} />} label={t("Move to…")} kbd="v" onClick={() => actions.move(ctxTargets)} />
+        <MenuItem icon={<Tag size={16} />} label={t("Label…")} kbd="l" onClick={() => actions.label(ctxTargets, ctxMenu.anchor ?? { x: 0, y: 0 })} />
         <MenuSep />
-        <MenuItem icon={<Filter size={16} />} label="Filter messages like this…" onClick={() => { const e = ctxRow ? emails[ctxRow] : undefined; if (e) setFilterFrom(e); }} />
+        <MenuItem icon={<Filter size={16} />} label={t("Filter messages like this…")} onClick={() => { const e = ctxRow ? emails[ctxRow] : undefined; if (e) setFilterFrom(e); }} />
       </Popover>
       {filterFrom && <FilterFromMessageDialog email={filterFrom} mailboxId={mailboxId} onClose={() => setFilterFrom(null)} />}
     </div>
@@ -636,7 +638,7 @@ const Row = memo(function Row({ email: e, threadEmails, top, height, selected, f
       role="row"
       aria-selected={selected}
     >
-      <input type="checkbox" className="msg-check" checked={selected} onClick={(ev) => ev.stopPropagation()} onChange={(ev) => onSelect(e.id, ev.target.checked)} aria-label="Select" />
+      <input type="checkbox" className="msg-check" checked={selected} onClick={(ev) => ev.stopPropagation()} onChange={(ev) => onSelect(e.id, ev.target.checked)} aria-label={t("Select")} />
       {!twoLine && (
         <button className={`msg-star ${starred ? "on" : ""}`} onClick={(ev) => { ev.stopPropagation(); onStar(e.id, !starred); }} aria-label={starred ? "Unstar" : "Star"}>
           <Star size={18} fill={starred ? "currentColor" : "none"} />
@@ -656,10 +658,10 @@ const Row = memo(function Row({ email: e, threadEmails, top, height, selected, f
             </span>
           </div>
           <div className="msg-main">
-            {isDrafts && <span style={{ color: "var(--danger)" }}>Draft</span>}
+            {isDrafts && <span style={{ color: "var(--danger)" }}>{t("Draft")}</span>}
             <span className="msg-subject">{e.subject || "(no subject)"}</span>
             {showPreview && <span className="msg-preview">{latest.preview}</span>}
-            <button className={`msg-star ${starred ? "on" : ""}`} style={{ marginLeft: "auto" }} onClick={(ev) => { ev.stopPropagation(); onStar(e.id, !starred); }} aria-label="Star">
+            <button className={`msg-star ${starred ? "on" : ""}`} style={{ marginLeft: "auto" }} onClick={(ev) => { ev.stopPropagation(); onStar(e.id, !starred); }} aria-label={t("Star")}>
               <Star size={16} fill={starred ? "currentColor" : "none"} />
             </button>
           </div>
@@ -672,7 +674,7 @@ const Row = memo(function Row({ email: e, threadEmails, top, height, selected, f
             {count > 1 && <span className="thread-count">{count}</span>}
           </span>
           <span className="msg-main">
-            {isDrafts && <span style={{ color: "var(--danger)", flex: "0 0 auto" }}>Draft</span>}
+            {isDrafts && <span style={{ color: "var(--danger)", flex: "0 0 auto" }}>{t("Draft")}</span>}
             {rowLabels.length > 0 && <span className="msg-labels">{rowLabels.map((l) => <span key={l.keyword} className="tag" style={{ background: l.color }}>{l.name}</span>)}</span>}
             <span className="msg-subject">{e.subject || "(no subject)"}</span>
             {showPreview && <span className="msg-preview">{latest.preview}</span>}
@@ -682,8 +684,8 @@ const Row = memo(function Row({ email: e, threadEmails, top, height, selected, f
             {hasAtt && <Paperclip size={14} className="msg-attach" />}
             <span className="msg-date">{formatListDate(latest.receivedAt)}</span>
             <span className="msg-actions">
-              <button className="icon-btn sm" title="Archive" onClick={(ev) => { ev.stopPropagation(); onArchive(e.id); }}><Archive size={16} /></button>
-              <button className="icon-btn sm" title="Delete" onClick={(ev) => { ev.stopPropagation(); onTrash(e.id); }}><Trash2 size={16} /></button>
+              <button className="icon-btn sm" title={t("Archive")} onClick={(ev) => { ev.stopPropagation(); onArchive(e.id); }}><Archive size={16} /></button>
+              <button className="icon-btn sm" title={t("Delete")} onClick={(ev) => { ev.stopPropagation(); onTrash(e.id); }}><Trash2 size={16} /></button>
               <button className="icon-btn sm" title={unread ? "Mark as read" : "Mark as unread"} onClick={(ev) => { ev.stopPropagation(); onRead(e.id, unread); }}>{unread ? <MailOpen size={16} /> : <Mail size={16} />}</button>
             </span>
           </span>

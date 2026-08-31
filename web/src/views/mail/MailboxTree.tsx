@@ -14,6 +14,7 @@ import { ShareDialog } from "../settings/ShareDialog";
 import { loadRaw, saveJson } from "@/lib/storage";
 import { canDropFolder, folderColor, movable } from "@/lib/folderMove";
 import { haptic, useTouchRow } from "@/lib/touch";
+import { t } from "@/lib/i18n";
 
 const ROLE_ICONS: Record<string, ReactNode> = {
   inbox: <Inbox size={20} />,
@@ -125,7 +126,7 @@ export function MailboxTree() {
 
   return (
     <>
-      <nav aria-label="Folders" style={{ marginTop: 6 }}>
+      <nav aria-label={t("Folders")} style={{ marginTop: 6 }}>
         <div
           className={`nav-section${rootDrop ? " drop-target" : ""}`}
           onDragOver={(e) => {
@@ -143,7 +144,7 @@ export function MailboxTree() {
           }}
         >
           <span>{draggingId && canDropOn(null) ? "Drop here for the top level" : "Folders"}</span>
-          <button className="icon-btn" title="New folder" aria-label="New folder" onClick={() => void createFolder(null)}>
+          <button className="icon-btn" title={t("New folder")} aria-label={t("New folder")} onClick={() => void createFolder(null)}>
             <Plus size={16} />
           </button>
         </div>
@@ -170,8 +171,8 @@ export function MailboxTree() {
         {labelsSidebar && labels.length > 0 && (
           <>
             <div className="nav-section">
-              <span>Labels</span>
-              <Link href="/settings/labels" className="icon-btn" title="Manage labels" aria-label="Manage labels">
+              <span>{t("Labels")}</span>
+              <Link href="/settings/labels" className="icon-btn" title={t("Manage labels")} aria-label={t("Manage labels")}>
                 <Pencil size={14} />
               </Link>
             </div>
@@ -298,7 +299,7 @@ function FolderRow({ mailbox: m, label, depth, hasChildren, open, hiddenUnread, 
       {count > 0 && <span className="nav-dot" />}
       <button
         className="icon-btn nav-more"
-        aria-label="Folder options"
+        aria-label={t("Folder options")}
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -362,18 +363,18 @@ function MailboxMenu({ mailbox: m, onClose, onCreateChild, onShare }: { mailbox:
   };
   return (
     <>
-      <MenuItem icon={<CheckCheck size={16} />} label="Mark all as read" onClick={() => void useMail.getState().markMailboxRead(m.id)} disabled={!m.unreadEmails} />
+      <MenuItem icon={<CheckCheck size={16} />} label={t("Mark all as read")} onClick={() => void useMail.getState().markMailboxRead(m.id)} disabled={!m.unreadEmails} />
       {hasChildren && (
         <MenuItem
           icon={<CheckCheck size={16} />}
-          label="Mark all as read, incl. subfolders"
+          label={t("Mark all as read, incl. subfolders")}
           kbd={m.unreadEmails + subUnread ? String(m.unreadEmails + subUnread) : undefined}
           onClick={() => void useMail.getState().markMailboxRead(m.id, true)}
           disabled={!m.unreadEmails && !subUnread}
         />
       )}
-      <MenuItem icon={<FolderPlus size={16} />} label="New subfolder" onClick={onCreateChild} disabled={!m.myRights.mayCreateChild} />
-      <MenuItem icon={<Pencil size={16} />} label="Rename" onClick={() => void rename()} disabled={isSpecial || !m.myRights.mayRename} />
+      <MenuItem icon={<FolderPlus size={16} />} label={t("New subfolder")} onClick={onCreateChild} disabled={!m.myRights.mayCreateChild} />
+      <MenuItem icon={<Pencil size={16} />} label={t("Rename")} onClick={() => void rename()} disabled={isSpecial || !m.myRights.mayRename} />
       <MenuItem icon={m.isSubscribed ? <EyeOff size={16} /> : <Eye size={16} />} label={m.isSubscribed ? "Hide from list" : "Show in list"} onClick={() => void useMail.getState().updateMailbox(m.id, { isSubscribed: !m.isSubscribed })} disabled={m.role === "inbox"} />
       {/* Sharing a mail folder is withdrawn, not removed: Stalwart accepts and
           stores the share, and it never reaches the other account -- its own
@@ -381,7 +382,7 @@ function MailboxMenu({ mailbox: m, onClose, onCreateChild, onShare }: { mailbox:
           folders. Offering it produced shares that looked real and did nothing.
           One that already exists can still be cleared here, which is the only
           reason this entry survives at all. */}
-      {shared && <MenuItem icon={<Share2 size={16} />} label="Stop sharing" onClick={onShare} />}
+      {shared && <MenuItem icon={<Share2 size={16} />} label={t("Stop sharing")} onClick={onShare} />}
       <MenuSep />
       <MenuTitle><span className="row gap-4"><Palette size={12} /> Colour</span></MenuTitle>
       <div className="color-grid" style={{ gridTemplateColumns: "repeat(6, 26px)", padding: "4px 10px 8px" }}>
@@ -395,10 +396,10 @@ function MailboxMenu({ mailbox: m, onClose, onCreateChild, onShare }: { mailbox:
           />
         ))}
       </div>
-      {color && <MenuItem icon={<X size={16} />} label="Use the default colour" onClick={() => setColor(null)} />}
+      {color && <MenuItem icon={<X size={16} />} label={t("Use the default colour")} onClick={() => setColor(null)} />}
       <MenuSep />
       {canEmpty(m.role) && <MenuItem icon={<Eraser size={16} />} label={emptyLabel(m)} onClick={() => void empty()} danger disabled={!m.totalEmails} />}
-      <MenuItem icon={<Trash2 size={16} />} label="Delete folder" onClick={() => void remove()} danger disabled={isSpecial || !m.myRights.mayDelete} />
+      <MenuItem icon={<Trash2 size={16} />} label={t("Delete folder")} onClick={() => void remove()} danger disabled={isSpecial || !m.myRights.mayDelete} />
     </>
   );
 }

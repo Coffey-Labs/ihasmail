@@ -12,6 +12,7 @@ import { EventPopover } from "./EventPopover";
 import { EventEditor, type EditorInit } from "./EventEditor";
 import type { Anchor } from "@/ui/popover";
 import { CalendarContextMenu, eventColor, type CalendarContext } from "./CalendarContextMenu";
+import { t as translate } from "@/lib/i18n";
 
 type View = "month" | "week" | "day" | "agenda";
 const HOUR_H = 48;
@@ -91,7 +92,7 @@ export function CalendarView({ view: viewParam, date }: { view?: string; date?: 
   );
 
   if (!cal.available) {
-    return <div className="p-16"><Empty icon={<CalIcon size={40} />} title="Calendar is not available">This account does not have the JMAP calendars capability.</Empty></div>;
+    return <div className="p-16"><Empty icon={<CalIcon size={40} />} title={translate("Calendar is not available")}>{translate("This account does not have the JMAP calendars capability.")}</Empty></div>;
   }
 
   const title =
@@ -118,9 +119,9 @@ export function CalendarView({ view: viewParam, date }: { view?: string; date?: 
   return (
     <div className="cal-main">
       <div className="cal-toolbar">
-        <button className="btn btn-sm" onClick={() => go(view, new Date())}>Today</button>
-        <button className="icon-btn sm" onClick={() => step(-1)} aria-label="Previous"><ChevronLeft size={18} /></button>
-        <button className="icon-btn sm" onClick={() => step(1)} aria-label="Next"><ChevronRight size={18} /></button>
+        <button className="btn btn-sm" onClick={() => go(view, new Date())}>{translate("Today")}</button>
+        <button className="icon-btn sm" onClick={() => step(-1)} aria-label={translate("Previous")}><ChevronLeft size={18} /></button>
+        <button className="icon-btn sm" onClick={() => step(1)} aria-label={translate("Next")}><ChevronRight size={18} /></button>
         <h2 className="truncate">{title}</h2>
         <span className="spacer" />
         {cal.loading && <span className="spinner" />}
@@ -136,7 +137,7 @@ export function CalendarView({ view: viewParam, date }: { view?: string; date?: 
       {(effectiveView === "week" || effectiveView === "day") && <TimeGrid days={effectiveView === "week" ? weekDays(anchor, weekStart) : [anchor]} onEvent={onEvent} onEventContext={onEventContext} onSlotContext={onSlotContext} onCreate={(s, e, allDay) => openNew(s, e, allDay)} onDayHeader={(d) => go("day", d)} workStart={settings.workDayStart} workEnd={settings.workDayEnd} />}
       {effectiveView === "agenda" && <AgendaView start={anchor} onEvent={onEvent} onEventContext={onEventContext} />}
       {ctx && <CalendarContextMenu ctx={ctx} onClose={() => setCtx(null)} onOpen={(inst, a) => setPopover({ inst, anchor: a })} onEdit={(inst) => setEditor({ event: inst.event, start: inst.start, end: inst.end, allDay: inst.allDay })} onCreate={(s, e, allDay) => { setCtx(null); openNew(s, e, allDay); }} />}
-      {isMobile && <button className="fab" aria-label="New event" onClick={() => openNew()}><Plus size={24} /></button>}
+      {isMobile && <button className="fab" aria-label={translate("New event")} onClick={() => openNew()}><Plus size={24} /></button>}
       {popover && <EventPopover inst={popover.inst} anchor={popover.anchor} onClose={() => setPopover(null)} onEdit={() => { setEditor({ event: popover.inst.event, start: popover.inst.start, end: popover.inst.end, allDay: popover.inst.allDay }); setPopover(null); }} />}
       {editor && <EventEditor init={editor} onClose={() => setEditor(null)} />}
     </div>
@@ -250,7 +251,7 @@ function TimeGrid({ days, onEvent, onEventContext, onSlotContext, onCreate, onDa
         ))}
       </div>
       <div className="week-allday">
-        <div className="ad-label">all-day</div>
+        <div className="ad-label">{translate("all-day")}</div>
         {days.map((d) => (
           <div key={d.toISOString()} className="ad-cell" onClick={() => onCreate(d, addDays(d, 1), true)} onContextMenu={(e) => onSlotContext(d, addDays(d, 1), true, e)}>
             {allDay(d).map((i) => <EventChip key={i.key} inst={i} day={d} onClick={(el) => onEvent(i, el)} onContext={(e) => onEventContext(i, e)} />)}
@@ -311,7 +312,7 @@ function TimeGrid({ days, onEvent, onEventContext, onSlotContext, onCreate, onDa
                 })}
                 {drag && isSameDay(drag.day, d) && (
                   <div className="ev-block draft-new" style={{ top: (drag.startMin / 60) * HOUR_H, height: ((drag.endMin - drag.startMin) / 60) * HOUR_H, left: 0, width: "calc(100% - 3px)", background: "var(--accent)" }}>
-                    <div className="ev-title">(new event)</div>
+                    <div className="ev-title">{translate("(new event)")}</div>
                     <div className="ev-time">{formatTime(new Date(d.getTime() + drag.startMin * 60_000))} – {formatTime(new Date(d.getTime() + drag.endMin * 60_000))}</div>
                   </div>
                 )}
@@ -394,7 +395,7 @@ function AgendaView({ start, onEvent, onEventContext }: { start: Date; onEvent: 
     }
     return [...map.values()].sort((a, b) => a.day.getTime() - b.day.getTime());
   }, [instances, start, end]);
-  if (!byDay.length) return <Empty icon={<CalIcon size={36} />} title="Nothing scheduled">No events in the next 60 days.</Empty>;
+  if (!byDay.length) return <Empty icon={<CalIcon size={36} />} title={translate("Nothing scheduled")}>{translate("No events in the next 60 days.")}</Empty>;
   return (
     <div className="agenda">
       {byDay.map(({ day, items }) => (

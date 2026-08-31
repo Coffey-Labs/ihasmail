@@ -4,6 +4,7 @@ import { Search, SlidersHorizontal, X } from "lucide-react";
 import { useMail } from "@/store/mail";
 import { keyboard } from "@/lib/keyboard";
 import { DateField } from "@/ui/datefield";
+import { t } from "@/lib/i18n";
 
 export function SearchBar() {
   const [location, navigate] = useLocation();
@@ -55,31 +56,31 @@ export function SearchBar() {
     <form className="searchbar" role="search" onSubmit={submit}>
       <div className="search-input">
         <Search size={18} className="muted" />
-        <input ref={inputRef} type="search" placeholder="Search mail  (from:, to:, subject:, has:attachment, is:unread, in:, before:, after:)" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search mail" enterKeyHint="search" />
+        <input ref={inputRef} type="search" placeholder={t("Search mail  (from:, to:, subject:, has:attachment, is:unread, in:, before:, after:)")} value={q} onChange={(e) => setQ(e.target.value)} aria-label={t("Search mail")} enterKeyHint="search" />
         {q && (
-          <button type="button" className="icon-btn sm" aria-label="Clear" onClick={() => { setQ(""); if (location.startsWith("/search")) navigate("/mail"); }}>
+          <button type="button" className="icon-btn sm" aria-label={t("Clear")} onClick={() => { setQ(""); if (location.startsWith("/search")) navigate("/mail"); }}>
             <X size={16} />
           </button>
         )}
-        <button type="button" className={`icon-btn sm ${adv ? "active" : ""}`} aria-label="Advanced search" title="Advanced search" onClick={() => setAdv((v) => !v)}>
+        <button type="button" className={`icon-btn sm ${adv ? "active" : ""}`} aria-label={t("Advanced search")} title={t("Advanced search")} onClick={() => setAdv((v) => !v)}>
           <SlidersHorizontal size={16} />
         </button>
       </div>
       {adv && (
         <div className="search-panel">
           <div className="grid">
-            <label className="field"><span className="label">From</span><input className="input sm" value={advFields.from} onChange={(e) => setAdvFields({ ...advFields, from: e.target.value })} /></label>
-            <label className="field"><span className="label">To</span><input className="input sm" value={advFields.to} onChange={(e) => setAdvFields({ ...advFields, to: e.target.value })} /></label>
-            <label className="field"><span className="label">Subject</span><input className="input sm" value={advFields.subject} onChange={(e) => setAdvFields({ ...advFields, subject: e.target.value })} /></label>
-            <label className="field"><span className="label">Has the words</span><input className="input sm" value={advFields.words} onChange={(e) => setAdvFields({ ...advFields, words: e.target.value })} /></label>
-            <label className="field"><span className="label">Folder</span>
+            <label className="field"><span className="label">{t("From")}</span><input className="input sm" value={advFields.from} onChange={(e) => setAdvFields({ ...advFields, from: e.target.value })} /></label>
+            <label className="field"><span className="label">{t("To")}</span><input className="input sm" value={advFields.to} onChange={(e) => setAdvFields({ ...advFields, to: e.target.value })} /></label>
+            <label className="field"><span className="label">{t("Subject")}</span><input className="input sm" value={advFields.subject} onChange={(e) => setAdvFields({ ...advFields, subject: e.target.value })} /></label>
+            <label className="field"><span className="label">{t("Has the words")}</span><input className="input sm" value={advFields.words} onChange={(e) => setAdvFields({ ...advFields, words: e.target.value })} /></label>
+            <label className="field"><span className="label">{t("Folder")}</span>
               <select className="select" style={{ height: 32 }} value={advFields.folder} onChange={(e) => setAdvFields({ ...advFields, folder: e.target.value })}>
-                <option value="">All mail</option>
+                <option value="">{t("All mail")}</option>
                 {Object.values(mailboxes).sort((a, b) => a.name.localeCompare(b.name)).map((m) => <option key={m.id} value={m.name}>{m.name}</option>)}
               </select>
             </label>
-            <div className="field"><span className="label">Date</span>
-              <div className="row"><DateField aria-label="After" value={advFields.after} onChange={(v) => setAdvFields({ ...advFields, after: v })} /><span className="muted">to</span><DateField aria-label="Before" value={advFields.before} onChange={(v) => setAdvFields({ ...advFields, before: v })} /></div>
+            <div className="field"><span className="label">{t("Date")}</span>
+              <div className="row"><DateField aria-label={t("After")} value={advFields.after} onChange={(v) => setAdvFields({ ...advFields, after: v })} /><span className="muted">{t("to")}</span><DateField aria-label={t("Before")} value={advFields.before} onChange={(v) => setAdvFields({ ...advFields, before: v })} /></div>
             </div>
           </div>
           <div className="row" style={{ justifyContent: "space-between", marginTop: 4 }}>
@@ -88,8 +89,8 @@ export function SearchBar() {
               <label className="check"><input type="checkbox" checked={advFields.unread} onChange={(e) => setAdvFields({ ...advFields, unread: e.target.checked })} /> Unread only</label>
             </div>
             <div className="row">
-              <button type="button" className="btn btn-ghost" onClick={() => setAdv(false)}>Cancel</button>
-              <button type="button" className="btn btn-primary" onClick={applyAdvanced}>Search</button>
+              <button type="button" className="btn btn-ghost" onClick={() => setAdv(false)}>{t("Cancel")}</button>
+              <button type="button" className="btn btn-primary" onClick={applyAdvanced}>{t("Search")}</button>
             </div>
           </div>
         </div>

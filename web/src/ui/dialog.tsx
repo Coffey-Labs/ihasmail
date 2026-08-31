@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { create } from "zustand";
+import { t } from "@/lib/i18n";
 
 interface DialogProps {
   open: boolean;
@@ -71,7 +72,7 @@ export function Dialog({ open, onClose, title, children, footer, size = "md", cl
         {title !== undefined && (
           <div className="dialog-head">
             <h2>{title}</h2>
-            <button className="icon-btn" onClick={onClose} aria-label="Close">
+            <button className="icon-btn" onClick={onClose} aria-label={t("Close")}>
               <X size={20} />
             </button>
           </div>

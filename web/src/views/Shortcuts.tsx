@@ -5,6 +5,7 @@ import { useMail } from "@/store/mail";
 import { useCompose } from "@/store/compose";
 import { Dialog } from "@/ui/dialog";
 import { Kbd } from "@/ui/misc";
+import { t } from "@/lib/i18n";
 
 export function useGlobalShortcuts({ onHelp }: { onHelp: () => void }) {
   const [, navigate] = useLocation();
@@ -41,7 +42,7 @@ export function ShortcutsDialog({ open, onClose }: { open: boolean; onClose: () 
     return [...g.entries()];
   }, [list]);
   return (
-    <Dialog open={open} onClose={onClose} title="Keyboard shortcuts" size="lg">
+    <Dialog open={open} onClose={onClose} title={t("Keyboard shortcuts")} size="lg">
       <div className="shortcut-grid">
         {groups.map(([group, items]) => (
           <div key={group}>

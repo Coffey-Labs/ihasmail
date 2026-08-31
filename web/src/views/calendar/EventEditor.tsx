@@ -15,6 +15,7 @@ import { formatClock, formatNumericDate, formatWeekday } from "@/lib/datetime";
 import { WEEKDAYS, describeRule, presetFor, ruleFromPreset, type RecurrencePreset } from "@/lib/recurrence";
 import { newKey } from "@/lib/contacts";
 import { askEditScope, droppedMessage, runScoped } from "./scope";
+import { t as translate } from "@/lib/i18n";
 
 export interface EditorInit {
   event?: CalendarEvent;
@@ -258,7 +259,7 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
   }, [start]);
 
   return (
-    <Dialog open onClose={onClose} title={editing ? "Edit event" : "New event"} size="lg" footer={<><button className="btn" onClick={onClose}>Cancel</button><button className="btn btn-primary" disabled={busy} onClick={() => void save()}>{busy ? "Saving…" : editing ? "Save" : attendees.length && sendInvites ? "Send invites" : "Create"}</button></>}>
+    <Dialog open onClose={onClose} title={editing ? "Edit event" : "New event"} size="lg" footer={<><button className="btn" onClick={onClose}>{translate("Cancel")}</button><button className="btn btn-primary" disabled={busy} onClick={() => void save()}>{busy ? "Saving…" : editing ? "Save" : attendees.length && sendInvites ? "Send invites" : "Create"}</button></>}>
       <div className="event-form">
         {ev && isRecurring(ev) && (
           <div className="info-box mb-16">
@@ -267,49 +268,49 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
               : "This is a recurring event — changes apply to the whole series."}
           </div>
         )}
-        <div className="field"><input className="input" style={{ fontSize: "1.1em", height: 44 }} placeholder="Add title" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} /></div>
+        <div className="field"><input className="input" style={{ fontSize: "1.1em", height: 44 }} placeholder={translate("Add title")} autoFocus value={title} onChange={(e) => setTitle(e.target.value)} /></div>
         <div className="time-row mb-8">
           {allDay ? (
             <>
-              <DateField aria-label="Starts" value={toLocalDateOnly(start)} onChange={(v) => v && onStartChange(new Date(`${v}T00:00:00`))} />
-              <span className="muted center">to</span>
-              <DateField aria-label="Ends" value={toLocalDateOnly(new Date(end.getTime() - 1))} onChange={(v) => v && setEnd(new Date(new Date(`${v}T00:00:00`).getTime() + DAY_MS))} />
+              <DateField aria-label={translate("Starts")} value={toLocalDateOnly(start)} onChange={(v) => v && onStartChange(new Date(`${v}T00:00:00`))} />
+              <span className="muted center">{translate("to")}</span>
+              <DateField aria-label={translate("Ends")} value={toLocalDateOnly(new Date(end.getTime() - 1))} onChange={(v) => v && setEnd(new Date(new Date(`${v}T00:00:00`).getTime() + DAY_MS))} />
             </>
           ) : (
             <>
-              <DateTimeField aria-label="Starts" value={toInputDateTime(start)} onChange={(v) => v && onStartChange(fromInputDateTime(v))} />
-              <span className="muted center">to</span>
-              <DateTimeField aria-label="Ends" value={toInputDateTime(end)} onChange={(v) => v && setEnd(fromInputDateTime(v))} />
+              <DateTimeField aria-label={translate("Starts")} value={toInputDateTime(start)} onChange={(v) => v && onStartChange(fromInputDateTime(v))} />
+              <span className="muted center">{translate("to")}</span>
+              <DateTimeField aria-label={translate("Ends")} value={toInputDateTime(end)} onChange={(v) => v && setEnd(fromInputDateTime(v))} />
             </>
           )}
         </div>
         <div className="row wrap" style={{ gap: 16, marginBottom: 8 }}>
           <label className="check"><input type="checkbox" checked={allDay} onChange={(e) => { setAllDay(e.target.checked); if (e.target.checked) { const s = new Date(start); s.setHours(0, 0, 0, 0); setStart(s); setEnd(new Date(s.getTime() + Math.max(DAY_MS, Math.ceil((end.getTime() - s.getTime()) / DAY_MS) * DAY_MS))); } }} /> All day</label>
           {!allDay && (
-            <select className="select" style={{ width: "auto", height: 32 }} value={tz} onChange={(e) => setTz(e.target.value)} title="Time zone">
+            <select className="select" style={{ width: "auto", height: 32 }} value={tz} onChange={(e) => setTz(e.target.value)} title={translate("Time zone")}>
               {!listTimeZones().includes(tz) && <option value={tz}>{tz}</option>}
               {listTimeZones().map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
           )}
           {!oneDate && (
           <select className="select" style={{ width: "auto", height: 32 }} value={preset} onChange={(e) => { const p = e.target.value as RecurrencePreset; setPreset(p); if (p === "custom") setRule(rule ?? { "@type": "RecurrenceRule", frequency: "weekly", byDay: [{ "@type": "NDay", day: WEEKDAYS[(start.getDay() + 6) % 7]!.key }] }); else setRule(ruleFromPreset(p, start)); }}>
-            <option value="none">Does not repeat</option>
-            <option value="daily">Daily</option>
+            <option value="none">{translate("Does not repeat")}</option>
+            <option value="daily">{translate("Daily")}</option>
             <option value="weekly">Weekly on {formatWeekday(start, "long")}</option>
-            <option value="weekdays">Every weekday</option>
+            <option value="weekdays">{translate("Every weekday")}</option>
             <option value="monthly">Monthly on day {start.getDate()}</option>
-            <option value="yearly">Yearly</option>
-            <option value="custom">Custom…</option>
+            <option value="yearly">{translate("Yearly")}</option>
+            <option value="custom">{translate("Custom…")}</option>
           </select>
           )}
         </div>
         {!oneDate && preset === "custom" && (
           <div className="card" style={{ marginBottom: 12 }}>
             <div className="row wrap" style={{ gap: 8 }}>
-              <span>Repeat every</span>
+              <span>{translate("Repeat every")}</span>
               <input className="input" type="number" min={1} style={{ width: 70 }} value={customRule.interval ?? 1} onChange={(e) => setRule({ ...customRule, interval: Math.max(1, Number(e.target.value)) })} />
               <select className="select" style={{ width: "auto" }} value={customRule.frequency} onChange={(e) => setRule({ ...customRule, frequency: e.target.value as JSCalendarRecurrenceRule["frequency"], byDay: e.target.value === "weekly" ? customRule.byDay : undefined, byMonthDay: e.target.value === "monthly" ? [start.getDate()] : undefined })}>
-                <option value="daily">day(s)</option><option value="weekly">week(s)</option><option value="monthly">month(s)</option><option value="yearly">year(s)</option>
+                <option value="daily">{translate("day(s)")}</option><option value="weekly">{translate("week(s)")}</option><option value="monthly">{translate("month(s)")}</option><option value="yearly">{translate("year(s)")}</option>
               </select>
             </div>
             {customRule.frequency === "weekly" && (
@@ -321,33 +322,33 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
               </div>
             )}
             <div className="row wrap" style={{ gap: 8, marginTop: 8 }}>
-              <span>Ends</span>
+              <span>{translate("Ends")}</span>
               <select className="select" style={{ width: "auto" }} value={customRule.until ? "until" : customRule.count ? "count" : "never"} onChange={(e) => { const v = e.target.value; setRule({ ...customRule, until: v === "until" ? `${toLocalDateOnly(new Date(start.getTime() + 30 * DAY_MS))}T23:59:59` : undefined, count: v === "count" ? 10 : undefined }); }}>
-                <option value="never">never</option><option value="until">on date</option><option value="count">after N times</option>
+                <option value="never">{translate("never")}</option><option value="until">{translate("on date")}</option><option value="count">{translate("after N times")}</option>
               </select>
-              {customRule.until && <DateField aria-label="Repeat until" className="w-auto" value={customRule.until.slice(0, 10)} onChange={(v) => v && setRule({ ...customRule, until: `${v}T23:59:59` })} />}
+              {customRule.until && <DateField aria-label={translate("Repeat until")} className="w-auto" value={customRule.until.slice(0, 10)} onChange={(v) => v && setRule({ ...customRule, until: `${v}T23:59:59` })} />}
               {customRule.count && <input className="input" type="number" min={1} style={{ width: 80 }} value={customRule.count} onChange={(e) => setRule({ ...customRule, count: Math.max(1, Number(e.target.value)) })} />}
             </div>
             <div className="hint mt-8">{describeRule(customRule)}</div>
           </div>
         )}
         <div className="field-row">
-          <div className="field"><label>Calendar</label>
+          <div className="field"><label>{translate("Calendar")}</label>
             <select className="select" value={calendarId} disabled={oneDate} title={oneDate ? "An occurrence cannot be moved to another calendar on its own" : undefined} onChange={(e) => setCalendarId(e.target.value)}>
               {calendars.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
-          <div className="field"><label>Location</label><input className="input" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="Add location" /></div>
+          <div className="field"><label>{translate("Location")}</label><input className="input" value={location} onChange={(e) => setLocation(e.target.value)} placeholder={translate("Add location")} /></div>
         </div>
-        <div className="field"><label>Meeting link</label><input className="input" value={vurl} onChange={(e) => setVurl(e.target.value)} placeholder="https://meet.example.com/…" /></div>
+        <div className="field"><label>{translate("Meeting link")}</label><input className="input" value={vurl} onChange={(e) => setVurl(e.target.value)} placeholder={translate("https://meet.example.com/…")} /></div>
         <div className="field">
           <label><Users size={13} /> Guests</label>
           <div className="input" style={{ height: "auto", minHeight: 38, padding: "4px 8px" }}>
-            <RecipientInput value={attendees} onChange={setAttendees} placeholder="Add guests by name or email" />
+            <RecipientInput value={attendees} onChange={setAttendees} placeholder={translate("Add guests by name or email")} />
           </div>
           {attendees.length > 0 && (
             <>
-              <Switch checked={sendInvites} onChange={setSendInvites} label="Send invitation emails to guests" />
+              <Switch checked={sendInvites} onChange={setSendInvites} label={translate("Send invitation emails to guests")} />
               {Object.keys(fb).length > 0 && (
                 <div className="freebusy">
                   <div className="hint">Availability on {formatNumericDate(start)}</div>
@@ -370,16 +371,16 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
             </>
           )}
         </div>
-        <div className="field"><label>Description</label><textarea className="textarea" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} /></div>
+        <div className="field"><label>{translate("Description")}</label><textarea className="textarea" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} /></div>
         <div className="field">
-          <label>Reminders</label>
+          <label>{translate("Reminders")}</label>
           <div className="alerts-list">
             {alerts.map((m, i) => (
               <div key={i} className="row">
                 <select className="select" style={{ width: "auto" }} value={String(m)} onChange={(e) => setAlerts(alerts.map((x, j) => (j === i ? Number(e.target.value) : x)))}>
                   {[...new Set([...ALERT_OPTIONS, m])].sort((a, b) => a - b).map((o) => <option key={o} value={o}>{o === 0 ? "At time of event" : `${humanDuration(o * 60)} before`}</option>)}
                 </select>
-                <button className="icon-btn sm danger" onClick={() => setAlerts(alerts.filter((_, j) => j !== i))} aria-label="Remove reminder"><Trash2 size={16} /></button>
+                <button className="icon-btn sm danger" onClick={() => setAlerts(alerts.filter((_, j) => j !== i))} aria-label={translate("Remove reminder")}><Trash2 size={16} /></button>
               </div>
             ))}
             <button className="btn btn-ghost btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => setAlerts([...alerts, 10])}><Plus size={14} /> Add reminder</button>
@@ -389,17 +390,17 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
         {showMore && (
           <div className="mt-8">
             <div className="field-row">
-              <div className="field"><label>Status</label><select className="select" value={status} onChange={(e) => setStatus(e.target.value as typeof status)}><option value="confirmed">Confirmed</option><option value="tentative">Tentative</option><option value="cancelled">Cancelled</option></select></div>
-              <div className="field"><label>Show as</label><select className="select" value={freeBusy} onChange={(e) => setFreeBusy(e.target.value as typeof freeBusy)}><option value="busy">Busy</option><option value="free">Free</option></select></div>
-              {!oneDate && <div className="field"><label>Visibility</label><select className="select" value={privacy} onChange={(e) => setPrivacy(e.target.value as typeof privacy)}><option value="public">Default</option><option value="private">Private</option><option value="secret">Secret</option></select></div>}
+              <div className="field"><label>{translate("Status")}</label><select className="select" value={status} onChange={(e) => setStatus(e.target.value as typeof status)}><option value="confirmed">{translate("Confirmed")}</option><option value="tentative">{translate("Tentative")}</option><option value="cancelled">{translate("Cancelled")}</option></select></div>
+              <div className="field"><label>{translate("Show as")}</label><select className="select" value={freeBusy} onChange={(e) => setFreeBusy(e.target.value as typeof freeBusy)}><option value="busy">{translate("Busy")}</option><option value="free">{translate("Free")}</option></select></div>
+              {!oneDate && <div className="field"><label>{translate("Visibility")}</label><select className="select" value={privacy} onChange={(e) => setPrivacy(e.target.value as typeof privacy)}><option value="public">{translate("Default")}</option><option value="private">{translate("Private")}</option><option value="secret">{translate("Secret")}</option></select></div>}
             </div>
-            <div className="field"><label>Category</label>
+            <div className="field"><label>{translate("Category")}</label>
               <select className="select" value={category} onChange={(e) => setCategory(e.target.value)}>
-                <option value="">None</option>
+                <option value="">{translate("None")}</option>
                 {categories.map((c) => <option key={c.name} value={c.name}>{c.name}</option>)}
               </select>
             </div>
-            <div className="field"><label>Color</label><div className="row wrap"><ColorSwatches value={color} onChange={setColor} />{color && <button className="btn btn-ghost btn-sm" onClick={() => setColor(null)}>Use {category ? "category" : "calendar"} color</button>}</div></div>
+            <div className="field"><label>{translate("Color")}</label><div className="row wrap"><ColorSwatches value={color} onChange={setColor} />{color && <button className="btn btn-ghost btn-sm" onClick={() => setColor(null)}>Use {category ? "category" : "calendar"} color</button>}</div></div>
           </div>
         )}
       </div>

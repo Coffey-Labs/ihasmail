@@ -5,6 +5,7 @@ import type { CalendarEvent, Email, EmailBodyPart } from "@/jmap/types";
 import { useCalendar, toInstance, myParticipantKeys, isAttendee, participantEmail } from "@/store/calendar";
 import { formatTimeRange } from "@/lib/dates";
 import { toast } from "@/ui/toast";
+import { t } from "@/lib/i18n";
 
 export function InviteCard({ email, part }: { email: Email; part: EmailBodyPart }) {
   const cal = useCalendar();
@@ -110,12 +111,12 @@ export function InviteCard({ email, part }: { email: Email; part: EmailBodyPart 
           ) : (
             !existing && <button className="btn btn-sm" disabled={Boolean(busy)} onClick={() => void addToCalendar()}><Calendar size={14} /> Add to calendar</button>
           )}
-          {existing && inst && <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/calendar/day/${inst.start.toISOString().slice(0, 10)}`)}>Open in calendar</button>}
+          {existing && inst && <button className="btn btn-ghost btn-sm" onClick={() => navigate(`/calendar/day/${inst.start.toISOString().slice(0, 10)}`)}>{t("Open in calendar")}</button>}
         </div>
       )}
       {method === "CANCEL" && existing && (
         <div className="rsvp">
-          <button className="btn btn-sm btn-danger" disabled={Boolean(busy)} onClick={async () => { try { await cal.destroyEvent(existing, false, "series"); setExisting(null); toast.success("Removed from calendar"); } catch (err) { toast.error((err as Error).message); } }}>Remove from calendar</button>
+          <button className="btn btn-sm btn-danger" disabled={Boolean(busy)} onClick={async () => { try { await cal.destroyEvent(existing, false, "series"); setExisting(null); toast.success("Removed from calendar"); } catch (err) { toast.error((err as Error).message); } }}>{t("Remove from calendar")}</button>
         </div>
       )}
       <span className="sr-only">{email.id}</span>

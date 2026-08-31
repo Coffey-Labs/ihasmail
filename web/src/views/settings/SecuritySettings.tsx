@@ -5,6 +5,7 @@ import { useSession } from "@/store/session";
 import { formatFullDate } from "@/lib/format";
 import { toast } from "@/ui/toast";
 import { confirmDialog, Dialog } from "@/ui/dialog";
+import { t } from "@/lib/i18n";
 
 interface SessionRow {
   id: string;
@@ -57,10 +58,10 @@ export function SecuritySettings() {
 
   return (
     <div>
-      <h1>Security & sessions</h1>
+      <h1>{t("Security & sessions")}</h1>
       <p className="lead">You're signed in as <b>{session?.username}</b>. Your password is never stored in the browser; the server keeps it encrypted per-session for talking to Stalwart.</p>
 
-      <h2>Password</h2>
+      <h2>{t("Password")}</h2>
       {unsupported ? (
         <p className="hint">{unsupported}</p>
       ) : (
@@ -69,26 +70,26 @@ export function SecuritySettings() {
 
       {!unsupported && state?.otpEnabled && (
         <>
-          <h2>Two-factor authentication</h2>
+          <h2>{t("Two-factor authentication")}</h2>
           <TwoFactorOff reload={async () => { await loadSecurity(); await load(); }} />
         </>
       )}
 
-      <h2>App passwords</h2>
+      <h2>{t("App passwords")}</h2>
       {unsupported ? (
-        <p className="hint">App passwords are managed by your mail administrator.</p>
+        <p className="hint">{t("App passwords are managed by your mail administrator.")}</p>
       ) : (
         <AppPasswords state={state} reload={loadSecurity} />
       )}
 
-      <h2>Active webmail sessions</h2>
-      {rows === null ? <p className="hint">Loading…</p> : (
+      <h2>{t("Active webmail sessions")}</h2>
+      {rows === null ? <p className="hint">{t("Loading…")}</p> : (
         <table className="sessions-table">
-          <thead><tr><th>Device</th><th>IP</th><th>Last active</th><th>Expires</th><th /></tr></thead>
+          <thead><tr><th>{t("Device")}</th><th>{t("IP")}</th><th>{t("Last active")}</th><th>{t("Expires")}</th><th /></tr></thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r.id}>
-                <td><div className="truncate" style={{ maxWidth: 320 }} title={r.userAgent}>{shortUa(r.userAgent)}</div>{r.id === current && <span className="badge" style={{ marginTop: 2 }}>this device</span>}</td>
+                <td><div className="truncate" style={{ maxWidth: 320 }} title={r.userAgent}>{shortUa(r.userAgent)}</div>{r.id === current && <span className="badge" style={{ marginTop: 2 }}>{t("this device")}</span>}</td>
                 <td className="mono small">{r.ip}</td>
                 <td>{formatFullDate(new Date(r.lastSeenAt).toISOString())}</td>
                 <td>{`${formatFullDate(new Date(r.expiresAt).toISOString())}${r.remember ? " (remembered)" : ""}`}</td>
@@ -99,8 +100,8 @@ export function SecuritySettings() {
         </table>
       )}
       <div className="row mt-16">
-        <button className="btn" onClick={async () => { if (await confirmDialog({ title: "Sign out other sessions?", confirmLabel: "Sign out others" })) { const r = await apiFetch<{ revoked: number }>("/api/auth/sessions/revoke-others", { method: "POST" }); toast.success(`Signed out ${r.revoked} other session(s)`); void load(); } }}>Sign out all other sessions</button>
-        <button className="btn btn-ghost" onClick={() => void logout()}>Sign out here</button>
+        <button className="btn" onClick={async () => { if (await confirmDialog({ title: "Sign out other sessions?", confirmLabel: "Sign out others" })) { const r = await apiFetch<{ revoked: number }>("/api/auth/sessions/revoke-others", { method: "POST" }); toast.success(`Signed out ${r.revoked} other session(s)`); void load(); } }}>{t("Sign out all other sessions")}</button>
+        <button className="btn btn-ghost" onClick={() => void logout()}>{t("Sign out here")}</button>
       </div>
     </div>
   );
@@ -139,24 +140,24 @@ function PasswordForm({ otpEnabled, onChanged }: { otpEnabled: boolean; onChange
 
   return (
     <form onSubmit={submit}>
-      <p className="hint" style={{ marginBottom: 12 }}>Changing your password signs out your other webmail sessions. Any app passwords keep working.</p>
+      <p className="hint" style={{ marginBottom: 12 }}>{t("Changing your password signs out your other webmail sessions. Any app passwords keep working.")}</p>
       <div className="field" style={{ maxWidth: 380 }}>
-        <label htmlFor="pw-current">Current password</label>
+        <label htmlFor="pw-current">{t("Current password")}</label>
         <input id="pw-current" type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} required />
       </div>
       {otpEnabled && (
         <div className="field" style={{ maxWidth: 380 }}>
-          <label htmlFor="pw-code">Code from your authenticator</label>
+          <label htmlFor="pw-code">{t("Code from your authenticator")}</label>
           <input id="pw-code" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} placeholder="123456" required />
         </div>
       )}
       <div className="field-row" style={{ maxWidth: 780 }}>
         <div className="field">
-          <label htmlFor="pw-new">New password</label>
+          <label htmlFor="pw-new">{t("New password")}</label>
           <input id="pw-new" type="password" autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} required />
         </div>
         <div className="field">
-          <label htmlFor="pw-confirm">Confirm new password</label>
+          <label htmlFor="pw-confirm">{t("Confirm new password")}</label>
           <input id="pw-confirm" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
         </div>
       </div>
@@ -198,27 +199,27 @@ function TwoFactorOff({ reload }: { reload: () => Promise<void> }) {
   return (
     <div>
       <p className="hint" style={{ marginBottom: 12 }}>
-        This account has two-factor authentication on. ihasmail can't sign you in with a code yet, so signing in on another
-        device needs an app password — or you can turn two-factor authentication off here.
+        
+        {t("This account has two-factor authentication on. ihasmail can't sign you in with a code yet, so signing in on another device needs an app password — or you can turn two-factor authentication off here.")}
       </p>
       <div className="row" style={{ alignItems: "center", gap: 10 }}>
         <ShieldCheck size={18} />
-        <b>Enabled</b>
-        <button className="btn btn-sm" onClick={() => { setDisabling(true); setCode(""); setPassword(""); }}>Turn off</button>
+        <b>{t("Enabled")}</b>
+        <button className="btn btn-sm" onClick={() => { setDisabling(true); setCode(""); setPassword(""); }}>{t("Turn off")}</button>
       </div>
 
-      <Dialog open={disabling} onClose={() => setDisabling(false)} title="Turn off two-factor authentication" size="sm"
+      <Dialog open={disabling} onClose={() => setDisabling(false)} title={t("Turn off two-factor authentication")} size="sm"
         footer={<>
-          <button className="btn btn-ghost" onClick={() => setDisabling(false)}>Cancel</button>
+          <button className="btn btn-ghost" onClick={() => setDisabling(false)}>{t("Cancel")}</button>
           <button className="btn btn-danger" disabled={busy || !password || code.length < 6} onClick={() => void disable()}>{busy ? "Working…" : "Turn off"}</button>
         </>}>
-        <p>Your password alone will be enough to sign in again.</p>
+        <p>{t("Your password alone will be enough to sign in again.")}</p>
         <div className="field">
-          <label htmlFor="tfa-off-pw">Your password</label>
+          <label htmlFor="tfa-off-pw">{t("Your password")}</label>
           <input id="tfa-off-pw" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} />
         </div>
         <div className="field">
-          <label htmlFor="tfa-off-code">Current code</label>
+          <label htmlFor="tfa-off-code">{t("Current code")}</label>
           <input id="tfa-off-code" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={(e) => setCode(e.target.value)} placeholder="123456" />
         </div>
       </Dialog>
@@ -233,7 +234,7 @@ function AppPasswords({ state, reload }: { state: SecurityState | null; reload: 
   const [busy, setBusy] = useState(false);
   const [issued, setIssued] = useState<{ description: string; secret: string } | null>(null);
 
-  if (!state) return <p className="hint">Loading…</p>;
+  if (!state) return <p className="hint">{t("Loading…")}</p>;
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -273,17 +274,18 @@ function AppPasswords({ state, reload }: { state: SecurityState | null; reload: 
   return (
     <div>
       <p className="hint" style={{ marginBottom: 12 }}>
-        A separate password for a mail app or device, which you can revoke on its own. App passwords skip two-factor codes, so they keep working in apps that can't ask for one.
+        
+        {t("A separate password for a mail app or device, which you can revoke on its own. App passwords skip two-factor codes, so they keep working in apps that can't ask for one.")}
       </p>
       {state.appPasswords.length > 0 && (
         <table className="sessions-table">
-          <thead><tr><th>Name</th><th>Created</th><th /></tr></thead>
+          <thead><tr><th>{t("Name")}</th><th>{t("Created")}</th><th /></tr></thead>
           <tbody>
             {state.appPasswords.map((row) => (
               <tr key={row.id}>
                 <td><KeyRound size={14} style={{ verticalAlign: "-2px", marginRight: 6 }} />{row.description}</td>
                 <td>{row.createdAt ? formatFullDate(row.createdAt) : "—"}</td>
-                <td style={{ textAlign: "right" }}><button className="btn btn-sm btn-ghost" onClick={() => void revoke(row)}>Revoke</button></td>
+                <td style={{ textAlign: "right" }}><button className="btn btn-sm btn-ghost" onClick={() => void revoke(row)}>{t("Revoke")}</button></td>
               </tr>
             ))}
           </tbody>
@@ -291,14 +293,14 @@ function AppPasswords({ state, reload }: { state: SecurityState | null; reload: 
       )}
       <form onSubmit={create} className="row mt-16" style={{ gap: 8, alignItems: "flex-end", flexWrap: "wrap" }}>
         <div className="field" style={{ marginBottom: 0, minWidth: 240 }}>
-          <label htmlFor="ap-name">New app password for</label>
-          <input id="ap-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Thunderbird on my laptop" required />
+          <label htmlFor="ap-name">{t("New app password for")}</label>
+          <input id="ap-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("Thunderbird on my laptop")} required />
         </div>
         <button className="btn" disabled={busy || !name.trim()}>{busy ? "Creating…" : "Create"}</button>
       </form>
 
-      <Dialog open={Boolean(issued)} onClose={() => setIssued(null)} title="Your new app password" size="sm"
-        footer={<button className="btn btn-primary" onClick={() => setIssued(null)}>Done</button>}>
+      <Dialog open={Boolean(issued)} onClose={() => setIssued(null)} title={t("Your new app password")} size="sm"
+        footer={<button className="btn btn-primary" onClick={() => setIssued(null)}>{t("Done")}</button>}>
         {issued && (
           <div>
             <p>Copy it into <b>{issued.description}</b> now — it isn't shown again.</p>
@@ -318,7 +320,7 @@ function CopyableSecret({ value }: { value: string }) {
       <button
         type="button"
         className="btn btn-sm btn-ghost"
-        title="Copy"
+        title={t("Copy")}
         onClick={() => void navigator.clipboard?.writeText(value).then(() => toast.success("Copied"), () => toast.error("Could not copy"))}
       >
         <Copy size={14} />

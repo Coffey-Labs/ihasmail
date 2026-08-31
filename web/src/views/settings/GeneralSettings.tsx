@@ -3,6 +3,7 @@ import { Switch } from "@/ui/misc";
 import { browserTimeZone, listTimeZones } from "@/lib/dates";
 import { toast } from "@/ui/toast";
 import { useState } from "react";
+import { t } from "@/lib/i18n";
 import {
   canUnregisterMailtoHandler,
   isInstalledApp,
@@ -45,109 +46,108 @@ export function GeneralSettings() {
 
   return (
     <div>
-      <h1>General</h1>
-      <p className="lead">Reading, sending and list behaviour. Settings are stored in this browser.</p>
+      <h1>{t("General")}</h1>
+      <p className="lead">{t("Reading, sending and list behaviour. Settings are stored in this browser.")}</p>
 
-      <h2>Reading</h2>
+      <h2>{t("Reading")}</h2>
       <div className="field-row">
         <div className="field">
-          <label>Reading pane</label>
+          <label>{t("Reading pane")}</label>
           <select className="select" value={s.readingPane} onChange={(e) => update({ readingPane: e.target.value as typeof s.readingPane })}>
-            <option value="right">Right of the list</option>
-            <option value="bottom">Below the list</option>
-            <option value="off">Off (open messages full width)</option>
+            <option value="right">{t("Right of the list")}</option>
+            <option value="bottom">{t("Below the list")}</option>
+            <option value="off">{t("Off (open messages full width)")}</option>
           </select>
         </div>
         <div className="field">
-          <label>Mark as read</label>
+          <label>{t("Mark as read")}</label>
           <select className="select" value={String(s.markReadDelay)} onChange={(e) => update({ markReadDelay: Number(e.target.value) })}>
-            <option value="0">Immediately when opened</option>
-            <option value="2">After 2 seconds</option>
-            <option value="5">After 5 seconds</option>
-            <option value="-1">Never automatically</option>
+            <option value="0">{t("Immediately when opened")}</option>
+            <option value="2">{t("After 2 seconds")}</option>
+            <option value="5">{t("After 5 seconds")}</option>
+            <option value="-1">{t("Never automatically")}</option>
           </select>
         </div>
         <div className="field">
-          <label>After archiving or deleting</label>
+          <label>{t("After archiving or deleting")}</label>
           <select className="select" value={s.autoAdvance} onChange={(e) => update({ autoAdvance: e.target.value as typeof s.autoAdvance })}>
-            <option value="list">Go back to the list</option>
-            <option value="older">Open the next (older) conversation</option>
-            <option value="newer">Open the previous (newer) conversation</option>
+            <option value="list">{t("Go back to the list")}</option>
+            <option value="older">{t("Open the next (older) conversation")}</option>
+            <option value="newer">{t("Open the previous (newer) conversation")}</option>
           </select>
         </div>
         <div className="field">
-          <label>Remote images</label>
+          <label>{t("Remote images")}</label>
           <select className="select" value={s.imagePolicy} onChange={(e) => update({ imagePolicy: e.target.value as typeof s.imagePolicy })}>
-            <option value="ask">Ask before showing (recommended)</option>
-            <option value="contacts">Show automatically from my contacts</option>
-            <option value="always">Always show</option>
+            <option value="ask">{t("Ask before showing (recommended)")}</option>
+            <option value="contacts">{t("Show automatically from my contacts")}</option>
+            <option value="always">{t("Always show")}</option>
           </select>
         </div>
       </div>
-      <Switch checked={s.conversationMode} onChange={(v) => update({ conversationMode: v })} label="Conversation view" hint="Group messages from the same thread together." />
-      <Switch checked={s.showPreview} onChange={(v) => update({ showPreview: v })} label="Show message snippets" hint="Preview the first line of each message in the list." />
-      <Switch checked={s.showAvatars} onChange={(v) => update({ showAvatars: v })} label="Show sender avatars" />
-      <Switch checked={s.confirmDelete} onChange={(v) => update({ confirmDelete: v })} label="Confirm before deleting" />
+      <Switch checked={s.conversationMode} onChange={(v) => update({ conversationMode: v })} label={t("Conversation view")} hint={t("Group messages from the same thread together.")} />
+      <Switch checked={s.showPreview} onChange={(v) => update({ showPreview: v })} label={t("Show message snippets")} hint={t("Preview the first line of each message in the list.")} />
+      <Switch checked={s.showAvatars} onChange={(v) => update({ showAvatars: v })} label={t("Show sender avatars")} />
+      <Switch checked={s.confirmDelete} onChange={(v) => update({ confirmDelete: v })} label={t("Confirm before deleting")} />
 
-      <h2>Composing</h2>
+      <h2>{t("Composing")}</h2>
       <div className="field-row">
         <div className="field">
-          <label>Default format</label>
+          <label>{t("Default format")}</label>
           <select className="select" value={s.composeFormat} onChange={(e) => update({ composeFormat: e.target.value as typeof s.composeFormat })}>
-            <option value="html">Rich text (HTML)</option>
-            <option value="text">Plain text</option>
+            <option value="html">{t("Rich text (HTML)")}</option>
+            <option value="text">{t("Plain text")}</option>
           </select>
         </div>
         <div className="field">
-          <label>Undo send window</label>
+          <label>{t("Undo send window")}</label>
           <select className="select" value={String(s.undoSendSeconds)} onChange={(e) => update({ undoSendSeconds: Number(e.target.value) })}>
-            <option value="0">Off</option>
-            <option value="5">5 seconds</option>
-            <option value="8">8 seconds</option>
-            <option value="15">15 seconds</option>
-            <option value="30">30 seconds</option>
+            <option value="0">{t("Off")}</option>
+            <option value="5">{t("5 seconds")}</option>
+            <option value="8">{t("8 seconds")}</option>
+            <option value="15">{t("15 seconds")}</option>
+            <option value="30">{t("30 seconds")}</option>
           </select>
         </div>
       </div>
-      <Switch checked={s.includeQuote} onChange={(v) => update({ includeQuote: v })} label="Quote original message in replies" />
-      <Switch checked={s.signatureAboveQuote} onChange={(v) => update({ signatureAboveQuote: v })} label="Place signature above quoted text" />
-      <Switch checked={s.attachmentReminder} onChange={(v) => update({ attachmentReminder: v })} label="Attachment reminder" hint="Warn when the message mentions an attachment but none is attached." />
-      <Switch checked={s.requestReadReceipt} onChange={(v) => update({ requestReadReceipt: v })} label="Always request read receipts" />
+      <Switch checked={s.includeQuote} onChange={(v) => update({ includeQuote: v })} label={t("Quote original message in replies")} />
+      <Switch checked={s.signatureAboveQuote} onChange={(v) => update({ signatureAboveQuote: v })} label={t("Place signature above quoted text")} />
+      <Switch checked={s.attachmentReminder} onChange={(v) => update({ attachmentReminder: v })} label={t("Attachment reminder")} hint={t("Warn when the message mentions an attachment but none is attached.")} />
+      <Switch checked={s.requestReadReceipt} onChange={(v) => update({ requestReadReceipt: v })} label={t("Always request read receipts")} />
       <div className="field">
-        <label>When someone requests a read receipt</label>
+        <label>{t("When someone requests a read receipt")}</label>
         <select className="select" value={s.readReceiptPolicy} onChange={(e) => update({ readReceiptPolicy: e.target.value as ReadReceiptPolicy })}>
-          <option value="ask">Ask me on each message</option>
-          <option value="never">Never send one</option>
+          <option value="ask">{t("Ask me on each message")}</option>
+          <option value="never">{t("Never send one")}</option>
         </select>
         <p className="hint">
-          A receipt tells whoever asked that this address is live and when the message was read, and the sender
-          chooses where it goes — so there is no automatic option. Bulk mail, mailing lists and anything marked
-          auto-submitted are never offered one at all.
+          
+          {t("A receipt tells whoever asked that this address is live and when the message was read, and the sender chooses where it goes — so there is no automatic option. Bulk mail, mailing lists and anything marked auto-submitted are never offered one at all.")}
         </p>
       </div>
-      <Switch checked={s.spellcheck} onChange={(v) => update({ spellcheck: v })} label="Spell check while typing" />
+      <Switch checked={s.spellcheck} onChange={(v) => update({ spellcheck: v })} label={t("Spell check while typing")} />
 
-      <h2>Locale</h2>
+      <h2>{t("Locale")}</h2>
       <div className="field-row">
         <div className="field">
-          <label>Time zone</label>
+          <label>{t("Time zone")}</label>
           <select className="select" value={s.timeZone ?? ""} onChange={(e) => update({ timeZone: e.target.value || null })}>
             <option value="">Browser default ({browserTimeZone})</option>
             {listTimeZones().map((tz) => <option key={tz} value={tz}>{tz}</option>)}
           </select>
         </div>
         <div className="field">
-          <label>Week starts on</label>
+          <label>{t("Week starts on")}</label>
           <select className="select" value={String(s.weekStart)} onChange={(e) => update({ weekStart: Number(e.target.value) as 0 | 1 | 6 })}>
-            <option value="1">Monday</option>
-            <option value="0">Sunday</option>
-            <option value="6">Saturday</option>
+            <option value="1">{t("Monday")}</option>
+            <option value="0">{t("Sunday")}</option>
+            <option value="6">{t("Saturday")}</option>
           </select>
         </div>
       </div>
       <div className="field-row">
         <div className="field">
-          <label>Language &amp; region</label>
+          <label>{t("Language & region")}</label>
           <select className="select" value={s.locale} onChange={(e) => update({ locale: e.target.value })}>
             <option value="">Automatic ({localeLabel(autoLocale)})</option>
             {localeOptions().map((o) => <option key={o.tag} value={o.tag}>{o.label} — {o.tag}</option>)}
@@ -155,7 +155,7 @@ export function GeneralSettings() {
           <p className="hint">{serverLocale ? `Your mail server reports ${localeLabel(serverLocale)} (${serverLocale}).` : "Your mail server does not report a locale, so the browser's is used."} Dates, times and month names follow this choice.</p>
         </div>
         <div className="field">
-          <label>Date format</label>
+          <label>{t("Date format")}</label>
           <select className="select" value={s.dateFormat} onChange={(e) => update({ dateFormat: e.target.value as DateFormat })}>
             {DATE_FORMATS.map((f) => (
               <option key={f.value} value={f.value}>
@@ -165,27 +165,27 @@ export function GeneralSettings() {
           </select>
         </div>
         <div className="field">
-          <label>Time format</label>
+          <label>{t("Time format")}</label>
           <select className="select" value={s.timeFormat} onChange={(e) => update({ timeFormat: e.target.value as typeof s.timeFormat })}>
             <option value="auto">Automatic ({withPrefs({ locale: s.locale, timeFormat: "auto" }, () => formatClock(SAMPLE))})</option>
-            <option value="24">24-hour clock (18:23)</option>
-            <option value="12">12-hour clock (6:23 PM)</option>
+            <option value="24">{t("24-hour clock (18:23)")}</option>
+            <option value="12">{t("12-hour clock (6:23 PM)")}</option>
           </select>
         </div>
       </div>
       <p className="hint">Preview: {formatFullDateTime(SAMPLE)}</p>
 
-      <h2>Default mail app</h2>
+      <h2>{t("Default mail app")}</h2>
       <MailHandlerSettings />
 
-      <h2>Backup</h2>
+      <h2>{t("Backup")}</h2>
       <div className="row wrap">
-        <button className="btn" onClick={() => { const blob = new Blob([exportJson()], { type: "application/json" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "ihasmail-settings.json"; a.click(); }}>Export settings</button>
+        <button className="btn" onClick={() => { const blob = new Blob([exportJson()], { type: "application/json" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "ihasmail-settings.json"; a.click(); }}>{t("Export settings")}</button>
         <label className="btn">
           Import settings
           <input type="file" accept="application/json" hidden onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; const ok = importJson(await f.text()); toast[ok ? "success" : "error"](ok ? "Settings imported" : "Invalid settings file"); e.target.value = ""; }} />
         </label>
-        <button className="btn btn-ghost" onClick={() => { reset(); toast.show("Settings reset to defaults"); }}>Reset to defaults</button>
+        <button className="btn btn-ghost" onClick={() => { reset(); toast.show("Settings reset to defaults"); }}>{t("Reset to defaults")}</button>
       </div>
     </div>
   );
@@ -231,12 +231,13 @@ function MailHandlerSettings() {
       </p>
       <div className="row wrap">
         <button className="btn btn-primary" onClick={ask}>{requested ? "Ask again" : "Make ihasmail the default mail app"}</button>
-        {requested && canUnregisterMailtoHandler() && <button className="btn btn-ghost" onClick={remove}>Remove</button>}
+        {requested && canUnregisterMailtoHandler() && <button className="btn btn-ghost" onClick={remove}>{t("Remove")}</button>}
       </div>
-      {requested && <p className="hint mt-8">Requested in this browser. Whether it took effect is up to the browser — check its settings if mail links still open elsewhere.</p>}
+      {requested && <p className="hint mt-8">{t("Requested in this browser. Whether it took effect is up to the browser — check its settings if mail links still open elsewhere.")}</p>}
       {!isInstalledApp() && (
         <p className="hint mt-8">
-          For a system-wide default, install ihasmail as an app first (in Chrome: the install icon in the address bar). Your operating system can then offer ihasmail directly wherever it asks which mail app to use.
+          
+          {t("For a system-wide default, install ihasmail as an app first (in Chrome: the install icon in the address bar). Your operating system can then offer ihasmail directly wherever it asks which mail app to use.")}
         </p>
       )}
     </>

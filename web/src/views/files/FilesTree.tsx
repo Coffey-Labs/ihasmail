@@ -11,6 +11,7 @@ import { confirmDialog, promptDialog } from "@/ui/dialog";
 import { toast } from "@/ui/toast";
 import { loadRaw, saveJson } from "@/lib/storage";
 import { ShareDialog } from "../settings/ShareDialog";
+import { t } from "@/lib/i18n";
 
 /**
  * Re-read the session, so the shared accounts on offer are current.
@@ -172,7 +173,7 @@ export function FilesTree() {
           </button>
           {open && kids.length ? <FolderOpen size={17} /> : <Folder size={17} />}
           <span className="grow truncate">{d.name}</span>
-          {isShared(d) && <Share2 size={12} className="faint" aria-label="Shared" />}
+          {isShared(d) && <Share2 size={12} className="faint" aria-label={t("Shared")} />}
         </div>
         {open && kids.map((k) => row(k, depth + 1))}
       </div>
@@ -204,11 +205,11 @@ export function FilesTree() {
       {(viewingShare || sharedAccounts.length > 0) && (
         <>
           <div className="nav-section">
-            <span>Shared with me</span>
+            <span>{t("Shared with me")}</span>
             <button
               className="icon-btn sm"
-              title="Check for new shares"
-              aria-label="Check for new shares"
+              title={t("Check for new shares")}
+              aria-label={t("Check for new shares")}
               onClick={async () => { setRefreshing(true); await refreshShares(true); setRefreshing(false); }}
             >
               <RefreshCw size={14} className={refreshing ? "spin" : ""} />
@@ -218,7 +219,7 @@ export function FilesTree() {
             <div className="nav-item" onClick={() => { useFiles.getState().openAccount(ownAccountId); navigate("/files"); }}>
               <span className="nav-twisty" aria-hidden="true" />
               <HardDrive size={17} />
-              <span className="grow truncate">Back to my files</span>
+              <span className="grow truncate">{t("Back to my files")}</span>
             </div>
           )}
           {sharedAccounts.map((a) => (
@@ -232,14 +233,14 @@ export function FilesTree() {
               <span className="grow truncate">{a.name}</span>
             </div>
           ))}
-          {!sharedAccounts.length && <p className="hint" style={{ padding: "4px 12px" }}>Nothing is shared with you.</p>}
+          {!sharedAccounts.length && <p className="hint" style={{ padding: "4px 12px" }}>{t("Nothing is shared with you.")}</p>}
         </>
       )}
 
       <Popover anchor={menu.anchor} onClose={menu.close} width={210}>
         <MenuItem
           icon={<FolderPlus size={16} />}
-          label="New folder"
+          label={t("New folder")}
           onClick={async () => {
             const name = await promptDialog({ title: "New folder", placeholder: "Folder name" });
             if (!name?.trim()) return;
@@ -255,7 +256,7 @@ export function FilesTree() {
           <>
             <MenuItem
               icon={<Pencil size={16} />}
-              label="Rename"
+              label={t("Rename")}
               disabled={!menuNode.myRights?.mayRename}
               onClick={async () => {
                 const name = await promptDialog({ title: "Rename", defaultValue: menuNode.name });
@@ -267,12 +268,12 @@ export function FilesTree() {
                 }
               }}
             />
-            <MenuItem icon={<Share2 size={16} />} label="Share…" disabled={!menuNode.myRights?.mayShare} onClick={() => setShareNode(menuNode)} />
+            <MenuItem icon={<Share2 size={16} />} label={t("Share…")} disabled={!menuNode.myRights?.mayShare} onClick={() => setShareNode(menuNode)} />
             <MenuSep />
             <MenuItem
               danger
               icon={<Trash2 size={16} />}
-              label="Delete"
+              label={t("Delete")}
               disabled={!menuNode.myRights?.mayDelete}
               onClick={async () => {
                 if (!(await confirmDialog({ title: `Delete “${menuNode.name}”?`, message: "Everything inside it goes too.", confirmLabel: "Delete", danger: true }))) return;

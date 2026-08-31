@@ -12,6 +12,7 @@ import { htmlToText } from "@/lib/text";
 import { sanitizeEditorHtml } from "@/lib/html";
 import { externalizeDataImages, storeSignatureHtml, uploadSignatureImage } from "@/lib/signatureImages";
 import { buildMarkerSignature, byteLength, compactHtml, signatureTooLong, SIGNATURE_LIMIT } from "@/lib/signatureHtml";
+import { t } from "@/lib/i18n";
 
 export function IdentitiesSettings() {
   const identities = useMail((s) => s.identities);
@@ -30,12 +31,12 @@ export function IdentitiesSettings() {
 
   return (
     <div>
-      <h1>Identities & signatures</h1>
-      <p className="lead">Each identity is a sender address with its own name, Reply-To and signature. The default identity is preselected when you compose; set a Reply-To when replies should go somewhere other than the From address.</p>
+      <h1>{t("Identities & signatures")}</h1>
+      <p className="lead">{t("Each identity is a sender address with its own name, Reply-To and signature. The default identity is preselected when you compose; set a Reply-To when replies should go somewhere other than the From address.")}</p>
       {identities.map((i) => (
         <div key={i.id} className="card clickable" onClick={() => setEditing(i)}>
           <div className="card-head">
-            <h3>{i.name ? `${i.name} <${i.email}>` : i.email} {i.id === defaultId && <span className="tag" style={{ background: "var(--accent)", color: "var(--accent-fg)", marginLeft: 6 }}>Default</span>}</h3>
+            <h3>{i.name ? `${i.name} <${i.email}>` : i.email} {i.id === defaultId && <span className="tag" style={{ background: "var(--accent)", color: "var(--accent-fg)", marginLeft: 6 }}>{t("Default")}</span>}</h3>
             {i.id !== defaultId && (
               <button className="btn btn-sm btn-ghost" onClick={(e) => { e.stopPropagation(); setDefault(i.id); toast.success(`${i.email} is now your default identity`); }}><Star size={14} /> Make default</button>
             )}
@@ -53,16 +54,16 @@ export function IdentitiesSettings() {
               {hidden.includes(i.id) ? <><Eye size={14} /> Show when composing</> : <><EyeOff size={14} /> Hide when composing</>}
             </button>
             {i.mayDelete && (
-              <button className="icon-btn sm danger" aria-label="Delete identity" onClick={async (e) => { e.stopPropagation(); if (await confirmDialog({ title: "Delete this identity?", confirmLabel: "Delete", danger: true })) { try { await useMail.getState().destroyIdentity(i.id); } catch (err) { toast.error((err as Error).message); } } }}><Trash2 size={16} /></button>
+              <button className="icon-btn sm danger" aria-label={t("Delete identity")} onClick={async (e) => { e.stopPropagation(); if (await confirmDialog({ title: "Delete this identity?", confirmLabel: "Delete", danger: true })) { try { await useMail.getState().destroyIdentity(i.id); } catch (err) { toast.error((err as Error).message); } } }}><Trash2 size={16} /></button>
             )}
           </div>
-          {hidden.includes(i.id) && <div className="hint" style={{ marginTop: 4 }}>Not offered when composing. It still receives mail, and you can still send from it by showing it again.</div>}
+          {hidden.includes(i.id) && <div className="hint" style={{ marginTop: 4 }}>{t("Not offered when composing. It still receives mail, and you can still send from it by showing it again.")}</div>}
           {(i.htmlSignature || i.textSignature) && <div className="hint" style={{ marginTop: 4 }}>{htmlToText(i.htmlSignature || i.textSignature).slice(0, 120)}</div>}
           {i.replyTo?.length ? <div className="hint">Reply-To: {formatAddressList(i.replyTo)}</div> : null}
         </div>
       ))}
       <button className="btn" onClick={() => setEditing({ name: "", email: identities[0]?.email ?? "", textSignature: "", htmlSignature: "", replyTo: null, bcc: null })}><Plus size={16} /> Add identity</button>
-      <p className="hint mt-8">New identities must use an address this account is allowed to send from (aliases configured on the server).</p>
+      <p className="hint mt-8">{t("New identities must use an address this account is allowed to send from (aliases configured on the server).")}</p>
       {hidden.length > 0 && (
         <p className="hint">
           {`${hidden.length} ${hidden.length === 1 ? "identity is" : "identities are"} hidden from the compose picker. Hiding every one of them would leave nothing to choose from, so in that case they are all offered again.`}
@@ -113,19 +114,19 @@ function IdentityDialog({ identity, onClose }: { identity: Partial<Identity>; on
     }
   };
   return (
-    <Dialog open onClose={onClose} title={identity.id ? "Edit identity" : "New identity"} size="lg" footer={<><button className="btn" onClick={onClose}>Cancel</button><button className="btn btn-primary" disabled={busy} onClick={() => void save()}>{busy ? "Saving…" : "Save"}</button></>}>
+    <Dialog open onClose={onClose} title={identity.id ? "Edit identity" : "New identity"} size="lg" footer={<><button className="btn" onClick={onClose}>{t("Cancel")}</button><button className="btn btn-primary" disabled={busy} onClick={() => void save()}>{busy ? "Saving…" : "Save"}</button></>}>
       <div className="field-row">
-        <div className="field"><label>Display name</label><input className="input" value={name} onChange={(e) => setName(e.target.value)} /></div>
-        <div className="field"><label>Email address</label><input className="input" type="email" value={email} disabled={Boolean(identity.id)} onChange={(e) => setEmail(e.target.value)} /></div>
+        <div className="field"><label>{t("Display name")}</label><input className="input" value={name} onChange={(e) => setName(e.target.value)} /></div>
+        <div className="field"><label>{t("Email address")}</label><input className="input" type="email" value={email} disabled={Boolean(identity.id)} onChange={(e) => setEmail(e.target.value)} /></div>
       </div>
-      <div className="field"><label>Reply-To (optional)</label><input className="input" value={replyTo} onChange={(e) => setReplyTo(e.target.value)} placeholder="replies@example.com" /><span className="hint">Replies to mail sent from this identity go here instead of the From address.</span></div>
+      <div className="field"><label>{t("Reply-To (optional)")}</label><input className="input" value={replyTo} onChange={(e) => setReplyTo(e.target.value)} placeholder={t("replies@example.com")} /><span className="hint">{t("Replies to mail sent from this identity go here instead of the From address.")}</span></div>
       <div className="field">
-        <label>Signature</label>
+        <label>{t("Signature")}</label>
         <div style={{ border: `1px solid ${tooLong ? "var(--danger)" : "var(--border-strong)"}`, borderRadius: 8, minHeight: 180, display: "flex", flexDirection: "column" }}>
-          <RichEditor ref={ref} html={html} onChange={setHtml} placeholder="Your signature…" showToolbar imageUpload={uploadSignatureImage} />
+          <RichEditor ref={ref} html={html} onChange={setHtml} placeholder={t("Your signature…")} showToolbar imageUpload={uploadSignatureImage} />
         </div>
         <div className="row" style={{ justifyContent: "space-between" }}>
-          <span className="hint">Images are stored in your Files (folder “ihasmail”) and embedded when you send.</span>
+          <span className="hint">{t("Images are stored in your Files (folder “ihasmail”) and embedded when you send.")}</span>
           <span className="hint nowrap" style={tooLong ? { color: "var(--warn)", fontWeight: 600 } : undefined}>{sigLen.toLocaleString()} / {SIGNATURE_LIMIT.toLocaleString()}</span>
         </div>
         {tooLong && <div className="warn-box mt-8">This signature is larger than the server's {SIGNATURE_LIMIT}-byte limit. ihasmail will keep the full version in your Files and store a short text fallback on the server — other mail clients will see the plain-text version.</div>}

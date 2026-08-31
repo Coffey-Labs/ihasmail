@@ -5,6 +5,7 @@ import { Dialog } from "@/ui/dialog";
 import { ColorSwatches } from "@/ui/misc";
 import { toast } from "@/ui/toast";
 import { browserTimeZone, listTimeZones } from "@/lib/dates";
+import { t as translate } from "@/lib/i18n";
 
 export function CalendarDialog({ calendar, onClose }: { calendar: Partial<Calendar>; onClose: () => void }) {
   const cal = useCalendar();
@@ -30,21 +31,21 @@ export function CalendarDialog({ calendar, onClose }: { calendar: Partial<Calend
     }
   };
   return (
-    <Dialog open onClose={onClose} title={calendar.id ? "Edit calendar" : "New calendar"} size="sm" footer={<><button className="btn" onClick={onClose}>Cancel</button><button className="btn btn-primary" disabled={busy || !name.trim()} onClick={() => void save()}>Save</button></>}>
-      <div className="field"><label>Name</label><input className="input" autoFocus value={name} onChange={(e) => setName(e.target.value)} /></div>
-      <div className="field"><label>Color</label><ColorSwatches value={color} onChange={setColor} /></div>
-      <div className="field"><label>Description</label><input className="input" value={description} onChange={(e) => setDescription(e.target.value)} /></div>
-      <div className="field"><label>Time zone</label>
+    <Dialog open onClose={onClose} title={calendar.id ? "Edit calendar" : "New calendar"} size="sm" footer={<><button className="btn" onClick={onClose}>{translate("Cancel")}</button><button className="btn btn-primary" disabled={busy || !name.trim()} onClick={() => void save()}>{translate("Save")}</button></>}>
+      <div className="field"><label>{translate("Name")}</label><input className="input" autoFocus value={name} onChange={(e) => setName(e.target.value)} /></div>
+      <div className="field"><label>{translate("Color")}</label><ColorSwatches value={color} onChange={setColor} /></div>
+      <div className="field"><label>{translate("Description")}</label><input className="input" value={description} onChange={(e) => setDescription(e.target.value)} /></div>
+      <div className="field"><label>{translate("Time zone")}</label>
         <select className="select" value={tz} onChange={(e) => setTz(e.target.value)}>
           <option value="">Default ({browserTimeZone})</option>
           {listTimeZones().map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
       </div>
-      <div className="field"><label>Free/busy</label>
+      <div className="field"><label>{translate("Free/busy")}</label>
         <select className="select" value={avail} onChange={(e) => setAvail(e.target.value as Calendar["includeInAvailability"])}>
-          <option value="all">Count all events as busy</option>
-          <option value="attending">Only events I'm attending</option>
-          <option value="none">Don't include in availability</option>
+          <option value="all">{translate("Count all events as busy")}</option>
+          <option value="attending">{translate("Only events I'm attending")}</option>
+          <option value="none">{translate("Don't include in availability")}</option>
         </select>
       </div>
     </Dialog>

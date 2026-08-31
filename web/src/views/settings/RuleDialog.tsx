@@ -5,6 +5,7 @@ import { HEADER_CHOICES, HEADER_OPS, type SieveAction, type SieveRule, type Siev
 import { Dialog, promptDialog } from "@/ui/dialog";
 import { toast } from "@/ui/toast";
 import type { Id } from "@/jmap/types";
+import { t as translate } from "@/lib/i18n";
 
 export interface RuleDialogProps {
   rule: SieveRule;
@@ -36,13 +37,13 @@ export function RuleDialog({ rule, onClose, onSave, applyMailbox, applyByDefault
           <span>Also apply to existing messages in <b>{applyMailbox.name}</b></span>
         </label>
       )}
-      <button className="btn" onClick={onClose}>Cancel</button><button className="btn btn-primary" onClick={() => onSave(r, applyNow && Boolean(applyMailbox))} disabled={!r.name.trim()}>{saveLabel ?? "Done"}</button></>}>
-      <div className="field"><label>Rule name</label><input className="input" value={r.name} onChange={(e) => setR({ ...r, name: e.target.value })} autoFocus /></div>
+      <button className="btn" onClick={onClose}>{translate("Cancel")}</button><button className="btn btn-primary" onClick={() => onSave(r, applyNow && Boolean(applyMailbox))} disabled={!r.name.trim()}>{saveLabel ?? "Done"}</button></>}>
+      <div className="field"><label>{translate("Rule name")}</label><input className="input" value={r.name} onChange={(e) => setR({ ...r, name: e.target.value })} autoFocus /></div>
       <div className="row" style={{ marginBottom: 8 }}>
-        <span className="label">When</span>
+        <span className="label">{translate("When")}</span>
         <select className="select" style={{ width: "auto" }} value={r.join} onChange={(e) => setR({ ...r, join: e.target.value as "allof" | "anyof" })}>
-          <option value="allof">all of the following match</option>
-          <option value="anyof">any of the following match</option>
+          <option value="allof">{translate("all of the following match")}</option>
+          <option value="anyof">{translate("any of the following match")}</option>
         </select>
       </div>
       {r.tests.map((t, i) => {
@@ -60,35 +61,35 @@ export function RuleDialog({ rule, onClose, onSave, applyMailbox, applyByDefault
               else setTest(i, { type: "header", header: v === "__custom__" ? "" : v, op: "contains", value: "" });
             }}>
               {HEADER_CHOICES.map((h) => <option key={h.value} value={h.value}>{h.label}</option>)}
-              <option value="address">Sender domain</option>
-              <option value="size">Message size</option>
-              <option value="body">Body text</option>
-              <option value="true">Always (all messages)</option>
+              <option value="address">{translate("Sender domain")}</option>
+              <option value="size">{translate("Message size")}</option>
+              <option value="body">{translate("Body text")}</option>
+              <option value="true">{translate("Always (all messages)")}</option>
             </select>
             {customHeader && t.type === "header" && (
-              <input className="input" placeholder="Header name" aria-label="Header name" value={t.header} onChange={(e) => setTest(i, { ...t, header: e.target.value })} />
+              <input className="input" placeholder={translate("Header name")} aria-label={translate("Header name")} value={t.header} onChange={(e) => setTest(i, { ...t, header: e.target.value })} />
             )}
             {t.type === "size" ? (
-              <select className="select" value={t.op} onChange={(e) => setTest(i, { ...t, op: e.target.value as "over" | "under" })}><option value="over">is larger than</option><option value="under">is smaller than</option></select>
+              <select className="select" value={t.op} onChange={(e) => setTest(i, { ...t, op: e.target.value as "over" | "under" })}><option value="over">{translate("is larger than")}</option><option value="under">{translate("is smaller than")}</option></select>
             ) : t.type === "body" ? (
-              <select className="select" value={t.op} onChange={(e) => setTest(i, { ...t, op: e.target.value as "contains" | "notcontains" })}><option value="contains">contains</option><option value="notcontains">does not contain</option></select>
+              <select className="select" value={t.op} onChange={(e) => setTest(i, { ...t, op: e.target.value as "contains" | "notcontains" })}><option value="contains">{translate("contains")}</option><option value="notcontains">{translate("does not contain")}</option></select>
             ) : t.type === "true" ? <span /> : (
               <select className="select" value={t.op} onChange={(e) => setTest(i, { ...t, op: e.target.value as SieveTest extends { op: infer O } ? O : never })}>
                 {HEADER_OPS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             )}
             {t.type === "size" ? (
-              <div className="row"><input className="input" type="number" min={1} value={Math.round(t.value / 1024)} onChange={(e) => setTest(i, { ...t, value: Number(e.target.value) * 1024 })} /><span className="muted">KB</span></div>
+              <div className="row"><input className="input" type="number" min={1} value={Math.round(t.value / 1024)} onChange={(e) => setTest(i, { ...t, value: Number(e.target.value) * 1024 })} /><span className="muted">{translate("KB")}</span></div>
             ) : t.type === "true" ? <span /> : t.type === "header" && (t.op === "exists" || t.op === "notexists") ? <span /> : (
               <input className="input" placeholder={t.type === "address" ? "example.com" : "value"} value={(t as { value: string }).value} onChange={(e) => setTest(i, { ...t, value: e.target.value } as SieveTest)} />
             )}
-            <button className="icon-btn sm danger" aria-label="Remove condition" onClick={() => setR({ ...r, tests: r.tests.filter((_, j) => j !== i) })} disabled={r.tests.length <= 1}><Trash2 size={16} /></button>
+            <button className="icon-btn sm danger" aria-label={translate("Remove condition")} onClick={() => setR({ ...r, tests: r.tests.filter((_, j) => j !== i) })} disabled={r.tests.length <= 1}><Trash2 size={16} /></button>
           </div>
         );
       })}
       <button className="btn btn-ghost btn-sm" onClick={() => setR({ ...r, tests: [...r.tests, { type: "header", header: "subject", op: "contains", value: "" }] })}><Plus size={14} /> Add condition</button>
 
-      <div className="row" style={{ margin: "16px 0 8px" }}><span className="label">Then</span></div>
+      <div className="row" style={{ margin: "16px 0 8px" }}><span className="label">{translate("Then")}</span></div>
       {r.actions.map((a, i) => (
         <div key={i} className="rule-row actions">
           <select className="select" value={a.type} onChange={(e) => {
@@ -96,15 +97,15 @@ export function RuleDialog({ rule, onClose, onSave, applyMailbox, applyByDefault
             const next: SieveAction = v === "fileinto" ? { type: "fileinto", mailbox: folders[0]?.path ?? "INBOX" } : v === "redirect" ? { type: "redirect", address: "" } : v === "reject" ? { type: "reject", reason: "" } : v === "addflag" ? { type: "addflag", flag: "" } : ({ type: v } as SieveAction);
             setAction(i, next);
           }}>
-            <option value="fileinto">Move to folder</option>
-            <option value="markread">Mark as read</option>
-            <option value="flag">Star</option>
-            <option value="addflag">Add label / keyword</option>
-            <option value="redirect">Forward to</option>
-            <option value="keep">Keep in Inbox</option>
-            <option value="discard">Delete</option>
-            <option value="reject">Reject with message</option>
-            <option value="stop">Stop processing more rules</option>
+            <option value="fileinto">{translate("Move to folder")}</option>
+            <option value="markread">{translate("Mark as read")}</option>
+            <option value="flag">{translate("Star")}</option>
+            <option value="addflag">{translate("Add label / keyword")}</option>
+            <option value="redirect">{translate("Forward to")}</option>
+            <option value="keep">{translate("Keep in Inbox")}</option>
+            <option value="discard">{translate("Delete")}</option>
+            <option value="reject">{translate("Reject with message")}</option>
+            <option value="stop">{translate("Stop processing more rules")}</option>
           </select>
           {a.type === "fileinto" ? (
             <div className="row">
@@ -138,21 +139,21 @@ export function RuleDialog({ rule, onClose, onSave, applyMailbox, applyByDefault
               >
                 {folders.map((f) => <option key={f.id} value={f.path}>{f.path}</option>)}
                 {!folders.some((f) => f.path === a.mailbox) && <option value={a.mailbox}>{a.mailbox}</option>}
-                <option value="__new__">＋ New folder…</option>
+                <option value="__new__">{translate("＋ New folder…")}</option>
               </select>
               <label className="check nowrap"><input type="checkbox" checked={Boolean(a.copy)} onChange={(e) => setAction(i, { ...a, copy: e.target.checked })} /> keep copy</label>
             </div>
           ) : a.type === "redirect" ? (
             <div className="row">
-              <input className="input" type="email" placeholder="someone@example.com" value={a.address} onChange={(e) => setAction(i, { ...a, address: e.target.value })} />
+              <input className="input" type="email" placeholder={translate("someone@example.com")} value={a.address} onChange={(e) => setAction(i, { ...a, address: e.target.value })} />
               <label className="check nowrap"><input type="checkbox" checked={Boolean(a.copy)} onChange={(e) => setAction(i, { ...a, copy: e.target.checked })} /> keep copy</label>
             </div>
           ) : a.type === "reject" ? (
-            <input className="input" placeholder="Reason" value={a.reason} onChange={(e) => setAction(i, { ...a, reason: e.target.value })} />
+            <input className="input" placeholder={translate("Reason")} value={a.reason} onChange={(e) => setAction(i, { ...a, reason: e.target.value })} />
           ) : a.type === "addflag" || a.type === "setflag" || a.type === "removeflag" ? (
-            <input className="input" placeholder="keyword (e.g. $important, work)" value={a.flag} onChange={(e) => setAction(i, { ...a, flag: e.target.value })} />
+            <input className="input" placeholder={translate("keyword (e.g. $important, work)")} value={a.flag} onChange={(e) => setAction(i, { ...a, flag: e.target.value })} />
           ) : <span />}
-          <button className="icon-btn sm danger" aria-label="Remove action" onClick={() => setR({ ...r, actions: r.actions.filter((_, j) => j !== i) })} disabled={r.actions.length <= 1}><Trash2 size={16} /></button>
+          <button className="icon-btn sm danger" aria-label={translate("Remove action")} onClick={() => setR({ ...r, actions: r.actions.filter((_, j) => j !== i) })} disabled={r.actions.length <= 1}><Trash2 size={16} /></button>
         </div>
       ))}
       <button className="btn btn-ghost btn-sm" onClick={() => setR({ ...r, actions: [...r.actions, { type: "stop" }] })}><Plus size={14} /> Add action</button>

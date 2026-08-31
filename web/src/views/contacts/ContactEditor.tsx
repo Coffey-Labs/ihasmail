@@ -7,6 +7,7 @@ import { Dialog } from "@/ui/dialog";
 import { DateField } from "@/ui/datefield";
 import { toast } from "@/ui/toast";
 import { client } from "@/jmap/client";
+import { t } from "@/lib/i18n";
 
 interface Props {
   card: Partial<ContactCard>;
@@ -155,25 +156,25 @@ export function ContactEditor({ card, defaultBookId, onClose, onSaved }: Props) 
   const photoSrc = photo?.dataUrl ?? (!removePhoto && existingPhoto ? (existingPhoto.uri?.startsWith("data:") ? existingPhoto.uri : existingPhoto.blobId ? client.downloadUrl(contacts.accountId!, existingPhoto.blobId, "photo", existingPhoto.mediaType ?? "image/jpeg", true) : null) : null);
 
   return (
-    <Dialog open onClose={onClose} title={isNew ? "New contact" : `Edit ${contactDisplayName(card as ContactCard)}`} size="lg" footer={<><button className="btn" onClick={onClose}>Cancel</button><button className="btn btn-primary" disabled={busy} onClick={() => void save()}>{busy ? "Saving…" : "Save"}</button></>}>
+    <Dialog open onClose={onClose} title={isNew ? "New contact" : `Edit ${contactDisplayName(card as ContactCard)}`} size="lg" footer={<><button className="btn" onClick={onClose}>{t("Cancel")}</button><button className="btn btn-primary" disabled={busy} onClick={() => void save()}>{busy ? "Saving…" : "Save"}</button></>}>
       <div className="contact-form">
         <div className="row" style={{ gap: 16, marginBottom: 12 }}>
-          <label className="avatar xl" style={{ background: "var(--bg-sunken)", color: "var(--fg-muted)", cursor: "pointer", position: "relative" }} title="Change photo">
+          <label className="avatar xl" style={{ background: "var(--bg-sunken)", color: "var(--fg-muted)", cursor: "pointer", position: "relative" }} title={t("Change photo")}>
             {photoSrc ? <img src={photoSrc} alt="" /> : <Camera size={28} />}
             <input type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) onPhoto(f); e.target.value = ""; }} />
           </label>
           {photoSrc && <button className="btn btn-ghost btn-sm" onClick={() => { setPhoto(null); setRemovePhoto(true); }}><X size={14} /> Remove photo</button>}
           <span className="spacer" />
           <div className="field" style={{ marginBottom: 0, width: 160 }}>
-            <label>Type</label>
+            <label>{t("Type")}</label>
             <select className="select" value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}>
-              <option value="individual">Person</option>
-              <option value="org">Organization</option>
-              <option value="group">Group</option>
+              <option value="individual">{t("Person")}</option>
+              <option value="org">{t("Organization")}</option>
+              <option value="group">{t("Group")}</option>
             </select>
           </div>
           <div className="field" style={{ marginBottom: 0, width: 200 }}>
-            <label>Address book</label>
+            <label>{t("Address book")}</label>
             <select className="select" value={bookId} onChange={(e) => setBookId(e.target.value)}>
               {books.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
             </select>
@@ -182,21 +183,21 @@ export function ContactEditor({ card, defaultBookId, onClose, onSaved }: Props) 
         {kind === "individual" ? (
           <>
             <div className="field-row">
-              <div className="field"><label>First name</label><input className="input" value={given} onChange={(e) => setGiven(e.target.value)} autoFocus /></div>
-              <div className="field"><label>Last name</label><input className="input" value={surname} onChange={(e) => setSurname(e.target.value)} /></div>
+              <div className="field"><label>{t("First name")}</label><input className="input" value={given} onChange={(e) => setGiven(e.target.value)} autoFocus /></div>
+              <div className="field"><label>{t("Last name")}</label><input className="input" value={surname} onChange={(e) => setSurname(e.target.value)} /></div>
             </div>
             <details>
-              <summary className="hint" style={{ cursor: "pointer", marginBottom: 8 }}>More name fields</summary>
+              <summary className="hint" style={{ cursor: "pointer", marginBottom: 8 }}>{t("More name fields")}</summary>
               <div className="field-row">
-                <div className="field"><label>Prefix</label><input className="input" value={prefix} onChange={(e) => setPrefix(e.target.value)} placeholder="Dr." /></div>
-                <div className="field"><label>Middle name</label><input className="input" value={middle} onChange={(e) => setMiddle(e.target.value)} /></div>
-                <div className="field"><label>Suffix</label><input className="input" value={suffix} onChange={(e) => setSuffix(e.target.value)} placeholder="Jr." /></div>
-                <div className="field"><label>Nickname</label><input className="input" value={nickname} onChange={(e) => setNickname(e.target.value)} /></div>
+                <div className="field"><label>{t("Prefix")}</label><input className="input" value={prefix} onChange={(e) => setPrefix(e.target.value)} placeholder={t("Dr.")} /></div>
+                <div className="field"><label>{t("Middle name")}</label><input className="input" value={middle} onChange={(e) => setMiddle(e.target.value)} /></div>
+                <div className="field"><label>{t("Suffix")}</label><input className="input" value={suffix} onChange={(e) => setSuffix(e.target.value)} placeholder={t("Jr.")} /></div>
+                <div className="field"><label>{t("Nickname")}</label><input className="input" value={nickname} onChange={(e) => setNickname(e.target.value)} /></div>
               </div>
             </details>
             <div className="field-row">
-              <div className="field"><label>Company</label><input className="input" value={company} onChange={(e) => setCompany(e.target.value)} /></div>
-              <div className="field"><label>Job title</label><input className="input" value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} /></div>
+              <div className="field"><label>{t("Company")}</label><input className="input" value={company} onChange={(e) => setCompany(e.target.value)} /></div>
+              <div className="field"><label>{t("Job title")}</label><input className="input" value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} /></div>
             </div>
           </>
         ) : (
@@ -205,7 +206,7 @@ export function ContactEditor({ card, defaultBookId, onClose, onSaved }: Props) 
 
         {kind === "group" && (
           <div className="field">
-            <label>Members</label>
+            <label>{t("Members")}</label>
             <div className="row wrap gap-4 mb-8">
               {memberUids.map((uid) => {
                 const m = Object.values(contacts.cards).find((x) => x.uid === uid);
@@ -213,7 +214,7 @@ export function ContactEditor({ card, defaultBookId, onClose, onSaved }: Props) 
               })}
             </div>
             <div style={{ position: "relative" }}>
-              <input className="input" placeholder="Search contacts to add…" value={memberQuery} onChange={(e) => setMemberQuery(e.target.value)} />
+              <input className="input" placeholder={t("Search contacts to add…")} value={memberQuery} onChange={(e) => setMemberQuery(e.target.value)} />
               {memberCandidates.length > 0 && (
                 <div className="suggest-list" style={{ width: "100%" }}>
                   {memberCandidates.map((c) => <div key={c.id} className="suggest-item" onMouseDown={(e) => { e.preventDefault(); setMemberUids([...memberUids, c.uid]); setMemberQuery(""); }}><span className="s-name">{contactDisplayName(c)}</span><span className="s-email">{Object.values(c.emails ?? {})[0]?.address}</span></div>)}
@@ -224,47 +225,47 @@ export function ContactEditor({ card, defaultBookId, onClose, onSaved }: Props) 
         )}
 
         <div className="field">
-          <label>Email</label>
+          <label>{t("Email")}</label>
           <div className="multi">
             {emails.map((e, i) => (
               <div key={e.key} className="multi-row">
-                <input className="input" type="email" value={e.address} placeholder="name@example.com" onChange={(ev) => setEmails(emails.map((x, j) => (j === i ? { ...x, address: ev.target.value } : x)))} />
+                <input className="input" type="email" value={e.address} placeholder={t("name@example.com")} onChange={(ev) => setEmails(emails.map((x, j) => (j === i ? { ...x, address: ev.target.value } : x)))} />
                 <select className="select" value={e.ctx} onChange={(ev) => setEmails(emails.map((x, j) => (j === i ? { ...x, ctx: ev.target.value } : x)))}>{EMAIL_CTX.map((c) => <option key={c} value={c}>{c}</option>)}</select>
-                <button className="icon-btn sm danger" onClick={() => setEmails(emails.filter((_, j) => j !== i))} aria-label="Remove"><Trash2 size={16} /></button>
+                <button className="icon-btn sm danger" onClick={() => setEmails(emails.filter((_, j) => j !== i))} aria-label={t("Remove")}><Trash2 size={16} /></button>
               </div>
             ))}
             <button className="btn btn-ghost btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => setEmails([...emails, { key: newKey("e"), address: "", ctx: emails.length ? "work" : "private" }])}><Plus size={14} /> Add email</button>
           </div>
         </div>
         <div className="field">
-          <label>Phone</label>
+          <label>{t("Phone")}</label>
           <div className="multi">
             {phones.map((p, i) => (
               <div key={p.key} className="multi-row">
                 <input className="input" type="tel" value={p.number} placeholder="+1 555 0100" onChange={(ev) => setPhones(phones.map((x, j) => (j === i ? { ...x, number: ev.target.value } : x)))} />
                 <select className="select" value={p.ctx} onChange={(ev) => setPhones(phones.map((x, j) => (j === i ? { ...x, ctx: ev.target.value } : x)))}>{PHONE_CTX.map((c) => <option key={c} value={c}>{c}</option>)}</select>
-                <button className="icon-btn sm danger" onClick={() => setPhones(phones.filter((_, j) => j !== i))} aria-label="Remove"><Trash2 size={16} /></button>
+                <button className="icon-btn sm danger" onClick={() => setPhones(phones.filter((_, j) => j !== i))} aria-label={t("Remove")}><Trash2 size={16} /></button>
               </div>
             ))}
             <button className="btn btn-ghost btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => setPhones([...phones, { key: newKey("p"), number: "", ctx: "mobile" }])}><Plus size={14} /> Add phone</button>
           </div>
         </div>
         <div className="field">
-          <label>Address</label>
+          <label>{t("Address")}</label>
           <div className="multi">
             {addrs.map((a, i) => (
               <div key={a.key} className="card" style={{ marginBottom: 0 }}>
                 <div className="row mb-8">
                   <select className="select" style={{ width: 140 }} value={a.ctx} onChange={(ev) => setAddrs(addrs.map((x, j) => (j === i ? { ...x, ctx: ev.target.value } : x)))}>{ADDR_CTX.map((c) => <option key={c} value={c}>{c}</option>)}</select>
                   <span className="spacer" />
-                  <button className="icon-btn sm danger" onClick={() => setAddrs(addrs.filter((_, j) => j !== i))} aria-label="Remove"><Trash2 size={16} /></button>
+                  <button className="icon-btn sm danger" onClick={() => setAddrs(addrs.filter((_, j) => j !== i))} aria-label={t("Remove")}><Trash2 size={16} /></button>
                 </div>
                 <div className="addr-grid">
-                  <input className="input" style={{ gridColumn: "1 / -1" }} placeholder="Street" value={a.street} onChange={(ev) => setAddrs(addrs.map((x, j) => (j === i ? { ...x, street: ev.target.value } : x)))} />
-                  <input className="input" placeholder="City" value={a.city} onChange={(ev) => setAddrs(addrs.map((x, j) => (j === i ? { ...x, city: ev.target.value } : x)))} />
-                  <input className="input" placeholder="State / Region" value={a.region} onChange={(ev) => setAddrs(addrs.map((x, j) => (j === i ? { ...x, region: ev.target.value } : x)))} />
-                  <input className="input" placeholder="Postal code" value={a.postcode} onChange={(ev) => setAddrs(addrs.map((x, j) => (j === i ? { ...x, postcode: ev.target.value } : x)))} />
-                  <input className="input" placeholder="Country" value={a.country} onChange={(ev) => setAddrs(addrs.map((x, j) => (j === i ? { ...x, country: ev.target.value } : x)))} />
+                  <input className="input" style={{ gridColumn: "1 / -1" }} placeholder={t("Street")} value={a.street} onChange={(ev) => setAddrs(addrs.map((x, j) => (j === i ? { ...x, street: ev.target.value } : x)))} />
+                  <input className="input" placeholder={t("City")} value={a.city} onChange={(ev) => setAddrs(addrs.map((x, j) => (j === i ? { ...x, city: ev.target.value } : x)))} />
+                  <input className="input" placeholder={t("State / Region")} value={a.region} onChange={(ev) => setAddrs(addrs.map((x, j) => (j === i ? { ...x, region: ev.target.value } : x)))} />
+                  <input className="input" placeholder={t("Postal code")} value={a.postcode} onChange={(ev) => setAddrs(addrs.map((x, j) => (j === i ? { ...x, postcode: ev.target.value } : x)))} />
+                  <input className="input" placeholder={t("Country")} value={a.country} onChange={(ev) => setAddrs(addrs.map((x, j) => (j === i ? { ...x, country: ev.target.value } : x)))} />
                 </div>
               </div>
             ))}
@@ -272,10 +273,10 @@ export function ContactEditor({ card, defaultBookId, onClose, onSaved }: Props) 
           </div>
         </div>
         <div className="field-row">
-          <div className="field"><label>Birthday</label><DateField aria-label="Birthday" value={birthday} onChange={setBirthday} /></div>
-          <div className="field"><label>Website</label><input className="input" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://" /></div>
+          <div className="field"><label>{t("Birthday")}</label><DateField aria-label={t("Birthday")} value={birthday} onChange={setBirthday} /></div>
+          <div className="field"><label>{t("Website")}</label><input className="input" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder={t("https://")} /></div>
         </div>
-        <div className="field"><label>Notes</label><textarea className="textarea" value={note} onChange={(e) => setNote(e.target.value)} /></div>
+        <div className="field"><label>{t("Notes")}</label><textarea className="textarea" value={note} onChange={(e) => setNote(e.target.value)} /></div>
       </div>
     </Dialog>
   );

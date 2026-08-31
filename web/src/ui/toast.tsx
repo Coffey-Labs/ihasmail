@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { X } from "lucide-react";
+import { t as translate } from "@/lib/i18n";
 
 export interface Toast {
   id: number;
@@ -73,7 +74,7 @@ export function ToastHost() {
               {t.action.label}
             </button>
           )}
-          <button className="toast-close" aria-label="Dismiss" onClick={() => dismiss(t.id)}>
+          <button className="toast-close" aria-label={translate("Dismiss")} onClick={() => dismiss(t.id)}>
             <X size={16} />
           </button>
           {t.progress && t.duration > 0 && <span className="toast-progress" style={{ animationDuration: `${t.duration}ms` }} />}

@@ -5,6 +5,7 @@ import { DateTimeField } from "@/ui/datefield";
 import { MenuItem, MenuSep, MenuTitle } from "@/ui/popover";
 import { describeSpan, formatScheduleTime, schedulePresets, scheduleError } from "@/lib/schedule";
 import { toInputDateTime, fromInputDateTime, roundToNext } from "@/lib/dates";
+import { t } from "@/lib/i18n";
 
 /**
  * The quick picks that hang off the composer's send menu. Anything the server
@@ -15,11 +16,11 @@ export function ScheduleMenuItems({ maxMs, onPick, onCustom }: { maxMs: number; 
   return (
     <>
       <MenuSep />
-      <MenuTitle>Schedule send</MenuTitle>
+      <MenuTitle>{t("Schedule send")}</MenuTitle>
       {presets.map((p) => (
         <MenuItem key={p.id} icon={<Clock size={16} />} label={p.label} kbd={formatScheduleTime(p.at)} onClick={() => onPick(p.at)} />
       ))}
-      <MenuItem icon={<Clock size={16} />} label="Pick date and time…" onClick={onCustom} />
+      <MenuItem icon={<Clock size={16} />} label={t("Pick date and time…")} onClick={onCustom} />
     </>
   );
 }
@@ -40,18 +41,18 @@ export function ScheduleDialog({ open, maxMs, initial, onClose, onPick }: {
     <Dialog
       open={open}
       onClose={onClose}
-      title="Schedule send"
+      title={t("Schedule send")}
       size="sm"
       footer={
         <>
-          <button className="btn" onClick={onClose}>Cancel</button>
-          <button className="btn btn-primary" disabled={Boolean(error)} onClick={() => onPick(at)}>Schedule send</button>
+          <button className="btn" onClick={onClose}>{t("Cancel")}</button>
+          <button className="btn btn-primary" disabled={Boolean(error)} onClick={() => onPick(at)}>{t("Schedule send")}</button>
         </>
       }
     >
       <div className="field">
-        <label htmlFor="schedule-at">Send at</label>
-        <DateTimeField id="schedule-at" value={value} onChange={setValue} aria-label="Date and time to send" />
+        <label htmlFor="schedule-at">{t("Send at")}</label>
+        <DateTimeField id="schedule-at" value={value} onChange={setValue} aria-label={t("Date and time to send")} />
       </div>
       {error ? (
         <p className="hint" style={{ color: "var(--danger)" }}>{error}</p>

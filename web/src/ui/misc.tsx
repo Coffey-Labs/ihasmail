@@ -3,6 +3,7 @@ import type { EmailAddress } from "@/jmap/types";
 import { avatarColor, initials } from "@/lib/address";
 import { useContacts } from "@/store/contacts";
 import { contactPhoto } from "@/lib/contacts";
+import { t } from "@/lib/i18n";
 
 export function Avatar({ who, size, className }: { who: EmailAddress | { name?: string | null; email?: string } | string | null | undefined; size?: "sm" | "lg" | "xl"; className?: string }) {
   const email = typeof who === "string" ? who : (who?.email ?? "");
@@ -82,7 +83,7 @@ export function Kbd({ keys }: { keys: string }) {
     <span className="keys">
       {keys.split(" ").map((k, i) => (
         <span key={i}>
-          {i > 0 && <span className="muted" style={{ margin: "0 3px" }}>then</span>}
+          {i > 0 && <span className="muted" style={{ margin: "0 3px" }}>{t("then")}</span>}
           {k.split("+").map((p, j) => (
             <kbd key={j} className="kbd" style={{ marginRight: 2 }}>
               {p === "mod" ? (navigator.platform.includes("Mac") ? "⌘" : "Ctrl") : p === "shift" ? "⇧" : p === "enter" ? "↵" : p === "esc" ? "Esc" : p}

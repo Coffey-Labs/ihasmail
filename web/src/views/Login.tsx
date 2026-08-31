@@ -4,6 +4,7 @@ import { useSession } from "@/store/session";
 import { ApiError } from "@/jmap/client";
 import { DEFAULT_SOURCE_URL } from "@/lib/source";
 import { APP_VERSION } from "@/lib/version";
+import { t } from "@/lib/i18n";
 
 export function LoginPage() {
   const login = useSession((s) => s.login);
@@ -54,7 +55,7 @@ export function LoginPage() {
         <div className="logo">
           <img src="/img/logo.png" alt="" width={120} height={143} />
           <h1 className="notranslate" translate="no">ihasmail</h1>
-          <p className="tagline">Fast, friendly webmail. Your mailbox, your way.</p>
+          <p className="tagline">{t("Fast, friendly webmail. Your mailbox, your way.")}</p>
         </div>
         {error && (
           <div className="error-box mb-16" role="alert">
@@ -62,11 +63,11 @@ export function LoginPage() {
           </div>
         )}
         <div className="field">
-          <label htmlFor="u">Email or username</label>
+          <label htmlFor="u">{t("Email or username")}</label>
           <input id="u" className="input" type="text" autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false} value={username} onChange={(e) => setUsername(e.target.value)} autoFocus={!username} required />
         </div>
         <div className="field">
-          <label htmlFor="p">Password</label>
+          <label htmlFor="p">{t("Password")}</label>
           <div className="pw-wrap">
             <input id="p" className="input" type={showPw ? "text" : "password"} autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus={Boolean(username)} required style={{ paddingRight: 40 }} />
             <button type="button" className="icon-btn" onClick={() => setShowPw((v) => !v)} aria-label={showPw ? "Hide password" : "Show password"} tabIndex={-1}>
@@ -76,7 +77,7 @@ export function LoginPage() {
         </div>
         <label className="check" style={{ marginBottom: 4 }}>
           <input type="checkbox" checked={trustDevice} onChange={(e) => setTrustDevice(e.target.checked)} />
-          <span>This is my own device</span>
+          <span>{t("This is my own device")}</span>
         </label>
         <p className="hint" style={{ marginBottom: 12 }}>
           {trustDevice
@@ -100,9 +101,9 @@ export function LoginPage() {
           */}
           <span className="notranslate" translate="no">ihasmail v{APP_VERSION}</span>
           <br />
-          <a href="https://ihasmail.org" target="_blank" rel="noopener noreferrer">ihasmail.org</a>
+          <a href="https://ihasmail.org" target="_blank" rel="noopener noreferrer">{t("ihasmail.org")}</a>
           {" · "}
-          <a href={sourceUrl} target="_blank" rel="noopener noreferrer">AGPL-3.0 source</a>
+          <a href={sourceUrl} target="_blank" rel="noopener noreferrer">{t("AGPL-3.0 source")}</a>
         </p>
       </form>
     </div>

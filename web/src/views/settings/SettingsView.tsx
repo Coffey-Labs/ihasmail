@@ -13,6 +13,7 @@ import { SecuritySettings } from "./SecuritySettings";
 import { AboutSettings } from "./AboutSettings";
 import { ShortcutsSettings } from "./ShortcutsSettings";
 import { CalendarSettings } from "./CalendarSettings";
+import { t } from "@/lib/i18n";
 
 const FiltersSettings = lazy(() => import("./FiltersSettings").then((m) => ({ default: m.FiltersSettings })));
 const VacationSettings = lazy(() => import("./VacationSettings").then((m) => ({ default: m.VacationSettings })));
@@ -38,16 +39,16 @@ export function SettingsView({ section }: { section?: string }) {
   const current = SECTIONS.find((s) => s.id === section);
   return (
     <div className={`settings-layout ${section ? "section" : "root"}`}>
-      <nav className="settings-nav" aria-label="Settings">
-        <div className="nav-section" style={{ paddingLeft: 8 }}><span>Settings</span></div>
+      <nav className="settings-nav" aria-label={t("Settings")}>
+        <div className="nav-section" style={{ paddingLeft: 8 }}><span>{t("Settings")}</span></div>
         {SECTIONS.map((s) => (
           <Link key={s.id} href={`/settings/${s.id}`} className={`nav-item ${section === s.id ? "active" : ""}`}>
             {s.icon}
             <span className="nav-label">{s.label}</span>
           </Link>
         ))}
-        <div className="nav-section" style={{ paddingLeft: 8 }}><span>Shortcuts</span></div>
-        <Link href="/contacts" className="nav-item"><Users size={18} /><span className="nav-label">Address books</span></Link>
+        <div className="nav-section" style={{ paddingLeft: 8 }}><span>{t("Shortcuts")}</span></div>
+        <Link href="/contacts" className="nav-item"><Users size={18} /><span className="nav-label">{t("Address books")}</span></Link>
       </nav>
       <div className="settings-content">
         {section && (

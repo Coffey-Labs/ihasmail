@@ -15,6 +15,7 @@ import { CalendarSidebar } from "./calendar/CalendarSidebar";
 import { ShortcutsDialog, useGlobalShortcuts } from "./Shortcuts";
 import { formatSize } from "@/lib/format";
 import { TranslateBoundary } from "@/ui/TranslateBoundary";
+import { t } from "@/lib/i18n";
 
 const PUSH_LABEL = {
   connected: "Live updates connected",
@@ -67,7 +68,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="app">
       <header className="topbar">
-        <button className="icon-btn" aria-label="Menu" onClick={() => (isMobile ? setDrawer(true) : update({ sidebarCollapsed: !collapsed }))}>
+        <button className="icon-btn" aria-label={t("Menu")} onClick={() => (isMobile ? setDrawer(true) : update({ sidebarCollapsed: !collapsed }))}>
           <MenuIcon size={22} />
         </button>
         <Link href="/mail" className="brand">
@@ -83,14 +84,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           <span className="push-status hide-mobile" role="img" aria-label={PUSH_LABEL[pushState]} title={PUSH_LABEL[pushState]}>
             <span className={`push-dot ${pushState}`} />
           </span>
-          <button className="icon-btn hide-mobile" aria-label="Keyboard shortcuts" title="Keyboard shortcuts (?)" onClick={() => setHelpOpen(true)}>
+          <button className="icon-btn hide-mobile" aria-label={t("Keyboard shortcuts")} title={t("Keyboard shortcuts (?)")} onClick={() => setHelpOpen(true)}>
             <HelpCircle size={21} />
           </button>
           <ThemeToggle />
-          <Link href="/settings" className={`icon-btn ${section === "settings" ? "active" : ""}`} aria-label="Settings" title="Settings">
+          <Link href="/settings" className={`icon-btn ${section === "settings" ? "active" : ""}`} aria-label={t("Settings")} title={t("Settings")}>
             <Settings size={21} />
           </Link>
-          <button className="icon-btn" style={{ width: "auto", padding: "0 2px", borderRadius: 999 }} onClick={acctMenu.open} aria-label="Account">
+          <button className="icon-btn" style={{ width: "auto", padding: "0 2px", borderRadius: 999 }} onClick={acctMenu.open} aria-label={t("Account")}>
             <Avatar who={{ name: session?.username, email: session?.username }} size="sm" />
           </button>
           <Popover anchor={acctMenu.anchor} onClose={acctMenu.close} align="end" width={280}>
@@ -104,14 +105,14 @@ export function AppShell({ children }: { children: ReactNode }) {
               </div>
             </div>
             <MenuSep />
-            <MenuItem icon={<BookOpen size={16} />} label="Documentation" href="https://docs.ihasmail.org" external />
+            <MenuItem icon={<BookOpen size={16} />} label={t("Documentation")} href="https://docs.ihasmail.org" external />
             {/* The project site. It is linked from the login screen footer, which
                 is a page a signed-in user never sees again -- so from inside the
                 app there was no way back to it. */}
-            <MenuItem icon={<Globe size={16} />} label="About ihasmail" href="https://ihasmail.org" external />
-            <MenuItem icon={<Settings size={16} />} label="Settings" onClick={() => navigate("/settings")} />
-            <MenuItem icon={<RefreshCw size={16} />} label="Refresh" onClick={() => window.location.reload()} />
-            <MenuItem icon={<LogOut size={16} />} label="Sign out" onClick={() => void logout()} />
+            <MenuItem icon={<Globe size={16} />} label={t("About ihasmail")} href="https://ihasmail.org" external />
+            <MenuItem icon={<Settings size={16} />} label={t("Settings")} onClick={() => navigate("/settings")} />
+            <MenuItem icon={<RefreshCw size={16} />} label={t("Refresh")} onClick={() => window.location.reload()} />
+            <MenuItem icon={<LogOut size={16} />} label={t("Sign out")} onClick={() => void logout()} />
           </Popover>
         </div>
       </header>
@@ -138,14 +139,14 @@ export function AppShell({ children }: { children: ReactNode }) {
             {section === "calendar" && <CalendarSidebar />}
             {section === "contacts" && <ContactsSidebar />}
             {section === "files" && <FilesTree />}
-            {section === "settings" && <div className="nav-section"><span>Settings</span></div>}
+            {section === "settings" && <div className="nav-section"><span>{t("Settings")}</span></div>}
           </div>
           {(section === "mail" || section === "search") && <QuotaBar />}
-          <nav className="module-bar" aria-label="Go to">
-            <ModuleLink href="/mail" icon={<Mail size={20} />} label="Mail" active={section === "mail" || section === "search"} />
-            <ModuleLink href="/calendar" icon={<Calendar size={20} />} label="Calendar" active={section === "calendar"} />
-            <ModuleLink href="/contacts" icon={<Users size={20} />} label="Contacts" active={section === "contacts"} />
-            <ModuleLink href="/files" icon={<FolderOpen size={20} />} label="Files" active={section === "files"} />
+          <nav className="module-bar" aria-label={t("Go to")}>
+            <ModuleLink href="/mail" icon={<Mail size={20} />} label={t("Mail")} active={section === "mail" || section === "search"} />
+            <ModuleLink href="/calendar" icon={<Calendar size={20} />} label={t("Calendar")} active={section === "calendar"} />
+            <ModuleLink href="/contacts" icon={<Users size={20} />} label={t("Contacts")} active={section === "contacts"} />
+            <ModuleLink href="/files" icon={<FolderOpen size={20} />} label={t("Files")} active={section === "files"} />
           </nav>
         </aside>
         {/*
@@ -160,11 +161,11 @@ export function AppShell({ children }: { children: ReactNode }) {
       {isMobile && (
         <>
           {(section === "mail" || section === "search") && !location.split("/")[3] && (
-            <button className="fab" aria-label="Compose" onClick={() => openCompose()}>
+            <button className="fab" aria-label={t("Compose")} onClick={() => openCompose()}>
               <PenSquare size={24} />
             </button>
           )}
-          <nav className="mobile-tabbar" aria-label="Sections">
+          <nav className="mobile-tabbar" aria-label={t("Sections")}>
             <Link href="/mail" className={section === "mail" || section === "search" ? "active" : ""}>
               <Mail size={22} />
               Mail
