@@ -22,7 +22,6 @@ export function EventPopover({ inst, anchor, onClose, onEdit }: { inst: EventIns
   const myStatus = myKeys.length ? ev.participants?.[myKeys[0]!]?.participationStatus : undefined;
   const isOrganizer = ev.isOrigin !== false && (!participants.length || participants.some(([k, p]) => p.roles?.owner && myKeys.includes(k)));
   const canEdit = inst.calendar?.myRights.mayWriteAll || (inst.calendar?.myRights.mayWriteOwn && isOrganizer) || !inst.calendar;
-  const baseId = ev.baseEventId ?? ev.id;
   const location = Object.values(ev.locations ?? {})[0];
   const vloc = Object.values(ev.virtualLocations ?? {})[0];
   const alerts = Object.values(ev.alerts ?? {});
@@ -34,7 +33,7 @@ export function EventPopover({ inst, anchor, onClose, onEdit }: { inst: EventIns
     if (!ok) return;
     setBusy(true);
     try {
-      await cal.destroyEvent(baseId, participants.length > 1);
+      await cal.destroyEvent(ev, participants.length > 1, "series");
       toast.success("Event deleted");
       onClose();
     } catch (err) {
@@ -47,7 +46,7 @@ export function EventPopover({ inst, anchor, onClose, onEdit }: { inst: EventIns
   const rsvp = async (status: "accepted" | "tentative" | "declined") => {
     setBusy(true);
     try {
-      await cal.rsvp(baseId, status);
+      await cal.rsvp(ev, status);
       toast.success("Response sent");
       onClose();
     } catch (err) {
