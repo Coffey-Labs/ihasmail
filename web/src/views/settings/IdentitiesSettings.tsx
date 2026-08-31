@@ -65,8 +65,7 @@ export function IdentitiesSettings() {
       <p className="hint mt-8">New identities must use an address this account is allowed to send from (aliases configured on the server).</p>
       {hidden.length > 0 && (
         <p className="hint">
-          {hidden.length} {hidden.length === 1 ? "identity is" : "identities are"} hidden from the compose picker. Hiding every one of them would leave nothing to
-          choose from, so in that case they are all offered again.
+          {`${hidden.length} ${hidden.length === 1 ? "identity is" : "identities are"} hidden from the compose picker. Hiding every one of them would leave nothing to choose from, so in that case they are all offered again.`}
         </p>
       )}
       {editing && <IdentityDialog identity={editing} onClose={() => setEditing(null)} />}

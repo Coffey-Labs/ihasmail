@@ -120,7 +120,7 @@ export function ShareDialog({ kind, id, name, shareWith, onClose }: { kind: Kind
             <select className="select" value={pick} onChange={(e) => setPick(e.target.value)}>
               <option value="">Add a person or group…</option>
               {available.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}{p.email ? ` <${p.email}>` : ""}{p.type !== "individual" ? ` (${p.type})` : ""}</option>
+                <option key={p.id} value={p.id}>{`${p.name}${p.email ? ` <${p.email}>` : ""}${p.type !== "individual" ? ` (${p.type})` : ""}`}</option>
               ))}
             </select>
             <button className="btn" disabled={!pick} onClick={() => { const p = principals.find((x) => x.id === pick); if (p) add(p, "reader"); }}>Viewer</button>
@@ -133,7 +133,7 @@ export function ShareDialog({ kind, id, name, shareWith, onClose }: { kind: Kind
             return (
               <div key={pid} className="card">
                 <div className="card-head">
-                  <h3>{p?.name ?? pid}{p?.email ? <span className="hint" style={{ fontWeight: 400 }}> · {p.email}</span> : null}</h3>
+                  <h3><span>{p?.name ?? pid}</span>{p?.email ? <span className="hint" style={{ fontWeight: 400 }}> · {p.email}</span> : null}</h3>
                   <button className="icon-btn sm danger" onClick={() => { const n = { ...rights }; delete n[pid]; setRights(n); }} aria-label="Remove"><Trash2 size={16} /></button>
                 </div>
                 <div className="row wrap" style={{ marginTop: 8 }}>

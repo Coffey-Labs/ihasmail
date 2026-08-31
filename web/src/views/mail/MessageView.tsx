@@ -287,7 +287,7 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
       {addrMenu.node}
       {filterOpen && <FilterFromMessageDialog email={e} mailboxId={Object.keys(e.mailboxIds)[0] ?? null} onClose={() => setFilterOpen(false)} />}
       <Dialog open={showSource} onClose={() => setShowSource(false)} title="Original message" size="xl">
-        {source === null ? <div className="center"><span className="spinner" /></div> : <pre className="code" style={{ minHeight: 300, maxHeight: "65vh" }}>{source}</pre>}
+        {source === null ? <div className="center"><span className="spinner" /></div> : <pre className="code notranslate" translate="no" style={{ minHeight: 300, maxHeight: "65vh" }}>{source}</pre>}
       </Dialog>
       <Dialog open={showHeaders} onClose={() => setShowHeaders(false)} title="Message headers" size="lg">
         <dl className="message-details" style={{ margin: 0 }}>
@@ -444,7 +444,9 @@ function HtmlBody({ html, bodyStyle, themed, onShowImages }: { html: string; bod
 
   return (
     <>
-      <div ref={hostRef} className="body-host" />
+      {/* The sender's content, rendered as-is. Translating it would
+          rewrite what someone actually wrote. */}
+      <div ref={hostRef} className="body-host notranslate" translate="no" />
       {hasQuote && (
         <button className="quote-toggle" onClick={() => setQuoteOpen((v) => !v)} title={quoteOpen ? "Hide quoted text" : "Show quoted text"}>
           {quoteOpen ? <ChevronUp size={12} /> : <span style={{ letterSpacing: 2 }}>•••</span>}
@@ -484,7 +486,9 @@ function TextBody({ text }: { text: string }) {
 
   return (
     <>
-      <div ref={hostRef} className="body-host" />
+      {/* The sender's content, rendered as-is. Translating it would
+          rewrite what someone actually wrote. */}
+      <div ref={hostRef} className="body-host notranslate" translate="no" />
       {quoted && (
         <button className="quote-toggle" onClick={() => setQuoteOpen((v) => !v)}>
           {quoteOpen ? <ChevronUp size={12} /> : <span style={{ letterSpacing: 2 }}>•••</span>}
@@ -556,5 +560,5 @@ function TextAttachment({ url }: { url: string }) {
   useEffect(() => {
     fetch(url, { credentials: "same-origin" }).then((r) => r.text()).then(setText).catch(() => setText("Could not load."));
   }, [url]);
-  return <pre className="code" style={{ maxHeight: "65vh" }}>{text ?? "Loading…"}</pre>;
+  return <pre className="code notranslate" translate="no" style={{ maxHeight: "65vh" }}>{text ?? "Loading…"}</pre>;
 }

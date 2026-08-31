@@ -157,7 +157,7 @@ function RulesEditor() {
       {content && (
         <details style={{ marginTop: 20 }}>
           <summary className="hint" style={{ cursor: "pointer" }}>Preview generated Sieve script</summary>
-          <pre className="code" style={{ minHeight: 120, marginTop: 8 }}>{rulesToSieve(list)}</pre>
+          <pre className="code notranslate" translate="no" style={{ minHeight: 120, marginTop: 8 }}>{rulesToSieve(list)}</pre>
         </details>
       )}
       {editing && (
@@ -230,7 +230,7 @@ function ScriptsEditor() {
           <div className="field"><label>Script name</label><input className="input" value={name} onChange={(e) => setName(e.target.value)} disabled={Boolean(sel)} /></div>
           <div className="field">
             <label>Sieve source</label>
-            <textarea className="code" value={content} onChange={(e) => setContent(e.target.value)} spellCheck={false} style={{ minHeight: 320 }} />
+            <textarea className="code notranslate" translate="no" value={content} onChange={(e) => setContent(e.target.value)} spellCheck={false} style={{ minHeight: 320 }} />
           </div>
           {validation && <div className="error-box mb-16">{validation}</div>}
           <div className="row">
@@ -251,7 +251,7 @@ function ScriptsEditor() {
       {sieve.scripts.map((s) => (
         <div key={s.id} className="card">
           <div className="card-head">
-            <h3>{s.name} {s.isActive && <span className="tag" style={{ background: "var(--success)" }}>active</span>}</h3>
+            <h3><span>{s.name} </span>{s.isActive && <span className="tag" style={{ background: "var(--success)" }}>active</span>}</h3>
             <button className="btn btn-sm" onClick={() => void open(s)}>Edit</button>
             <button className="btn btn-sm" onClick={async () => { try { await sieve.activate(s.isActive ? null : s.id); } catch (err) { toast.error((err as Error).message); } }}><Power size={14} /> {s.isActive ? "Deactivate" : "Activate"}</button>
             <button className="icon-btn sm danger" aria-label="Delete script" onClick={async () => { if (await confirmDialog({ title: `Delete script “${s.name}”?`, confirmLabel: "Delete", danger: true })) { try { await sieve.destroy(s.id); } catch (err) { toast.error((err as Error).message); } } }}><Trash2 size={16} /></button>

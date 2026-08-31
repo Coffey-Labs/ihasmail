@@ -912,6 +912,10 @@ select optgroup { background-color: var(--bg-elev); color: var(--fg); }
 .login-card .pw-wrap { position: relative; }
 .login-card .pw-wrap .icon-btn { position: absolute; right: 2px; top: 1px; }
 
+/* The translate boundary is a wrapper with no appearance of its own; it must
+   not interrupt the flex/grid chain the panes inside it rely on. */
+.translate-boundary { display: contents; }
+
 /* ==========================================================================
    Touch gestures (see lib/touch.ts)
    ========================================================================== */

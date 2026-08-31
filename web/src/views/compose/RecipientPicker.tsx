@@ -167,7 +167,7 @@ export function RecipientPicker({ onPick, onClose }: { onPick: (field: Field, ad
               <input type="checkbox" checked={Boolean(picked[r.key])} onChange={() => toggle(r)} />
               {r.book.includes("·") ? <BookOpen size={16} className="faint" /> : <Book size={16} className="faint" />}
               <span className="grow truncate">
-                {r.name ?? r.email}
+                <span>{r.name ?? r.email}</span>
                 {r.name && <span className="hint"> · {r.email}</span>}
               </span>
               <span className="hint nowrap">{r.book}</span>

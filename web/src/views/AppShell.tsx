@@ -14,6 +14,7 @@ import { ContactsSidebar } from "./contacts/ContactsSidebar";
 import { CalendarSidebar } from "./calendar/CalendarSidebar";
 import { ShortcutsDialog, useGlobalShortcuts } from "./Shortcuts";
 import { formatSize } from "@/lib/format";
+import { TranslateBoundary } from "@/ui/TranslateBoundary";
 
 const PUSH_LABEL = {
   connected: "Live updates connected",
@@ -71,7 +72,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         </button>
         <Link href="/mail" className="brand">
           <img src="/img/logo.png" alt="" />
-          <span className="brand-name">
+          {/* A product name, not a word. "ihasmail" translated is a different
+              product, and the one on the tab beside it is still called this. */}
+          <span className="brand-name notranslate" translate="no">
             ihasmail
           </span>
         </Link>
@@ -97,7 +100,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <div style={{ fontWeight: 600 }} className="truncate">
                   {session?.username}
                 </div>
-                <div className="hint truncate">{session?.ihasmail?.loginName}</div>
+                <div className="hint truncate notranslate" translate="no">{session?.ihasmail?.loginName}</div>
               </div>
             </div>
             <MenuSep />
@@ -145,7 +148,13 @@ export function AppShell({ children }: { children: ReactNode }) {
             <ModuleLink href="/files" icon={<FolderOpen size={20} />} label="Files" active={section === "files"} />
           </nav>
         </aside>
-        <main className="main">{children}</main>
+        {/*
+          Scoped to the content, not the shell. If Chrome's translator breaks a
+          message list, the top bar, the folder tree and any open composer are
+          outside this and carry on -- so recovery is a pane blinking rather
+          than the app disappearing.
+        */}
+        <main className="main"><TranslateBoundary>{children}</TranslateBoundary></main>
       </div>
 
       {isMobile && (
