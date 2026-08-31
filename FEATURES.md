@@ -594,7 +594,7 @@ not reach another that already has ihasmail open until it signs in again.
 | Section | Holds |
 | --- | --- |
 | **General** | Reading pane, mark-as-read delay, auto-advance, remote images, conversation view, snippets, avatars, confirm-before-delete; compose format, undo-send window, quoting, signature placement, attachment reminder, read-receipt policy, spell check; time zone, week start, language & region, date format, time format; `mailto:` handler; export / import / reset |
-| **Appearance** | Theme, accent colour, density, font size, sidebar, swipe actions |
+| **Appearance** | Theme, accent colour, density, font size, sidebar, swipe actions, interface language |
 | **Identities & signatures** | Addresses, names, Reply-To, HTML signatures, the default, and which to hide from the picker |
 | **Filters & rules** | The visual builder and raw Sieve editor |
 | **Out of office** | Vacation response |
@@ -628,6 +628,47 @@ Settings **export** to a JSON file and **import** back, and reset to defaults.
   display locale uses another calendar: a Buddhist-era year in a text box does
   not round-trip against a Gregorian grid. Non-Gregorian calendars are not
   implemented.
+
+## Interface language
+
+Nine languages, chosen in **Appearance → Language**, and separate from the
+date-and-time locale above. Wanting German dates on an English interface is a
+real preference and so is the reverse, which is why they are two settings and
+not one.
+
+| | |
+| --- | --- |
+| English | the source language, and what every other catalogue falls back to |
+| Deutsch · Español · Français · Nederlands · Português (Brasil) | Beta |
+| Русский · Українська · 简体中文 · 日本語 | Beta |
+
+**Every language but English is marked Beta, and the label is not modesty.**
+The catalogues were produced by AI against standard dictionaries and have not
+been read by anybody who speaks the language. That is stated in Settings, next
+to a link for reporting anything that reads wrongly, because the alternative —
+shipping them quietly — would ask people to trust text nobody has checked. A
+language loses the Beta mark when a speaker has read it and said so, which is a
+deliberate act by a person and not something a percentage earns.
+
+Two things follow from the design rather than the translation:
+
+- **A missing entry renders its English source.** So deleting a bad line is a
+  valid fix, not a regression, and a catalogue is never in a half-broken state.
+- **Plurals are asked for, never assumed.** `Intl.PluralRules` decides the form,
+  so Russian and Ukrainian get their three (1 письмо, 2–4 письма, 5+ писем) and
+  Japanese and Chinese get the one they actually have — with counters doing the
+  work a plural would: 通 for messages, 件 for conversations.
+
+The interface language also feeds the *automatic* date locale, so choosing
+日本語 gives Japanese month and weekday names without setting the region too.
+`<html lang>` follows it, which is what stops a browser offering to translate a
+page that is already in the reader's language — and accepting that offer is
+what rewrites the DOM underneath React.
+
+Only languages with a catalogue shipped appear in the picker. A language
+offered without strings behind it would leave the page claiming to be in a
+language it is not, which is worse than not offering it: it stops a browser
+offering to translate a page the reader cannot read.
 
 ## Themes
 
@@ -917,8 +958,9 @@ tested.
 
 The full list with reasons is [ROADMAP.md](ROADMAP.md). In short: no snooze
 (nothing in JMAP or Stalwart supports it, and ihasmail holds no password to act
-on a mailbox while you are away), no languages but English, no two-factor
-sign-in without an app password, no sharing of mail folders (the server stores
-the share and never delivers it), no public links (JMAP shares with accounts on
-the same server, and ihasmail has no storage of its own to mint a link from),
-and no per-occurrence *this and future* edits (the server refuses them).
+on a mailbox while you are away), no language yet checked by a native speaker,
+no two-factor sign-in without an app password, no sharing of mail folders (the
+server stores the share and never delivers it), no public links (JMAP shares
+with accounts on the same server, and ihasmail has no storage of its own to
+mint a link from), and no per-occurrence *this and future* edits (the server
+refuses them).
