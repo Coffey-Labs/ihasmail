@@ -875,6 +875,15 @@ export const catalog: Catalog = {
     "Delete “{name}”?": "„{name}“ löschen?",
     "Rename folder": "Ordner umbenennen",
     "Search: {query}": "Suche: {query}",
+
+    // ── Composer status, calendar title ────────────────────────────────
+    "New message": "Neue Nachricht",
+    "Sending…": "Wird gesendet…",
+    "Saving…": "Wird gespeichert…",
+    "Error": "Fehler",
+    "Saved {when}": "Gespeichert {when}",
+    "Unsaved": "Nicht gespeichert",
+    "Agenda from {date}": "Agenda ab {date}",
   },
   plurals: {
     "{n} messages": { one: "{n} Nachricht", other: "{n} Nachrichten" },

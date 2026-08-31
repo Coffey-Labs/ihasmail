@@ -15,6 +15,24 @@ import { CalendarContextMenu, eventColor, type CalendarContext } from "./Calenda
 import { t as translate } from "@/lib/i18n";
 
 type View = "month" | "week" | "day" | "agenda";
+
+/**
+ * The switcher labels, spelled out rather than derived from the view id.
+ *
+ * They used to be `v[0].toUpperCase() + v.slice(1)`, which is correct English
+ * and untranslatable in every other language: the extractor cannot see a
+ * string that is computed, so the four buttons stayed English even in a
+ * catalogue that had all four words. Called rather than looked up, because a
+ * module-level object would capture the labels for whichever language loaded
+ * first.
+ */
+const VIEW_LABELS: Record<View, () => string> = {
+  day: () => translate("Day"),
+  week: () => translate("Week"),
+  month: () => translate("Month"),
+  agenda: () => translate("Agenda"),
+};
+
 const HOUR_H = 48;
 
 export function CalendarView({ view: viewParam, date }: { view?: string; date?: string }) {
@@ -99,7 +117,7 @@ export function CalendarView({ view: viewParam, date }: { view?: string; date?: 
     effectiveView === "month" ? formatMonthYear(anchor)
     : effectiveView === "week" ? `${formatDayMonth(range.start)} – ${formatDate(addDays(range.end, -1))}`
     : effectiveView === "day" ? formatWeekdayDate(anchor, true)
-    : `Agenda from ${formatDayMonth(anchor)}`;
+    : translate("Agenda from {date}", { date: formatDayMonth(anchor) });
 
   const onEvent = (inst: EventInstance, el: Element) => {
     const r = el.getBoundingClientRect();
@@ -127,7 +145,7 @@ export function CalendarView({ view: viewParam, date }: { view?: string; date?: 
         {cal.loading && <span className="spinner" />}
         <div className="view-switch">
           {(["day", "week", "month", "agenda"] as View[]).filter((v) => !(isMobile && v === "week")).map((v) => (
-            <button key={v} className={effectiveView === v ? "active" : ""} onClick={() => go(v, anchor)}>{v[0]!.toUpperCase() + v.slice(1)}</button>
+            <button key={v} className={effectiveView === v ? "active" : ""} onClick={() => go(v, anchor)}>{VIEW_LABELS[v]()}</button>
           ))}
         </div>
         {!isMobile && <button className="btn btn-primary btn-sm" onClick={() => openNew()}><Plus size={16} />  {translate("Event")}</button>}
