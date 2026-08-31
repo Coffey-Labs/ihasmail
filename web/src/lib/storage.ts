@@ -107,6 +107,25 @@ export function loadJson<T>(key: string, fallback: T): T {
   }
 }
 
+/**
+ * Did `loadJson` have something to return, or did it hand back the fallback?
+ *
+ * The difference decides whether a first paint is worth anything. With a
+ * cached value the screen can be right immediately and the account's copy only
+ * has to correct it; without one -- an untrusted device, or the sign-out that
+ * every deploy causes -- the first paint is the defaults, and painting it
+ * before the account's settings arrive shows English to somebody who chose
+ * otherwise.
+ */
+export function hasCachedJson(key: string): boolean {
+  if (!trusted) return false;
+  try {
+    return localStorage.getItem(PREFIX + key) != null;
+  } catch {
+    return false;
+  }
+}
+
 export function loadRaw<T>(key: string, fallback: T): T {
   if (!trusted) return fallback;
   try {

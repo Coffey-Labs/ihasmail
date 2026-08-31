@@ -17,7 +17,7 @@ import { AppShell } from "@/views/AppShell";
 import { MailView } from "@/views/mail/MailView";
 import { ComposerDock } from "@/views/compose/ComposerDock";
 import { setUnreadBadge } from "@/lib/notify";
-import { useSettings, syncedPart } from "@/store/settings";
+import { PAINTED_FROM_CACHE, useSettings, syncedPart } from "@/store/settings";
 import { armSettingsSync, loadRemoteSettings, queueSettingsPush, settingsAlreadyLoadedFor, settingsSyncAvailable } from "@/lib/settingsSync";
 import { listenForVerification, renewWebPush } from "@/lib/webpushEnable";
 import { useLanguageVersion, whenLanguageReady } from "@/lib/i18n";
@@ -82,21 +82,45 @@ function AuthedApp() {
   const accountId = useSession((s) => s.accountId);
   const [location] = useLocation();
 
-  // Settings that live with the account rather than the browser. The cached
-  // ones have already painted, so this only has to correct them (issue #54).
-  //
-  // Once per account, not once per mount: this subtree is keyed on the
-  // language version, so picking a language throws it away and builds it
-  // again. Re-reading the settings file there would apply a copy written
-  // before the change and undo it.
+  /*
+   * Settings that live with the account rather than the browser.
+   *
+   * When this browser has them cached they have already painted, and this only
+   * has to correct them (issue #54). When it does not -- an untrusted device,
+   * or the sign-out that every deploy causes -- the first frame is the
+   * defaults, and the defaults are English. Rendering then means anything
+   * computed before the settings land is computed in the wrong language: not
+   * the interface, which is rebuilt when the catalogue arrives, but a string
+   * emitted once, like a toast. That is why the stale-folder toast came out
+   * in English on an otherwise German screen.
+   *
+   * So without a cache the tree waits, which costs nothing: there was nothing
+   * worth painting yet. With one it does not wait, and the screen is as quick
+   * as it was.
+   *
+   * Once per account, not once per mount: this subtree is keyed on the
+   * language version, so picking a language throws it away and builds it
+   * again. Re-reading the settings file there would apply a copy written
+   * before the change and undo it.
+   */
+  const [ready, setReady] = useState(PAINTED_FROM_CACHE);
   useEffect(() => {
-    if (settingsAlreadyLoadedFor(accountId)) return;
+    if (settingsAlreadyLoadedFor(accountId)) {
+      setReady(true);
+      return;
+    }
     let cancelled = false;
     void (async () => {
       const remote = await loadRemoteSettings();
       if (cancelled) return;
       if (remote) useSettings.getState().hydrate(remote);
-      // Pushes were held back until now so they could not race the load.
+      // The catalogue for whatever language that turned out to be. Hydrating
+      // asks for it; this is waiting for the answer.
+      await whenLanguageReady();
+      if (cancelled) return;
+      setReady(true);
+      // Pushes were held back until now so they could not race the load. A
+      // change made while it was in flight was kept, and goes out here.
       armSettingsSync();
       // No file yet — seed one from what this browser has, so the next device
       // to sign in starts from these rather than from the defaults.
@@ -187,6 +211,16 @@ function AuthedApp() {
   useEffect(() => {
     if (notif) void import("@/lib/notify").then((m) => m.requestNotificationPermission());
   }, [notif]);
+
+  // Nothing worth painting until the account's settings are in force; see the
+  // comment on `ready` above. With a cache this was true from the first frame.
+  if (!ready) {
+    return (
+      <div className="center" style={{ height: "100%" }}>
+        <Spinner size="lg" />
+      </div>
+    );
+  }
 
   return (
     <AppShell>

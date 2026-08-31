@@ -85,6 +85,8 @@ export function settingsAlreadyLoadedFor(accountId: string | null | undefined): 
 export function armSettingsSync(): void {
   armed = true;
   bindFlushListeners();
+  // A change made while the read was in flight has been waiting for this.
+  if (pending) void flushSettingsPush();
 }
 
 /** Stop syncing and drop anything queued (logout). */
@@ -104,8 +106,22 @@ export function stopSettingsSync(): void {
  * one request goes out once the changes stop.
  */
 export function queueSettingsPush(synced: Record<string, unknown>): void {
-  if (!armed || !settingsSyncAvailable()) return;
+  if (!settingsSyncAvailable()) return;
+  /*
+   * Held, not dropped, before the first load has settled.
+   *
+   * This used to return here, which silently threw the change away: a
+   * language picked in the second or so before the settings file came back
+   * was never written, so it survived until the next reload and no further.
+   * That is the other half of "sometimes it takes several clicks" -- the
+   * click that stuck was one made after the read had finished.
+   *
+   * Keeping it is safe because `hydrate` refuses to overwrite a key that is
+   * still queued, so the newer local change wins over the older file rather
+   * than racing it. `armSettingsSync` writes whatever is waiting.
+   */
   pending = synced;
+  if (!armed) return;
   if (timer !== null) window.clearTimeout(timer);
   timer = window.setTimeout(() => {
     timer = null;
