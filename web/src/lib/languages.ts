@@ -38,6 +38,7 @@ export interface UiLanguage {
 export const UI_LANGUAGES: readonly UiLanguage[] = [
   { tag: "en", name: "English" },
   { tag: "de", name: "Deutsch", beta: true },
+  { tag: "nl", name: "Nederlands", beta: true },
 ];
 
 /** Where to report a bad translation. Beta languages depend on it. */
