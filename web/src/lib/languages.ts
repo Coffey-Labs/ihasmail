@@ -42,6 +42,7 @@ export const UI_LANGUAGES: readonly UiLanguage[] = [
   { tag: "fr", name: "Français", beta: true },
   { tag: "nl", name: "Nederlands", beta: true },
   { tag: "pt-BR", name: "Português (Brasil)", beta: true },
+  { tag: "ru", name: "Русский", beta: true },
 ];
 
 /** Where to report a bad translation. Beta languages depend on it. */
