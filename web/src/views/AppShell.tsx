@@ -168,19 +168,23 @@ export function AppShell({ children }: { children: ReactNode }) {
           <nav className="mobile-tabbar" aria-label={t("Sections")}>
             <Link href="/mail" className={section === "mail" || section === "search" ? "active" : ""}>
               <Mail size={22} />
-              Mail
+              
+              {t("Mail")}
             </Link>
             <Link href="/calendar" className={section === "calendar" ? "active" : ""}>
               <Calendar size={22} />
-              Calendar
+              
+              {t("Calendar")}
             </Link>
             <Link href="/contacts" className={section === "contacts" ? "active" : ""}>
               <Users size={22} />
-              Contacts
+              
+              {t("Contacts")}
             </Link>
             <Link href="/files" className={section === "files" ? "active" : ""}>
               <FolderOpen size={22} />
-              Files
+              
+              {t("Files")}
             </Link>
           </nav>
         </>
@@ -209,7 +213,7 @@ function QuotaBar() {
     <div className="quota" title={`${formatSize(q.used)} of ${formatSize(q.hardLimit)} used`}>
       <div className="row" style={{ justifyContent: "space-between" }}>
         <span>
-          {formatSize(q.used)} of {formatSize(q.hardLimit)}
+          {t("{used} of {total}", { used: formatSize(q.used), total: formatSize(q.hardLimit) })}
         </span>
         <ChevronsUpDown size={12} style={{ opacity: 0 }} />
       </div>

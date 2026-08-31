@@ -45,7 +45,7 @@ export function AppearanceSettings() {
         ))}
       </div>
       <p className="hint" style={{ marginTop: 10 }}>
-        <strong>{translate("ihasmail")}</strong> is the palette from <a href="https://ihasmail.org" target="_blank" rel="noopener noreferrer">{translate("ihasmail.org")}</a>, and what a new account starts on. It is a dark theme, so it counts as dark wherever that matters, and the accent colour below still applies on top of it.
+        <strong>{translate("ihasmail")}</strong>  {translate("is the palette from")} <a href="https://ihasmail.org" target="_blank" rel="noopener noreferrer">{translate("ihasmail.org")}</a>{translate(", and what a new account starts on. It is a dark theme, so it counts as dark wherever that matters, and the accent colour below still applies on top of it.")}
       </p>
       <Switch
         checked={s.themeMessageBody}
@@ -98,7 +98,8 @@ export function AppearanceSettings() {
         {translate("Only languages ihasmail has been translated into appear here, so this list grows as translations land rather than ahead of them — a language offered without strings behind it would leave the page claiming to be in a language it is not.")}
       </p>
       <p className="hint">
-        This is separate from <strong>{translate("Language & region")}</strong> in General, which decides how dates, times and numbers are written. You can read an English interface with German dates, or the other way round.
+        
+        {translate("This is separate from")} <strong>{translate("Language & region")}</strong>  {translate("in General, which decides how dates, times and numbers are written. You can read an English interface with German dates, or the other way round.")}
       </p>
 
       <h2>{translate("Swiping")}</h2>

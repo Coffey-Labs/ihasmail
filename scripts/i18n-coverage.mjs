@@ -20,6 +20,19 @@ const ATTRS = new Set(["title", "aria-label", "placeholder", "alt", "label", "hi
    as dividers. Counting these as untranslated would put a floor under the
    number that no amount of work could reach. */
 const NOT_PROSE = /^[\s·—–\-—:;,.()[\]{}/|+×✓~<>#*@0-9]*$/u;
+/*
+ * Text that is deliberately not translated is not "remaining work". Counting
+ * it put a floor under the number that no amount of effort could reach -- the
+ * report sat at 21 with only 6 real items left, which makes the number
+ * something to argue with rather than act on. Same rule the codemod uses.
+ */
+const CODE_TAGS = new Set(["code", "kbd", "pre", "samp", "var"]);
+const optedOut = (node, src) => {
+  const opening = ts.isJsxElement(node) ? node.openingElement : ts.isJsxSelfClosingElement(node) ? node : null;
+  return Boolean(opening?.attributes.properties.some((a) =>
+    ts.isJsxAttribute(a) && a.name.getText(src) === "translate" &&
+    a.initializer && ts.isStringLiteral(a.initializer) && a.initializer.text === "no"));
+};
 
 const files = globSync("web/src/**/*.tsx").filter((f) => !f.includes("__tests__"));
 const rows = [];
@@ -31,11 +44,15 @@ for (const file of files) {
   let left = 0;
   const wrapped = (text.match(/\bt\(\s*["'`]/g) || []).length + (text.match(/\bplural\(/g) || []).length;
   const visit = (node) => {
+    if ((ts.isJsxElement(node) && CODE_TAGS.has(node.openingElement.tagName.getText(src).toLowerCase())) || optedOut(node, src)) return;
     if (ts.isJsxText(node) && node.text.trim().length > 1 && !NOT_PROSE.test(node.text.trim())) left++;
     if (ts.isJsxAttribute(node) && ATTRS.has(node.name.getText(src))) {
       const i = node.initializer;
       const lit = i && (ts.isStringLiteral(i) ? i : ts.isJsxExpression(i) && i.expression && ts.isStringLiteral(i.expression) ? i.expression : null);
-      if (lit && lit.text.trim().length > 1) left++;
+      // The same prose test the text nodes get. Without it, placeholders that
+      // are format examples -- "123456" for a one-time code, "+1 555 0100" for
+      // a phone -- counted as untranslated work forever.
+      if (lit && lit.text.trim().length > 1 && !NOT_PROSE.test(lit.text.trim())) left++;
     }
     ts.forEachChild(node, visit);
   };

@@ -3,7 +3,7 @@ import { Switch } from "@/ui/misc";
 import { browserTimeZone, listTimeZones } from "@/lib/dates";
 import { toast } from "@/ui/toast";
 import { useState } from "react";
-import { t } from "@/lib/i18n";
+import { t, tNode } from "@/lib/i18n";
 import {
   canUnregisterMailtoHandler,
   isInstalledApp,
@@ -132,7 +132,7 @@ export function GeneralSettings() {
         <div className="field">
           <label>{t("Time zone")}</label>
           <select className="select" value={s.timeZone ?? ""} onChange={(e) => update({ timeZone: e.target.value || null })}>
-            <option value="">Browser default ({browserTimeZone})</option>
+            <option value="">{t("Browser default ({zone})", { zone: browserTimeZone })}</option>
             {listTimeZones().map((tz) => <option key={tz} value={tz}>{tz}</option>)}
           </select>
         </div>
@@ -149,10 +149,10 @@ export function GeneralSettings() {
         <div className="field">
           <label>{t("Language & region")}</label>
           <select className="select" value={s.locale} onChange={(e) => update({ locale: e.target.value })}>
-            <option value="">Automatic ({localeLabel(autoLocale)})</option>
+            <option value="">{t("Automatic ({locale})", { locale: localeLabel(autoLocale) })}</option>
             {localeOptions().map((o) => <option key={o.tag} value={o.tag}>{o.label} — {o.tag}</option>)}
           </select>
-          <p className="hint">{serverLocale ? `Your mail server reports ${localeLabel(serverLocale)} (${serverLocale}).` : "Your mail server does not report a locale, so the browser's is used."} Dates, times and month names follow this choice.</p>
+          <p className="hint">{`${serverLocale ? t("Your mail server reports {name} ({tag}).", { name: localeLabel(serverLocale), tag: serverLocale }) : t("Your mail server does not report a locale, so the browser's is used.")} ${t("Dates, times and month names follow this choice.")}`}</p>
         </div>
         <div className="field">
           <label>{t("Date format")}</label>
@@ -167,13 +167,13 @@ export function GeneralSettings() {
         <div className="field">
           <label>{t("Time format")}</label>
           <select className="select" value={s.timeFormat} onChange={(e) => update({ timeFormat: e.target.value as typeof s.timeFormat })}>
-            <option value="auto">Automatic ({withPrefs({ locale: s.locale, timeFormat: "auto" }, () => formatClock(SAMPLE))})</option>
+            <option value="auto">{t("Automatic ({example})", { example: withPrefs({ locale: s.locale, timeFormat: "auto" }, () => formatClock(SAMPLE)) })}</option>
             <option value="24">{t("24-hour clock (18:23)")}</option>
             <option value="12">{t("12-hour clock (6:23 PM)")}</option>
           </select>
         </div>
       </div>
-      <p className="hint">Preview: {formatFullDateTime(SAMPLE)}</p>
+      <p className="hint">{t("Preview: {example}", { example: formatFullDateTime(SAMPLE) })}</p>
 
       <h2>{t("Default mail app")}</h2>
       <MailHandlerSettings />
@@ -182,8 +182,8 @@ export function GeneralSettings() {
       <div className="row wrap">
         <button className="btn" onClick={() => { const blob = new Blob([exportJson()], { type: "application/json" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "ihasmail-settings.json"; a.click(); }}>{t("Export settings")}</button>
         <label className="btn">
-          Import settings
-          <input type="file" accept="application/json" hidden onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; const ok = importJson(await f.text()); toast[ok ? "success" : "error"](ok ? "Settings imported" : "Invalid settings file"); e.target.value = ""; }} />
+          {t("Import settings")}
+          <input type="file" accept="application/json" hidden onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; const ok = importJson(await f.text()); toast[ok ? "success" : "error"](ok ? t("Settings imported") : t("Invalid settings file")); e.target.value = ""; }} />
         </label>
         <button className="btn btn-ghost" onClick={() => { reset(); toast.show("Settings reset to defaults"); }}>{t("Reset to defaults")}</button>
       </div>
@@ -217,17 +217,16 @@ function MailHandlerSettings() {
   };
 
   if (support === "unsupported") {
-    return <p className="hint">This browser cannot register apps for <code>mailto:</code> links. Safari, in particular, has no such API — you can still make ihasmail the default from your operating system if you install it as an app.</p>;
+    return <p className="hint">{tNode("This browser cannot register apps for {scheme} links. Safari, in particular, has no such API — you can still make ihasmail the default from your operating system if you install it as an app.", { scheme: <code>mailto:</code> })}</p>;
   }
   if (support === "insecure") {
-    return <p className="hint">Registering for <code>mailto:</code> links requires a secure (HTTPS) connection.</p>;
+    return <p className="hint">{tNode("Registering for {scheme} links requires a secure (HTTPS) connection.", { scheme: <code>mailto:</code> })}</p>;
   }
 
   return (
     <>
       <p className="hint">
-        Open <code>mailto:</code> links — in web pages, documents and other apps — in ihasmail instead of a desktop mail client.
-        Your browser will ask you to confirm, and you can change it later in its own settings (Chrome: Settings › Privacy and security › Site settings › Protocol handlers; Firefox: Settings › General › Applications).
+        {tNode("Open {scheme} links — in web pages, documents and other apps — in ihasmail instead of a desktop mail client. Your browser will ask you to confirm, and you can change it later in its own settings (Chrome: Settings › Privacy and security › Site settings › Protocol handlers; Firefox: Settings › General › Applications).", { scheme: <code>mailto:</code> })}
       </p>
       <div className="row wrap">
         <button className="btn btn-primary" onClick={ask}>{requested ? "Ask again" : "Make ihasmail the default mail app"}</button>

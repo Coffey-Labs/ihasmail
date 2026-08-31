@@ -178,7 +178,7 @@ export function RecipientPicker({ onPick, onClose }: { onPick: (field: Field, ad
       </div>
 
       {!ownBooks.length && !subscribed.length && (
-        <p className="hint" style={{ marginTop: 8 }}><Users size={12} /> No address books yet.</p>
+        <p className="hint" style={{ marginTop: 8 }}><Users size={12} />  {t("No address books yet.")}</p>
       )}
     </Dialog>
   );

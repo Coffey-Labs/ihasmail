@@ -34,7 +34,7 @@ export function RuleDialog({ rule, onClose, onSave, applyMailbox, applyByDefault
       {applyMailbox && (
         <label className="check left" style={{ marginRight: "auto" }}>
           <input type="checkbox" checked={applyNow} onChange={(e) => setApplyNow(e.target.checked)} />
-          <span>Also apply to existing messages in <b>{applyMailbox.name}</b></span>
+          <span>{translate("Also apply to existing messages in")} <b>{applyMailbox.name}</b></span>
         </label>
       )}
       <button className="btn" onClick={onClose}>{translate("Cancel")}</button><button className="btn btn-primary" onClick={() => onSave(r, applyNow && Boolean(applyMailbox))} disabled={!r.name.trim()}>{saveLabel ?? "Done"}</button></>}>
@@ -87,7 +87,7 @@ export function RuleDialog({ rule, onClose, onSave, applyMailbox, applyByDefault
           </div>
         );
       })}
-      <button className="btn btn-ghost btn-sm" onClick={() => setR({ ...r, tests: [...r.tests, { type: "header", header: "subject", op: "contains", value: "" }] })}><Plus size={14} /> Add condition</button>
+      <button className="btn btn-ghost btn-sm" onClick={() => setR({ ...r, tests: [...r.tests, { type: "header", header: "subject", op: "contains", value: "" }] })}><Plus size={14} />  {translate("Add condition")}</button>
 
       <div className="row" style={{ margin: "16px 0 8px" }}><span className="label">{translate("Then")}</span></div>
       {r.actions.map((a, i) => (
@@ -141,12 +141,12 @@ export function RuleDialog({ rule, onClose, onSave, applyMailbox, applyByDefault
                 {!folders.some((f) => f.path === a.mailbox) && <option value={a.mailbox}>{a.mailbox}</option>}
                 <option value="__new__">{translate("＋ New folder…")}</option>
               </select>
-              <label className="check nowrap"><input type="checkbox" checked={Boolean(a.copy)} onChange={(e) => setAction(i, { ...a, copy: e.target.checked })} /> keep copy</label>
+              <label className="check nowrap"><input type="checkbox" checked={Boolean(a.copy)} onChange={(e) => setAction(i, { ...a, copy: e.target.checked })} />  {translate("keep copy")}</label>
             </div>
           ) : a.type === "redirect" ? (
             <div className="row">
               <input className="input" type="email" placeholder={translate("someone@example.com")} value={a.address} onChange={(e) => setAction(i, { ...a, address: e.target.value })} />
-              <label className="check nowrap"><input type="checkbox" checked={Boolean(a.copy)} onChange={(e) => setAction(i, { ...a, copy: e.target.checked })} /> keep copy</label>
+              <label className="check nowrap"><input type="checkbox" checked={Boolean(a.copy)} onChange={(e) => setAction(i, { ...a, copy: e.target.checked })} />  {translate("keep copy")}</label>
             </div>
           ) : a.type === "reject" ? (
             <input className="input" placeholder={translate("Reason")} value={a.reason} onChange={(e) => setAction(i, { ...a, reason: e.target.value })} />
@@ -156,7 +156,7 @@ export function RuleDialog({ rule, onClose, onSave, applyMailbox, applyByDefault
           <button className="icon-btn sm danger" aria-label={translate("Remove action")} onClick={() => setR({ ...r, actions: r.actions.filter((_, j) => j !== i) })} disabled={r.actions.length <= 1}><Trash2 size={16} /></button>
         </div>
       ))}
-      <button className="btn btn-ghost btn-sm" onClick={() => setR({ ...r, actions: [...r.actions, { type: "stop" }] })}><Plus size={14} /> Add action</button>
+      <button className="btn btn-ghost btn-sm" onClick={() => setR({ ...r, actions: [...r.actions, { type: "stop" }] })}><Plus size={14} />  {translate("Add action")}</button>
     </Dialog>
   );
 }

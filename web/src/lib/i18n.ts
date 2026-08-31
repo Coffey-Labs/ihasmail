@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react";
+import { createElement, Fragment, useSyncExternalStore, type ReactNode } from "react";
 import { DEFAULT_UI_LANGUAGE, resolveUiLanguage } from "@/lib/languages";
 
 /**
@@ -81,6 +81,42 @@ export function plural(n: number, forms: PluralForms, vars?: Vars): string {
     /* an unknown tag: "other" is the safe form and English's only plural */
   }
   return interpolate(entry[category] ?? entry.other, { n, ...vars });
+}
+
+/**
+ * A translated sentence with elements inside it.
+ *
+ * Some sentences have a `<code>` or a `<kbd>` in the middle of them, and the
+ * two obvious approaches are both wrong. Splitting the sentence into two `t()`
+ * calls hands a translator "This browser cannot register apps for" and "links,
+ * in particular…", which are not sentences and cannot be reordered into a
+ * language that puts the verb somewhere else. Dropping the element and
+ * interpolating plain text keeps the sentence whole but loses the monospace
+ * that told the reader it was a literal.
+ *
+ * So the sentence stays whole and the elements are placeholders in it:
+ *
+ *   tNode("Open {scheme} links in ihasmail.", { scheme: <code>mailto:</code> })
+ *
+ * A translator sees one sentence with a named hole and can put the hole
+ * wherever their language wants it.
+ */
+export function tNode(source: string, parts: Record<string, ReactNode>, vars?: Vars): ReactNode {
+  const translated = interpolate(current.strings[source] ?? source, vars);
+  const out: ReactNode[] = [];
+  let last = 0;
+  const re = /\{(\w+)\}/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(translated))) {
+    if (!Object.prototype.hasOwnProperty.call(parts, m[1]!)) continue;
+    if (m.index > last) out.push(translated.slice(last, m.index));
+    // Keyed, because this is an array and React asks; the index is stable for
+    // a given rendering of a given sentence.
+    out.push(createElement(Fragment, { key: `${m[1]}-${m.index}` }, parts[m[1]!]));
+    last = m.index + m[0].length;
+  }
+  if (last < translated.length) out.push(translated.slice(last));
+  return out;
 }
 
 /** The language in force, for anything that needs the tag itself. */

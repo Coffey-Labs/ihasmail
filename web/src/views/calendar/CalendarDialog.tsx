@@ -37,7 +37,7 @@ export function CalendarDialog({ calendar, onClose }: { calendar: Partial<Calend
       <div className="field"><label>{translate("Description")}</label><input className="input" value={description} onChange={(e) => setDescription(e.target.value)} /></div>
       <div className="field"><label>{translate("Time zone")}</label>
         <select className="select" value={tz} onChange={(e) => setTz(e.target.value)}>
-          <option value="">Default ({browserTimeZone})</option>
+          <option value="">{translate("Default ({zone})", { zone: browserTimeZone })}</option>
           {listTimeZones().map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
       </div>

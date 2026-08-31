@@ -9,7 +9,7 @@ import { confirmDialog, promptDialog } from "@/ui/dialog";
 import { Switch, Spinner } from "@/ui/misc";
 import { toast } from "@/ui/toast";
 import type { SieveScript } from "@/jmap/types";
-import { t } from "@/lib/i18n";
+import { t, tNode } from "@/lib/i18n";
 
 export function FiltersSettings() {
   const sieve = useSieve();
@@ -33,8 +33,8 @@ export function FiltersSettings() {
       <h1>{t("Filters & rules")}</h1>
       <p className="lead">{t("Sort incoming mail automatically. Rules run on the server (Sieve), so they work for every client you use.")}</p>
       <div className="view-switch" style={{ marginBottom: 16 }}>
-        <button className={tab === "rules" ? "active" : ""} onClick={() => setTab("rules")}><Wand2 size={15} /> Rules</button>
-        <button className={tab === "scripts" ? "active" : ""} onClick={() => setTab("scripts")}><Code size={15} /> Scripts (advanced)</button>
+        <button className={tab === "rules" ? "active" : ""} onClick={() => setTab("rules")}><Wand2 size={15} />  {t("Rules")}</button>
+        <button className={tab === "scripts" ? "active" : ""} onClick={() => setTab("scripts")}><Code size={15} />  {t("Scripts (advanced)")}</button>
       </div>
       {sieve.loading && !sieve.scripts.length ? <Spinner /> : tab === "rules" ? <RulesEditor /> : <ScriptsEditor />}
     </div>
@@ -88,7 +88,7 @@ function RulesEditor() {
     return (
       <div className="warn-box">
         <div className="row gap-8" style={{ marginBottom: 8 }}><AlertTriangle size={18} /> <b>{t("Only part of your filter script arrived.")}</b></div>
-        <p style={{ margin: "0 0 8px" }}>It {damage}, so the rules in it can't be shown or edited — saving what did arrive would write it back over the rest. Reload the page to try again. Your rules are still on the server; nothing here has changed them.</p>
+        <p style={{ margin: "0 0 8px" }}>{t("It {damage}, so the rules in it can't be shown or edited — saving what did arrive would write it back over the rest. Reload the page to try again. Your rules are still on the server; nothing here has changed them.", { damage })}</p>
         <button className="btn" onClick={() => window.location.reload()}>{t("Reload")}</button>
       </div>
     );
@@ -97,16 +97,16 @@ function RulesEditor() {
   if (rules === null) {
     return (
       <div className="warn-box">
-        <div className="row gap-8" style={{ marginBottom: 8 }}><AlertTriangle size={18} /> <b>Your active script “{script?.name}” was written by hand.</b></div>
-        <p style={{ margin: "0 0 8px" }}>The visual rule editor only manages scripts it created. You can edit the script in the <b>{t("Scripts")}</b> tab, or start fresh with rules (the existing script will be kept but deactivated).</p>
-        <button className="btn" onClick={async () => { if (await confirmDialog({ title: "Switch to rules?", message: `“${script?.name}” will be deactivated (not deleted) and a new “ihasmail” script will take over.`, confirmLabel: "Continue" })) void save([]); }}>{t("Start with rules")}</button>
+        <div className="row gap-8" style={{ marginBottom: 8 }}><AlertTriangle size={18} /> <b>{t("Your active script “{name}” was written by hand.", { name: script?.name ?? "" })}</b></div>
+        <p style={{ margin: "0 0 8px" }}>{tNode("The visual rule editor only manages scripts it created. You can edit the script in the {tab} tab, or start fresh with rules (the existing script will be kept but deactivated).", { tab: <b>{t("Scripts")}</b> })}</p>
+        <button className="btn" onClick={async () => { if (await confirmDialog({ title: t("Switch to rules?"), message: t("“{name}” will be deactivated (not deleted) and a new “ihasmail” script will take over.", { name: script?.name ?? "" }), confirmLabel: t("Continue") })) void save([]); }}>{t("Start with rules")}</button>
       </div>
     );
   }
 
   return (
     <div>
-      {activeIsOther && <div className="warn-box mb-16">Another script (“{script?.name}”) is active. Saving rules here will activate the “ihasmail” script instead.</div>}
+      {activeIsOther && <div className="warn-box mb-16">{t("Another script (“{name}”) is active. Saving rules here will activate the “ihasmail” script instead.", { name: script?.name ?? "" })}</div>}
       {list.length === 0 && <div className="empty" style={{ padding: 32 }}><Wand2 size={32} /><h3>{t("No filters yet")}</h3><p>{t("Create a rule to move newsletters to a folder, flag important senders, or forward mail.")}</p></div>}
       {list.map((r, i) => (
         <div
@@ -150,7 +150,7 @@ function RulesEditor() {
         </div>
       ))}
       <div className="row" style={{ marginTop: 12 }}>
-        <button className="btn" onClick={() => setEditing(newRule())}><Plus size={16} /> New rule</button>
+        <button className="btn" onClick={() => setEditing(newRule())}><Plus size={16} />  {t("New rule")}</button>
         <span className="spacer" />
         {dirty && <button className="btn btn-ghost" onClick={() => setLocal(null)}>{t("Discard changes")}</button>}
         <button className="btn btn-primary" disabled={!dirty || saving} onClick={() => void save(list)}>{saving ? "Saving…" : "Save filters"}</button>
@@ -236,7 +236,7 @@ function ScriptsEditor() {
           {validation && <div className="error-box mb-16">{validation}</div>}
           <div className="row">
             <button className="btn btn-ghost" onClick={() => { setSel(null); setName(""); setContent(""); }}>{t("Cancel")}</button>
-            <button className="btn" disabled={busy} onClick={async () => { setBusy(true); const err = await sieve.validate(content); setValidation(err); setBusy(false); if (!err) toast.success("Script is valid"); }}><Play size={14} /> Validate</button>
+            <button className="btn" disabled={busy} onClick={async () => { setBusy(true); const err = await sieve.validate(content); setValidation(err); setBusy(false); if (!err) toast.success("Script is valid"); }}><Play size={14} />  {t("Validate")}</button>
             <span className="spacer" />
             <button className="btn" disabled={busy} onClick={() => void save(false)}>{t("Save")}</button>
             <button className="btn btn-primary" disabled={busy} onClick={() => void save(true)}>{t("Save & activate")}</button>
@@ -259,7 +259,7 @@ function ScriptsEditor() {
           </div>
         </div>
       ))}
-      <button className="btn" onClick={async () => { const n = await promptDialog({ title: "New script", placeholder: "Script name" }); if (n) { setName(n); setContent('require ["fileinto"];\n\n'); } }}><Plus size={16} /> New script</button>
+      <button className="btn" onClick={async () => { const n = await promptDialog({ title: "New script", placeholder: "Script name" }); if (n) { setName(n); setContent('require ["fileinto"];\n\n'); } }}><Plus size={16} />  {t("New script")}</button>
     </div>
   );
 }

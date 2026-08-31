@@ -38,7 +38,7 @@ export function IdentitiesSettings() {
           <div className="card-head">
             <h3>{i.name ? `${i.name} <${i.email}>` : i.email} {i.id === defaultId && <span className="tag" style={{ background: "var(--accent)", color: "var(--accent-fg)", marginLeft: 6 }}>{t("Default")}</span>}</h3>
             {i.id !== defaultId && (
-              <button className="btn btn-sm btn-ghost" onClick={(e) => { e.stopPropagation(); setDefault(i.id); toast.success(`${i.email} is now your default identity`); }}><Star size={14} /> Make default</button>
+              <button className="btn btn-sm btn-ghost" onClick={(e) => { e.stopPropagation(); setDefault(i.id); toast.success(t("{email} is now your default identity", { email: i.email })); }}><Star size={14} /> {t("Make default")}</button>
             )}
             {/*
               Hiding is presentation only -- the identity still exists and still
@@ -51,7 +51,7 @@ export function IdentitiesSettings() {
               title={isAlwaysVisible(i.id, [defaultId]) ? "The default identity is always offered when composing" : hidden.includes(i.id) ? "Show this in the compose picker" : "Hide this from the compose picker"}
               onClick={(e) => { e.stopPropagation(); toggleHidden(i.id); }}
             >
-              {hidden.includes(i.id) ? <><Eye size={14} /> Show when composing</> : <><EyeOff size={14} /> Hide when composing</>}
+              {hidden.includes(i.id) ? <><Eye size={14} /> {t("Show when composing")}</> : <><EyeOff size={14} /> {t("Hide when composing")}</>}
             </button>
             {i.mayDelete && (
               <button className="icon-btn sm danger" aria-label={t("Delete identity")} onClick={async (e) => { e.stopPropagation(); if (await confirmDialog({ title: "Delete this identity?", confirmLabel: "Delete", danger: true })) { try { await useMail.getState().destroyIdentity(i.id); } catch (err) { toast.error((err as Error).message); } } }}><Trash2 size={16} /></button>
@@ -59,10 +59,10 @@ export function IdentitiesSettings() {
           </div>
           {hidden.includes(i.id) && <div className="hint" style={{ marginTop: 4 }}>{t("Not offered when composing. It still receives mail, and you can still send from it by showing it again.")}</div>}
           {(i.htmlSignature || i.textSignature) && <div className="hint" style={{ marginTop: 4 }}>{htmlToText(i.htmlSignature || i.textSignature).slice(0, 120)}</div>}
-          {i.replyTo?.length ? <div className="hint">Reply-To: {formatAddressList(i.replyTo)}</div> : null}
+          {i.replyTo?.length ? <div className="hint">{t("Reply-To: {addresses}", { addresses: formatAddressList(i.replyTo) })}</div> : null}
         </div>
       ))}
-      <button className="btn" onClick={() => setEditing({ name: "", email: identities[0]?.email ?? "", textSignature: "", htmlSignature: "", replyTo: null, bcc: null })}><Plus size={16} /> Add identity</button>
+      <button className="btn" onClick={() => setEditing({ name: "", email: identities[0]?.email ?? "", textSignature: "", htmlSignature: "", replyTo: null, bcc: null })}><Plus size={16} /> {t("Add identity")}</button>
       <p className="hint mt-8">{t("New identities must use an address this account is allowed to send from (aliases configured on the server).")}</p>
       {hidden.length > 0 && (
         <p className="hint">
@@ -129,7 +129,7 @@ function IdentityDialog({ identity, onClose }: { identity: Partial<Identity>; on
           <span className="hint">{t("Images are stored in your Files (folder “ihasmail”) and embedded when you send.")}</span>
           <span className="hint nowrap" style={tooLong ? { color: "var(--warn)", fontWeight: 600 } : undefined}>{sigLen.toLocaleString()} / {SIGNATURE_LIMIT.toLocaleString()}</span>
         </div>
-        {tooLong && <div className="warn-box mt-8">This signature is larger than the server's {SIGNATURE_LIMIT}-byte limit. ihasmail will keep the full version in your Files and store a short text fallback on the server — other mail clients will see the plain-text version.</div>}
+        {tooLong && <div className="warn-box mt-8">{t("This signature is larger than the server's {limit}-byte limit. ihasmail will keep the full version in your Files and store a short text fallback on the server — other mail clients will see the plain-text version.", { limit: SIGNATURE_LIMIT })}</div>}
       </div>
     </Dialog>
   );

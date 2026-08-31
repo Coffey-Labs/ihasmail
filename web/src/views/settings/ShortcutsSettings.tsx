@@ -17,7 +17,7 @@ export function ShortcutsSettings() {
   return (
     <div>
       <h1>{t("Keyboard shortcuts")}</h1>
-      <p className="lead">Gmail-style shortcuts are always on. Press <kbd className="kbd">?</kbd> anywhere to see this list.</p>
+      <p className="lead">{t("Gmail-style shortcuts are always on. Press")} <kbd className="kbd">?</kbd>  {t("anywhere to see this list.")}</p>
       <div className="shortcut-grid">
         {groups.map(([group, items]) => (
           <div key={group}>

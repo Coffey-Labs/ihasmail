@@ -99,9 +99,9 @@ export function EventPopover({ inst, anchor, onClose, onEdit }: { inst: EventIns
       {myKeys.length > 0 && !isOrganizer && (
         <div className="row" style={{ marginTop: 10, gap: 6 }}>
           <span className="hint">{t("Going?")}</span>
-          <button className={`btn btn-sm ${myStatus === "accepted" ? "btn-primary" : ""}`} disabled={busy} onClick={() => void rsvp("accepted")}><Check size={14} /> Yes</button>
-          <button className={`btn btn-sm ${myStatus === "tentative" ? "btn-primary" : ""}`} disabled={busy} onClick={() => void rsvp("tentative")}><HelpCircle size={14} /> Maybe</button>
-          <button className={`btn btn-sm ${myStatus === "declined" ? "btn-danger" : ""}`} disabled={busy} onClick={() => void rsvp("declined")}><X size={14} /> No</button>
+          <button className={`btn btn-sm ${myStatus === "accepted" ? "btn-primary" : ""}`} disabled={busy} onClick={() => void rsvp("accepted")}><Check size={14} />  {t("Yes")}</button>
+          <button className={`btn btn-sm ${myStatus === "tentative" ? "btn-primary" : ""}`} disabled={busy} onClick={() => void rsvp("tentative")}><HelpCircle size={14} />  {t("Maybe")}</button>
+          <button className={`btn btn-sm ${myStatus === "declined" ? "btn-danger" : ""}`} disabled={busy} onClick={() => void rsvp("declined")}><X size={14} />  {t("No")}</button>
         </div>
       )}
     </Popover>

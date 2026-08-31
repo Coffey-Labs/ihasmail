@@ -58,8 +58,7 @@ export function ScheduleDialog({ open, maxMs, initial, onClose, onPick }: {
         <p className="hint" style={{ color: "var(--danger)" }}>{error}</p>
       ) : (
         <p className="hint">
-          The message waits on the server, so it goes out whether or not ihasmail is open.
-          {maxMs > 0 && ` This server holds a message for up to ${describeSpan(maxMs)}.`}
+          {`${t("The message waits on the server, so it goes out whether or not ihasmail is open.")}${maxMs > 0 ? ` ${t("This server holds a message for up to {span}.", { span: describeSpan(maxMs) })}` : ""}`}
         </p>
       )}
     </Dialog>

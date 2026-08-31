@@ -20,11 +20,11 @@ export function TemplatesSettings() {
             <h3>{t.name}</h3>
             <button className="icon-btn sm danger" aria-label={translate("Delete template")} onClick={(e) => { e.stopPropagation(); update({ templates: templates.filter((x) => x.id !== t.id) }); }}><Trash2 size={16} /></button>
           </div>
-          {t.subject && <div className="hint">Subject: {t.subject}</div>}
+          {t.subject && <div className="hint">{translate("Subject: {subject}", { subject: t.subject })}</div>}
           <div className="hint truncate">{htmlToText(t.html).slice(0, 140)}</div>
         </div>
       ))}
-      <button className="btn" onClick={() => setEditing({ id: `t${Date.now()}`, name: "", subject: "", html: "" })}><Plus size={16} /> New template</button>
+      <button className="btn" onClick={() => setEditing({ id: `t${Date.now()}`, name: "", subject: "", html: "" })}><Plus size={16} />  {translate("New template")}</button>
       {editing && (
         <Dialog open onClose={() => setEditing(null)} title={templates.some((t) => t.id === editing.id) ? "Edit template" : "New template"} size="lg" footer={<><button className="btn" onClick={() => setEditing(null)}>{translate("Cancel")}</button><button className="btn btn-primary" disabled={!editing.name.trim()} onClick={() => { const exists = templates.some((t) => t.id === editing.id); update({ templates: exists ? templates.map((t) => (t.id === editing.id ? editing : t)) : [...templates, editing] }); setEditing(null); }}>{translate("Save")}</button></>}>
           <div className="field-row">

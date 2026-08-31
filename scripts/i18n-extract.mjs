@@ -76,8 +76,21 @@ for (const file of files) {
         const raw = c.text;
         const body = raw.trim();
         if (body.length < 2 || NOT_PROSE.test(body)) continue;
-        // Split around an interpolation: the fragments are not sentences.
-        if (meaningful.length > 1) {
+        /*
+         * "Split around an interpolation" is the dangerous case, and it is
+         * narrower than "has siblings". `<Plus /> New rule` is a phrase next
+         * to an icon: wrapping it alone is correct, and refusing it left a
+         * third of the remaining work to be done by hand for no reason.
+         * `Your script “{name}” was written by hand` is the real thing --
+         * a sibling that renders text, so the fragments are not sentences.
+         */
+        const textSibling = kids.some((k) => k !== c && ts.isJsxExpression(k) && k.expression && !(() => {
+          let jsx = false;
+          const w = (n) => { if (ts.isJsxElement(n) || ts.isJsxSelfClosingElement(n) || ts.isJsxFragment(n)) { jsx = true; return; } ts.forEachChild(n, w); };
+          w(k.expression);
+          return jsx;
+        })());
+        if (textSibling) {
           const { line } = src.getLineAndCharacterOfPosition(c.getStart(src));
           skipped.push({ file, line: line + 1, why: "text split around an expression", text: body.slice(0, 52) });
           continue;

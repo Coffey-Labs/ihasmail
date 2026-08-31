@@ -45,9 +45,9 @@ export function FilterFromMessageDialog({ email, mailboxId, onClose }: { email: 
           looking for a problem they do not have.
         */}
         {damage ? (
-          <p>Your filter script {damage}, so only part of it arrived. Adding a rule would write that part back over the whole thing. Reload the page and try again.</p>
+          <p>{t("Your filter script {damage}, so only part of it arrived. Adding a rule would write that part back over the whole thing. Reload the page and try again.", { damage })}</p>
         ) : loaded ? (
-          <p>Your active Sieve script was written by hand, so rules can't be added automatically. Open <b>{t("Settings → Filters & rules")}</b> to edit the script or switch to managed rules.</p>
+          <p>{t("Your active Sieve script was written by hand, so rules can't be added automatically. Open")} <b>{t("Settings → Filters & rules")}</b>  {t("to edit the script or switch to managed rules.")}</p>
         ) : (
           <p>{t("Your filter script couldn't be read just now, so adding a rule would risk overwriting it. Reload the page and try again.")}</p>
         )}

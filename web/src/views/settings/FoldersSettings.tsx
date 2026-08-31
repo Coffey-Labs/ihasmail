@@ -35,8 +35,8 @@ export function FoldersSettings() {
   return (
     <div>
       <h1>{t("Folders")}</h1>
-      <p className="lead">Create, rename and hide folders. {q && q.hardLimit ? `Storage: ${formatSize(q.used)} of ${formatSize(q.hardLimit)} used.` : ""}</p>
-      <button className="btn mb-16" onClick={() => void create()}><Plus size={16} /> New folder</button>
+      <p className="lead">{`${t("Create, rename and hide folders.")} ${q && q.hardLimit ? t("Storage: {used} of {total} used.", { used: formatSize(q.used), total: formatSize(q.hardLimit) }) : ""}`}</p>
+      <button className="btn mb-16" onClick={() => void create()}><Plus size={16} />  {t("New folder")}</button>
       <table className="sessions-table">
         <thead><tr><th>{t("Folder")}</th><th>{t("Messages")}</th><th>{t("Unread")}</th><th /></tr></thead>
         <tbody>

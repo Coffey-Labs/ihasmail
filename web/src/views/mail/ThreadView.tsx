@@ -12,7 +12,7 @@ import { client } from "@/jmap/client";
 import { LabelPicker } from "./LabelPicker";
 import { threadScrollTarget } from "@/lib/threadScroll";
 import { useEdgeBack } from "@/lib/touch";
-import { t } from "@/lib/i18n";
+import { plural, t } from "@/lib/i18n";
 
 /** How long the opening scroll keeps its place while bodies and images land. */
 const HOLD_MS = 2000;
@@ -268,7 +268,7 @@ export function ThreadView({ threadId, mailboxId, onBack, actions, onNavigate, h
               </div>
             )}
           </div>
-          {messages.length > 1 && <span className="muted small nowrap" style={{ marginTop: 6 }}>{messages.length} messages</span>}
+          {messages.length > 1 && <span className="muted small nowrap" style={{ marginTop: 6 }}>{plural(messages.length, { one: "{n} message", other: "{n} messages" })}</span>}
         </div>
         {error && <div className="error-box" style={{ margin: 16 }}>{error}</div>}
         {loading && !messages.length && <Spinner label={t("Loading conversation…")} />}
@@ -286,9 +286,9 @@ export function ThreadView({ threadId, mailboxId, onBack, actions, onNavigate, h
         {last && (
           <div className="reply-box">
             <div className="reply-prompt">
-              <button onClick={() => void reply(last, "reply")}><Reply size={16} /> Reply</button>
-              <button onClick={() => void reply(last, "replyAll")}><ReplyAll size={16} /> Reply all</button>
-              <button onClick={() => void reply(last, "forward")}><Forward size={16} /> Forward</button>
+              <button onClick={() => void reply(last, "reply")}><Reply size={16} />  {t("Reply")}</button>
+              <button onClick={() => void reply(last, "replyAll")}><ReplyAll size={16} />  {t("Reply all")}</button>
+              <button onClick={() => void reply(last, "forward")}><Forward size={16} />  {t("Forward")}</button>
             </div>
           </div>
         )}

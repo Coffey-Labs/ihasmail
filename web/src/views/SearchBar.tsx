@@ -85,8 +85,8 @@ export function SearchBar() {
           </div>
           <div className="row" style={{ justifyContent: "space-between", marginTop: 4 }}>
             <div className="row gap-16">
-              <label className="check"><input type="checkbox" checked={advFields.hasAttachment} onChange={(e) => setAdvFields({ ...advFields, hasAttachment: e.target.checked })} /> Has attachment</label>
-              <label className="check"><input type="checkbox" checked={advFields.unread} onChange={(e) => setAdvFields({ ...advFields, unread: e.target.checked })} /> Unread only</label>
+              <label className="check"><input type="checkbox" checked={advFields.hasAttachment} onChange={(e) => setAdvFields({ ...advFields, hasAttachment: e.target.checked })} />  {t("Has attachment")}</label>
+              <label className="check"><input type="checkbox" checked={advFields.unread} onChange={(e) => setAdvFields({ ...advFields, unread: e.target.checked })} />  {t("Unread only")}</label>
             </div>
             <div className="row">
               <button type="button" className="btn btn-ghost" onClick={() => setAdv(false)}>{t("Cancel")}</button>

@@ -246,7 +246,7 @@ export function Composer({ draft }: { draft: Draft }) {
         <div className="composer-foot">
           <span className="send-group">
             <button className="btn btn-primary" onClick={() => void doSend()} disabled={d.sending} title={d.sendAt !== null ? `Hand to the server, held until ${formatScheduleTime(new Date(d.sendAt))} (Ctrl+Enter)` : "Send (Ctrl+Enter)"}>
-              {d.sendAt !== null ? <><Clock size={16} /> Schedule send</> : <><Send size={16} /> Send</>}
+              {d.sendAt !== null ? <><Clock size={16} />  {translate("Schedule send")}</> : <><Send size={16} />  {translate("Send")}</>}
             </button>
             <button className="btn btn-primary" onClick={sendMenu.open} aria-label={translate("Send options")}><ChevronDown size={16} /></button>
           </span>

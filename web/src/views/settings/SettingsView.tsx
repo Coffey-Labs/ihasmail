@@ -53,7 +53,7 @@ export function SettingsView({ section }: { section?: string }) {
       <div className="settings-content">
         {section && (
           <button className="btn btn-ghost btn-sm" style={{ marginBottom: 8, marginLeft: -8 }} onClick={() => navigate("/settings")}>
-            <ArrowLeft size={16} /> All settings
+            <ArrowLeft size={16} />  {t("All settings")}
           </button>
         )}
         <Suspense fallback={<Spinner />}>{current ? current.el : <GeneralSettings />}</Suspense>

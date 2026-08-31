@@ -75,7 +75,7 @@ export function LabelPicker({ ids, anchor, onClose, onApplied }: { ids: Id[]; an
       {q.trim() && !labels.some((l) => l.name.toLowerCase() === q.trim().toLowerCase()) && (
         <button className="menu-item" onClick={create}>
           <Plus size={16} />
-          <span>Create “{q.trim()}”</span>
+          <span>{t("Create “{name}”", { name: q.trim() })}</span>
         </button>
       )}
       {!labels.length && !q && <div className="hint" style={{ padding: "4px 10px 8px" }}>{t("Type a name to create your first label.")}</div>}
