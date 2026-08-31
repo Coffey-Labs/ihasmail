@@ -56,7 +56,32 @@ for (const file of globSync("web/src/**/*.{ts,tsx}").filter((f) => !f.includes("
   visit(src);
 }
 
+/*
+ * A catalogue and a picker entry are two halves of one thing, and either half
+ * alone is dead weight. A catalogue with no entry in UI_LANGUAGES never
+ * reaches a reader -- it builds, it passes every test, and the language simply
+ * is not offered. That happened to Dutch: the entry was added by a text
+ * replacement anchored on a line that did not exist on that branch, so it was
+ * a silent no-op and nothing anywhere complained.
+ */
+const languagesSrc = readFileSync("web/src/lib/languages.ts", "utf8");
+const registered = new Set([...languagesSrc.matchAll(/tag:\s*"([\w-]+)"/g)].map((m) => m[1]));
+const catalogues = new Set(globSync("web/src/locales/*.ts").map((f) => f.split("/").pop().replace(".ts", "")));
+
 let failed = false;
+for (const tag of catalogues) {
+  if (!registered.has(tag)) {
+    failed = true;
+    console.log(`!! ${tag}.ts exists but is not in UI_LANGUAGES — the language is never offered\n`);
+  }
+}
+for (const tag of registered) {
+  if (tag !== "en" && !catalogues.has(tag)) {
+    failed = true;
+    console.log(`!! UI_LANGUAGES offers ${tag} but there is no ${tag}.ts — it would fall back to English\n`);
+  }
+}
+
 for (const file of globSync("web/src/locales/*.ts")) {
   const tag = file.split("/").pop().replace(".ts", "");
   const src = ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
