@@ -75,6 +75,7 @@ describe("device-trusted storage", () => {
     saveJson(accountKey("acct1", "recent"), [{ email: "someone@example.com" }]);
     store.set("ihasmail:lastUser", "me@example.com");
     store.set("ihasmail:pushDeviceId", "ihasmail-abc");
+    store.set("ihasmail:pushEnabled", "1");
 
     clearSignedInData();
 
@@ -84,6 +85,14 @@ describe("device-trusted storage", () => {
     // Kept on purpose: prefills sign-in, and only a trusted device wrote it.
     expect(store.get("ihasmail:lastUser")).toBe("me@example.com");
     expect(store.get("ihasmail:pushDeviceId")).toBe("ihasmail-abc");
+    /*
+     * Kept for the ending that is not a sign-out. A deploy expires every
+     * session, and that path clears local data without unsubscribing -- there
+     * is no session left to unsubscribe with. Losing the flag there would
+     * strand a live subscription with nothing renewing it, and the switch in
+     * Settings would still say background notifications were on.
+     */
+    expect(store.get("ihasmail:pushEnabled")).toBe("1");
   });
 
   it("clears everything, lastUser included, for an untrusted sign-in", () => {
