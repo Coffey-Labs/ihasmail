@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { create } from "zustand";
-import { loadJson, saveJson } from "@/lib/storage";
+import { hasCachedJson, loadJson, saveJson } from "@/lib/storage";
 import { pendingSettingsKeys, queueSettingsPush } from "@/lib/settingsSync";
 import { setDateTimePrefs, setUiLanguageForFormatting, type DateFormat, type TimeFormat } from "@/lib/datetime";
 import type { SwipeAction } from "@/lib/swipe";
@@ -311,6 +311,17 @@ interface SettingsState {
 }
 
 const initialSettings = loadJson<Settings>("settings", DEFAULT_SETTINGS);
+
+/**
+ * Whether the first frame is this account's settings or merely the defaults.
+ *
+ * False after every deploy, because deploys sign everyone out and sign-out
+ * clears the cache -- and false on any untrusted device, where the cache is
+ * never read. In that state `uiLanguage` starts as English and only becomes
+ * the account's choice once the settings file lands, which is why the
+ * authenticated tree waits for it.
+ */
+export const PAINTED_FROM_CACHE = hasCachedJson("settings");
 applyDateTimePrefs(initialSettings);
 
 export const useSettings = create<SettingsState>((set, get) => ({
