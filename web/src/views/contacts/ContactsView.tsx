@@ -126,7 +126,7 @@ export function ContactsView({ id }: { id?: string }) {
                   <div key={c.id} className={`contact-row ${id === c.id ? "active" : ""}`} onClick={() => navigate(`/contacts/${c.id}`)}>
                     <span className="avatar" style={{ background: photo ? "transparent" : avatarColor(email ?? contactDisplayName(c)) }}>{photo ? <img src={photo} alt="" /> : c.kind === "group" ? <Users size={16} /> : contactDisplayName(c).slice(0, 1).toUpperCase()}</span>
                     <div className="grow" style={{ minWidth: 0 }}>
-                      <div className="c-name">{contactDisplayName(c)}{c.kind === "group" ? <span className="hint"> · group</span> : ""}</div>
+                      <div className="c-name"><span>{contactDisplayName(c)}</span>{c.kind === "group" ? <span className="hint"> · group</span> : null}</div>
                       <div className="c-email">{email ?? Object.values(c.phones ?? {})[0]?.number ?? Object.values(c.organizations ?? {})[0]?.name ?? ""}</div>
                     </div>
                   </div>
@@ -201,7 +201,7 @@ function ContactDetail({ card: c, onBack, onEdit, narrow, onEmail }: { card: Con
       )}
       {(org || Object.values(c.titles ?? {}).length > 1) && (
         <div className="contact-section"><h3>Work</h3>
-          {org?.name && <div className="contact-kv"><span className="k">Company</span><span className="v row gap-8"><Building2 size={14} className="muted" />{org.name}{org.units?.length ? ` · ${org.units.map((u) => u.name).join(", ")}` : ""}</span></div>}
+          {org?.name && <div className="contact-kv"><span className="k">Company</span><span className="v row gap-8"><Building2 size={14} className="muted" />{`${org.name}${org.units?.length ? ` · ${org.units.map((u) => u.name).join(", ")}` : ""}`}</span></div>}
           {Object.values(c.titles ?? {}).map((t, i) => <div key={i} className="contact-kv"><span className="k">{t.kind === "role" ? "Role" : "Title"}</span><span className="v">{t.name}</span></div>)}
         </div>
       )}

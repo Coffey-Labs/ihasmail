@@ -86,12 +86,12 @@ export function InviteCard({ email, part }: { email: Email; part: EmailBodyPart 
       <div className="row" style={{ alignItems: "flex-start" }}>
         <Calendar size={20} style={{ color: "var(--accent)", marginTop: 2 }} />
         <div className="grow">
-          <div className="hint" style={{ marginBottom: 2 }}>{title}{method === "REPLY" && organizer ? "" : ""}</div>
+          <div className="hint" style={{ marginBottom: 2 }}>{title}</div>
           <h4>{ev.title || "(untitled event)"}</h4>
-          {inst && <div className="small">{formatTimeRange(inst.start, inst.end, inst.allDay)}{ev.timeZone ? ` (${ev.timeZone})` : ""}</div>}
+          {inst && <div className="small">{`${formatTimeRange(inst.start, inst.end, inst.allDay)}${ev.timeZone ? ` (${ev.timeZone})` : ""}`}</div>}
           {location && <div className="small muted row gap-4"><MapPin size={13} /> {location}</div>}
           {organizer && <div className="small muted">Organizer: {organizer.name || participantEmail(organizer)}</div>}
-          {attendees.length > 0 && <div className="small muted">{attendees.length} attendee{attendees.length === 1 ? "" : "s"}</div>}
+          {attendees.length > 0 && <div className="small muted">{`${attendees.length} attendee${attendees.length === 1 ? "" : "s"}`}</div>}
           {method === "REPLY" && (
             <div className="small" style={{ marginTop: 4 }}>
               {attendees.map((a) => <div key={participantEmail(a) || a.name}>{a.name || participantEmail(a)}: <b>{a.participationStatus ?? "unknown"}</b></div>)}

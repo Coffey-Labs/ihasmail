@@ -79,10 +79,10 @@ export function EventPopover({ inst, anchor, onClose, onEdit }: { inst: EventIns
       {ev.description && <div className="ev-line"><AlignLeft size={15} /><span style={{ whiteSpace: "pre-wrap", maxHeight: 160, overflow: "auto" }}>{ev.description}</span></div>}
       {alerts.length > 0 && <div className="ev-line"><Bell size={15} /><span>{alerts.map((a) => ("offset" in a.trigger ? humanDuration(parseDuration(a.trigger.offset)) + (parseDuration(a.trigger.offset) < 0 ? " before" : " after") : "at " + a.trigger.when)).join(", ")}</span></div>}
       {category && <div className="ev-line"><span className="label-dot" style={{ background: category.color, width: 12, height: 12, marginTop: 3 }} /><span>{category.name}</span></div>}
-      <div className="ev-line"><CalIcon size={15} /><span>{inst.calendar?.name ?? "Calendar"}{ev.status === "cancelled" ? " · cancelled" : ev.status === "tentative" ? " · tentative" : ""}{ev.privacy && ev.privacy !== "public" ? ` · ${ev.privacy}` : ""}{ev.freeBusyStatus === "free" ? " · shown as free" : ""}</span></div>
+      <div className="ev-line"><CalIcon size={15} /><span>{`${inst.calendar?.name ?? "Calendar"}${ev.status === "cancelled" ? " · cancelled" : ev.status === "tentative" ? " · tentative" : ""}${ev.privacy && ev.privacy !== "public" ? ` · ${ev.privacy}` : ""}${ev.freeBusyStatus === "free" ? " · shown as free" : ""}`}</span></div>
       {participants.length > 0 && (
         <div className="ev-line" style={{ flexDirection: "column", gap: 2 }}>
-          <div className="row gap-8"><Users size={15} /><span>{participants.length} participant{participants.length === 1 ? "" : "s"}</span><button className="icon-btn xs" title="Email everyone" onClick={() => openCompose({ to: participants.map(([, p]) => ({ name: p.name ?? null, email: participantEmail(p) })).filter((a) => a.email), subject: ev.title ?? "" })}><Mail size={13} /></button></div>
+          <div className="row gap-8"><Users size={15} /><span>{`${participants.length} participant${participants.length === 1 ? "" : "s"}`}</span><button className="icon-btn xs" title="Email everyone" onClick={() => openCompose({ to: participants.map(([, p]) => ({ name: p.name ?? null, email: participantEmail(p) })).filter((a) => a.email), subject: ev.title ?? "" })}><Mail size={13} /></button></div>
           <div style={{ paddingLeft: 24, maxHeight: 140, overflow: "auto", width: "100%" }}>
             {participants.map(([k, p]) => (
               <div key={k} className="participant-row">

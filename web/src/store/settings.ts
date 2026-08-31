@@ -4,6 +4,7 @@ import { loadJson, saveJson } from "@/lib/storage";
 import { queueSettingsPush } from "@/lib/settingsSync";
 import { setDateTimePrefs, type DateFormat, type TimeFormat } from "@/lib/datetime";
 import type { SwipeAction } from "@/lib/swipe";
+import { resolveUiLanguage } from "@/lib/languages";
 
 /**
  * "ihasmail" is a dark theme carrying the palette from ihasmail.org. It is a
@@ -88,6 +89,22 @@ export interface Settings {
   weekStart: 0 | 1 | 6;
   /** "" = follow the mail server's locale, then the browser's. */
   locale: string;
+  /**
+   * The language the interface is written in, and what `<html lang>` says.
+   *
+   * Separate from `locale` above, which is a *formatting* choice — what
+   * calendar, clock and numerals to use. They are genuinely different
+   * questions: German dates with an English interface is a real preference,
+   * and so is the reverse. Folding them together would silently rewrite
+   * everybody's date format the first time they picked a language.
+   *
+   * Absent means English, for a new account and for every existing one whose
+   * settings file predates this. The browser's `Accept-Language` is
+   * deliberately not consulted as the stored default: a served locale should
+   * be something the reader chose, not something guessed on their behalf and
+   * then written down as though they had.
+   */
+  uiLanguage: string;
   dateFormat: DateFormat;
   timeFormat: TimeFormat;
   calendarDefaultView: "month" | "week" | "day" | "agenda";
@@ -182,6 +199,7 @@ export const DEFAULT_SETTINGS: Settings = {
   attachmentReminder: true,
   weekStart: 1,
   locale: "",
+  uiLanguage: "en",
   dateFormat: "auto",
   timeFormat: "auto",
   calendarDefaultView: "week",
@@ -286,6 +304,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
     set({ settings });
     applyTheme(settings);
     applyDateTimePrefs(settings);
+    applyLang(settings);
     // Dragging a splitter changes a device key on every frame and must not put
     // a request in the air; anything else is queued and coalesced.
     if (Object.keys(next).some((k) => !DEVICE_KEYS.has(k as keyof Settings))) {
@@ -297,6 +316,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
     set({ settings: DEFAULT_SETTINGS });
     applyTheme(DEFAULT_SETTINGS);
     applyDateTimePrefs(DEFAULT_SETTINGS);
+    applyLang(DEFAULT_SETTINGS);
     queueSettingsPush(syncedPart(DEFAULT_SETTINGS));
   },
   exportJson() {
@@ -318,11 +338,37 @@ export const useSettings = create<SettingsState>((set, get) => ({
     set({ settings });
     applyTheme(settings);
     applyDateTimePrefs(settings);
+    applyLang(settings);
   },
 }));
 
 function applyDateTimePrefs(s: Settings): void {
   setDateTimePrefs({ locale: s.locale, dateFormat: s.dateFormat, timeFormat: s.timeFormat });
+}
+
+/**
+ * Put the served language on `<html lang>`.
+ *
+ * Chrome offers to translate when the language it detects does not match the
+ * one the page declares, so a `lang` that is briefly wrong is enough to raise
+ * the prompt on a page that was already correct — and accepting that prompt is
+ * what rewrites the DOM under React and crashes the component tree
+ * (facebook/react#11538).
+ *
+ * So this is not done in an effect after mount. It runs where `applyTheme`
+ * runs: at module load, from the localStorage cache, before `createRoot()` has
+ * rendered anything and therefore before first paint. `index.html` ships
+ * `lang="en"` statically, so the very first bytes are already right for the
+ * default and this only ever corrects a reader who chose otherwise.
+ *
+ * There is no server-rendered alternative to reach for. ihasmail serves a
+ * static shell and keeps no account state; the settings file lives in the
+ * reader's own JMAP Files on the mail server, so the only way to read it
+ * before the page existed would be to authenticate to Stalwart on every page
+ * load, which is the thing the whole design avoids.
+ */
+export function applyLang(s: Settings = useSettings.getState().settings): void {
+  document.documentElement.lang = resolveUiLanguage(s.uiLanguage);
 }
 
 /** Background of each theme, for the browser chrome (`theme-color`). */
@@ -360,6 +406,10 @@ export function isDarkTheme(theme: Theme, prefersDark = false): boolean {
 
 if (typeof window !== "undefined") {
   applyTheme();
+  // Before `createRoot().render()` in main.tsx, which imports this module on
+  // the way in -- so the language is declared before React has produced a
+  // single node, let alone painted one.
+  applyLang();
   window.matchMedia?.("(prefers-color-scheme: dark)").addEventListener("change", () => applyTheme());
 }
 

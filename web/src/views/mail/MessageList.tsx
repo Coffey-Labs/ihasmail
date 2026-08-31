@@ -647,7 +647,7 @@ const Row = memo(function Row({ email: e, threadEmails, top, height, selected, f
         <div className="msg-body">
           <div className="msg-line1">
             <span className="msg-from truncate">
-              {who}
+              <span className="truncate">{who}</span>
               {count > 1 && <span className="thread-count"> {count}</span>}
             </span>
             <span className="msg-meta">

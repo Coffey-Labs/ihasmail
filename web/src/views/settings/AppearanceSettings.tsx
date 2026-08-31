@@ -1,6 +1,7 @@
 import { useSettings } from "@/store/settings";
 import { Switch, useIsTouch } from "@/ui/misc";
 import { SWIPE_CHOICES, type SwipeAction } from "@/lib/swipe";
+import { UI_LANGUAGES } from "@/lib/languages";
 
 /**
  * The theme cards, each previewing the background it actually paints. Kept as
@@ -77,6 +78,27 @@ export function AppearanceSettings() {
           </select>
         </div>
       </div>
+      <h2>Language</h2>
+      <div className="field" style={{ maxWidth: 320 }}>
+        <label htmlFor="ui-language">Interface language</label>
+        <select id="ui-language" className="select" value={s.uiLanguage} onChange={(e) => update({ uiLanguage: e.target.value })}>
+          {UI_LANGUAGES.map((l) => (
+            <option key={l.tag} value={l.tag}>{l.name}</option>
+          ))}
+        </select>
+      </div>
+      {/*
+        Said plainly rather than left to be discovered. A picker with one entry
+        looks broken; a picker with one entry and a sentence explaining that
+        more are coming is a roadmap.
+      */}
+      <p className="hint">
+        Only languages ihasmail has been translated into appear here, so this list grows as translations land rather than ahead of them — a language offered without strings behind it would leave the page claiming to be in a language it is not.
+      </p>
+      <p className="hint">
+        This is separate from <strong>Language &amp; region</strong> in General, which decides how dates, times and numbers are written. You can read an English interface with German dates, or the other way round.
+      </p>
+
       <h2>Swiping</h2>
       <p className="hint">
         On a touchscreen, drag a message sideways to act on it. Each direction can do one thing, or nothing. These follow your account, so a phone and a tablet agree; a mouse ignores them and keeps dragging messages into folders instead.

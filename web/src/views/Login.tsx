@@ -53,7 +53,7 @@ export function LoginPage() {
       <form className="login-card" onSubmit={submit}>
         <div className="logo">
           <img src="/img/logo.png" alt="" width={120} height={143} />
-          <h1>ihasmail</h1>
+          <h1 className="notranslate" translate="no">ihasmail</h1>
           <p className="tagline">Fast, friendly webmail. Your mailbox, your way.</p>
         </div>
         {error && (
@@ -98,7 +98,7 @@ export function LoginPage() {
             One <p> with a break rather than two: .foot carries a 20px
             margin-top, which a second paragraph would repeat as a gap.
           */}
-          ihasmail v{APP_VERSION}
+          <span className="notranslate" translate="no">ihasmail v{APP_VERSION}</span>
           <br />
           <a href="https://ihasmail.org" target="_blank" rel="noopener noreferrer">ihasmail.org</a>
           {" · "}

@@ -91,7 +91,7 @@ export function SecuritySettings() {
                 <td><div className="truncate" style={{ maxWidth: 320 }} title={r.userAgent}>{shortUa(r.userAgent)}</div>{r.id === current && <span className="badge" style={{ marginTop: 2 }}>this device</span>}</td>
                 <td className="mono small">{r.ip}</td>
                 <td>{formatFullDate(new Date(r.lastSeenAt).toISOString())}</td>
-                <td>{formatFullDate(new Date(r.expiresAt).toISOString())}{r.remember ? " (remembered)" : ""}</td>
+                <td>{`${formatFullDate(new Date(r.expiresAt).toISOString())}${r.remember ? " (remembered)" : ""}`}</td>
                 <td />
               </tr>
             ))}

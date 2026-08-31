@@ -24,7 +24,7 @@ export function NotificationsSettings() {
   return (
     <div>
       <h1>Notifications</h1>
-      <p className="lead">Live updates are delivered via JMAP push ({pushConnected ? "connected" : "reconnecting…"}).</p>
+      <p className="lead">{`Live updates are delivered via JMAP push (${pushConnected ? "connected" : "reconnecting…"}).`}</p>
       <Switch
         checked={s.desktopNotifications}
         onChange={async (v) => {
