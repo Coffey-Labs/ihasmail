@@ -70,6 +70,18 @@ export function CalendarView({ view: viewParam, date }: { view?: string; date?: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cal.available, range.start.getTime(), range.end.getTime()]);
 
+  /*
+   * An event begun elsewhere -- from a message -- opens here, because this is
+   * where the editor lives. Cleared as it is taken: a draft left in the store
+   * would reopen the editor on every later visit to the calendar.
+   */
+  useEffect(() => {
+    if (!cal.draft) return;
+    const { title, description, ...when } = cal.draft;
+    setEditor({ ...when, seed: { title, description } });
+    cal.setDraft(null);
+  }, [cal.draft]);
+
   const go = useCallback((v: View, d: Date) => navigate(`/calendar/${v}/${toLocalDateOnly(d)}`), [navigate]);
   const step = (n: number) => {
     if (effectiveView === "month") go(view, addMonths(anchor, n));

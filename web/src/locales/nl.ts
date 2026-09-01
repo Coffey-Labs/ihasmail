@@ -236,6 +236,7 @@ export const catalog: Catalog = {
     "Calendar is not available": "Agenda is niet beschikbaar",
     "Event": "Afspraak",
     "New event": "Nieuwe afspraak",
+    "Create event…": "Afspraak maken…",
     "(new event)": "(nieuwe afspraak)",
     "New all-day event": "Nieuwe afspraak voor de hele dag",
     "Add title": "Titel toevoegen",

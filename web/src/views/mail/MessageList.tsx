@@ -1,6 +1,6 @@
 import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent, type ReactNode } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { Archive, ArrowLeft, CheckSquare, FolderInput, PanelRight, PanelBottom, PanelTop, Filter, Inbox, Mail, MailOpen, MoreVertical, Paperclip, RefreshCw, Reply, Search, Star, Tag, Trash2, AlertOctagon, Forward, Eraser, ShieldCheck, X } from "lucide-react";
+import { Archive, ArrowLeft, CalendarPlus, CheckSquare, FolderInput, PanelRight, PanelBottom, PanelTop, Filter, Inbox, Mail, MailOpen, MoreVertical, Paperclip, RefreshCw, Reply, Search, Star, Tag, Trash2, AlertOctagon, Forward, Eraser, ShieldCheck, X } from "lucide-react";
 import { useLocation } from "wouter";
 import { useMail, type ListState } from "@/store/mail";
 import { dateTimeKey, useSettings } from "@/store/settings";
@@ -11,6 +11,9 @@ import { displayName, shortName } from "@/lib/address";
 import { Avatar, Empty, useIsMobile, useIsTouch } from "@/ui/misc";
 import { MenuItem, MenuSep, MenuTitle, Popover, useMenu } from "@/ui/popover";
 import { useCompose } from "@/store/compose";
+import { useCalendar } from "@/store/calendar";
+import { startAppointment } from "@/lib/appointment";
+import { toast } from "@/ui/toast";
 import { haptic, usePullToRefresh, useTouchRow, PULL_TRIGGER } from "@/lib/touch";
 import { describeSwipe, type SwipeAction, type SwipeDescriptor, type SwipeIcon } from "@/lib/swipe";
 import { FilterFromMessageDialog } from "./FilterFromMessage";
@@ -89,6 +92,8 @@ export function MessageList({ title, list, openThreadId, focusId, setFocusId, on
   const twoLine = isMobile || (paneWidth > 0 && paneWidth < 640);
   const ctxMenu = useMenu();
   const [ctxRow, setCtxRow] = useState<Id | null>(null);
+  /** Only offered where there is a calendar to put the appointment in. */
+  const hasCalendar = useCalendar((s) => s.available);
   const moreMenu = useMenu();
   const [refreshing, setRefreshing] = useState(false);
   const [filterFrom, setFilterFrom] = useState<Email | null>(null);
@@ -277,6 +282,20 @@ export function MessageList({ title, list, openThreadId, focusId, setFocusId, on
                   />
                   <MenuItem icon={<Mail size={16} />} label={t("Mark as unread")} onClick={() => void actions.read(false)} />
                   <MenuItem icon={<Tag size={16} />} label={t("Label…")} onClick={() => actions.label(undefined, { x: window.innerWidth / 2, y: 100 })} />
+                  {/*
+                    A phone reaches this menu by holding a row, which is also
+                    the only way it reaches per-message actions at all -- there
+                    is no right-click. Offered for one message only: the draft
+                    is one message's subject and body, and there is no sensible
+                    event to make out of five of them.
+                  */}
+                  {hasCalendar && selCount === 1 && (
+                    <MenuItem
+                      icon={<CalendarPlus size={16} />}
+                      label={t("Create event…")}
+                      onClick={() => { const e = emails[Object.keys(selected)[0] as Id]; if (e) void startAppointment(e, navigate).catch((err: unknown) => toast.error((err as Error).message)); }}
+                    />
+                  )}
                   <MenuSep />
                   <MenuItem icon={<CheckSquare size={16} />} label={t("Select all")} onClick={selectAll} />
                   <MenuItem icon={<X size={16} />} label={t("Clear selection")} onClick={clearSelection} />
@@ -472,6 +491,7 @@ export function MessageList({ title, list, openThreadId, focusId, setFocusId, on
         <MenuItem icon={<Tag size={16} />} label={t("Label…")} kbd="l" onClick={() => actions.label(ctxTargets, ctxMenu.anchor ?? { x: 0, y: 0 })} />
         <MenuSep />
         <MenuItem icon={<Filter size={16} />} label={t("Filter messages like this…")} onClick={() => { const e = ctxRow ? emails[ctxRow] : undefined; if (e) setFilterFrom(e); }} />
+        {hasCalendar && <MenuItem icon={<CalendarPlus size={16} />} label={t("Create event…")} onClick={() => { const e = ctxRow ? emails[ctxRow] : undefined; if (e) void startAppointment(e, navigate).catch((err: unknown) => toast.error((err as Error).message)); }} />}
       </Popover>
       {filterFrom && <FilterFromMessageDialog email={filterFrom} mailboxId={mailboxId} onClose={() => setFilterFrom(null)} />}
     </div>
