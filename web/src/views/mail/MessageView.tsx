@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronUp, Download, ExternalLink, Forward, MoreVertical, Printer, Reply, ReplyAll, Star, Trash2, Code, FileText, Image as ImageIcon, File, Eye, Calendar, CalendarPlus, UserPlus, ShieldAlert, Mail, Ban, Clock, CheckCheck, Paperclip, FileArchive, FileSpreadsheet, Film, Music, Filter } from "lucide-react";
+import { ChevronDown, ChevronUp, Download, ExternalLink, Forward, MailPlus, MoreVertical, Printer, Reply, ReplyAll, Star, Trash2, Code, FileText, Image as ImageIcon, File, Eye, Calendar, CalendarPlus, UserPlus, ShieldAlert, Mail, Ban, Clock, CheckCheck, Paperclip, FileArchive, FileSpreadsheet, Film, Music, Filter } from "lucide-react";
 import { useLocation } from "wouter";
 import { FilterFromMessageDialog } from "./FilterFromMessage";
 import type { Email, EmailAddress, EmailBodyPart, Id } from "@/jmap/types";
@@ -190,6 +190,9 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
         <MenuItem icon={<Reply size={16} />} label={translate("Reply")} onClick={() => void reply(e, "reply")} />
         <MenuItem icon={<ReplyAll size={16} />} label={translate("Reply all")} onClick={() => void reply(e, "replyAll")} />
         <MenuItem icon={<Forward size={16} />} label={translate("Forward")} onClick={() => void reply(e, "forward")} />
+        {/* Sends the same mail again rather than passing it on, so it sits with
+            the other three rather than down among the read-only actions. */}
+        <MenuItem icon={<MailPlus size={16} />} label={translate("Compose as new")} onClick={() => void useCompose.getState().composeAsNew(e)} />
         <MenuSep />
         <MenuItem icon={<Mail size={16} />} label={e.keywords.$seen ? "Mark as unread" : "Mark as read"} onClick={() => void useMail.getState().markRead([e.id], !e.keywords.$seen)} />
         <MenuItem icon={<Trash2 size={16} />} label={translate("Delete this message")} onClick={() => void useMail.getState().trash([e.id])} />
