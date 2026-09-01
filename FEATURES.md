@@ -140,7 +140,7 @@ more attempt. A drag that is merely more sideways than not stays a scroll.
 - **Drag and drop** onto any folder in the tree, moving the selection or the
   row under the cursor.
 - **Context menu** on any row: reply, forward, archive, delete, spam, read/unread,
-  star, move to…, label…, and *Filter messages like this…*.
+  star, move to…, label…, *Filter messages like this…*, and *Create event…*.
 - **Snippets and avatars** are optional; the star is always in the row.
 - **Skeleton rows** while a page loads, rather than an empty pane.
 
@@ -382,7 +382,7 @@ nothing for anybody else.
 
 Created by clicking an empty slot or dragging across a range; a context menu on
 empty space offers a timed or all-day event at that moment, or *Go to day* /
-*Go to week*.
+*Go to week*. Also from a message — see *Create event…* below.
 
 The editor covers title, start and end (all-day or timed, with a time zone),
 calendar, location, meeting link, guests, description, reminders, repeat,
@@ -398,6 +398,10 @@ status (confirmed / tentative / cancelled), show-as (busy / free), visibility
   picker that predated them is gone; a colour comes from the category, or the
   calendar.)
 - **Duplicate** an event from the context menu.
+- **Create event…** from a message, in its context menu and its ⋮ menu (and,
+  on a phone, in the ⋮ of a held row). The subject becomes the title and the
+  body the description; the editor opens on the next half hour for an hour,
+  because when it happens is the one thing the message cannot say.
 - **Popover** on click with the detail and quick actions; the editor on
   *Edit…*.
 

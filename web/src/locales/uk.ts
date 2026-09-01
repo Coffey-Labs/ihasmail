@@ -236,6 +236,7 @@ export const catalog: Catalog = {
     "Calendar is not available": "Календар недоступний",
     "Event": "Подія",
     "New event": "Нова подія",
+    "Create event…": "Створити подію…",
     "(new event)": "(нова подія)",
     "New all-day event": "Нова подія на весь день",
     "Add title": "Додати назву",

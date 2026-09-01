@@ -22,6 +22,12 @@ export interface EditorInit {
   start: Date;
   end: Date;
   allDay: boolean;
+  /**
+   * Values a new event opens with, from wherever it was begun -- a message,
+   * so far. Not an event: this is still a form the reader has to finish, so
+   * `editing` stays false and the dialog says New event / Create.
+   */
+  seed?: { title?: string; description?: string };
 }
 
 const ALERT_OPTIONS = [0, 5, 10, 15, 30, 60, 120, 1440, 2880, 10080];
@@ -97,7 +103,7 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
   const baseStart = ev ? zonedToDate(ev.start, ev.showWithoutTime ? null : evTz) : init.start;
   const baseEnd = ev ? new Date(baseStart.getTime() + (parseDuration(ev.duration) || (ev.showWithoutTime ? 86400 : 3600)) * 1000) : init.end;
 
-  const [title, setTitle] = useState(ev?.title ?? "");
+  const [title, setTitle] = useState(ev?.title ?? init.seed?.title ?? "");
   const [calendarId, setCalendarId] = useState(initialCal ?? "");
   const [allDay, setAllDay] = useState(ev ? Boolean(ev.showWithoutTime) : init.allDay);
   const [start, setStart] = useState(baseStart);
@@ -105,7 +111,7 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
   const [tz, setTz] = useState(evTz);
   const [location, setLocation] = useState(Object.values(ev?.locations ?? {})[0]?.name ?? "");
   const [vurl, setVurl] = useState(Object.values(ev?.virtualLocations ?? {})[0]?.uri ?? "");
-  const [description, setDescription] = useState(ev?.description ?? "");
+  const [description, setDescription] = useState(ev?.description ?? init.seed?.description ?? "");
   const [status, setStatus] = useState<NonNullable<CalendarEvent["status"]>>(ev?.status ?? "confirmed");
   const [privacy, setPrivacy] = useState<NonNullable<CalendarEvent["privacy"]>>(ev?.privacy ?? "public");
   const [freeBusy, setFreeBusy] = useState<NonNullable<CalendarEvent["freeBusyStatus"]>>(ev?.freeBusyStatus ?? "busy");

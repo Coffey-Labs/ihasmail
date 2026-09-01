@@ -1,11 +1,14 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronUp, Download, ExternalLink, Forward, MoreVertical, Printer, Reply, ReplyAll, Star, Trash2, Code, FileText, Image as ImageIcon, File, Eye, Calendar, UserPlus, ShieldAlert, Mail, Ban, Clock, CheckCheck, Paperclip, FileArchive, FileSpreadsheet, Film, Music, Filter } from "lucide-react";
+import { ChevronDown, ChevronUp, Download, ExternalLink, Forward, MoreVertical, Printer, Reply, ReplyAll, Star, Trash2, Code, FileText, Image as ImageIcon, File, Eye, Calendar, CalendarPlus, UserPlus, ShieldAlert, Mail, Ban, Clock, CheckCheck, Paperclip, FileArchive, FileSpreadsheet, Film, Music, Filter } from "lucide-react";
+import { useLocation } from "wouter";
 import { FilterFromMessageDialog } from "./FilterFromMessage";
 import type { Email, EmailAddress, EmailBodyPart, Id } from "@/jmap/types";
 import { useMail } from "@/store/mail";
 import { useSettings } from "@/store/settings";
 import { draftFromMailto, useCompose } from "@/store/compose";
 import { useContacts } from "@/store/contacts";
+import { useCalendar } from "@/store/calendar";
+import { startAppointment } from "@/lib/appointment";
 import { client } from "@/jmap/client";
 import { formatFullDate, formatListDate, formatSize } from "@/lib/format";
 import { displayName, formatAddress } from "@/lib/address";
@@ -52,6 +55,9 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
   const showImages = useCallback(() => setAllowRemote(true), []);
   const [filterOpen, setFilterOpen] = useState(false);
   const moreMenu = useMenu();
+  const [, navigate] = useLocation();
+  /** Only offered where there is a calendar to put the appointment in. */
+  const hasCalendar = useCalendar((s) => s.available);
   const addrMenu = useAddressMenu();
   const from = e.from?.[0];
   const senderTrusted = settings.trustedImageSenders.includes((from?.email ?? "").toLowerCase());
@@ -193,6 +199,7 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
         <MenuItem icon={<Download size={16} />} label={translate("Download (.eml)")} onClick={downloadEml} />
         <MenuItem icon={<Printer size={16} />} label={translate("Print")} onClick={() => window.print()} />
         <MenuItem icon={<Filter size={16} />} label={translate("Filter messages like this…")} onClick={() => setFilterOpen(true)} />
+        {hasCalendar && <MenuItem icon={<CalendarPlus size={16} />} label={translate("Create event…")} onClick={() => void startAppointment(e, navigate).catch((err: unknown) => toast.error((err as Error).message))} />}
         {from && (
           <>
             <MenuSep />

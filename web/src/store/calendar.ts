@@ -224,6 +224,22 @@ export interface SharedCalendar {
 /** Shared events are keyed by account too: ids only differ within an account. */
 export const sharedKey = (accountId: Id, id: Id): string => `${accountId}:${id}`;
 
+/**
+ * An event begun outside the calendar -- from a message, so far.
+ *
+ * The editor lives inside CalendarView and the reader is somewhere else when
+ * they ask for this, so the draft waits here until that view mounts and takes
+ * it. It is taken exactly once: a draft left behind would reopen the editor
+ * every time the reader came back to the calendar.
+ */
+export interface EventDraft {
+  title: string;
+  description: string;
+  start: Date;
+  end: Date;
+  allDay: boolean;
+}
+
 interface CalendarState {
   accountId: Id | null;
   available: boolean;
@@ -241,6 +257,8 @@ interface CalendarState {
   error: string | null;
   identities: ParticipantIdentity[];
   hidden: Record<Id, true>;
+  /** Waiting to be opened in the editor; see `EventDraft`. */
+  draft: EventDraft | null;
 
   init(): Promise<void>;
   loadCalendars(): Promise<void>;
@@ -267,6 +285,7 @@ interface CalendarState {
   importEvent(event: Partial<CalendarEvent>, calendarId: Id): Promise<Id>;
   applyChanges(types: Set<string>): void;
   invalidate(): void;
+  setDraft(draft: EventDraft | null): void;
 }
 
 /**
@@ -295,6 +314,7 @@ export const useCalendar = create<CalendarState>((set, get) => ({
   error: null,
   identities: [],
   hidden: {},
+  draft: null,
 
   async init() {
     // The reader's own: a shared calendar is shown beside theirs, not instead.
@@ -669,6 +689,10 @@ export const useCalendar = create<CalendarState>((set, get) => ({
       const [s, e] = k.split("|").map(Number) as [number, number];
       void get().loadRange(new Date(s), new Date(e), true);
     }
+  },
+
+  setDraft(draft) {
+    set({ draft });
   },
 }));
 
