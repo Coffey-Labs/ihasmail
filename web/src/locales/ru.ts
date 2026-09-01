@@ -223,6 +223,7 @@ export const catalog: Catalog = {
     "Folder options": "Параметры папки",
     "New folder": "Новая папка",
     "New subfolder": "Новая вложенная папка",
+    "Open subfolders of {name}": "Открыть вложенные папки «{name}»",
     "Delete folder": "Удалить папку",
     "No matching folders": "Подходящих папок нет",
     "No subfolders here.": "Здесь нет вложенных папок.",

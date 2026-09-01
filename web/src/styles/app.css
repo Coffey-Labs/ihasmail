@@ -448,6 +448,18 @@ a.menu-item:hover { color: var(--fg); }
 .nav-item.folder-row.depth-4 { --folder-indent: 64px; }
 .nav-item.folder-row .nav-twisty { position: absolute; left: calc(8px + var(--folder-indent)); top: 50%; transform: translateY(-50%); margin: 0; }
 /* Labels sit in the same column: a 20px slot matching the folder icons. */
+/* ---- Drill-down (phones; see mail/MailboxTree.tsx) ---- */
+/* No indent to pay for, so the name gets the width the tree was spending on
+   depth. The twisty's 30px gutter goes too -- nothing is drawn in it here. */
+.nav-item.folder-row.has-drill { padding-left: 12px; }
+.nav-item.folder-row .drill-into { width: 44px; height: 100%; border-radius: 0; margin-right: -12px; color: var(--fg-faint); }
+.nav-item.folder-row .drill-into:hover { background: var(--bg-hover); color: var(--fg); }
+/* The row it belongs to is a link and paints its own active state; a second
+   filled rectangle inside it reads as a separate selected thing. */
+.nav-item.folder-row.active .drill-into { color: inherit; }
+.drill-back { width: 100%; border: 0; background: none; font: inherit; text-align: left; cursor: pointer; color: var(--fg-muted); padding-left: 8px; }
+.drill-back:hover { background: var(--bg-hover); color: var(--fg); }
+.drill-back svg { flex: 0 0 auto; }
 .nav-item.folder-row .nav-label-color { flex: 0 0 20px; width: 20px; height: 20px; border-radius: 0; display: inline-flex; align-items: center; justify-content: center; }
 .nav-item.folder-row .nav-label-color::before { content: ""; width: 11px; height: 11px; border-radius: 3px; background: var(--label-color, var(--accent)); }
 .collapsed .nav-item { justify-content: center; padding: 0; margin: 0 auto; width: 44px; border-radius: 999px; }
@@ -927,7 +939,14 @@ select optgroup { background-color: var(--bg-elev); color: var(--fg); }
  * pointermove would arrive after the scroll had already started, and the list
  * would stutter on the way past.
  */
-.msg-row { touch-action: pan-y; -webkit-touch-callout: none; }
+/*
+ * `pinch-zoom` is listed alongside `pan-y` rather than left implied: naming any
+ * value at all drops every gesture not named, so a bare `pan-y` also told the
+ * browser not to zoom here. Pinch worked on an open message and died on the
+ * list, which read as the zoom being broken at random. The swipe is unaffected
+ * -- horizontal is still not in the list, so it still arrives here.
+ */
+.msg-row { touch-action: pan-y pinch-zoom; -webkit-touch-callout: none; }
 .msg-row.swiping { z-index: 4; box-shadow: var(--shadow-2); }
 /* The row being dragged is the one thing on screen that must not lag. */
 .msg-row.swiping, .mail-list-pull { will-change: transform; }
@@ -1050,6 +1069,46 @@ select optgroup { background-color: var(--bg-elev); color: var(--fg); }
   .contact-detail { padding: 16px 16px 80px; }
   .files-table .hide-mobile { display: none; }
   .event-popover { width: calc(100vw - 24px); }
+}
+/*
+ * Touch targets.
+ *
+ * `pointer: coarse` rather than a width, for the reason ui/misc.tsx gives about
+ * useIsTouch: width decides the layout, the pointer decides what has to be
+ * aimed at. A tablet in landscape is a wide screen with fat targets.
+ *
+ * Everything here was under the 44px a fingertip actually covers -- the top bar
+ * icons at 36px (the search filter at 30), the folder twisty at 18, the row ⋮
+ * at 24. Growing the boxes would reflow a top bar that has no room to give, so
+ * each control keeps the size it draws at and gains a transparent hit area
+ * centred on it. Rows grow for real, because a 44px hit area inside a 36px row
+ * would reach into the rows above and below and steal their taps.
+ */
+@media (pointer: coarse) {
+  .icon-btn, .nav-twisty { position: relative; }
+  /* `.drill-into` already draws at 44px and is excluded: expanding a control
+     that is big enough only lets it reach into its neighbour. */
+  .icon-btn:not(.drill-into)::after, .nav-twisty[role="button"]::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
+  /*
+   * The ⋮ is the exception, and narrower on purpose. It sits immediately left
+   * of the drill chevron, and at a full 44px wide the two hit areas overlapped
+   * by 4px -- so the right edge of "folder options" silently drilled instead.
+   * The row is 44px tall here, so it still gets the full height, which is the
+   * axis a thumb actually misses on.
+   */
+  .nav-item .nav-more::after { width: max(100%, 36px); }
+  .sidebar .nav-item, .cal-list-item { height: 44px; }
+  /* The hamburger is the one control in the corner a thumb is worst at, so it
+     gets real distance from the bezel rather than just a wider hit area. */
+  .topbar { padding-left: max(12px, env(safe-area-inset-left)); }
 }
 @media (hover: none) {
   .msg-row .msg-check { opacity: 1; }

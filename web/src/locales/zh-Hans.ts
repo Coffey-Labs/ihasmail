@@ -219,6 +219,7 @@ export const catalog: Catalog = {
     "Folder options": "文件夹选项",
     "New folder": "新建文件夹",
     "New subfolder": "新建子文件夹",
+    "Open subfolders of {name}": "打开{name}的子文件夹",
     "Delete folder": "删除文件夹",
     "No matching folders": "没有匹配的文件夹",
     "No subfolders here.": "这里没有子文件夹。",

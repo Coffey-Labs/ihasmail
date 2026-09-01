@@ -229,6 +229,7 @@ export const catalog: Catalog = {
     "Folder options": "Ordneroptionen",
     "New folder": "Neuer Ordner",
     "New subfolder": "Neuer Unterordner",
+    "Open subfolders of {name}": "Unterordner von {name} öffnen",
     "Delete folder": "Ordner löschen",
     "No matching folders": "Keine passenden Ordner",
     "No subfolders here.": "Hier gibt es keine Unterordner.",

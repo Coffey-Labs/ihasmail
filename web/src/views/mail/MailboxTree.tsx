@@ -1,13 +1,13 @@
-import { useMemo, useState, type DragEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type DragEvent, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { AlertOctagon, Archive, ChevronDown, Clock, ChevronRight, File, Folder, FolderPlus, Inbox, Mail, MoreVertical, Palette, Send, Star, Tag, Trash2, Plus, Pencil, Eye, EyeOff, CheckCheck, Eraser, Share2, X } from "lucide-react";
+import { AlertOctagon, Archive, ChevronDown, ChevronLeft, Clock, ChevronRight, File, Folder, FolderPlus, Inbox, Mail, MoreVertical, Palette, Send, Star, Tag, Trash2, Plus, Pencil, Eye, EyeOff, CheckCheck, Eraser, Share2, X } from "lucide-react";
 import { useMail } from "@/store/mail";
 import { canEmpty, confirmAndEmpty, emptyLabel } from "@/lib/emptyFolder";
 import { isScheduledMailbox } from "@/store/scheduled";
 import { useSettings } from "@/store/settings";
 import type { Id, Mailbox } from "@/jmap/types";
 import { MenuItem, MenuSep, MenuTitle, Popover, useMenu } from "@/ui/popover";
-import { CALENDAR_COLORS, useIsTouch } from "@/ui/misc";
+import { CALENDAR_COLORS, useIsMobile, useIsTouch } from "@/ui/misc";
 import { confirmDialog, promptDialog } from "@/ui/dialog";
 import { toast } from "@/ui/toast";
 import { ShareDialog } from "../settings/ShareDialog";
@@ -78,7 +78,7 @@ export function MailboxTree() {
     setExpanded(next);
     saveJson("mbx-expanded", next);
   };
-  const rows = useMemo(() => {
+  const { rows, childrenOf, subtreeUnread } = useMemo(() => {
     const all = Object.values(mailboxes).filter((m) => showHidden || m.isSubscribed || m.role === "inbox");
     const byParent = new Map<Id | null, Mailbox[]>();
     for (const m of all) {
@@ -89,20 +89,43 @@ export function MailboxTree() {
       if ((a.role === "inbox") !== (b.role === "inbox")) return a.role === "inbox" ? -1 : 1;
       return a.name.localeCompare(b.name, undefined, { sensitivity: "base", numeric: true });
     };
+    for (const list of byParent.values()) list.sort(cmp);
     const out: Array<{ m: Mailbox; depth: number; hasChildren: boolean; open: boolean; hiddenUnread: number; childUnread: number }> = [];
-    const subtreeUnread = (id: Id): number => (byParent.get(id) ?? []).reduce((n, c) => n + c.unreadEmails + subtreeUnread(c.id), 0);
+    const unreadBelow = (id: Id): number => (byParent.get(id) ?? []).reduce((n, c) => n + c.unreadEmails + unreadBelow(c.id), 0);
     const walk = (parent: Id | null, depth: number) => {
-      for (const m of (byParent.get(parent) ?? []).sort(cmp)) {
+      for (const m of byParent.get(parent) ?? []) {
         const kids = byParent.get(m.id) ?? [];
         const open = Boolean(expanded[m.id]);
-        const childUnread = kids.length ? subtreeUnread(m.id) : 0;
+        const childUnread = kids.length ? unreadBelow(m.id) : 0;
         out.push({ m, depth, hasChildren: kids.length > 0, open, hiddenUnread: kids.length && !open ? childUnread : 0, childUnread });
         if (kids.length && open) walk(m.id, depth + 1);
       }
     };
     walk(null, 0);
-    return out;
+    return { rows: out, childrenOf: (id: Id | null) => byParent.get(id) ?? [], subtreeUnread: unreadBelow };
   }, [mailboxes, showHidden, expanded]);
+
+  /*
+   * On a phone the tree is a drill-down instead: one level at a time, a back
+   * row above it, no indent. The tree earns its indent on a wide sidebar and
+   * cannot pay for it in a 300px drawer -- four levels down, the 16px steps and
+   * the 18px twisty left a folder 85px to print its name in, and the twisty had
+   * walked far enough right to be hard to hit at all. Width picks the mode, not
+   * the pointer: this is a layout that does not fit, not a target that is small.
+   */
+  const isMobile = useIsMobile();
+  const [drillId, setDrillId] = useState<Id | null>(null);
+  const drill = drillId && mailboxes[drillId] ? mailboxes[drillId] : null;
+  /*
+   * Follow the reader into whichever folder they opened, so the drawer comes
+   * back at the level they were last looking at rather than at the root they
+   * would have to walk down from again.
+   */
+  useEffect(() => {
+    if (!isMobile || !currentId) return;
+    const m = mailboxes[currentId];
+    if (m) setDrillId(m.parentId && mailboxes[m.parentId] ? m.parentId : null);
+  }, [isMobile, currentId, mailboxes]);
 
   const createFolder = async (parentId: Id | null) => {
     const name = await promptDialog({ title: parentId ? t("New subfolder") : t("New folder"), placeholder: t("Folder name") });
@@ -144,12 +167,42 @@ export function MailboxTree() {
             if (id) void moveFolder(id, null);
           }}
         >
-          <span>{draggingId && canDropOn(null) ? t("Drop here for the top level") : t("Folders")}</span>
-          <button className="icon-btn" title={t("New folder")} aria-label={t("New folder")} onClick={() => void createFolder(null)}>
+          <span>{draggingId && canDropOn(null) ? t("Drop here for the top level") : drill ? mailboxDisplayName(drill) : t("Folders")}</span>
+          {/* Drilled in, the + makes a subfolder of the folder on screen --
+              which is the one place in the app where "new folder here" has an
+              unambiguous here. */}
+          <button className="icon-btn" title={drill ? t("New subfolder") : t("New folder")} aria-label={drill ? t("New subfolder") : t("New folder")} onClick={() => void createFolder(drill?.id ?? null)}>
             <Plus size={16} />
           </button>
         </div>
-        {rows.map(({ m, depth, hasChildren, open, hiddenUnread, childUnread }) => (
+        {drill && (
+          <>
+            <button className="nav-item drill-back" onClick={() => setDrillId(drill.parentId && mailboxes[drill.parentId] ? drill.parentId : null)}>
+              <ChevronLeft size={20} />
+              <span className="nav-label">{drill.parentId && mailboxes[drill.parentId] ? mailboxDisplayName(mailboxes[drill.parentId]) : t("Folders")}</span>
+            </button>
+            {/* The folder you drilled into is still a folder you can open. */}
+            <FolderRow
+              key={drill.id}
+              mailbox={drill}
+              label={mailboxDisplayName(drill)}
+              depth={0}
+              hasChildren={false}
+              open={false}
+              hiddenUnread={0}
+              childUnread={subtreeUnread(drill.id)}
+              onToggle={() => {}}
+              currentId={currentId}
+              onMenu={(mb, e) => { setMenuTarget(mb); menu.open(e); }}
+              dragging={false}
+              acceptsFolder={false}
+              onFolderDragStart={() => {}}
+              onFolderDragEnd={() => {}}
+              onFolderDrop={() => {}}
+            />
+          </>
+        )}
+        {(isMobile ? childrenOf(drill?.id ?? null).map((m) => ({ m, depth: 0, hasChildren: childrenOf(m.id).length > 0, open: false, hiddenUnread: subtreeUnread(m.id), childUnread: subtreeUnread(m.id) })) : rows).map(({ m, depth, hasChildren, open, hiddenUnread, childUnread }) => (
           <FolderRow
             key={m.id}
             mailbox={m}
@@ -160,6 +213,7 @@ export function MailboxTree() {
             hiddenUnread={hiddenUnread}
             childUnread={childUnread}
             onToggle={() => toggle(m.id)}
+            onDrillIn={isMobile && hasChildren ? () => setDrillId(m.id) : undefined}
             currentId={currentId}
             onMenu={(mb, e) => { setMenuTarget(mb); menu.open(e); }}
             dragging={draggingId === m.id}
@@ -169,7 +223,9 @@ export function MailboxTree() {
             onFolderDrop={(id) => void moveFolder(id, m.id)}
           />
         ))}
-        {labelsSidebar && labels.length > 0 && (
+        {/* Labels are a flat list that belongs to the mailbox, not to whichever
+            folder is on screen, so they stay at the top level of the drill. */}
+        {!drill && labelsSidebar && labels.length > 0 && (
           <>
             <div className="nav-section">
               <span>{t("Labels")}</span>
@@ -194,8 +250,10 @@ export function MailboxTree() {
   );
 }
 
-function FolderRow({ mailbox: m, label, depth, hasChildren, open, hiddenUnread, childUnread, onToggle, currentId, onMenu, dragging, acceptsFolder, onFolderDragStart, onFolderDragEnd, onFolderDrop }: { mailbox: Mailbox; label: string; depth: number; hasChildren: boolean; open: boolean; hiddenUnread: number; childUnread: number; onToggle: () => void; currentId?: string; onMenu: (m: Mailbox, e: { currentTarget: Element }) => void; dragging: boolean; acceptsFolder: boolean; onFolderDragStart: () => void; onFolderDragEnd: () => void; onFolderDrop: (id: Id) => void }) {
+function FolderRow({ mailbox: m, label, depth, hasChildren, open, hiddenUnread, childUnread, onToggle, onDrillIn, currentId, onMenu, dragging, acceptsFolder, onFolderDragStart, onFolderDragEnd, onFolderDrop }: { mailbox: Mailbox; label: string; depth: number; hasChildren: boolean; open: boolean; hiddenUnread: number; childUnread: number; onToggle: () => void; onDrillIn?: () => void; currentId?: string; onMenu: (m: Mailbox, e: { currentTarget: Element }) => void; dragging: boolean; acceptsFolder: boolean; onFolderDragStart: () => void; onFolderDragEnd: () => void; onFolderDrop: (id: Id) => void }) {
   const [dropping, setDropping] = useState(false);
+  /** Expanding in place and drilling in are the same relationship; only one shows. */
+  const twisty = hasChildren && !onDrillIn;
   // Scheduled counts like Drafts: everything in it is already read, so the
   // useful number is how many messages are waiting, not how many are unseen.
   const scheduled = isScheduledMailbox(m);
@@ -260,7 +318,7 @@ function FolderRow({ mailbox: m, label, depth, hasChildren, open, hiddenUnread, 
   return (
     <Link
       href={`/mail/${m.id}`}
-      className={`nav-item folder-row depth-${Math.min(depth, 4)} ${currentId === m.id ? "active" : ""} ${unread ? "unread" : ""} ${dropping ? "drop-target" : ""} ${dragging ? "dragging" : ""}`}
+      className={`nav-item folder-row depth-${Math.min(depth, 4)} ${onDrillIn ? "has-drill" : ""} ${currentId === m.id ? "active" : ""} ${unread ? "unread" : ""} ${dropping ? "drop-target" : ""} ${dragging ? "dragging" : ""}`}
       title={label}
       {...press}
       // Dragging a folder is a mouse gesture; on a touchscreen the browser
@@ -276,14 +334,17 @@ function FolderRow({ mailbox: m, label, depth, hasChildren, open, hiddenUnread, 
         onMenu(m, { currentTarget: e.currentTarget });
       }}
     >
+      {/* Drilling replaces expanding, so the twisty goes with it -- two
+          controls for one relationship, on opposite ends of the same row, is
+          worse than either alone. */}
       <span
         className="nav-twisty"
-        role={hasChildren ? "button" : undefined}
-        aria-label={hasChildren ? (open ? "Collapse" : "Expand") : undefined}
-        aria-expanded={hasChildren ? open : undefined}
-        aria-hidden={hasChildren ? undefined : true}
+        role={twisty ? "button" : undefined}
+        aria-label={twisty ? (open ? "Collapse" : "Expand") : undefined}
+        aria-expanded={twisty ? open : undefined}
+        aria-hidden={twisty ? undefined : true}
         onClick={
-          hasChildren
+          twisty
             ? (e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -292,7 +353,7 @@ function FolderRow({ mailbox: m, label, depth, hasChildren, open, hiddenUnread, 
             : undefined
         }
       >
-        {hasChildren ? open ? <ChevronDown size={14} /> : <ChevronRight size={14} /> : null}
+        {twisty ? open ? <ChevronDown size={14} /> : <ChevronRight size={14} /> : null}
       </span>
       <span className="folder-icon" style={tint ? ({ "--folder-color": tint } as React.CSSProperties) : undefined}>{icon}</span>
       <span className="nav-label">{label}</span>
@@ -309,6 +370,26 @@ function FolderRow({ mailbox: m, label, depth, hasChildren, open, hiddenUnread, 
       >
         <MoreVertical size={16} />
       </button>
+      {/*
+        Drilling in is a separate control from opening the folder, and sits at
+        the right edge where it is the same size and the same place on every
+        row -- unlike the twisty, which walks right with the indent and shrinks
+        the name as it goes. Tapping the row still opens the folder, which is
+        what a folder is for; this only changes what the list underneath shows.
+      */}
+      {onDrillIn && (
+        <button
+          className="icon-btn drill-into"
+          aria-label={t("Open subfolders of {name}", { name: label })}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onDrillIn();
+          }}
+        >
+          <ChevronRight size={20} />
+        </button>
+      )}
     </Link>
   );
 }
