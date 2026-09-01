@@ -3,6 +3,8 @@ import { accountKey, loadRaw, saveJson } from "@/lib/storage";
 import { CAP, client, setErrorMessage } from "@/jmap/client";
 import type { AddressBook, ContactCard, EmailAddress, GetResponse, Id, Principal, QueryResponse, SetResponse } from "@/jmap/types";
 import { contactDisplayName, contactEmails, sortKey } from "@/lib/contacts";
+import { parseLdif } from "@/lib/ldif";
+import { cardFromLdif } from "@/lib/mozillaAb";
 import { useSettings } from "./settings";
 import { useSession } from "./session";
 import { useMail } from "./mail";
@@ -79,6 +81,8 @@ interface ContactsState {
   updateBook(id: Id, patch: Partial<AddressBook>): Promise<void>;
   destroyBook(id: Id): Promise<void>;
   importVCard(text: string, addressBookId: Id): Promise<number>;
+  /** Import an address book in LDIF, read against Mozilla's schema. */
+  importLdif(text: string, addressBookId: Id): Promise<number>;
   loadPrincipals(): Promise<void>;
   suggest(query: string, limit?: number): Promise<Suggestion[]>;
   addRecent(addrs: EmailAddress[]): void;
@@ -365,6 +369,36 @@ export const useContacts = create<ContactsState>((set, get) => ({
     const res = await client.call<SetResponse<ContactCard>>("ContactCard/set", { accountId, create });
     await get().loadAll();
     return Object.keys(res.created ?? {}).length;
+  },
+
+  /*
+   * LDIF, which nothing on the server reads.
+   *
+   * vCard has `ContactCard/parse` and so never needed a parser here; LDIF has
+   * no equivalent, so the file is read in the browser -- `parseLdif` for the
+   * syntax, `cardFromLdif` for what Mozilla's schema means by it -- and what
+   * goes to the server is finished cards. That is the whole difference between
+   * the two imports; from `ContactCard/set` down they are the same.
+   */
+  async importLdif(text, addressBookId) {
+    const accountId = get().accountId!;
+    const cards = parseLdif(text).map(cardFromLdif).filter((c): c is Partial<ContactCard> => c !== null);
+    if (!cards.length) throw new Error("it has no contacts in it");
+    const create: Record<string, unknown> = {};
+    cards.forEach((c, i) => {
+      // Built here rather than read from the file: LDIF identifies an entry by
+      // its distinguished name, which says where it sat in somebody's
+      // directory and is no use as a contact's identity anywhere else.
+      create[`c${i}`] = { "@type": "Card", version: "1.0", ...c, uid: crypto.randomUUID(), addressBookIds: { [addressBookId]: true } };
+    });
+    const res = await client.call<SetResponse<ContactCard>>("ContactCard/set", { accountId, create });
+    await get().loadAll();
+    const created = Object.keys(res.created ?? {}).length;
+    if (!created) {
+      const first = Object.values(res.notCreated ?? {})[0];
+      throw new Error(first ? setErrorMessage(first) : "the server did not accept any of its contacts");
+    }
+    return created;
   },
 
   async loadPrincipals() {
