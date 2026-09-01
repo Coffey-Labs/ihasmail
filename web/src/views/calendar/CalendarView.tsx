@@ -77,8 +77,8 @@ export function CalendarView({ view: viewParam, date }: { view?: string; date?: 
    */
   useEffect(() => {
     if (!cal.draft) return;
-    const { title, description, ...when } = cal.draft;
-    setEditor({ ...when, seed: { title, description } });
+    const { title, description, attendees, ...when } = cal.draft;
+    setEditor({ ...when, seed: { title, description, attendees } });
     cal.setDraft(null);
   }, [cal.draft]);
 

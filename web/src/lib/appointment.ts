@@ -1,6 +1,7 @@
-import type { Email } from "@/jmap/types";
+import type { Email, EmailAddress } from "@/jmap/types";
 import { useCalendar, type EventDraft } from "@/store/calendar";
 import { useMail } from "@/store/mail";
+import { uniqueAddresses } from "./address";
 import { toLocalDateOnly } from "./dates";
 import { htmlToText } from "./text";
 
@@ -48,7 +49,23 @@ function bodyText(email: Email): string {
  * so the editor opens with the reader's cursor on a form they finish, rather
  * than a guess they have to check.
  */
-export function appointmentDraft(email: Email, now: Date = new Date()): EventDraft {
+/**
+ * Everyone the message was between, as guests: the sender and the people it
+ * was addressed to.
+ *
+ * The reader's own addresses come out -- they are the organiser, and an
+ * organiser listed among their own guests is an event that invites you to your
+ * own appointment. Bcc stays out too, on a message the reader sent themselves:
+ * a blind recipient added to a guest list is visible to every other guest, and
+ * turning a hidden copy into a public one is not something a menu item should
+ * do quietly.
+ */
+function guests(email: Email, ownEmails: string[]): EmailAddress[] {
+  const own = new Set(ownEmails.map((e) => e.toLowerCase()));
+  return uniqueAddresses([...(email.from ?? []), ...(email.to ?? []), ...(email.cc ?? [])]).filter((a) => !own.has(a.email.trim().toLowerCase()));
+}
+
+export function appointmentDraft(email: Email, now: Date = new Date(), ownEmails: string[] = []): EventDraft {
   const start = nextHalfHour(now);
   const body = bodyText(email).trim();
   return {
@@ -57,6 +74,7 @@ export function appointmentDraft(email: Email, now: Date = new Date()): EventDra
     start,
     end: new Date(start.getTime() + 3600_000),
     allDay: false,
+    attendees: guests(email, ownEmails),
   };
 }
 
@@ -68,8 +86,12 @@ export function appointmentDraft(email: Email, now: Date = new Date()): EventDra
  * has already been read.
  */
 export async function startAppointment(email: Email, navigate: (to: string) => void): Promise<void> {
-  const full = (await useMail.getState().getEmails([email.id], true))[0] ?? email;
-  const draft = appointmentDraft(full);
+  const mail = useMail.getState();
+  const full = (await mail.getEmails([email.id], true))[0] ?? email;
+  // Which addresses are the reader's own decides who is a guest, so they are
+  // worth a round trip when the session has not loaded them yet.
+  const identities = mail.identities.length ? mail.identities : await mail.loadIdentities();
+  const draft = appointmentDraft(full, new Date(), identities.map((i) => i.email));
   useCalendar.getState().setDraft(draft);
   navigate(`/calendar/day/${toLocalDateOnly(draft.start)}`);
 }

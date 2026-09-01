@@ -400,8 +400,12 @@ status (confirmed / tentative / cancelled), show-as (busy / free), visibility
 - **Duplicate** an event from the context menu.
 - **Create event…** from a message, in its context menu and its ⋮ menu (and,
   on a phone, in the ⋮ of a held row). The subject becomes the title and the
-  body the description; the editor opens on the next half hour for an hour,
-  because when it happens is the one thing the message cannot say.
+  body the description; the sender and everyone the message was addressed to
+  become guests, minus your own addresses and never a blind copy. The editor
+  opens on the next half hour for an hour, because when it happens is the one
+  thing the message cannot say — and with *Send invitation emails* off, since
+  a guest list you inherited rather than typed should not mail itself on the
+  first press.
 - **Popover** on click with the detail and quick actions; the editor on
   *Edit…*.
 
