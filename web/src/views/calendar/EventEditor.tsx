@@ -14,8 +14,9 @@ import { browserTimeZone, dateToZonedLocal, formatDuration, fromInputDateTime, l
 import { formatClock, formatNumericDate, formatWeekday } from "@/lib/datetime";
 import { WEEKDAYS, describeRule, presetFor, ruleFromPreset, type RecurrencePreset } from "@/lib/recurrence";
 import { newKey } from "@/lib/contacts";
+import { availabilityWindow } from "@/lib/availabilityWindow";
 import { askEditScope, droppedMessage, runScoped } from "./scope";
-import { t as translate } from "@/lib/i18n";
+import { plural, t as translate } from "@/lib/i18n";
 
 export interface EditorInit {
   event?: CalendarEvent;
@@ -154,15 +155,19 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
   const myAddress = identity?.calendarAddress ?? (myEmail.includes("@") ? `mailto:${myEmail}` : "");
   const myPlainEmail = myAddress.replace(/^mailto:/i, "");
 
+  /*
+   * What the bars cover: whole days, from the day the event starts to the day
+   * it ends. It used to be the start day and nothing else, which meant an event
+   * spanning two days showed availability for one of them without saying so.
+   */
+  const fbWindow = useMemo(() => availabilityWindow(start, end), [start, end]);
+
   // Free/busy lookup for attendees that are directory principals
   useEffect(() => {
     if (!attendees.length || !contacts.principalsLoaded) {
       if (!contacts.principalsLoaded) void contacts.loadPrincipals();
       return;
     }
-    const dayStart = new Date(start);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(dayStart.getTime() + DAY_MS);
     let cancelled = false;
     (async () => {
       const out: Record<string, BusyPeriod[]> = {};
@@ -170,7 +175,7 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
         const p = contacts.principals.find((x) => x.email?.toLowerCase() === a.email.toLowerCase());
         if (!p) continue;
         try {
-          out[a.email] = await cal.availability(p.id, dayStart, dayEnd);
+          out[a.email] = await cal.availability(p.id, fbWindow.start, fbWindow.end);
         } catch {
           /* ignore */
         }
@@ -181,7 +186,7 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [attendees.map((a) => a.email).join(","), start.getTime(), contacts.principalsLoaded]);
+  }, [attendees.map((a) => a.email).join(","), fbWindow.start.getTime(), fbWindow.end.getTime(), contacts.principalsLoaded]);
 
   const onStartChange = (d: Date) => {
     if (Number.isNaN(d.getTime())) return;
@@ -271,11 +276,6 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
   };
 
   const customRule = rule ?? { "@type": "RecurrenceRule", frequency: "weekly" as const };
-  const dayWindow = useMemo(() => {
-    const ds = new Date(start);
-    ds.setHours(0, 0, 0, 0);
-    return { ds, de: new Date(ds.getTime() + DAY_MS) };
-  }, [start]);
 
   return (
     <Dialog open onClose={onClose} title={editing ? translate("Edit event") : translate("New event")} size="lg" footer={<><button className="btn" onClick={onClose}>{translate("Cancel")}</button><button className="btn btn-primary" disabled={busy} onClick={() => void save()}>{busy ? translate("Saving…") : editing ? translate("Save") : attendees.length && sendInvites ? translate("Send invites") : translate("Create")}</button></>}>
@@ -368,25 +368,57 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
           {attendees.length > 0 && (
             <>
               <Switch checked={sendInvites} onChange={setSendInvites} label={translate("Send invitation emails to guests")} />
-              {Object.keys(fb).length > 0 && (
-                <div className="freebusy">
-                  <div className="hint">{translate("Availability on {date}", { date: formatNumericDate(start) })}</div>
-                  {attendees.filter((a) => fb[a.email]).map((a) => (
-                    <div key={a.email} className="fb-row">
-                      <span className="truncate" style={{ width: 140 }}>{a.name ?? a.email}</span>
-                      <div className="fb-bar">
-                        {fb[a.email]!.map((b, i) => {
-                          const bs = Math.max(new Date(b.utcStart).getTime(), dayWindow.ds.getTime());
-                          const be = Math.min(new Date(b.utcEnd).getTime(), dayWindow.de.getTime());
-                          if (be <= bs) return null;
-                          return <span key={i} className="fb-busy" style={{ left: `${((bs - dayWindow.ds.getTime()) / DAY_MS) * 100}%`, width: `${((be - bs) / DAY_MS) * 100}%` }} title={`${b.busyStatus}: ${formatClock(new Date(b.utcStart))} – ${formatClock(new Date(b.utcEnd))}`} />;
-                        })}
-                        {!allDay && <span className="fb-window" style={{ left: `${((start.getTime() - dayWindow.ds.getTime()) / DAY_MS) * 100}%`, width: `${((end.getTime() - start.getTime()) / DAY_MS) * 100}%` }} />}
+              {Object.keys(fb).length > 0 && (() => {
+                /** Everything on a bar is placed as a fraction of the span it covers. */
+                const pct = (from: number, to: number) => ({
+                  left: `${((from - fbWindow.start.getTime()) / fbWindow.span) * 100}%`,
+                  width: `${((to - from) / fbWindow.span) * 100}%`,
+                });
+                return (
+                  <div className="freebusy">
+                    <div className="hint">
+                      {fbWindow.days === 1
+                        ? translate("Availability on {date}", { date: formatNumericDate(fbWindow.start) })
+                        : translate("Availability, {from} to {to}", { from: formatNumericDate(fbWindow.start), to: formatNumericDate(new Date(fbWindow.end.getTime() - 1)) })}
+                    </div>
+                    {/* The axis answers "what am I looking at" -- without it the bar
+                        could as easily have been working hours as a whole day. */}
+                    <div className="fb-row fb-axis-row">
+                      <span style={{ width: 140, flex: "none" }} />
+                      <div className="fb-axis">
+                        {fbWindow.ticks.filter((tk) => tk.major).map((tk) => (
+                          <span key={tk.time.getTime()} className="fb-axis-label" style={{ left: `${tk.at * 100}%` }}>
+                            {fbWindow.scale === "hours" ? formatClock(tk.time) : formatWeekday(tk.time, "short")}
+                          </span>
+                        ))}
+                        <span className="fb-axis-label end">{fbWindow.scale === "hours" ? formatClock(fbWindow.end) : formatNumericDate(new Date(fbWindow.end.getTime() - 1))}</span>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                    {attendees.filter((a) => fb[a.email]).map((a) => (
+                      <div key={a.email} className="fb-row">
+                        <span className="truncate" style={{ width: 140, flex: "none" }}>{a.name ?? a.email}</span>
+                        <div className="fb-bar">
+                          {/* Drawn under the blocks, so a block can be read against
+                              the hour it starts at rather than guessed at. */}
+                          {fbWindow.ticks.map((tk) => (
+                            tk.at === 0 ? null : <span key={tk.time.getTime()} className={`fb-tick ${tk.major ? "major" : ""}`} style={{ left: `${tk.at * 100}%` }} />
+                          ))}
+                          {fb[a.email]!.map((b, i) => {
+                            const bs = Math.max(new Date(b.utcStart).getTime(), fbWindow.start.getTime());
+                            const be = Math.min(new Date(b.utcEnd).getTime(), fbWindow.end.getTime());
+                            if (be <= bs) return null;
+                            return <span key={i} className="fb-busy" style={pct(bs, be)} title={`${b.busyStatus}: ${formatClock(new Date(b.utcStart))} – ${formatClock(new Date(b.utcEnd))}`} />;
+                          })}
+                          {!allDay && <span className="fb-window" style={pct(start.getTime(), end.getTime())} />}
+                        </div>
+                      </div>
+                    ))}
+                    {fbWindow.daysHidden > 0 && (
+                      <div className="hint">{plural(fbWindow.daysHidden, { one: "The event runs {n} day longer than this shows.", other: "The event runs {n} days longer than this shows." })}</div>
+                    )}
+                  </div>
+                );
+              })()}
             </>
           )}
         </div>
