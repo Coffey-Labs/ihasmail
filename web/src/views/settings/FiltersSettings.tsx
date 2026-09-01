@@ -10,10 +10,22 @@ import { Switch, Spinner } from "@/ui/misc";
 import { toast } from "@/ui/toast";
 import type { SieveScript } from "@/jmap/types";
 import { t, tNode } from "@/lib/i18n";
+import { confirmLeaveUnsaved, useUnsavedChanges } from "@/lib/unsavedChanges";
 
 export function FiltersSettings() {
   const sieve = useSieve();
   const [tab, setTab] = useState<"rules" | "scripts">("rules");
+  /*
+   * Switching tabs unmounts the editor you were in, which is a way of losing
+   * work that never leaves the page and so never reaches the router's guard.
+   * Ask here for the same reason navigation asks.
+   */
+  const switchTab = (next: "rules" | "scripts") => {
+    if (next === tab) return;
+    void confirmLeaveUnsaved().then((ok) => {
+      if (ok) setTab(next);
+    });
+  };
   useEffect(() => {
     if (sieve.available && !sieve.scripts.length && !sieve.loading) void sieve.load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -33,8 +45,8 @@ export function FiltersSettings() {
       <h1>{t("Filters & rules")}</h1>
       <p className="lead">{t("Sort incoming mail automatically. Rules run on the server (Sieve), so they work for every client you use.")}</p>
       <div className="view-switch" style={{ marginBottom: 16 }}>
-        <button className={tab === "rules" ? "active" : ""} onClick={() => setTab("rules")}><Wand2 size={15} />  {t("Rules")}</button>
-        <button className={tab === "scripts" ? "active" : ""} onClick={() => setTab("scripts")}><Code size={15} />  {t("Scripts (advanced)")}</button>
+        <button className={tab === "rules" ? "active" : ""} onClick={() => switchTab("rules")}><Wand2 size={15} />  {t("Rules")}</button>
+        <button className={tab === "scripts" ? "active" : ""} onClick={() => switchTab("scripts")}><Code size={15} />  {t("Scripts (advanced)")}</button>
       </div>
       {sieve.loading && !sieve.scripts.length ? <Spinner /> : tab === "rules" ? <RulesEditor /> : <ScriptsEditor />}
     </div>
@@ -68,18 +80,29 @@ function RulesEditor() {
   const isBelow = (el: HTMLElement, y: number) => { const b = el.getBoundingClientRect(); return y > b.top + b.height / 2; };
   const activeIsOther = script && script.name !== "ihasmail" && script.isActive;
 
-  const save = async (next: SieveRule[]) => {
+  const save = async (next: SieveRule[]): Promise<boolean> => {
     setSaving(true);
     try {
       await sieve.saveRules(next);
       setLocal(null);
       toast.success(t("Filters saved"));
+      return true;
     } catch (err) {
       toast.error(t("Could not save filters: {error}", { error: (err as Error).message }));
+      return false;
     } finally {
       setSaving(false);
     }
   };
+
+  // Before the early returns below: a hook cannot be skipped, and the branches
+  // they guard have nothing pending anyway.
+  useUnsavedChanges({
+    dirty,
+    message: t("Your filter rules have changes that have not been saved."),
+    save: () => save(list),
+    discard: () => setLocal(null),
+  });
 
   // Before the hand-written branch: a script that arrived in part is not a
   // script someone chose to write themselves, and the way out of it is a reload
@@ -149,11 +172,16 @@ function RulesEditor() {
           </div>
         </div>
       ))}
-      <div className="row" style={{ marginTop: 12 }}>
+      {/*
+        * Pinned, because with more than a screenful of rules this bar was the
+        * only thing saying there was unsaved work and it sat below the fold.
+        */}
+      <div className="row save-bar">
         <button className="btn" onClick={() => setEditing(newRule())}><Plus size={16} />  {t("New rule")}</button>
         <span className="spacer" />
+        {dirty && <span className="unsaved">{t("Unsaved changes")}</span>}
         {dirty && <button className="btn btn-ghost" onClick={() => setLocal(null)}>{t("Discard changes")}</button>}
-        <button className="btn btn-primary" disabled={!dirty || saving} onClick={() => void save(list)}>{saving ? "Saving…" : "Save filters"}</button>
+        <button className="btn btn-primary" disabled={!dirty || saving} onClick={() => void save(list)}>{saving ? t("Saving…") : t("Save filters")}</button>
       </div>
       {content && (
         <details style={{ marginTop: 20 }}>
@@ -188,23 +216,39 @@ function ScriptsEditor() {
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [validation, setValidation] = useState<string | null>(null);
+  /**
+   * What was in the editor when it opened, so "has this been touched" is a
+   * comparison rather than a flag every edit path has to remember to set.
+   * `null` means the editor is closed and there is nothing to compare.
+   */
+  const [opened, setOpened] = useState<{ name: string; content: string } | null>(null);
+  const dirty = opened !== null && (name !== opened.name || content !== opened.content);
+
+  const start = (scriptName: string, source: string) => {
+    setName(scriptName);
+    setContent(source);
+    setOpened({ name: scriptName, content: source });
+  };
+
+  const close = () => {
+    setSel(null);
+    setName("");
+    setContent("");
+    setOpened(null);
+    setValidation(null);
+  };
 
   const open = async (s: SieveScript | null) => {
     setSel(s);
     setValidation(null);
-    if (s) {
-      setName(s.name);
-      setContent(await sieve.getContent(s.id));
-    } else {
-      setName("");
-      setContent('require ["fileinto"];\n\n');
-    }
+    if (s) start(s.name, await sieve.getContent(s.id));
+    else start("", 'require ["fileinto"];\n\n');
   };
 
-  const save = async (activate: boolean) => {
+  const save = async (activate: boolean): Promise<boolean> => {
     if (!name.trim()) {
       toast.error(t("Script name is required"));
-      return;
+      return false;
     }
     setBusy(true);
     try {
@@ -212,38 +256,57 @@ function ScriptsEditor() {
       setValidation(err);
       if (err) {
         toast.error(t("Script has errors"));
-        return;
+        return false;
       }
       await sieve.saveScript(sel?.id ?? null, name.trim(), content, activate);
       toast.success(t("Script saved"));
-      setSel(null);
+      // All the way closed, back to the list. Clearing only `sel` left the
+      // editor up -- it is shown whenever there is a name or a body -- but with
+      // the name unlocked, so saving a second time created a duplicate script
+      // rather than updating the one just written.
+      close();
+      return true;
     } catch (err) {
       toast.error((err as Error).message);
+      return false;
     } finally {
       setBusy(false);
     }
   };
 
-  if (sel !== null || name !== "" || content !== "") {
-    if (sel !== null || name !== "" || content !== "") {
-      return (
-        <div>
-          <div className="field"><label>{t("Script name")}</label><input className="input" value={name} onChange={(e) => setName(e.target.value)} disabled={Boolean(sel)} /></div>
-          <div className="field">
-            <label>{t("Sieve source")}</label>
-            <textarea className="code notranslate" translate="no" value={content} onChange={(e) => setContent(e.target.value)} spellCheck={false} style={{ minHeight: 320 }} />
-          </div>
-          {validation && <div className="error-box mb-16">{validation}</div>}
-          <div className="row">
-            <button className="btn btn-ghost" onClick={() => { setSel(null); setName(""); setContent(""); }}>{t("Cancel")}</button>
-            <button className="btn" disabled={busy} onClick={async () => { setBusy(true); const err = await sieve.validate(content); setValidation(err); setBusy(false); if (!err) toast.success(t("Script is valid")); }}><Play size={14} />  {t("Validate")}</button>
-            <span className="spacer" />
-            <button className="btn" disabled={busy} onClick={() => void save(false)}>{t("Save")}</button>
-            <button className="btn btn-primary" disabled={busy} onClick={() => void save(true)}>{t("Save & activate")}</button>
-          </div>
+  // A hand-written script is the worst thing here to lose, and until now
+  // leaving the page took it without asking.
+  useUnsavedChanges({
+    dirty,
+    message: t("Your Sieve script has changes that have not been saved."),
+    // Whether this script is the active one is not this dialog's question to
+    // reopen, so the save it offers leaves that exactly as it found it.
+    save: () => save(false),
+    discard: close,
+  });
+
+  // One question, asked once: the editor is up exactly while a script is open
+  // in it. Before, this was a pair of identical nested conditions reading name
+  // and body, which is also why saving could not put the editor away.
+  if (opened !== null) {
+    return (
+      <div>
+        <div className="field"><label>{t("Script name")}</label><input className="input" value={name} onChange={(e) => setName(e.target.value)} disabled={Boolean(sel)} /></div>
+        <div className="field">
+          <label>{t("Sieve source")}</label>
+          <textarea className="code notranslate" translate="no" value={content} onChange={(e) => setContent(e.target.value)} spellCheck={false} style={{ minHeight: 320 }} />
         </div>
-      );
-    }
+        {validation && <div className="error-box mb-16">{validation}</div>}
+        <div className="row save-bar">
+          <button className="btn btn-ghost" onClick={close}>{t("Cancel")}</button>
+          <button className="btn" disabled={busy} onClick={async () => { setBusy(true); const err = await sieve.validate(content); setValidation(err); setBusy(false); if (!err) toast.success(t("Script is valid")); }}><Play size={14} />  {t("Validate")}</button>
+          <span className="spacer" />
+          {dirty && <span className="unsaved">{t("Unsaved changes")}</span>}
+          <button className="btn" disabled={busy} onClick={() => void save(false)}>{t("Save")}</button>
+          <button className="btn btn-primary" disabled={busy} onClick={() => void save(true)}>{t("Save & activate")}</button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -259,7 +322,7 @@ function ScriptsEditor() {
           </div>
         </div>
       ))}
-      <button className="btn" onClick={async () => { const n = await promptDialog({ title: "New script", placeholder: "Script name" }); if (n) { setName(n); setContent('require ["fileinto"];\n\n'); } }}><Plus size={16} />  {t("New script")}</button>
+      <button className="btn" onClick={async () => { const n = await promptDialog({ title: t("New script"), placeholder: t("Script name") }); if (n) start(n, 'require ["fileinto"];\n\n'); }}><Plus size={16} />  {t("New script")}</button>
     </div>
   );
 }
