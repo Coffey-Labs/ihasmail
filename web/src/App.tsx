@@ -1,5 +1,5 @@
 import { Fragment, lazy, Suspense, useEffect, useState } from "react";
-import { Route, Switch, Redirect, useLocation } from "wouter";
+import { Route, Switch, Redirect, useLocation, Router } from "wouter";
 import { useSession } from "@/store/session";
 import { useMail } from "@/store/mail";
 import { scheduleSupported, useScheduled } from "@/store/scheduled";
@@ -21,6 +21,7 @@ import { PAINTED_FROM_CACHE, useSettings, syncedPart } from "@/store/settings";
 import { armSettingsSync, loadRemoteSettings, queueSettingsPush, settingsAlreadyLoadedFor, settingsSyncAvailable } from "@/lib/settingsSync";
 import { listenForVerification, renewWebPush } from "@/lib/webpushEnable";
 import { useLanguageVersion, whenLanguageReady } from "@/lib/i18n";
+import { confirmLeaveUnsaved, hasUnsavedChanges } from "@/lib/unsavedChanges";
 
 const ContactsView = lazy(() => import("@/views/contacts/ContactsView").then((m) => ({ default: m.ContactsView })));
 const CalendarView = lazy(() => import("@/views/calendar/CalendarView").then((m) => ({ default: m.CalendarView })));
@@ -70,11 +71,32 @@ export function App() {
     );
   }
   return (
-    <>
+    /*
+     * Every in-app navigation runs through `aroundNav` -- links, redirects and
+     * `navigate()` alike, since wouter routes them all through the same place.
+     * That is what makes the guard hold for the app rail and the settings nav
+     * without either of them knowing an editor exists.
+     *
+     * The back button is the gap: by the time `popstate` arrives the history
+     * has already moved, and the only way to hold the page would be to push an
+     * entry back, which breaks the button for everyone who has nothing pending.
+     * Reload and tab close are covered by `beforeunload` instead.
+     */
+    <Router
+      aroundNav={(navigate, to, options) => {
+        if (!hasUnsavedChanges()) {
+          navigate(to, options);
+          return;
+        }
+        void confirmLeaveUnsaved().then((ok) => {
+          if (ok) navigate(to, options);
+        });
+      }}
+    >
       <Fragment key={languageVersion}>{status === "anonymous" ? <LoginPage /> : <AuthedApp />}</Fragment>
       <ToastHost />
       <ConfirmHost />
-    </>
+    </Router>
   );
 }
 
