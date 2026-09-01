@@ -476,6 +476,60 @@ function genericSet(list: Obj[], prefix: string, onCreate?: (o: Obj) => void) {
  *   still saying the update succeeded. A mock that applied them would let a
  *   client that sends them look correct everywhere except a real server.
  */
+/**
+ * Enough of an iCalendar reader to stand in for Stalwart's.
+ *
+ * It reads per VEVENT rather than across the whole file, because a file is the
+ * case an emailed invitation never was: an export carries a year of them, and a
+ * regex over the whole text would find the first DTSTART and call that the
+ * answer. One event still comes back as a bare object, the shape this returned
+ * when an invitation was all it had to handle.
+ *
+ * The synthetic organiser and attendee only go on events that arrived with a
+ * METHOD. Those are scheduling messages, which is what the invitation fixtures
+ * are; a plain export is not addressed to anyone, and inventing participants
+ * for it would make imported events look like invitations nobody sent.
+ */
+function calendarEventParse(a: Obj) {
+  const parsed: Obj = {};
+  const notParsable: string[] = [];
+  for (const b of a.blobIds as string[]) {
+    const blob = blobs.get(b);
+    if (!blob) { notParsable.push(b); continue; }
+    const text = blob.data.toString();
+    const field = (src: string, k: string) => new RegExp(`^${k}[^:\r\n]*:(.*)$`, "m").exec(src)?.[1]?.trim();
+    const method = field(text, "METHOD");
+    const bodies = text.match(/BEGIN:VEVENT[\s\S]*?END:VEVENT/g) ?? [];
+    const events = bodies.map((body) => {
+      const g = (k: string) => field(body, k);
+      const ds = g("DTSTART") ?? "20260101T000000Z";
+      const de = g("DTEND") ?? ds;
+      const toLocal = (s: string) => `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}T${s.slice(9, 11)}:${s.slice(11, 13)}:00`;
+      const start = new Date(`${toLocal(ds)}Z`);
+      const end = new Date(`${toLocal(de)}Z`);
+      return {
+        "@type": "Event",
+        uid: g("UID"),
+        title: g("SUMMARY"),
+        start: toLocal(ds),
+        timeZone: "Etc/UTC",
+        duration: `PT${Math.round((end.getTime() - start.getTime()) / 60000)}M`,
+        method,
+        locations: g("LOCATION") ? { l: { name: g("LOCATION") } } : undefined,
+        participants: method
+          ? {
+              org: { name: "Ada Lovelace", calendarAddress: "mailto:ada@example.org", roles: { owner: true } },
+              me: { name: "Demo User", calendarAddress: `mailto:${USER}`, roles: { attendee: true, required: true }, participationStatus: "needs-action" },
+            }
+          : undefined,
+      };
+    });
+    if (!events.length) { notParsable.push(b); continue; }
+    parsed[b] = events.length === 1 ? events[0] : events;
+  }
+  return { accountId: ACCOUNT, parsed, notParsable };
+}
+
 function calendarEventSet(a: Obj) {
   const created: Obj = {};
   const updated: Obj = {};
@@ -961,7 +1015,7 @@ const handlers: Record<string, Handler> = {
   // participants addressed the RFC 8984 way. The mock did neither, which is how
   // #26 and #30 reached a live server unnoticed — so it now does both.
   "CalendarEvent/set": (a) => calendarEventSet(a),
-  "CalendarEvent/parse": (a) => { const parsed: Obj = {}; for (const b of a.blobIds as string[]) { const blob = blobs.get(b); if (!blob) continue; const t = blob.data.toString(); const g = (k: string) => new RegExp(`^${k}[^:]*:(.*)$`, "m").exec(t)?.[1]?.trim(); const ds = g("DTSTART") ?? "20260101T000000Z"; const de = g("DTEND") ?? ds; const toLocal = (s: string) => `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}T${s.slice(9, 11)}:${s.slice(11, 13)}:00`; const start = new Date(`${toLocal(ds)}Z`); const end = new Date(`${toLocal(de)}Z`); parsed[b] = { "@type": "Event", uid: g("UID"), title: g("SUMMARY"), start: toLocal(ds), timeZone: "Etc/UTC", duration: `PT${Math.round((end.getTime() - start.getTime()) / 60000)}M`, method: g("METHOD"), locations: g("LOCATION") ? { l: { name: g("LOCATION") } } : undefined, participants: { org: { name: "Ada Lovelace", calendarAddress: "mailto:ada@example.org", roles: { owner: true } }, me: { name: "Demo User", calendarAddress: `mailto:${USER}`, roles: { attendee: true, required: true }, participationStatus: "needs-action" } } }; } return { accountId: ACCOUNT, parsed, notParsable: [] }; },
+  "CalendarEvent/parse": (a) => calendarEventParse(a),
   "ParticipantIdentity/get": genericGet(participantIdentities),
   "Principal/query": () => ({ accountId: ACCOUNT, queryState: "1", canCalculateChanges: false, position: 0, ids: principals.map((p) => p.id) }),
   "Principal/get": genericGet(principals),

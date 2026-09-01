@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { ChevronLeft, ChevronRight, MoreVertical, Pencil, Plus, Share2, Trash2, Eye, EyeOff, Star, UserMinus, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, MoreVertical, Pencil, Plus, Share2, Trash2, Eye, EyeOff, Star, Upload, UserMinus, X } from "lucide-react";
 import { useCalendar } from "@/store/calendar";
 import { dateTimeKey, useSettings } from "@/store/settings";
 import { addMonths, isSameDay, isToday, monthGrid, startOfDay, toLocalDateOnly } from "@/lib/dates";
@@ -9,7 +9,7 @@ import { formatWeekday } from "@/lib/datetime";
 import { MenuItem, MenuSep, Popover, useMenu } from "@/ui/popover";
 import { confirmDialog } from "@/ui/dialog";
 import { toast } from "@/ui/toast";
-import type { Calendar } from "@/jmap/types";
+import type { Calendar, Id } from "@/jmap/types";
 import { CalendarDialog } from "./CalendarDialog";
 import { ShareDialog } from "../settings/ShareDialog";
 import { plural, t } from "@/lib/i18n";
@@ -26,6 +26,28 @@ export function CalendarSidebar() {
   const [anchor, setAnchor] = useState(() => startOfDay(selected));
   const grid = useMemo(() => monthGrid(anchor, weekStart), [anchor, weekStart]);
   const menu = useMenu();
+  /*
+   * The file picker for "Import iCAL file". A MenuItem is a button, so it
+   * cannot wrap a hidden input the way the address-book import does; the input
+   * lives at the end of the sidebar and the menu item reaches it through this.
+   *
+   * The calendar is remembered separately because opening the picker closes the
+   * menu, and `menuCal` goes with it -- by the time a file comes back there
+   * would be nothing left saying which calendar it was chosen for.
+   */
+  const fileRef = useRef<HTMLInputElement>(null);
+  const importInto = useRef<Id | null>(null);
+
+  const importFile = async (file: File) => {
+    const calendarId = importInto.current;
+    if (!calendarId) return;
+    try {
+      const n = await cal.importIcs(await file.text(), calendarId);
+      toast.success(plural(n, { one: "Imported {n} event", other: "Imported {n} events" }));
+    } catch (err) {
+      toast.error(t("Could not import this file: {error}", { error: (err as Error).message }));
+    }
+  };
   /* Added if the server says so or the reader's settings do; Stalwart will not
      always take the flag, so the settings carry it where it refuses. */
   const addedShares = new Set(useSettings((s) => s.settings).addedShares);
@@ -124,6 +146,15 @@ export function CalendarSidebar() {
           <>
             <MenuItem icon={cal.hidden[menuCal.id] ? <Eye size={16} /> : <EyeOff size={16} />} label={cal.hidden[menuCal.id] ? "Show" : "Hide"} onClick={() => cal.toggleHidden(menuCal.id)} />
             <MenuItem icon={<Pencil size={16} />} label={t("Edit")} onClick={() => setEditCal(menuCal)} />
+            <MenuItem
+              icon={<Upload size={16} />}
+              label={t("Import iCAL file…")}
+              disabled={!menuCal.myRights.mayWriteAll && !menuCal.myRights.mayWriteOwn}
+              onClick={() => {
+                importInto.current = menuCal.id;
+                fileRef.current?.click();
+              }}
+            />
             <MenuItem icon={<Share2 size={16} />} label={t("Share…")} onClick={() => setShare(menuCal)} disabled={!menuCal.myRights.mayShare} />
             {/* Revoking every share at once, without walking the dialog and
                 removing people one at a time. Only offered when there is
@@ -156,6 +187,19 @@ export function CalendarSidebar() {
           </>
         )}
       </Popover>
+      {/* Cleared after every pick, so choosing the same file twice still counts
+          as a change and fires again. */}
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".ics,.ical,text/calendar"
+        hidden
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (file) void importFile(file);
+        }}
+      />
       {editCal && <CalendarDialog calendar={editCal} onClose={() => setEditCal(null)} />}
       {share && <ShareDialog kind="Calendar" id={share.id} name={share.name} shareWith={share.shareWith} onClose={() => setShare(null)} />}
     </div>

@@ -284,6 +284,8 @@ interface CalendarState {
   findByUid(uid: string): Promise<CalendarEvent | null>;
   parseIcs(blobId: Id): Promise<CalendarEvent[]>;
   importEvent(event: Partial<CalendarEvent>, calendarId: Id): Promise<Id>;
+  /** Import a whole .ics file. Returns how many events it created. */
+  importIcs(text: string, calendarId: Id): Promise<number>;
   applyChanges(types: Set<string>): void;
   invalidate(): void;
   setDraft(draft: EventDraft | null): void;
@@ -301,6 +303,20 @@ const EVENT_PROPS = [
   "recurrenceRules", "recurrenceRule", "excludedRecurrenceRules", "recurrenceOverrides", "excluded", "priority", "freeBusyStatus", "privacy", "replyTo", "organizerCalendarAddress",
   "sentBy", "participants", "requestStatus", "alerts", "timeZone", "start", "duration", "status",
 ];
+
+/**
+ * An event as it arrived, minus everything that belonged to where it came from.
+ *
+ * `id` and `calendarIds` are the copy's, not this one's; `baseEventId`,
+ * `utcStart`, `utcEnd` and `isOrigin` are the server's own bookkeeping and are
+ * recomputed for whatever is created here. `method` is the scheduling verb of
+ * the message that carried it -- REQUEST, CANCEL -- and an event filed into a
+ * calendar is no longer a message about anything.
+ */
+function forImport(event: Partial<CalendarEvent>): Partial<CalendarEvent> {
+  const { id: _id, calendarIds: _c, baseEventId: _b, utcStart: _us, utcEnd: _ue, isOrigin: _io, method: _m, ...rest } = event as CalendarEvent & { method?: string };
+  return rest;
+}
 
 export const useCalendar = create<CalendarState>((set, get) => ({
   accountId: null,
@@ -673,8 +689,49 @@ export const useCalendar = create<CalendarState>((set, get) => ({
   },
 
   async importEvent(event, calendarId) {
-    const { id: _id, calendarIds: _c, baseEventId: _b, utcStart: _us, utcEnd: _ue, isOrigin: _io, method: _m, ...rest } = event as CalendarEvent & { method?: string };
-    return get().createEvent(rest, calendarId, false);
+    return get().createEvent(forImport(event), calendarId, false);
+  },
+
+  /*
+   * A file, rather than the single event an invitation carries.
+   *
+   * The parsing is the server's, the same `CalendarEvent/parse` an emailed
+   * invitation goes through -- an .ics is not a format worth reimplementing in
+   * a browser, and the one already in Stalwart handles what a hand-rolled
+   * parser would not.
+   *
+   * Every event goes out in one `CalendarEvent/set` rather than a call each.
+   * The round trips are the smaller half of the reason: `createEvent`
+   * invalidates on the way out, and invalidating re-fetches every cached range,
+   * so importing a year of events one at a time would refetch the calendar a
+   * few hundred times.
+   *
+   * No scheduling messages. Importing a file is filing something you already
+   * have, and mailing its participants would be a surprise to everyone.
+   */
+  async importIcs(text, calendarId) {
+    const accountId = get().accountId!;
+    const up = await client.upload(accountId, new Blob([text], { type: "text/calendar" }), { type: "text/calendar" });
+    const events = await get().parseIcs(up.blobId);
+    if (!events.length) throw new Error("it has no events in it");
+    const create: Record<string, unknown> = {};
+    events.forEach((e, i) => {
+      const rest = forImport(e);
+      // A UID is what makes an event the same event across calendars, so the
+      // file's own is kept wherever it has one. Only what arrives without gets
+      // invented, and an event with no UID is not one anything can match to.
+      create[`e${i}`] = { "@type": "Event", ...rest, uid: rest.uid || crypto.randomUUID(), calendarIds: { [calendarId]: true } };
+    });
+    const res = await client.call<SetResponse<CalendarEvent>>("CalendarEvent/set", { accountId, create, sendSchedulingMessages: false });
+    get().invalidate();
+    const created = Object.keys(res.created ?? {}).length;
+    // Nothing at all got in: say why rather than report importing zero events
+    // as though the file had been empty.
+    if (!created) {
+      const first = Object.values(res.notCreated ?? {})[0];
+      throw new Error(first ? setErrorMessage(first) : "the server did not accept any of its events");
+    }
+    return created;
   },
 
   applyChanges(types) {
