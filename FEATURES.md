@@ -43,7 +43,7 @@ capability removes its feature rather than breaking the app.
 | `urn:ietf:params:jmap:vacationresponse` | Out of office | The Settings section hides |
 | `urn:ietf:params:jmap:sieve` | Filters, visual and raw | Filters hides |
 | `urn:ietf:params:jmap:contacts` (+`:parse`) | Contacts; vCard import | Contacts hides; import only needs `parse` |
-| `urn:ietf:params:jmap:calendars` (+`:parse`) | Calendar; iTIP invitations in mail | Calendar hides; invite cards do not render |
+| `urn:ietf:params:jmap:calendars` (+`:parse`) | Calendar; iTIP invitations in mail; iCal import | Calendar hides; invite cards and import need `parse` |
 | `urn:ietf:params:jmap:principals` | Directory lookup, sharing pickers | Sharing and directory autocomplete step aside |
 | `urn:ietf:params:jmap:principals:availability` | Free/busy when scheduling | Guests show no availability |
 | `urn:ietf:params:jmap:quota` | Storage bar under the folder list | The bar is not drawn |
@@ -377,6 +377,10 @@ The sidebar keeps three groups apart:
 Right-click your own to rename, recolour, share, stop sharing or delete;
 right-click one of someone else's to remove it from your view, which changes
 nothing for anybody else.
+
+- **iCal import** through `CalendarEvent/parse` (a file of any number of
+  events), from the calendar's own menu, into that calendar. The events are
+  filed rather than scheduled: no invitations go out to anyone named in them.
 
 ## Events
 
