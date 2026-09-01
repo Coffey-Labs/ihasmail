@@ -90,9 +90,23 @@ value, and `listForUser` / `destroyAllForUser` are exactly the two operations
 
 ## The part that is not code
 
-A Worker can only reach a **publicly resolvable Stalwart**. The deployment
-ihasmail is built around — one container beside the mail server, JMAP over
-loopback — is not available here; it needs Stalwart on a public hostname or a
-Cloudflare Tunnel, and every JMAP call, blob and SSE stream then crosses the
-internet. That is a product decision, not a porting problem, and it is the same
+A Worker can only reach a **publicly resolvable Stalwart**, which rules out the
+deployment ihasmail's own README describes: one container beside the mail
+server, JMAP over loopback. Anyone running that shape needs Stalwart on a
+public hostname or a Cloudflare Tunnel before any of this is available to them,
+and that is a product decision rather than a porting problem — the same
 "nothing else to run" promise that parked Kubernetes.
+
+It is worth being exact about who that applies to, because it is not everyone
+and it was not the first assumption made here. The deployment this was written
+against already runs the app and Stalwart in **two different datacentres**,
+with `STALWART_URL` a public HTTPS name. Every JMAP call, blob and SSE stream
+already crosses the internet; a Worker would not add a hop, it would move the
+first one. Today that hop is user → app datacentre → mail datacentre. On
+Workers it is user → nearest colo → mail datacentre, which is the same second
+leg and a shorter first one for anybody who is not sitting beside the app host.
+
+So for a split deployment the objection in this section is not an objection.
+What is left of the case against is the three things above — the image proxy,
+rate limiting, and KV's consistency window — and none of them is
+architectural.
