@@ -81,6 +81,8 @@ interface ComposeState {
   pendingSends: Record<string, { timer: number; toastId: number; draft: Draft }>;
   open(init?: Partial<Draft>): string;
   openDraftEmail(email: Email): Promise<string>;
+  /** Open a message again as a mail that has not been sent yet. */
+  composeAsNew(email: Email): Promise<string>;
   reply(email: Email, mode: "reply" | "replyAll" | "forward", opts?: { all?: boolean }): Promise<string>;
   update(key: string, patch: Partial<Draft>): void;
   close(key: string, opts?: { discard?: boolean }): Promise<void>;
@@ -217,6 +219,73 @@ export const useCompose = create<ComposeState>((set, get) => ({
       priority: /^[12]/.test(full["header:X-Priority:asText"] ?? "") ? "high" : /^[45]/.test(full["header:X-Priority:asText"] ?? "") ? "low" : "normal",
     });
     set((s) => ({ drafts: [...s.drafts, d], activeKey: d.key }));
+    return d.key;
+  },
+
+  /*
+   * The same mail again, as a mail that has never been sent.
+   *
+   * Not a forward and not a reply: a mail that was rejected, or went to an
+   * address with a typo in it, is one you want to send *again* rather than pass
+   * on. So there is no Fwd: on the subject, no quote wrapper around the body,
+   * and the recipients it already had are the recipients it keeps.
+   *
+   * What makes it new is what is left out. `draftId` stays null, or sending
+   * would destroy the message this was made from; `inReplyTo`, `references`,
+   * `relatedEmailId` and `relatedKeyword` stay null, so nothing is threaded
+   * onto the old message and the old message is not marked answered or
+   * forwarded by sending this. The Message-ID and the date are the server's and
+   * `buildEmailObject`'s respectively, and neither is copied from anywhere, so
+   * both are new without anything here asking for it.
+   */
+  async composeAsNew(email) {
+    const mail = useMail.getState();
+    const full = (await mail.getEmails([email.id], true))[0] ?? email;
+    const identities = mail.identities.length ? mail.identities : await mail.loadIdentities();
+    // Sent by you, so send it as you again -- the same rule that reopens a
+    // draft. A mail somebody else sent has no identity of yours to match, and
+    // guessing from who it was addressed to would put a resend behind an alias
+    // that was only ever the receiving end; the account's own default is the
+    // honest answer there.
+    const ident =
+      identities.find((i) => full.from?.some((f) => sameAddress(f.email, i.email))) ??
+      mail.defaultIdentity() ??
+      identities[0];
+    const htmlPart = full.htmlBody?.[0];
+    const textPart = full.textBody?.[0];
+    const html = htmlPart?.partId ? (full.bodyValues?.[htmlPart.partId]?.value ?? "") : "";
+    const text = textPart?.partId ? (full.bodyValues?.[textPart.partId]?.value ?? "") : "";
+    const accountId = mail.accountId!;
+    const cidMap: Record<string, string> = {};
+    const attachments: ComposeAttachment[] = [];
+    for (const a of full.attachments ?? []) {
+      const inline = Boolean(a.cid) && (a.disposition === "inline" || a.type.startsWith("image/"));
+      if (inline && a.cid && a.blobId) cidMap[a.cid] = client.downloadUrl(accountId, a.blobId, a.name ?? "image", a.type, true);
+      attachments.push({ id: uid("a"), name: a.name ?? "attachment", type: a.type, size: a.size, blobId: a.blobId, progress: 100, error: null, cid: a.cid ?? undefined, inline });
+    }
+    const d = blankDraft({
+      identityId: ident?.id ?? null,
+      to: full.to ?? [],
+      cc: full.cc ?? [],
+      bcc: full.bcc ?? [],
+      // The message's own Reply-To if it carried one, which is the setting the
+      // report asks to keep; the identity's only when it did not.
+      replyTo: full.replyTo ?? ident?.replyTo ?? [],
+      showReplyTo: Boolean(full.replyTo?.length || ident?.replyTo?.length),
+      showCc: Boolean(full.cc?.length),
+      showBcc: Boolean(full.bcc?.length),
+      subject: full.subject ?? "",
+      html: html ? sanitizeEmailHtml(html, { cidMap, allowRemote: true }).html : textToHtml(text).replace(/\n/g, "<br>"),
+      text: text || (html ? htmlToText(html) : ""),
+      format: html ? "html" : settings().composeFormat,
+      attachments,
+      // No signature is added, and `signatureHtml` is left empty on purpose.
+      // The body is the sent one, which already ends in whatever signature it
+      // was sent with; appending the identity's would give it two.
+      requestReceipt: Boolean(full["header:Disposition-Notification-To:asAddresses"]?.length),
+      priority: /^[12]/.test(full["header:X-Priority:asText"] ?? "") ? "high" : /^[45]/.test(full["header:X-Priority:asText"] ?? "") ? "low" : "normal",
+    });
+    set((st) => ({ drafts: [...st.drafts, d], activeKey: d.key }));
     return d.key;
   },
 

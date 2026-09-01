@@ -323,6 +323,11 @@ minimisable and maximisable; full-screen on mobile.
 - **Drafts** save as you type and on close, with the save state shown.
 - **Quoting** on reply, with the signature placed above or below it, and
   reply-all as an optional default.
+- **Compose as new** — the same mail again rather than passed on, for one that
+  bounced or went to a misspelled address. Recipients, Reply-To, subject, body
+  and attachments come across as they stand; the Message-ID, date and threading
+  headers do not, so it sends as a mail that has never been sent, and the
+  original is neither altered nor marked.
 - **Send and archive**, and **archive on reply**, as options.
 
 ### Undo send, and scheduled send
