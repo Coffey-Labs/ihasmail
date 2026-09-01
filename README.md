@@ -3,6 +3,11 @@
 </p>
 
 <p align="center">
+  <strong><a href="https://demo.ihasmail.com">Try the demo</a></strong><br>
+  <sub>A working copy with an invented mailbox behind it — no sign-up, nothing real, nothing kept.</sub>
+</p>
+
+<p align="center">
   <a href="LICENSE"><img alt="Licence: AGPL-3.0-or-later" src="https://img.shields.io/badge/licence-AGPL--3.0--or--later-2dd4bf?style=flat-square"></a>
   <a href="https://stalw.art" target="_blank" rel="noreferrer"><img alt="Requires Stalwart 0.16 or newer; tested against 0.16.20" src="https://img.shields.io/badge/Stalwart-0.16.20-6366f1?style=flat-square"></a>
   <a href="https://docs.ihasmail.org" target="_blank" rel="noreferrer"><img alt="Documentation: docs.ihasmail.org" src="https://img.shields.io/badge/docs-docs.ihasmail.org-0ea5e9?style=flat-square"></a>
