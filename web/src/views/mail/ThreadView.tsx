@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertOctagon, Archive, ArrowLeft, ChevronDown, ChevronUp, FolderInput, Forward, Mail, MailOpen, MoreVertical, Printer, Reply, ReplyAll, ShieldCheck, Star, Tag, Trash2, Download } from "lucide-react";
+import { AlertOctagon, Archive, ArrowLeft, ChevronDown, ChevronUp, FolderInput, Forward, Mail, MailOpen, MailPlus, MoreVertical, Printer, Reply, ReplyAll, ShieldCheck, Star, Tag, Trash2, Download } from "lucide-react";
 import { useMail } from "@/store/mail";
 import { useSettings } from "@/store/settings";
 import { useCompose } from "@/store/compose";
@@ -42,6 +42,8 @@ export function ThreadView({ threadId, mailboxId, onBack, actions, onNavigate, h
   const [allExpanded, setAllExpanded] = useState(false);
   const [labelAnchor, setLabelAnchor] = useState<{ x: number; y: number } | null>(null);
   const moreMenu = useMenu();
+  /** The overflow on the reply strip, which is the only per-message menu a phone offers easily. */
+  const replyMore = useMenu();
   const scrollRef = useRef<HTMLDivElement>(null);
   const markTimer = useRef<number | null>(null);
   const isTouch = useIsTouch();
@@ -289,6 +291,19 @@ export function ThreadView({ threadId, mailboxId, onBack, actions, onNavigate, h
               <button onClick={() => void reply(last, "reply")}><Reply size={16} />  {t("Reply")}</button>
               <button onClick={() => void reply(last, "replyAll")}><ReplyAll size={16} />  {t("Reply all")}</button>
               <button onClick={() => void reply(last, "forward")}><Forward size={16} />  {t("Forward")}</button>
+              {/*
+                On a phone this strip is where a thumb goes, and the per-message
+                menu at the top of a card is not somewhere anybody looks for
+                "send this again" -- which is how compose-as-new came to be
+                reported missing on mobile when it was there all along (#181).
+                A fourth full button does not fit at 500px; this does, and it
+                spells the action out once opened.
+              */}
+              <span className="spacer" />
+              <button className="icon-btn" onClick={replyMore.open} aria-label={t("More ways to send this")}><MoreVertical size={18} /></button>
+              <Popover anchor={replyMore.anchor} onClose={replyMore.close} align="end" width={220}>
+                <MenuItem icon={<MailPlus size={16} />} label={t("Compose as new")} onClick={() => void useCompose.getState().composeAsNew(last)} />
+              </Popover>
             </div>
           </div>
         )}
