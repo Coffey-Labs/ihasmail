@@ -327,7 +327,9 @@ minimisable and maximisable; full-screen on mobile.
   bounced or went to a misspelled address. Recipients, Reply-To, subject, body
   and attachments come across as they stand; the Message-ID, date and threading
   headers do not, so it sends as a mail that has never been sent, and the
-  original is neither altered nor marked.
+  original is neither altered nor marked. In a message's own menu, in the list's
+  right-click menu, and behind the overflow on the reply strip at the foot of a
+  thread — which is the one a thumb finds on a phone.
 - **Send and archive**, and **archive on reply**, as options.
 
 ### Undo send, and scheduled send
@@ -422,9 +424,34 @@ status (confirmed / tentative / cancelled), show-as (busy / free), visibility
 
 Invitations go out as iTIP when guests are added, replies come back and are
 applied to the event, and cancelling notifies the guests. Guests are added by
-name or address with the same autocomplete the composer uses. Where the server
-implements `Principal/getAvailability`, each guest's busy periods are looked up
-for the day being scheduled.
+name or address with the same autocomplete the composer uses.
+
+Where the server implements `Principal/getAvailability`, the event editor grows
+a **scheduling panel**: a row per participant — you first, because scheduling
+around everybody except yourself is how two things end up at the same time —
+over the days the event spans, marked by the hour or by the day depending on how
+wide that is.
+
+- **It is somewhere to put the event, not only something to read.** The pointer
+  shows the half hour it is over, and clicking moves the event there keeping its
+  length.
+- **It steps backwards and forwards** a screenful at a time without touching the
+  event, and offers its way back. Clicking while stepped away moves the event to
+  where you clicked and brings the view with it.
+- **A week is as far as it stretches.** Something running longer is not an event
+  anybody is hunting a free slot in; it says how many days it left out instead.
+
+**Whoever cannot be read is drawn hatched, never blank.** Free/busy is answered
+per principal, and only accounts on this server are principals — so for a guest
+at another domain there is nothing to read. Leaving them out, which is what
+ihasmail used to do, is the one presentation that lies: a row with nothing in it
+reads as a diary with nothing in it. A line under the grid says how many and
+why.
+
+That limit is the protocol's rather than a gap waiting to be closed. A
+`Principal` exposes no route to its calendars at all, so free/busy is not the
+weaker permission — it is the only channel between two accounts, and it needs no
+sharing to be set up first.
 
 ## Recurring events: series and single occurrence
 
@@ -546,6 +573,13 @@ Also:
   script Stalwart will not accept is refused in front of you rather than failing
   quietly at delivery.
 - **Preview generated Sieve** for the visual rules.
+- **Nothing is discarded without asking.** Both editors keep their edits until
+  you save, so every way out of the page used to throw them away silently — a
+  settings link, the app rail, even the Rules/Scripts switch — and with a
+  screenful of rules the save bar had already scrolled past the bottom of the
+  window. Leaving now asks, offering to save rather than making "leave without
+  saving" the easy answer, and the bar is pinned to the foot of the pane so
+  "Unsaved changes" is on screen whether or not the rules fit in it.
 - **Refuse to save from a script we only partly read** — a save is checked for
   completeness against the shape the generator emits, after a compressing proxy
   once truncated a download and the next save wrote the short version back over
