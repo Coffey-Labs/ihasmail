@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { CAP, client, setErrorMessage } from "@/jmap/client";
-import type { BusyPeriod, Calendar, CalendarEvent, GetResponse, Id, JSCalendarParticipant, JSCalendarRecurrenceRule, ParticipantIdentity, QueryResponse, SetResponse } from "@/jmap/types";
+import type { BusyPeriod, Calendar, CalendarEvent, EmailAddress, GetResponse, Id, JSCalendarParticipant, JSCalendarRecurrenceRule, ParticipantIdentity, QueryResponse, SetResponse } from "@/jmap/types";
 import { toUTCDate, toLocalDateTime, zonedToDate, parseDuration, DAY_MS, browserTimeZone } from "@/lib/dates";
 import { settings, useSettings } from "./settings";
 import { useSession } from "./session";
@@ -238,6 +238,7 @@ export interface EventDraft {
   start: Date;
   end: Date;
   allDay: boolean;
+  attendees: EmailAddress[];
 }
 
 interface CalendarState {

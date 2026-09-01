@@ -68,3 +68,42 @@ describe("what is copied from the message", () => {
     expect(d.description.endsWith("…")).toBe(true);
   });
 });
+
+const between = (parts: Partial<Email>) => email({ subject: "Kickoff", ...parts });
+const addr = (email: string, name: string | null = null) => ({ name, email });
+
+describe("who is invited", () => {
+  it("carries the sender and everyone it was addressed to", () => {
+    const d = appointmentDraft(
+      between({ from: [addr("grace@example.org", "Grace")], to: [addr("me@example.com"), addr("alan@example.org")], cc: [addr("ada@example.org")] }),
+      new Date(),
+      ["me@example.com"],
+    );
+    expect(d.attendees.map((a) => a.email)).toEqual(["grace@example.org", "alan@example.org", "ada@example.org"]);
+    expect(d.attendees[0]?.name).toBe("Grace");
+  });
+
+  it("leaves the reader out, whatever case their address was written in", () => {
+    const d = appointmentDraft(between({ from: [addr("grace@example.org")], to: [addr("Me@Example.com")] }), new Date(), ["me@example.com"]);
+    expect(d.attendees.map((a) => a.email)).toEqual(["grace@example.org"]);
+  });
+
+  it("counts someone once, however many headers they appear in", () => {
+    const d = appointmentDraft(between({ from: [addr("grace@example.org")], to: [addr("grace@example.org")], cc: [addr("GRACE@example.org")] }));
+    expect(d.attendees).toHaveLength(1);
+  });
+
+  /*
+   * On a message the reader sent, a blind copy is still a recipient — and
+   * putting one on a guest list shows them to every other guest. Turning a
+   * hidden copy into a visible one is not something a menu item may do.
+   */
+  it("never turns a blind copy into a guest", () => {
+    const d = appointmentDraft(between({ from: [addr("me@example.com")], to: [addr("alan@example.org")], bcc: [addr("secret@example.org")] }), new Date(), ["me@example.com"]);
+    expect(d.attendees.map((a) => a.email)).toEqual(["alan@example.org"]);
+  });
+
+  it("invites nobody when the message has no addresses at all", () => {
+    expect(appointmentDraft(between({})).attendees).toEqual([]);
+  });
+});

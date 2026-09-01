@@ -27,7 +27,7 @@ export interface EditorInit {
    * so far. Not an event: this is still a form the reader has to finish, so
    * `editing` stays false and the dialog says New event / Create.
    */
-  seed?: { title?: string; description?: string };
+  seed?: { title?: string; description?: string; attendees?: EmailAddress[] };
 }
 
 const ALERT_OPTIONS = [0, 5, 10, 15, 30, 60, 120, 1440, 2880, 10080];
@@ -127,12 +127,25 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
   });
   const myKeys = ev ? myParticipantKeys(ev, cal.identities) : [];
   const [attendees, setAttendees] = useState<EmailAddress[]>(() =>
-    Object.entries(ev?.participants ?? {})
-      .filter(([k, p]) => !myKeys.includes(k) && !(p.roles?.owner && !p.roles?.attendee))
-      .map(([, p]) => ({ name: p.name ?? null, email: participantEmail(p) }))
-      .filter((a) => a.email),
+    ev
+      ? Object.entries(ev.participants ?? {})
+          .filter(([k, p]) => !myKeys.includes(k) && !(p.roles?.owner && !p.roles?.attendee))
+          .map(([, p]) => ({ name: p.name ?? null, email: participantEmail(p) }))
+          .filter((a) => a.email)
+      : (init.seed?.attendees ?? []),
   );
-  const [sendInvites, setSendInvites] = useState(true);
+  /*
+   * Off when the guest list was not typed but inherited -- from a message, so
+   * far -- and on everywhere else, which is every event whose guests somebody
+   * chose one at a time.
+   *
+   * A reminder made out of a bill carries the biller and everyone else the
+   * mail went to. Left on, the primary button reads Send invites, and the
+   * first press mails all of them an invitation to the reader's private note
+   * to self. The switch is right there and says what it does, so inviting them
+   * is one deliberate click; un-sending is not.
+   */
+  const [sendInvites, setSendInvites] = useState(!init.seed?.attendees?.length);
   const [busy, setBusy] = useState(false);
   const [fb, setFb] = useState<Record<string, BusyPeriod[]>>({});
   const [showMore, setShowMore] = useState(Boolean(ev && (ev.privacy !== "public" || ev.freeBusyStatus === "free" || ev.color || ev.status !== "confirmed" || Object.keys(ev.categories ?? {}).length)));
