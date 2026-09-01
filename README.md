@@ -45,7 +45,7 @@ More, including the mobile layout, on [ihasmail.org](https://ihasmail.org/#scree
 
 ## What's in it
 
-- **Mail** — three-pane Gmail-style layout, conversation view, virtualised list, labels, undo, Gmail search operators and keyboard shortcuts, Sieve rules from a message's context menu, sanitised HTML with remote images blocked, read receipts, invitations and RSVP, multi-composer rich-text editing with signatures, scheduled send and undo send
+- **Mail** — three-pane Gmail-style layout, conversation view, virtualised list, labels, undo, Gmail search operators and keyboard shortcuts, Sieve rules from a message's context menu, sanitised HTML with remote images blocked, read receipts, invitations and RSVP, an event made from a message with its guests already in it, multi-composer rich-text editing with signatures, scheduled send and undo send
 - **Calendar** — JMAP Calendars / JSCalendar: month/week/day/agenda, recurrence, attendees and free-busy, colour categories
 - **Contacts** — JMAP Contacts / JSContact: address books, groups, full editor, vCard import/export
 - **Files** — JMAP FileNode: browse, upload, download, rename, move, delete
