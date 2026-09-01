@@ -170,8 +170,8 @@ export function ContactsSidebar() {
       {/* Import and export lived in the pane this replaced. */}
       <div style={{ padding: "12px 8px" }} className="col gap-8">
         <label className="btn btn-sm btn-block">
-          <Upload size={14} />  {t("Import vCard")}
-          <input type="file" accept=".vcf,text/vcard" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) onImport(f); e.target.value = ""; }} />
+          <Upload size={14} />  {t("Import contacts")}
+          <input type="file" accept=".vcf,.vcard,.ldif,.ldi,text/vcard,text/directory" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) onImport(f); e.target.value = ""; }} />
         </label>
         <button className="btn btn-sm btn-block" onClick={onExport}><Download size={14} /> {sel.bookId === "all" ? t("Export all") : t("Export book")}</button>
       </div>

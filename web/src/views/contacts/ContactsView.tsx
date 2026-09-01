@@ -96,10 +96,19 @@ export function ContactsView({ id }: { id?: string }) {
       return;
     }
     try {
-      const n = await contacts.importVCard(await f.text(), book.id);
+      const text = await f.text();
+      /*
+       * Which format, decided by what is in the file rather than by what it is
+       * called. A vCard says so on its first line; an address book exported as
+       * LDIF may arrive as .ldif, .ldi, .txt or with no extension at all, and
+       * the name is the least reliable thing about it.
+       */
+      const n = /^\s*BEGIN:VCARD/im.test(text)
+        ? await contacts.importVCard(text, book.id)
+        : await contacts.importLdif(text, book.id);
       toast.success(plural(n, { one: "Imported {n} contact", other: "Imported {n} contacts" }));
     } catch (err) {
-      toast.error((err as Error).message);
+      toast.error(translate("Could not import this file: {error}", { error: (err as Error).message }));
     }
   };
 

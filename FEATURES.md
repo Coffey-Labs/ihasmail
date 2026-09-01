@@ -473,6 +473,16 @@ JMAP Contacts and JSContact.
 - **Search** across name, address, organisation and notes, in one book or all.
 - **vCard import** through `ContactCard/parse` (a file of any number of cards),
   and **export** of one card or the whole book as `.vcf`.
+- **LDIF import**, for address books coming from SOGo, Thunderbird or an LDAP
+  directory. Nothing on the server reads LDIF, so the file is read here:
+  RFC 2849 for the syntax, [Mozilla's address book schema][ldif-schema] for what
+  the attributes mean, which is the one such exports almost always use. Work and
+  home addresses, every phone kind, second email, organisation and units, job
+  title, nickname, web pages and the custom fields all come across. The import
+  control takes either format and decides by what is in the file, not by what it
+  is called.
+
+[ldif-schema]: https://wiki.mozilla.org/MailNews:Mozilla_LDAP_Address_Book_Schema
 - **Directory lookup** through `Principal/query`, so colleagues on the server
   can be addressed without being in an address book first.
 - **Recent recipients**, kept on the device — and only on a device you said was
