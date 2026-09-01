@@ -221,6 +221,7 @@ export const catalog: Catalog = {
     "Folder options": "Opciones de la carpeta",
     "New folder": "Carpeta nueva",
     "New subfolder": "Subcarpeta nueva",
+    "Open subfolders of {name}": "Abrir las subcarpetas de {name}",
     "Delete folder": "Eliminar la carpeta",
     "No matching folders": "Ninguna carpeta coincide",
     "No subfolders here.": "Aquí no hay subcarpetas.",

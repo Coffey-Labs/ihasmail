@@ -217,6 +217,7 @@ export const catalog: Catalog = {
     "Folder options": "Mapopties",
     "New folder": "Nieuwe map",
     "New subfolder": "Nieuwe submap",
+    "Open subfolders of {name}": "Submappen van {name} openen",
     "Delete folder": "Map verwijderen",
     "No matching folders": "Geen overeenkomende mappen",
     "No subfolders here.": "Hier zijn geen submappen.",

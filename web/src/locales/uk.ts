@@ -217,6 +217,7 @@ export const catalog: Catalog = {
     "Folder options": "Параметри теки",
     "New folder": "Нова тека",
     "New subfolder": "Нова вкладена тека",
+    "Open subfolders of {name}": "Відкрити вкладені теки «{name}»",
     "Delete folder": "Видалити теку",
     "No matching folders": "Відповідних тек немає",
     "No subfolders here.": "Тут немає вкладених тек.",

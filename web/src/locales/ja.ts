@@ -220,6 +220,7 @@ export const catalog: Catalog = {
     "Folder options": "フォルダーのオプション",
     "New folder": "新しいフォルダー",
     "New subfolder": "新しいサブフォルダー",
+    "Open subfolders of {name}": "{name} のサブフォルダーを開く",
     "Delete folder": "フォルダーを削除",
     "No matching folders": "該当するフォルダーはありません",
     "No subfolders here.": "サブフォルダーはありません。",

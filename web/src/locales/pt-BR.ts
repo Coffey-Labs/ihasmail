@@ -224,6 +224,7 @@ export const catalog: Catalog = {
     "Folder options": "Opções da pasta",
     "New folder": "Nova pasta",
     "New subfolder": "Nova subpasta",
+    "Open subfolders of {name}": "Abrir as subpastas de {name}",
     "Delete folder": "Excluir a pasta",
     "No matching folders": "Nenhuma pasta corresponde",
     "No subfolders here.": "Não há subpastas aqui.",
