@@ -9,6 +9,7 @@ import { formatListDate } from "@/lib/format";
 import { canEmpty, confirmAndEmpty, emptyLabel } from "@/lib/emptyFolder";
 import { displayName, shortName } from "@/lib/address";
 import { Avatar, Empty, useIsMobile, useIsTouch } from "@/ui/misc";
+import { rowClick } from "@/lib/listSelection";
 import { MenuItem, MenuSep, MenuTitle, Popover, useMenu } from "@/ui/popover";
 import { useCompose } from "@/store/compose";
 import { useCalendar } from "@/store/calendar";
@@ -153,29 +154,23 @@ export function MessageList({ title, list, openThreadId, focusId, setFocusId, on
 
   const onRowClick = useCallback(
     (e: MouseEvent, rowId: Id) => {
-      if (e.shiftKey && lastClick.current) {
-        const a = ids.indexOf(lastClick.current);
-        const b = ids.indexOf(rowId);
-        if (a >= 0 && b >= 0) {
-          const [s, en] = a < b ? [a, b] : [b, a];
-          select(ids.slice(s, en + 1), true);
-          window.getSelection()?.removeAllRanges();
-          return;
-        }
-      }
-      if (e.ctrlKey || e.metaKey) {
-        select([rowId], !selected[rowId]);
+      const action = rowClick({
+        rowId, ids, anchor: lastClick.current, selected,
+        modifiers: { shift: e.shiftKey, ctrl: e.ctrlKey || e.metaKey },
+        isMobile,
+      });
+      if (action.kind === "open") {
         lastClick.current = rowId;
+        onOpen(rowId);
         return;
       }
-      lastClick.current = rowId;
-      if (selCount > 0 && isMobile) {
-        select([rowId], !selected[rowId]);
-        return;
-      }
-      onOpen(rowId);
+      select(action.ids, action.on);
+      if (action.moveAnchor) lastClick.current = rowId;
+      // Shift-clicking a list also drags a text selection across it, which
+      // leaves the rows looking smeared blue over the selection they meant.
+      else window.getSelection()?.removeAllRanges();
     },
-    [ids, select, selected, selCount, isMobile, onOpen],
+    [ids, select, selected, isMobile, onOpen],
   );
 
   const onContext = useCallback(
