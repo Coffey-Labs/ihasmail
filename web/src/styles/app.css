@@ -918,6 +918,21 @@ select optgroup { background-color: var(--bg-elev); color: var(--fg); }
 .freebusy .fb-axis-label.end { left: auto; right: 0; transform: none; }
 .freebusy .fb-tick { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--border); }
 .freebusy .fb-tick.major { background: var(--fg-faint); }
+.freebusy .fb-head { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; font-size: .85em; }
+.freebusy .fb-range { font-weight: 600; }
+.freebusy .fb-self { font-weight: 600; }
+/* A bar is somewhere to put the event, not only something to read. */
+.freebusy .fb-bar { cursor: crosshair; }
+.freebusy .fb-guide { position: absolute; top: -2px; bottom: -2px; width: 1px; background: var(--fg); opacity: .55; pointer-events: none; }
+/*
+ * "We cannot say", which is not the same as "free" and must not look like it.
+ * Somebody outside this server has no free/busy to read, and an empty bar in a
+ * grid reads as an empty diary -- the one reading that is certainly wrong.
+ */
+.freebusy .fb-bar.no-data {
+  background-image: repeating-linear-gradient(135deg, var(--bg-sunken), var(--bg-sunken) 4px, var(--border) 4px, var(--border) 8px);
+  cursor: crosshair;
+}
 
 /* ==========================================================================
    Files

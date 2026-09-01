@@ -88,3 +88,26 @@ describe("the span an availability bar covers", () => {
     }
   });
 });
+
+describe("looking around the event without changing it", () => {
+  it("slides the whole window forward, keeping its width", () => {
+    const here = availabilityWindow(at("2026-09-02T09:00:00"), at("2026-09-04T17:00:00"));
+    const later = availabilityWindow(at("2026-09-02T09:00:00"), at("2026-09-04T17:00:00"), { offsetDays: 3 });
+    expect(later.days).toBe(here.days);
+    expect(later.start.getDate()).toBe(5);
+    expect(later.end.getDate()).toBe(8);
+  });
+
+  it("slides backwards, across the end of a month", () => {
+    const w = availabilityWindow(at("2026-09-02T09:00:00"), at("2026-09-02T10:00:00"), { offsetDays: -3 });
+    expect(w.start.getMonth()).toBe(7); // August
+    expect(w.start.getDate()).toBe(30);
+    expect(w.days).toBe(1);
+  });
+
+  it("keeps the marks in step with where the window moved to", () => {
+    const w = availabilityWindow(at("2026-09-02T09:00:00"), at("2026-09-02T10:00:00"), { offsetDays: 1 });
+    expect(w.ticks[0]!.time.getDate()).toBe(3);
+    expect(w.ticks[0]!.at).toBe(0);
+  });
+});
