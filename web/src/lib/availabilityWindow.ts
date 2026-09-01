@@ -65,13 +65,19 @@ function spacing(days: number): { every: number; label: number } {
   return { every: 24, label: 24 };
 }
 
-export function availabilityWindow(start: Date, end: Date, opts: { maxDays?: number } = {}): AvailabilityWindow {
+export function availabilityWindow(start: Date, end: Date, opts: { maxDays?: number; offsetDays?: number } = {}): AvailabilityWindow {
   const maxDays = opts.maxDays ?? 7;
-  const from = startOfDay(start);
+  /*
+   * Days moved from where the event sits, for looking around it without
+   * changing it. The whole window slides rather than growing: keeping the span
+   * fixed means what you compare when you step forward is the same width as
+   * what you were looking at, which is the point of stepping.
+   */
+  const from = addDays(startOfDay(start), opts.offsetDays ?? 0);
   // The last day is the one the event ends *on*. An event ending exactly at
   // midnight ends on the day before, not at the start of a day it never
   // touches -- that is the whole of what all-day events do.
-  const lastDay = startOfDay(new Date(Math.max(end.getTime() - 1, start.getTime())));
+  const lastDay = addDays(startOfDay(new Date(Math.max(end.getTime() - 1, start.getTime()))), opts.offsetDays ?? 0);
   const total = Math.max(1, Math.round((lastDay.getTime() - from.getTime()) / DAY_MS) + 1);
   const days = Math.min(total, maxDays);
   const to = addDays(from, days);

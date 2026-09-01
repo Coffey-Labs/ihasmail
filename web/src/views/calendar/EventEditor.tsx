@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Plus, Trash2, Users } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, Trash2, Users } from "lucide-react";
 import type { BusyPeriod, CalendarEvent, EmailAddress, JSCalendarAlert, JSCalendarParticipant, JSCalendarRecurrenceRule, JSCalendarNDay } from "@/jmap/types";
 import { useCalendar, myParticipantKeys, isRecurring, isOccurrence, eventRule, makeParticipant, participantEmail, type EventScope } from "@/store/calendar";
 import { useSettings } from "@/store/settings";
 import { useSession } from "@/store/session";
+import { CAP } from "@/jmap/client";
 import { useContacts } from "@/store/contacts";
 import { Dialog } from "@/ui/dialog";
 import { ColorSwatches, Switch } from "@/ui/misc";
@@ -11,7 +12,7 @@ import { toast } from "@/ui/toast";
 import { RecipientInput } from "../compose/RecipientInput";
 import { DateField, DateTimeField } from "@/ui/datefield";
 import { browserTimeZone, dateToZonedLocal, formatDuration, fromInputDateTime, listTimeZones, parseDuration, toInputDateTime, toLocalDateOnly, zonedToDate, DAY_MS, humanDuration } from "@/lib/dates";
-import { formatClock, formatNumericDate, formatWeekday } from "@/lib/datetime";
+import { formatClock, formatNumericDate, formatWeekday, formatWeekdayDate } from "@/lib/datetime";
 import { WEEKDAYS, describeRule, presetFor, ruleFromPreset, type RecurrencePreset } from "@/lib/recurrence";
 import { newKey } from "@/lib/contacts";
 import { availabilityWindow } from "@/lib/availabilityWindow";
@@ -148,7 +149,12 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
    */
   const [sendInvites, setSendInvites] = useState(!init.seed?.attendees?.length);
   const [busy, setBusy] = useState(false);
-  const [fb, setFb] = useState<Record<string, BusyPeriod[]>>({});
+  /** By address: the busy periods, or `null` for "there is no free/busy to read". */
+  const [fb, setFb] = useState<Record<string, BusyPeriod[] | null>>({});
+  /** Days the panel has been stepped away from the event, for looking around it. */
+  const [fbOffset, setFbOffset] = useState(0);
+  /** Where the pointer is over the grid, so the time a click would set is visible before it does. */
+  const [fbHover, setFbHover] = useState<Date | null>(null);
   const [showMore, setShowMore] = useState(Boolean(ev && (ev.privacy !== "public" || ev.freeBusyStatus === "free" || ev.color || ev.status !== "confirmed" || Object.keys(ev.categories ?? {}).length)));
 
   const identity = cal.identities.find((i) => i.isDefault) ?? cal.identities[0];
@@ -160,24 +166,65 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
    * it ends. It used to be the start day and nothing else, which meant an event
    * spanning two days showed availability for one of them without saying so.
    */
-  const fbWindow = useMemo(() => availabilityWindow(start, end), [start, end]);
+  const fbWindow = useMemo(() => availabilityWindow(start, end, { offsetDays: fbOffset }), [start, end, fbOffset]);
+  /** Stalwart answers for your own account under its own id, which is the fallback when the directory does not list you. */
+  const selfPrincipalId = useSession((st) => st.accountFor(CAP.principals));
 
-  // Free/busy lookup for attendees that are directory principals
+  /*
+   * Everyone the event concerns, you first. Scheduling around the other people
+   * and not around yourself is how two things end up at the same time, and the
+   * organiser's own calendar was the one row the panel never showed.
+   */
+  const people = useMemo(() => {
+    const seen = new Set<string>();
+    const out: { email: string; name: string; self: boolean }[] = [];
+    if (myPlainEmail) {
+      seen.add(myPlainEmail.toLowerCase());
+      out.push({ email: myPlainEmail, name: translate("You"), self: true });
+    }
+    for (const a of attendees) {
+      if (seen.has(a.email.toLowerCase())) continue;
+      seen.add(a.email.toLowerCase());
+      out.push({ email: a.email, name: a.name ?? a.email, self: false });
+    }
+    return out;
+  }, [myPlainEmail, attendees]);
+
+  /*
+   * Free/busy, for everyone we can read it for.
+   *
+   * Only people the directory knows have any: free/busy is answered per
+   * principal, and somebody outside the server -- a customer, anyone at another
+   * domain -- is not one. Those are recorded as `null` rather than left out,
+   * because a row that is missing from a grid reads as a row with nothing in
+   * it, which is to say "free", which is the one thing we do not know.
+   */
   useEffect(() => {
-    if (!attendees.length || !contacts.principalsLoaded) {
+    if (!people.length || !contacts.principalsLoaded) {
       if (!contacts.principalsLoaded) void contacts.loadPrincipals();
       return;
     }
     let cancelled = false;
     (async () => {
-      const out: Record<string, BusyPeriod[]> = {};
-      for (const a of attendees) {
-        const p = contacts.principals.find((x) => x.email?.toLowerCase() === a.email.toLowerCase());
-        if (!p) continue;
+      const out: Record<string, BusyPeriod[] | null> = {};
+      for (const person of people) {
+        /*
+         * Your own row is never unknown. If the directory does not list you
+         * under the address the identity sends from -- an alias, a name that
+         * differs from the login -- the account is still yours to read, and
+         * Stalwart answers for it under the account's own id.
+         */
+        const principalId =
+          contacts.principals.find((x) => x.email?.toLowerCase() === person.email.toLowerCase())?.id ??
+          (person.self ? selfPrincipalId : undefined);
+        if (!principalId) {
+          out[person.email] = null;
+          continue;
+        }
         try {
-          out[a.email] = await cal.availability(p.id, fbWindow.start, fbWindow.end);
+          out[person.email] = await cal.availability(principalId, fbWindow.start, fbWindow.end);
         } catch {
-          /* ignore */
+          out[person.email] = null;
         }
       }
       if (!cancelled) setFb(out);
@@ -186,7 +233,7 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [attendees.map((a) => a.email).join(","), fbWindow.start.getTime(), fbWindow.end.getTime(), contacts.principalsLoaded]);
+  }, [people.map((p) => p.email).join(","), fbWindow.start.getTime(), fbWindow.end.getTime(), contacts.principalsLoaded, selfPrincipalId]);
 
   const onStartChange = (d: Date) => {
     if (Number.isNaN(d.getTime())) return;
@@ -368,21 +415,40 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
           {attendees.length > 0 && (
             <>
               <Switch checked={sendInvites} onChange={setSendInvites} label={translate("Send invitation emails to guests")} />
-              {Object.keys(fb).length > 0 && (() => {
+              {people.length > 1 && (() => {
                 /** Everything on a bar is placed as a fraction of the span it covers. */
                 const pct = (from: number, to: number) => ({
                   left: `${((from - fbWindow.start.getTime()) / fbWindow.span) * 100}%`,
                   width: `${((to - from) / fbWindow.span) * 100}%`,
                 });
+                /** Where along the window a pointer is, as a moment. */
+                const timeAt = (e: { clientX: number; currentTarget: Element }) => {
+                  const box = e.currentTarget.getBoundingClientRect();
+                  const frac = Math.min(Math.max((e.clientX - box.left) / box.width, 0), 1);
+                  // Half-hourly: a bar is a few hundred pixels wide, and a
+                  // minute of it is not something anybody can aim at.
+                  const SNAP = 30 * 60_000;
+                  return new Date(Math.round((fbWindow.start.getTime() + frac * fbWindow.span) / SNAP) * SNAP);
+                };
+                const known = people.filter((p) => fb[p.email]);
+                // You are not a guest, so you are not counted as one -- and if
+                // your own row cannot be read, that is not what this sentence
+                // is about.
+                const unknown = people.filter((p) => !p.self && fb[p.email] === null);
+                const rangeLabel = fbWindow.days === 1
+                  ? formatWeekdayDate(fbWindow.start)
+                  : `${formatNumericDate(fbWindow.start)} – ${formatNumericDate(new Date(fbWindow.end.getTime() - 1))}`;
                 return (
                   <div className="freebusy">
-                    <div className="hint">
-                      {fbWindow.days === 1
-                        ? translate("Availability on {date}", { date: formatNumericDate(fbWindow.start) })
-                        : translate("Availability, {from} to {to}", { from: formatNumericDate(fbWindow.start), to: formatNumericDate(new Date(fbWindow.end.getTime() - 1)) })}
+                    <div className="fb-head">
+                      <button type="button" className="icon-btn sm" aria-label={translate("Earlier")} onClick={() => setFbOffset(fbOffset - fbWindow.days)}><ChevronLeft size={16} /></button>
+                      <span className="fb-range">{rangeLabel}</span>
+                      <button type="button" className="icon-btn sm" aria-label={translate("Later")} onClick={() => setFbOffset(fbOffset + fbWindow.days)}><ChevronRight size={16} /></button>
+                      {fbOffset !== 0 && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setFbOffset(0)}>{translate("Back to the event")}</button>}
+                      <span className="spacer" />
+                      {/* The time a click would set, so placing an event is aimed rather than guessed. */}
+                      <span className="hint">{fbHover ? (fbWindow.days === 1 ? formatClock(fbHover) : `${formatWeekday(fbHover, "short")} ${formatClock(fbHover)}`) : translate("Click to move the event")}</span>
                     </div>
-                    {/* The axis answers "what am I looking at" -- without it the bar
-                        could as easily have been working hours as a whole day. */}
                     <div className="fb-row fb-axis-row">
                       <span style={{ width: 140, flex: "none" }} />
                       <div className="fb-axis">
@@ -394,27 +460,50 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
                         <span className="fb-axis-label end">{fbWindow.scale === "hours" ? formatClock(fbWindow.end) : formatNumericDate(new Date(fbWindow.end.getTime() - 1))}</span>
                       </div>
                     </div>
-                    {attendees.filter((a) => fb[a.email]).map((a) => (
-                      <div key={a.email} className="fb-row">
-                        <span className="truncate" style={{ width: 140, flex: "none" }}>{a.name ?? a.email}</span>
-                        <div className="fb-bar">
-                          {/* Drawn under the blocks, so a block can be read against
-                              the hour it starts at rather than guessed at. */}
-                          {fbWindow.ticks.map((tk) => (
-                            tk.at === 0 ? null : <span key={tk.time.getTime()} className={`fb-tick ${tk.major ? "major" : ""}`} style={{ left: `${tk.at * 100}%` }} />
-                          ))}
-                          {fb[a.email]!.map((b, i) => {
-                            const bs = Math.max(new Date(b.utcStart).getTime(), fbWindow.start.getTime());
-                            const be = Math.min(new Date(b.utcEnd).getTime(), fbWindow.end.getTime());
-                            if (be <= bs) return null;
-                            return <span key={i} className="fb-busy" style={pct(bs, be)} title={`${b.busyStatus}: ${formatClock(new Date(b.utcStart))} – ${formatClock(new Date(b.utcEnd))}`} />;
-                          })}
-                          {!allDay && <span className="fb-window" style={pct(start.getTime(), end.getTime())} />}
+                    {people.map((person) => {
+                      const periods = fb[person.email];
+                      const noData = periods === null;
+                      return (
+                        <div key={person.email} className="fb-row">
+                          <span className={`truncate ${person.self ? "fb-self" : ""}`} style={{ width: 140, flex: "none" }} title={person.email}>{person.name}</span>
+                          <div
+                            className={`fb-bar ${noData ? "no-data" : ""}`}
+                            role="button"
+                            tabIndex={-1}
+                            title={noData ? translate("No availability information for {who}", { who: person.email }) : undefined}
+                            onMouseMove={(e) => setFbHover(timeAt(e))}
+                            onMouseLeave={() => setFbHover(null)}
+                            onClick={(e) => { onStartChange(timeAt(e)); setFbOffset(0); }}
+                          >
+                            {fbWindow.ticks.map((tk) => (
+                              tk.at === 0 ? null : <span key={tk.time.getTime()} className={`fb-tick ${tk.major ? "major" : ""}`} style={{ left: `${tk.at * 100}%` }} />
+                            ))}
+                            {(periods ?? []).map((b, i) => {
+                              const bs = Math.max(new Date(b.utcStart).getTime(), fbWindow.start.getTime());
+                              const be = Math.min(new Date(b.utcEnd).getTime(), fbWindow.end.getTime());
+                              if (be <= bs) return null;
+                              return <span key={i} className="fb-busy" style={pct(bs, be)} title={`${b.busyStatus}: ${formatClock(new Date(b.utcStart))} – ${formatClock(new Date(b.utcEnd))}`} />;
+                            })}
+                            {fbHover && <span className="fb-guide" style={{ left: `${((fbHover.getTime() - fbWindow.start.getTime()) / fbWindow.span) * 100}%` }} />}
+                            {!allDay && <span className="fb-window" style={pct(start.getTime(), end.getTime())} />}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                     {fbWindow.daysHidden > 0 && (
                       <div className="hint">{plural(fbWindow.daysHidden, { one: "The event runs {n} day longer than this shows.", other: "The event runs {n} days longer than this shows." })}</div>
+                    )}
+                    {/* Said once, under the grid, rather than repeated on every
+                        row that has nothing to show. */}
+                    {unknown.length > 0 && (
+                      <div className="hint">
+                        {known.length === 0
+                          ? translate("Nobody here has free/busy on this server, so none of these rows can say whether anyone is free.")
+                          : plural(unknown.length, {
+                              one: "{n} guest is not on this server, so there is no free/busy to read for them.",
+                              other: "{n} guests are not on this server, so there is no free/busy to read for them.",
+                            })}
+                      </div>
                     )}
                   </div>
                 );
