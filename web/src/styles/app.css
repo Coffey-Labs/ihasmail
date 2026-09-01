@@ -908,6 +908,16 @@ select optgroup { background-color: var(--bg-elev); color: var(--fg); }
 .freebusy .fb-bar { flex: 1; height: 14px; background: var(--bg-sunken); border-radius: 4px; position: relative; overflow: hidden; }
 .freebusy .fb-busy { position: absolute; top: 0; bottom: 0; background: var(--danger); opacity: .65; }
 .freebusy .fb-window { position: absolute; top: 0; bottom: 0; border: 2px solid var(--accent); border-radius: 3px; }
+/* The hour and day marks, and the labels above them. Without these the bar says
+   only "somewhere in here", and which hours it covered was a guess (issue #172). */
+.freebusy .fb-axis-row { height: 14px; }
+.freebusy .fb-axis { flex: 1; position: relative; height: 100%; }
+.freebusy .fb-axis-label { position: absolute; top: 0; font-size: .78em; color: var(--fg-muted); transform: translateX(-50%); white-space: nowrap; }
+/* Midnight and the far edge sit on the ends, where half of each would be cut off. */
+.freebusy .fb-axis-label[style*="left: 0%"] { transform: none; }
+.freebusy .fb-axis-label.end { left: auto; right: 0; transform: none; }
+.freebusy .fb-tick { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--border); }
+.freebusy .fb-tick.major { background: var(--fg-faint); }
 
 /* ==========================================================================
    Files

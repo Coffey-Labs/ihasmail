@@ -1019,7 +1019,20 @@ const handlers: Record<string, Handler> = {
   "ParticipantIdentity/get": genericGet(participantIdentities),
   "Principal/query": () => ({ accountId: ACCOUNT, queryState: "1", canCalculateChanges: false, position: 0, ids: principals.map((p) => p.id) }),
   "Principal/get": genericGet(principals),
-  "Principal/getAvailability": (a) => ({ accountId: ACCOUNT, list: [{ utcStart: String(a.utcStart).slice(0, 11) + "13:00:00Z", utcEnd: String(a.utcStart).slice(0, 11) + "14:30:00Z", busyStatus: "confirmed", event: null }] }),
+  // One busy block a day across whatever range was asked for. It used to answer
+  // with a single block on the first day whatever the range, which was all an
+  // availability bar a day wide could show -- and left a bar covering several
+  // days looking as though everyone were free for all but the first of them.
+  "Principal/getAvailability": (a) => {
+    const from = new Date(String(a.utcStart));
+    const to = new Date(String(a.utcEnd));
+    const list: Obj[] = [];
+    for (let day = new Date(from); day < to && list.length < 31; day.setUTCDate(day.getUTCDate() + 1)) {
+      const date = day.toISOString().slice(0, 11);
+      list.push({ utcStart: `${date}13:00:00Z`, utcEnd: `${date}14:30:00Z`, busyStatus: "confirmed", event: null });
+    }
+    return { accountId: ACCOUNT, list };
+  },
   "AddressBook/get": (a) => hideShareWithUnlessAsked(a, genericGet(booksFor(a.accountId))(a) as { list: Obj[] }) as never,
   "AddressBook/set": (a) => {
     /* Stalwart refuses any update to a book shared read-only, `isSubscribed`
