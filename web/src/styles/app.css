@@ -449,15 +449,24 @@ a.menu-item:hover { color: var(--fg); }
 .nav-item.folder-row .nav-twisty { position: absolute; left: calc(8px + var(--folder-indent)); top: 50%; transform: translateY(-50%); margin: 0; }
 /* Labels sit in the same column: a 20px slot matching the folder icons. */
 /* ---- Drill-down (phones; see mail/MailboxTree.tsx) ---- */
-/* No indent to pay for, so the name gets the width the tree was spending on
-   depth. The twisty's 30px gutter goes too -- nothing is drawn in it here. */
-.nav-item.folder-row.has-drill { padding-left: 12px; }
+/*
+ * No indent to pay for, so the name gets the width the tree was spending on
+ * depth. The twisty's 30px gutter goes with it -- nothing is ever drawn in it
+ * here, whether or not the folder has children.
+ *
+ * Scoped to the list rather than to the rows that offer a drill, which is the
+ * distinction the first cut got wrong: only folders WITH children carried the
+ * class, so they sat 18px left of every folder without any and the column of
+ * icons came apart. Whether a folder has children is not a reason to hang it
+ * somewhere else.
+ */
+.folder-drill .nav-item.folder-row { padding-left: 12px; }
 .nav-item.folder-row .drill-into { width: 44px; height: 100%; border-radius: 0; margin-right: -12px; color: var(--fg-faint); }
 .nav-item.folder-row .drill-into:hover { background: var(--bg-hover); color: var(--fg); }
 /* The row it belongs to is a link and paints its own active state; a second
    filled rectangle inside it reads as a separate selected thing. */
 .nav-item.folder-row.active .drill-into { color: inherit; }
-.drill-back { width: 100%; border: 0; background: none; font: inherit; text-align: left; cursor: pointer; color: var(--fg-muted); padding-left: 8px; }
+.drill-back { width: 100%; border: 0; background: none; font: inherit; text-align: left; cursor: pointer; color: var(--fg-muted); padding-left: 12px; }
 .drill-back:hover { background: var(--bg-hover); color: var(--fg); }
 .drill-back svg { flex: 0 0 auto; }
 .nav-item.folder-row .nav-label-color { flex: 0 0 20px; width: 20px; height: 20px; border-radius: 0; display: inline-flex; align-items: center; justify-content: center; }
@@ -1058,6 +1067,11 @@ select optgroup { background-color: var(--bg-elev); color: var(--fg); }
   .mobile-tabbar a.active { color: var(--accent); }
   .main { padding-bottom: calc(60px + env(safe-area-inset-bottom)); }
   .sidebar { padding-bottom: env(safe-area-inset-bottom); padding-left: env(safe-area-inset-left); }
+  /* Lines the close up with the hamburger underneath it: same height as the
+     top bar, same 12px in from the edge, so the second press lands where the
+     first one did. The negative margin cancels the drawer's own padding-top,
+     which would otherwise push it a row lower than the thing it replaces. */
+  .drawer-head { display: flex; align-items: center; height: var(--topbar-h); margin-top: -12px; padding-left: max(6px, env(safe-area-inset-left)); }
   .thread-subject { padding: 14px 16px 8px; }
   .message { margin: 0 8px 8px; }
   .message-head { padding: 10px 12px; }
@@ -1108,7 +1122,9 @@ select optgroup { background-color: var(--bg-elev); color: var(--fg); }
   .sidebar .nav-item, .cal-list-item { height: 44px; }
   /* The hamburger is the one control in the corner a thumb is worst at, so it
      gets real distance from the bezel rather than just a wider hit area. */
-  .topbar { padding-left: max(12px, env(safe-area-inset-left)); }
+  /* Both, together: the close in the drawer stands exactly on the hamburger it
+     covers, and it only does that if the two are moved by the same rule. */
+  .topbar, .drawer-head { padding-left: max(12px, env(safe-area-inset-left)); }
 }
 @media (hover: none) {
   .msg-row .msg-check { opacity: 1; }

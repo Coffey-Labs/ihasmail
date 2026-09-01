@@ -688,6 +688,7 @@ export const catalog: Catalog = {
     "Shortcuts": "Sneltoetsen",
     "Go to": "Ga naar",
     "Menu": "Menu",
+    "Close menu": "Menu sluiten",
     "Options": "Opties",
     "Send options": "Verzendopties",
     "Name": "Naam",

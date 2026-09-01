@@ -693,6 +693,7 @@ export const catalog: Catalog = {
     "Shortcuts": "快捷键",
     "Go to": "转到",
     "Menu": "菜单",
+    "Close menu": "关闭菜单",
     "Options": "选项",
     "Send options": "发送选项",
     "Name": "名称",

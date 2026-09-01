@@ -694,6 +694,7 @@ export const catalog: Catalog = {
     "Shortcuts": "ショートカット",
     "Go to": "移動",
     "Menu": "メニュー",
+    "Close menu": "メニューを閉じる",
     "Options": "オプション",
     "Send options": "送信オプション",
     "Name": "名前",

@@ -681,6 +681,7 @@ export const catalog: Catalog = {
     "Shortcuts": "Kürzel",
     "Go to": "Gehe zu",
     "Menu": "Menü",
+    "Close menu": "Menü schließen",
     "Options": "Optionen",
     "Send options": "Sendeoptionen",
     "Name": "Name",

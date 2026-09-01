@@ -91,6 +91,34 @@ describe("folder drill-down", () => {
     expect(document.querySelector(".drill-back")!.textContent).toContain("Work");
   });
 
+  /*
+   * jsdom has no layout to measure, so this asserts the mechanism the
+   * alignment hangs off instead: the indent is dropped for the whole list, by
+   * a class on the nav. The first cut put it on the rows offering a drill,
+   * which meant only folders with children lost the twisty's 30px gutter and
+   * they hung 18px left of every folder without any.
+   */
+  it("hangs every folder off the same edge, children or not", () => {
+    setWidth(390);
+    mount();
+    expect(document.querySelector("nav")!.className).toContain("folder-drill");
+    const depths = Array.from(document.querySelectorAll(".nav-item.folder-row")).map((r) => r.className.match(/depth-\d/)?.[0]);
+    expect(depths).toEqual(["depth-0", "depth-0", "depth-0"]);
+
+    drillInto("Work");
+    // Work has a child and Clients does not; neither may be indented for it.
+    expect(Array.from(document.querySelectorAll(".nav-item.folder-row")).map((r) => r.className.match(/depth-\d/)?.[0])).toEqual(["depth-0", "depth-0"]);
+    expect(document.querySelector(".nav-item.folder-row.has-drill")).toBeNull();
+  });
+
+  it("keeps the indent on a wide screen, where the tree still needs it", () => {
+    setWidth(1280);
+    mount();
+    expect(document.querySelector("nav")!.className).not.toContain("folder-drill");
+    act(() => { rowFor("Work")!.querySelector<HTMLElement>(".nav-twisty")!.click(); });
+    expect(rowFor("Clients")!.className).toContain("depth-1");
+  });
+
   it("walks back out one level per tap", () => {
     setWidth(390);
     mount();

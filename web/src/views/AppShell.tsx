@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { BookOpen, Calendar, ChevronsUpDown, FolderOpen, Globe, HelpCircle, LogOut, Mail, Menu as MenuIcon, Moon, PenSquare, Plus, RefreshCw, Settings, Sun, Upload, Users } from "lucide-react";
+import { BookOpen, Calendar, ChevronsUpDown, FolderOpen, Globe, HelpCircle, LogOut, Mail, Menu as MenuIcon, Moon, PenSquare, Plus, RefreshCw, Settings, Sun, Upload, Users, X } from "lucide-react";
 import { useSession } from "@/store/session";
 import { toggleTarget, useEffectiveTheme, useSettings } from "@/store/settings";
 import { useMail } from "@/store/mail";
@@ -40,6 +40,14 @@ export function AppShell({ children }: { children: ReactNode }) {
   useGlobalShortcuts({ onHelp: () => setHelpOpen(true) });
   useEffect(() => setDrawer(false), [location]);
 
+  // Escape closes it too, for the tablet with a keyboard attached.
+  useEffect(() => {
+    if (!drawer) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setDrawer(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [drawer]);
+
   // Deep link: /mail?compose=new (PWA shortcut) / mailto handler
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -68,7 +76,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="app">
       <header className="topbar">
-        <button className="icon-btn" aria-label={t("Menu")} onClick={() => (isMobile ? setDrawer(true) : update({ sidebarCollapsed: !collapsed }))}>
+        <button className="icon-btn" aria-label={t("Menu")} onClick={() => (isMobile ? setDrawer((d) => !d) : update({ sidebarCollapsed: !collapsed }))}>
           <MenuIcon size={22} />
         </button>
         <Link href="/mail" className="brand">
@@ -120,6 +128,26 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className={`app-body ${collapsed && !isMobile ? "collapsed" : ""}`}>
         <div className={`drawer-backdrop ${drawer ? "open" : ""}`} onClick={() => setDrawer(false)} />
         <aside className={`sidebar ${drawer ? "open" : ""}`}>
+          {/*
+            The way back out.
+
+            The drawer covers the top bar -- it has to, being taller than it --
+            so the hamburger that opened it is underneath, and pressing the
+            same place again did nothing. That left the dimmed strip beside the
+            drawer as the only exit, which is not a thing anyone is told about.
+            Putting a close where the hamburger was means the second press
+            lands on the control that undoes the first, which is where the hand
+            is already going. It cannot be done by raising the top bar over the
+            drawer instead: it would then also sit over a full-screen composer,
+            which is stacked lower still.
+          */}
+          {isMobile && (
+            <div className="drawer-head">
+              <button className="icon-btn" aria-label={t("Close menu")} onClick={() => setDrawer(false)}>
+                <X size={22} />
+              </button>
+            </div>
+          )}
           {/* Whatever this pane is for. Files offered Compose, which wrote mail
               from the file manager and was the one thing nobody wanted there. */}
           <button

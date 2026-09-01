@@ -688,6 +688,7 @@ export const catalog: Catalog = {
     "Shortcuts": "Сполучення",
     "Go to": "Перейти",
     "Menu": "Меню",
+    "Close menu": "Закрити меню",
     "Options": "Параметри",
     "Send options": "Параметри надсилання",
     "Name": "Ім'я",

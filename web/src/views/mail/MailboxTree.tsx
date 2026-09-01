@@ -150,7 +150,7 @@ export function MailboxTree() {
 
   return (
     <>
-      <nav aria-label={t("Folders")} style={{ marginTop: 6 }}>
+      <nav aria-label={t("Folders")} className={isMobile ? "folder-drill" : undefined} style={{ marginTop: 6 }}>
         <div
           className={`nav-section${rootDrop ? " drop-target" : ""}`}
           onDragOver={(e) => {
@@ -318,7 +318,7 @@ function FolderRow({ mailbox: m, label, depth, hasChildren, open, hiddenUnread, 
   return (
     <Link
       href={`/mail/${m.id}`}
-      className={`nav-item folder-row depth-${Math.min(depth, 4)} ${onDrillIn ? "has-drill" : ""} ${currentId === m.id ? "active" : ""} ${unread ? "unread" : ""} ${dropping ? "drop-target" : ""} ${dragging ? "dragging" : ""}`}
+      className={`nav-item folder-row depth-${Math.min(depth, 4)} ${currentId === m.id ? "active" : ""} ${unread ? "unread" : ""} ${dropping ? "drop-target" : ""} ${dragging ? "dragging" : ""}`}
       title={label}
       {...press}
       // Dragging a folder is a mouse gesture; on a touchscreen the browser
