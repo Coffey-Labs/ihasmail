@@ -1,0 +1,19 @@
+# Spike only. Enough of a Worker to run the real app and find out what breaks.
+name = "ihasmail-spike"
+main = "src/worker.ts"
+compatibility_date = "2026-08-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Sessions live here instead of in a Map and a file on disk.
+[[kv_namespaces]]
+binding = "SESSIONS"
+id = "spike"
+
+[vars]
+# Set for real with `wrangler secret put APP_SECRET`; this is a local value.
+APP_SECRET = "spike-only-not-a-real-secret-0000000000"
+STALWART_URL = "http://127.0.0.1:8788"
+# config.ts asks git for the version, which no Worker can do. This is the same
+# escape hatch the Docker build uses.
+IHASMAIL_VERSION = "0.0.0-spike"
+NODE_ENV = "development"

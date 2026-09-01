@@ -2,17 +2,31 @@
 export class RateLimiter {
   private hits = new Map<string, number[]>();
 
+  /** When the map was last swept; see `check`. */
+  private prunedAt = Date.now();
+
   constructor(
     private readonly max: number,
     private readonly windowMs: number,
-  ) {
-    const t = setInterval(() => this.prune(), windowMs);
-    t.unref();
-  }
+  ) {}
 
-  /** Returns true if the action is allowed, false if the caller should back off. */
+  /**
+   * Returns true if the action is allowed, false if the caller should back off.
+   *
+   * Sweeping happens here, on a window boundary, rather than on a timer. Each
+   * key already discards its own stale hits as it is read, so the sweep only
+   * reclaims keys nobody asks about any more -- work with no deadline, which
+   * makes an interval the wrong tool for it twice over. The right one is
+   * amortising it onto the next caller: a limiter that nobody consults has
+   * nothing to reclaim, and a runtime that forbids a timer in global scope --
+   * Workers does -- can construct this at module scope like any other object.
+   */
   check(key: string): boolean {
     const now = Date.now();
+    if (now - this.prunedAt >= this.windowMs) {
+      this.prune();
+      this.prunedAt = now;
+    }
     const arr = (this.hits.get(key) ?? []).filter((t) => now - t < this.windowMs);
     if (arr.length >= this.max) {
       this.hits.set(key, arr);

@@ -1,0 +1,12 @@
+{
+  "name": "@ihasmail/cloudflare-spike",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev --port 8791",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "wrangler": "^4.127.1"
+  }
+}

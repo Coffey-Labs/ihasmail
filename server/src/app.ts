@@ -34,7 +34,18 @@ import { staticHandler } from "./static.js";
 
 type Env = { Variables: { session: LiveSession } };
 
-export const sessions: SessionBackend = new SessionStore(config.sessionFile);
+export let sessions: SessionBackend = new SessionStore(config.sessionFile);
+
+/**
+ * Swap the store, for a runtime that cannot hold one in memory.
+ *
+ * The Node server never calls this. A Workers build does, before `createApp`,
+ * because there the backing store is KV and the binding only exists once a
+ * request has handed the isolate its environment.
+ */
+export function setSessionBackend(backend: SessionBackend): void {
+  sessions = backend;
+}
 const loginLimiter = new RateLimiter(config.loginRateLimit, 15 * 60_000);
 /**
  * Credential changes verify the current password upstream, and Stalwart's
@@ -106,7 +117,7 @@ const csrfGuard: MiddlewareHandler = async (c, next) => {
 
 const requireSession: MiddlewareHandler<Env> = async (c, next) => {
   const cookie = getCookie(c, config.cookieName);
-  const session = sessions.resolve(cookie);
+  const session = await sessions.resolve(cookie);
   if (!session) {
     return c.json({ error: "unauthenticated" }, 401);
   }
@@ -195,7 +206,7 @@ export function createApp(): Hono<Env> {
         );
       }
       loginLimiter.reset(limitKey);
-      const { cookie, session } = sessions.create({
+      const { cookie, session } = await sessions.create({
         username,
         password: effectivePassword,
         remember: Boolean(body.remember),
@@ -244,7 +255,7 @@ export function createApp(): Hono<Env> {
       return c.json(localizeSession(upstream, sessionExtras(session, info)));
     } catch (err) {
       if (err instanceof UpstreamError && err.status === 401) {
-        sessions.destroy(session.id);
+        await sessions.destroy(session.id);
         deleteCookie(c, config.cookieName, { path: "/" });
       }
       return upstreamFailure(c, err);
@@ -253,23 +264,23 @@ export function createApp(): Hono<Env> {
 
   api.post("/auth/logout", async (c) => {
     const cookie = getCookie(c, config.cookieName);
-    const session = sessions.resolve(cookie);
+    const session = await sessions.resolve(cookie);
     if (session) {
-      sessions.destroy(session.id);
+      await sessions.destroy(session.id);
       forgetUpstreamSession(session.id);
     }
     deleteCookie(c, config.cookieName, { path: "/" });
     return c.json({ ok: true });
   });
 
-  api.get("/auth/sessions", requireSession, (c) => {
+  api.get("/auth/sessions", requireSession, async (c) => {
     const session = c.get("session");
-    return c.json({ current: session.id, sessions: sessions.listForUser(session.username) });
+    return c.json({ current: session.id, sessions: await sessions.listForUser(session.username) });
   });
 
-  api.post("/auth/sessions/revoke-others", requireSession, (c) => {
+  api.post("/auth/sessions/revoke-others", requireSession, async (c) => {
     const session = c.get("session");
-    const n = sessions.destroyAllForUser(session.username, session.id);
+    const n = await sessions.destroyAllForUser(session.username, session.id);
     return c.json({ revoked: n });
   });
 
@@ -330,9 +341,9 @@ export function createApp(): Hono<Env> {
     // The old password is now dead: re-seal this session with the new one and
     // drop the others, whose sealed copies would fail on their next call.
     const otpCode = body.otpCode?.trim();
-    sessions.reseal(getCookie(c, config.cookieName), otpCode ? `${next}$${otpCode}` : next);
+    await sessions.reseal(getCookie(c, config.cookieName), otpCode ? `${next}$${otpCode}` : next);
     forgetUpstreamSession(session.id);
-    const revoked = sessions.destroyAllForUser(session.username, session.id);
+    const revoked = await sessions.destroyAllForUser(session.username, session.id);
     return c.json({ ok: true, revokedSessions: revoked });
   });
 
@@ -422,11 +433,11 @@ export function createApp(): Hono<Env> {
     }
     let sessionKept = false;
     if (app) {
-      sessionKept = sessions.reseal(getCookie(c, config.cookieName), app.secret);
+      sessionKept = await sessions.reseal(getCookie(c, config.cookieName), app.secret);
       if (sessionKept) forgetUpstreamSession(session.id);
     }
     // Other sessions still hold the bare password and will be refused.
-    const revoked = sessions.destroyAllForUser(session.username, session.id);
+    const revoked = await sessions.destroyAllForUser(session.username, session.id);
     return c.json({ ok: true, sessionKept, revokedSessions: revoked });
   });
 
@@ -443,7 +454,7 @@ export function createApp(): Hono<Env> {
     }
     // This session may be running on the app password minted when 2FA went on;
     // the plain password works again now, so put it back.
-    sessions.reseal(getCookie(c, config.cookieName), body.current);
+    await sessions.reseal(getCookie(c, config.cookieName), body.current);
     forgetUpstreamSession(session.id);
     return c.json({ ok: true });
   });
@@ -469,7 +480,7 @@ export function createApp(): Hono<Env> {
         signal: AbortSignal.timeout(config.upstreamTimeout),
       });
       if (res.status === 401) {
-        sessions.destroy(session.id);
+        await sessions.destroy(session.id);
         forgetUpstreamSession(session.id);
         deleteCookie(c, config.cookieName, { path: "/" });
         return c.json({ error: "unauthenticated" }, 401);

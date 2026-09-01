@@ -42,13 +42,24 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
-const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+/**
+ * Lazy, because this module is imported by the server as well as by builds.
+ *
+ * Bundled into a Workers build there is no `import.meta.url` to resolve, and
+ * computing this at import took the whole server down before it read a line of
+ * configuration -- to find a git checkout that runtime could not have had
+ * anyway. Every caller that needs it is already behind `IHASMAIL_VERSION`,
+ * which is the escape hatch a build without git uses.
+ */
+function repoRoot() {
+  return join(dirname(fileURLToPath(import.meta.url)), "..");
+}
 
 /** What a build with nothing to go on reports, and it should look wrong. */
 export const UNVERSIONED = "0.0.0";
 
 function git(...args) {
-  return execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+  return execFileSync("git", args, { cwd: repoRoot(), encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
 }
 
 const PR_SUBJECT = /^Merge pull request #(\d+)\b/;

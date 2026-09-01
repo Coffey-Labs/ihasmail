@@ -4,9 +4,23 @@ import { fileURLToPath } from "node:url";
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-/** Minimal .env loader (no dependency): first match wins, never overrides real env. */
+/**
+ * Minimal .env loader (no dependency): first match wins, never overrides real env.
+ *
+ * Wrapped, because a runtime with no filesystem is a legitimate place to run
+ * this server and there is nothing here it needs. Bundled for Workers,
+ * `import.meta.url` is undefined and this threw before the first line of
+ * configuration was read -- a convenience taking down a process that had no
+ * .env to find in the first place. The environment itself still arrives; only
+ * the file is optional.
+ */
 function loadDotEnv() {
-  const candidates = [resolve(process.cwd(), ".env"), fileURLToPath(new URL("../../.env", import.meta.url)), fileURLToPath(new URL("../.env", import.meta.url))];
+  let candidates: string[];
+  try {
+    candidates = [resolve(process.cwd(), ".env"), fileURLToPath(new URL("../../.env", import.meta.url)), fileURLToPath(new URL("../.env", import.meta.url))];
+  } catch {
+    return;
+  }
   for (const file of candidates) {
     if (!existsSync(file)) continue;
     for (const line of readFileSync(file, "utf8").split(/\r?\n/)) {
@@ -107,7 +121,21 @@ export function assertImmutable(sessionFile: string, root: string): void {
   }
 }
 
-if (immutable) assertImmutable(sessionFile, fileURLToPath(new URL("../..", import.meta.url)));
+/**
+ * Both of these ask where this file is on disk, which only a runtime with a
+ * filesystem can answer. Bundled for Workers there is no answer and no
+ * question either: there is nothing writable to check, and the static files
+ * are served by the platform rather than from a directory.
+ */
+function repoPath(rel: string): string {
+  try {
+    return fileURLToPath(new URL(rel, import.meta.url));
+  } catch {
+    return "";
+  }
+}
+
+if (immutable && repoPath("../..")) assertImmutable(sessionFile, repoPath("../.."));
 
 
 export const config = {
@@ -151,7 +179,7 @@ export const config = {
   maxUploadBytes: int("MAX_UPLOAD_BYTES", 50 * 1024 * 1024),
   imageProxy: bool("IMAGE_PROXY", true),
   cookieName: env("COOKIE_NAME", "ihm_session"),
-  staticDir: process.env.STATIC_DIR ?? fileURLToPath(new URL("../../web/dist", import.meta.url)),
+  staticDir: process.env.STATIC_DIR ?? repoPath("../../web/dist"),
   loginRateLimit: int("LOGIN_RATE_LIMIT", 10),
 };
 

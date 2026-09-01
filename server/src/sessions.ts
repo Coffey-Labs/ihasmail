@@ -78,15 +78,25 @@ export interface CreateSessionParams {
  * cannot honour that alone; the plan is for OAuth to hand the job to
  * Stalwart's own token registry, which can already answer both questions.
  */
+/**
+ * Sync here, a promise on a backend whose store is over the network.
+ *
+ * The in-process store answers immediately and there is no reason to make its
+ * callers wait on a microtask; a KV or Durable Object backend cannot. Widening
+ * the interface rather than making it uniformly async lets both exist, at the
+ * cost of an `await` at the call sites -- which is free on the sync one.
+ */
+type Awaitable<T> = T | Promise<T>;
+
 export interface SessionBackend {
   init(): Promise<void>;
   close(): Promise<void>;
-  create(params: CreateSessionParams): { cookie: string; session: LiveSession };
-  resolve(cookie: string | undefined): LiveSession | null;
-  reseal(cookie: string | undefined, password: string): boolean;
-  destroy(id: string): void;
-  destroyAllForUser(username: string, exceptId?: string): number;
-  listForUser(username: string): SessionSummary[];
+  create(params: CreateSessionParams): Awaitable<{ cookie: string; session: LiveSession }>;
+  resolve(cookie: string | undefined): Awaitable<LiveSession | null>;
+  reseal(cookie: string | undefined, password: string): Awaitable<boolean>;
+  destroy(id: string): Awaitable<void>;
+  destroyAllForUser(username: string, exceptId?: string): Awaitable<number>;
+  listForUser(username: string): Awaitable<SessionSummary[]>;
 }
 
 const COOKIE_SEP = ".";
