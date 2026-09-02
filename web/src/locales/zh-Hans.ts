@@ -1058,6 +1058,8 @@ export const catalog: Catalog = {
     "Nothing unread here": "这里没有未读邮件",
   },
   plurals: {
+    "Already here: {n} contacts, nothing imported": { other: "已存在 {n} 个，未导入" },
+    "All {n} are already in your contacts": { other: "这 {n} 个已在您的联系人中" },
     "Exported {n} events": { other: "已导出 {n} 个日程" },
     "Imported {n} events": { other: "已导入 {n} 个日程" },
     "Already here: {n} events, nothing imported": { other: "已存在 {n} 个，未导入" },
