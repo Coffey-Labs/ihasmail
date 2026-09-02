@@ -150,6 +150,21 @@ Archive, delete, spam, star, mark read/unread, move and label all offer **Undo**
 in the toast that follows, and the undo restores the previous state rather than
 guessing at an inverse.
 
+**Archive by date** files into `Archive/<year>` or `Archive/<year>/<month>`,
+creating the folders as needed and reusing them after that — including ones
+made by hand or by another client. The names are numeric and zero-padded
+(`2026`, `2026/09`) rather than month names, because these are real server-side
+mailboxes: every other client sees them, a folder created as "September" by
+someone reading in English stays "September" for the same account read in
+Japanese, and `09` sorts between `08` and `10` where a name does not. The date
+is read in the reader's own timezone, so it agrees with the date shown against
+the message in the list.
+
+A selection spanning two months is two destinations, not one, and both are
+written; the menu names the folder where there is a single answer and describes
+the rule where there is not, and the toast afterwards says how many folders it
+touched. One Undo puts the whole selection back wherever it came from.
+
 `Delete` moves to the bin. **Empty** destroys, and is offered only on Deleted
 Items and Junk Mail — enforced where the action happens, not merely hidden in
 the menu. Emptying Junk destroys rather than moving to the bin, because routing
