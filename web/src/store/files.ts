@@ -48,7 +48,7 @@ interface FilesState {
    * It cannot be read from the drag itself: `dataTransfer.getData` is blocked
    * during dragover, which is exactly when the answer is needed.
    */
-  draggingId: Id | null;
+  draggingIds: Id[];
 
   init(): Promise<void>;
   /** Browse an account: the reader's own, or one shared with them. */
@@ -64,9 +64,11 @@ interface FilesState {
    */
   saveText(id: Id, text: string, seenBlobId: Id | null): Promise<Id>;
   move(id: Id, parentId: Id | null): Promise<void>;
+  /** Move several at once, in one round trip -- see the note on the implementation. */
+  moveMany(ids: Id[], parentId: Id | null): Promise<void>;
   destroy(ids: Id[]): Promise<void>;
   refresh(ids: Id[]): Promise<void>;
-  setDragging(id: Id | null): void;
+  setDragging(ids: Id[]): void;
   /** Every directory in the account, for the tree in the sidebar. */
   loadTree(): Promise<void>;
   /** Upload a planned drop, creating the folders it needs as it goes. */
@@ -115,7 +117,7 @@ export function withoutAppFolder(nodes: FileNode[]): FileNode[] {
  * accounts.
  */
 export function emptyForAccount(accountId: Id | null) {
-  return { accountId, nodes: {}, children: {}, dirIds: [], treeLoaded: false, draggingId: null, error: null };
+  return { accountId, nodes: {}, children: {}, dirIds: [], treeLoaded: false, draggingIds: [], error: null };
 }
 
 export const useFiles = create<FilesState>((set, get) => ({
@@ -130,7 +132,7 @@ export const useFiles = create<FilesState>((set, get) => ({
   uploads: [],
   dirIds: [],
   treeLoaded: false,
-  draggingId: null,
+  draggingIds: [],
 
   async init() {
     const session = useSession.getState();
@@ -276,8 +278,8 @@ export const useFiles = create<FilesState>((set, get) => ({
   /* Re-read named nodes in place. Sharing changes one property of one node and
      nothing about which folder it sits in, so reloading the level around it
      would be a bigger round trip to land in the same place. */
-  setDragging(id) {
-    set({ draggingId: id });
+  setDragging(ids) {
+    set({ draggingIds: ids });
   },
 
   async refresh(ids) {
@@ -353,12 +355,27 @@ export const useFiles = create<FilesState>((set, get) => ({
   },
 
   async move(id, parentId) {
+    await get().moveMany([id], parentId);
+  },
+
+  /*
+   * One `FileNode/set` for the lot rather than one per file.
+   *
+   * Not only for the round trip: a loop would apply half the moves and then
+   * throw, leaving a selection split across two folders with nothing saying
+   * which half went. One call is one answer, and `notUpdated` names whichever
+   * ones the server refused.
+   */
+  async moveMany(ids, parentId) {
+    if (!ids.length) return;
     const accountId = get().accountId!;
-    const from = get().nodes[id]?.parentId ?? null;
-    const res = await client.call<SetResponse>("FileNode/set", { accountId, update: { [id]: { parentId } } });
-    const err = res.notUpdated?.[id];
-    if (err) throw new Error(setErrorMessage(err));
-    await Promise.all([get().loadChildren(from), get().loadChildren(parentId)]);
+    const from = new Set(ids.map((id) => get().nodes[id]?.parentId ?? null));
+    const update = Object.fromEntries(ids.map((id) => [id, { parentId }]));
+    const res = await client.call<SetResponse>("FileNode/set", { accountId, update });
+    const failed = Object.values(res.notUpdated ?? {})[0];
+    if (failed) throw new Error(setErrorMessage(failed));
+    from.add(parentId);
+    for (const p of from) await get().loadChildren(p);
     void get().loadTree();
   },
 

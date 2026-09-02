@@ -24,7 +24,7 @@ describe("what a switch to another account keeps", () => {
       children: {},
       dirIds: [],
       treeLoaded: false,
-      draggingId: null,
+      draggingIds: [],
       error: null,
     });
   });
@@ -41,14 +41,14 @@ describe("what a switch to another account keeps", () => {
 
   it("drops a drag that was in flight", () => {
     // Its id belongs to the other account and would name a different node here.
-    expect(emptyForAccount("b").draggingId).toBeNull();
+    expect(emptyForAccount("b").draggingIds).toEqual([]);
   });
 
   it("names every piece of per-account state", () => {
     // Add a per-account field to the store and forget it here, and this fails
     // rather than the field quietly following someone into another account.
     expect(Object.keys(emptyForAccount(null)).sort()).toEqual(
-      ["accountId", "children", "dirIds", "draggingId", "error", "nodes", "treeLoaded"],
+      ["accountId", "children", "dirIds", "draggingIds", "error", "nodes", "treeLoaded"],
     );
   });
 });

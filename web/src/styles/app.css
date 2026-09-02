@@ -1355,6 +1355,10 @@ button.dp-open:disabled { cursor: default; opacity: .5; }
 /* Files: the sidebar tree reuses .nav-item, so only the parts the mail tree has
    no equivalent for are here. A row in the list is a drop target the same way a
    folder in the tree is, and says so the same way. */
+/* Shown only when more than one row is selected: with a single row the row
+   menu already says everything this would. */
+.selection-bar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; margin: 0 12px 4px; border-radius: var(--radius); background: var(--accent-soft); color: var(--accent-soft-fg); }
+.selection-bar .grow { font-weight: 600; }
 .files-table tbody tr.drop-target > td { background: var(--accent-soft); }
 .files-table tbody tr.drop-target > td:first-child { box-shadow: inset 2px 0 0 var(--accent); }
 .files-table tbody tr[draggable="true"] { cursor: grab; }

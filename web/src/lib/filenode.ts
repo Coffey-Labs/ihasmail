@@ -54,6 +54,27 @@ export function isShared(node: Pick<FileNode, "shareWith">): boolean {
  * legal moves behind a disabled drop. The server refuses those with a message
  * of its own, which is a better answer than a silent one.
  */
+/** The MIME a dragged node is offered under, so a target can recognise it. */
+export const NODE_MIME = "application/x-ihasmail-filenode";
+
+/**
+ * The ids in a node drag. A multi-file selection is dragged as one payload, so
+ * this is a list even when it holds one -- both drop targets read it the same
+ * way and neither has to care how the drag started.
+ */
+export function readDraggedIds(dt: DataTransfer): Id[] {
+  return dt.getData(NODE_MIME).split(",").filter(Boolean);
+}
+
+/**
+ * The same question for a multi-file drag. Every one of them has to be able to
+ * land, because the drop is one action: allowing a drag that would move four
+ * of five files and silently skip the fifth is worse than refusing it.
+ */
+export function canDropFileNodes(nodes: Record<Id, FileNode>, draggedIds: Id[], targetId: Id | null): boolean {
+  return draggedIds.length > 0 && draggedIds.every((id) => canDropFileNode(nodes, id, targetId));
+}
+
 export function canDropFileNode(nodes: Record<Id, FileNode>, draggedId: Id, targetId: Id | null): boolean {
   const dragged = nodes[draggedId];
   if (!dragged) return false;
