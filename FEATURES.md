@@ -719,7 +719,7 @@ not reach another that already has ihasmail open until it signs in again.
 | Section | Holds |
 | --- | --- |
 | **General** | Reading pane, mark-as-read delay, auto-advance, conversation view, snippets, avatars; compose format, quoting, signature placement, spell check; time zone, week start, language & region, date format, time format; `mailto:` handler; export / import / reset |
-| **Privacy & safety** | Remote images and the senders trusted with them, read receipts asked for and answered, undo-send window, attachment reminder, confirm-before-delete |
+| **Privacy & safety** | Remote images and the senders trusted with them, read receipts asked for and answered; the three warnings and the domains they measure against; undo-send window, attachment reminder, confirm-before-delete |
 | **Appearance** | Theme, accent colour, density, font size, sidebar, swipe actions, interface language |
 | **Identities & signatures** | Addresses, names, Reply-To, HTML signatures, the default, and which to hide from the picker |
 | **Filters & rules** | The visual builder and raw Sieve editor |
@@ -742,6 +742,35 @@ loads, what leaks, and what asks before it happens. These had been spread
 through General, which had grown five unrelated headings — remote images filed
 under "Reading", the read-receipt policy under "Composing", the undo-send window
 beside the default message format.
+
+Three warnings live there, and **all three start switched off**. That is not
+timidity: a client that begins by interrupting is one people learn to click
+through, and a warning clicked through without reading costs the same attention
+and buys nothing. The first could not be on by default in any case — it
+measures against the domains that count as yours, and with nothing configured
+every message in the mailbox is from outside.
+
+- **Messages from outside** get a banner naming the sender's domain. Your own
+  identity domains are always inside and are not configuration; anything listed
+  is additional, and covers its subdomains. The match is on a dot boundary, so
+  `example.com` covers `mail.example.com` and not `notexample.com`, which is the
+  shape somebody registers on purpose.
+- **Sending outside** names the outside recipients and asks, rather than
+  refusing. A rule — "this is going outside" — is not something the sender can
+  check; a list of addresses is.
+- **Sending to a large group** asks once the count crosses a threshold you set,
+  which catches a reply-all onto a long thread. It counts people rather than
+  headers, so one address in To and nine in Cc is a message to ten.
+- **Opening a link** asks before following it, for a destination not on the
+  trusted list — and *always* where the link's own text names one domain and
+  its destination is another, even when that destination is trusted. Being
+  trusted is not the same as being the place the text claimed. A domain can be
+  trusted from the dialog, except on that mismatch: what would be trusted there
+  is the destination, and the destination is not the thing in question. Links
+  that are not http or https are left alone, since warning about a `mailto:` is
+  noise, and noise is how a warning stops being read. Both message bodies are
+  covered — a link in a plain-text mail is linkified by ihasmail and points
+  wherever it likes just as readily as marked-up one.
 
 The senders trusted with remote images are listed there and can be withdrawn
 one at a time. Previously a sender was added from a message and could only be

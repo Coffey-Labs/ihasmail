@@ -10,7 +10,8 @@ import { MenuItem, MenuSep, MenuTitle, Popover, useMenu } from "@/ui/popover";
 import { confirmDialog, promptDialog } from "@/ui/dialog";
 import { formatSize, formatRelative } from "@/lib/format";
 import { htmlToText, textToHtml } from "@/lib/text";
-import { isValidEmail } from "@/lib/address";
+import { isValidEmail, uniqueAddresses } from "@/lib/address";
+import { crossesRecipientThreshold, externalRecipients, internalDomains } from "@/lib/warnings";
 import { attachmentIcon } from "../mail/MessageView";
 import { FilePicker } from "./FilePicker";
 import { RecipientPicker, type Field } from "./RecipientPicker";
@@ -104,6 +105,37 @@ export function Composer({ draft }: { draft: Draft }) {
     }
     if (settings.attachmentReminder && !d.attachments.length && /\b(attach(ed|ment|ing)?|enclosed|anbei|ci-joint|adjunto)\b/i.test(bodyText) ) {
       const ok = await confirmDialog({ title: translate("Did you forget the attachment?"), message: translate("Your message mentions an attachment, but nothing is attached."), confirmLabel: translate("Send anyway") });
+      if (!ok) return;
+    }
+    /*
+     * The two send-time warnings, in this order because they answer different
+     * questions and a message can trip both: who it is going to, then how many
+     * of them. Both name the specific thing rather than warning in general --
+     * "this is going outside" is a rule, "this is going to ada@outside.net" is
+     * something the sender can check.
+     */
+    if (settings.externalRecipientConfirm) {
+      // allIdentities, not the visible subset: hiding an identity from the
+        // picker is about the From menu, and does not make its domain
+        // somebody else's.
+        const outside = externalRecipients(all, internalDomains(allIdentities.map((i) => i.email), settings.internalDomains));
+      if (outside.length) {
+        const names = outside.slice(0, 5).map((a) => a.email).join(", ");
+        const rest = outside.length > 5 ? translate(" and {count} more", { count: String(outside.length - 5) }) : "";
+        const ok = await confirmDialog({
+          title: translate("Send outside your organisation?"),
+          message: translate("This goes to {recipients}{rest}.", { recipients: names, rest }),
+          confirmLabel: translate("Send anyway"),
+        });
+        if (!ok) return;
+      }
+    }
+    if (crossesRecipientThreshold(uniqueAddresses(all).length, settings.replyAllThreshold)) {
+      const ok = await confirmDialog({
+        title: translate("Send to {count} people?", { count: String(uniqueAddresses(all).length) }),
+        message: translate("Everyone addressed will receive this."),
+        confirmLabel: translate("Send anyway"),
+      });
       if (!ok) return;
     }
     await send(key);

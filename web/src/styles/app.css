@@ -1398,3 +1398,6 @@ button.dp-open:disabled { cursor: default; opacity: .5; }
 
 /* The senders whose remote images load without asking, in Privacy & safety. */
 .trusted-senders { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+
+/* The banner naming a sender from outside the organisation. */
+.remote-banner.external-banner { background: var(--warn-soft); border-color: var(--warn); }
