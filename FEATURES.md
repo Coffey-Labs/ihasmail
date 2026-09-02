@@ -638,7 +638,25 @@ work:
 *This and future* is not offered: the server refuses an occurrence that belongs
 to such a change, and where it does, ihasmail says so and offers the series.
 
-Events are edited in the editor rather than dragged around the grid.
+**Events are dragged.** In the day and week grids an event moves by dragging
+it and changes length by dragging its bottom edge, both snapping to fifteen
+minutes; in the month grid it moves to another day and keeps the time it had.
+The editor is still there and still does everything a drag cannot.
+
+- **A recurring event asks which dates it means**, the same question the menu
+  asks, and goes through the same path — so a date the server will only change
+  as part of a whole series offers that rather than failing.
+- **Only where it can be saved.** A read-only calendar offers no drag, and
+  neither does a birthday: it is derived from a contact and there is nothing on
+  the server to move.
+- **Invitations are not sent.** A drag is a scheduling gesture, and mailing
+  every guest on each nudge of a block is not what the hand was asking for. A
+  change that should go out with notice goes through the editor.
+- The new time is worked out **in the event's own frame** rather than through
+  an instant: its stored wall clock is what moves, and its time zone is not
+  touched. Computing a new time from the reader's local hours and then
+  re-expressing it in the event's zone converts twice, and the two do not
+  cancel.
 
 ---
 

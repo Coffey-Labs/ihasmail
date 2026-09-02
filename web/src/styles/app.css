@@ -1771,3 +1771,11 @@ button.dp-open:disabled { cursor: default; opacity: .5; }
 .mode-switch button { padding: 6px 14px; background: none; border: 0; color: var(--fg-muted); cursor: pointer; font: inherit; }
 .mode-switch button.active { background: var(--accent-soft); color: var(--accent-soft-fg); }
 .mode-switch button:disabled { opacity: .45; cursor: not-allowed; }
+
+/* Dragging an event to another time or day. */
+.ev-block.draggable, .ev-chip.draggable { cursor: grab; touch-action: none; }
+.ev-block.dragging, .ev-chip.dragging { cursor: grabbing; opacity: .75; box-shadow: var(--shadow-2); z-index: 5; }
+.ev-block { position: absolute; }
+.ev-resize { position: absolute; left: 0; right: 0; bottom: 0; height: 8px; cursor: ns-resize; touch-action: none; }
+.ev-resize::after { content: ""; position: absolute; left: 50%; bottom: 2px; width: 18px; height: 2px; margin-left: -9px; border-radius: 2px; background: currentColor; opacity: 0; }
+.ev-block:hover .ev-resize::after { opacity: .5; }

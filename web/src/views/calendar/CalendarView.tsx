@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { ChevronLeft, ChevronRight, Plus, Calendar as CalIcon } from "lucide-react";
 import { useCalendar, participantAddresses, type EventInstance } from "@/store/calendar";
 import { useSettings } from "@/store/settings";
-import { addDays, addMonths, DAY_MS, endOfDay, isSameDay, isToday, monthGrid, roundToNext, startOfDay, startOfWeek, toLocalDateOnly, weekDays } from "@/lib/dates";
+import { addDays, addMonths, DAY_MS, endOfDay, isSameDay, isToday, monthGrid, roundToNext, startOfDay, startOfWeek, toLocalDateOnly, weekDays} from "@/lib/dates";
 import { useSwipeNav } from "@/lib/touch";
 import { formatMonthYear, formatTime } from "@/lib/format";
 import { formatDate, formatDateLong, formatDayMonth, formatHourLabel, formatWeekday, formatWeekdayDate } from "@/lib/datetime";
@@ -13,6 +13,9 @@ import { EventPopover } from "./EventPopover";
 import { EventEditor, type EditorInit } from "./EventEditor";
 import type { Anchor } from "@/ui/popover";
 import { CalendarContextMenu, eventColor, type CalendarContext } from "./CalendarContextMenu";
+import { toast } from "@/ui/toast";
+import { askEditScope, droppedMessage, runScoped } from "./scope";
+import { canDragEvent, moveToDayPatch, movePatch, pixelsToMinutes, resizePatch, snap, type DragPatch } from "@/lib/eventDrag";
 import { t as translate } from "@/lib/i18n";
 
 type View = "month" | "week" | "day" | "agenda";
@@ -110,6 +113,34 @@ export function CalendarView({ view: viewParam, date }: { view?: string; date?: 
     ignore: ".cal-toolbar, .ev-chip, .ev-block, .agenda-ev",
   });
 
+  /*
+   * Saving a move or a resize.
+   *
+   * The same path a menu edit takes: ask which of a series it is meant for,
+   * then run it through `runScoped` so a date the server will only change as
+   * part of a whole series offers that rather than failing. Invitations are
+   * not sent -- a drag is a scheduling gesture, and mailing every guest on
+   * each nudge of a block is not what the hand was asking for. The editor is
+   * still where a change goes out with notice.
+   */
+  const commitDrag = useCallback(
+    async (inst: EventInstance, patch: DragPatch) => {
+      const ev = inst.event;
+      if (!patch.start && !patch.duration) return;
+      const scope = await askEditScope(ev);
+      if (!scope) return;
+      try {
+        const dropped = await runScoped(scope, (sc) => cal.updateEvent(ev, { ...patch }, false, sc));
+        if (!dropped) return;
+        const message = droppedMessage(dropped);
+        if (message) toast.success(message);
+      } catch (err) {
+        toast.error((err as Error).message);
+      }
+    },
+    [cal],
+  );
+
   const openNew = useCallback(
     (start?: Date, end?: Date, allDay = false) => {
       const s = start ?? roundToNext(new Date(), 30);
@@ -183,8 +214,8 @@ export function CalendarView({ view: viewParam, date }: { view?: string; date?: 
         {!isMobile && <button className="btn btn-primary btn-sm" onClick={() => openNew()}><Plus size={16} />  {translate("Event")}</button>}
       </div>
       {cal.error && <div className="error-box" style={{ margin: 12 }}>{cal.error}</div>}
-      {effectiveView === "month" && <MonthView anchor={anchor} weekStart={weekStart} onDay={(d) => go("day", d)} onEvent={onEvent} onEventContext={onEventContext} onSlotContext={onSlotContext} onCreate={(d) => openNew(new Date(d.getTime() + 9 * 3600_000))} />}
-      {(effectiveView === "week" || effectiveView === "day") && <TimeGrid days={effectiveView === "week" ? weekDays(anchor, weekStart) : [anchor]} onEvent={onEvent} onEventContext={onEventContext} onSlotContext={onSlotContext} onCreate={(s, e, allDay) => openNew(s, e, allDay)} onDayHeader={(d) => go("day", d)} workStart={settings.workDayStart} workEnd={settings.workDayEnd} />}
+      {effectiveView === "month" && <MonthView onDragCommit={(i, patch) => void commitDrag(i, patch)} anchor={anchor} weekStart={weekStart} onDay={(d) => go("day", d)} onEvent={onEvent} onEventContext={onEventContext} onSlotContext={onSlotContext} onCreate={(d) => openNew(new Date(d.getTime() + 9 * 3600_000))} />}
+      {(effectiveView === "week" || effectiveView === "day") && <TimeGrid onDragCommit={(i, patch) => void commitDrag(i, patch)} days={effectiveView === "week" ? weekDays(anchor, weekStart) : [anchor]} onEvent={onEvent} onEventContext={onEventContext} onSlotContext={onSlotContext} onCreate={(s, e, allDay) => openNew(s, e, allDay)} onDayHeader={(d) => go("day", d)} workStart={settings.workDayStart} workEnd={settings.workDayEnd} />}
       {effectiveView === "agenda" && <AgendaView start={anchor} onEvent={onEvent} onEventContext={onEventContext} />}
       {ctx && <CalendarContextMenu ctx={ctx} onClose={() => setCtx(null)} onOpen={(inst, a) => setPopover({ inst, anchor: a })} onEdit={(inst) => setEditor({ event: inst.event, start: inst.start, end: inst.end, allDay: inst.allDay })} onCreate={(s, e, allDay) => { setCtx(null); openNew(s, e, allDay); }} />}
       {isMobile && <button className="fab" aria-label={translate("New event")} onClick={() => openNew()}><Plus size={24} /></button>}
@@ -199,13 +230,61 @@ export function CalendarView({ view: viewParam, date }: { view?: string; date?: 
 type EvCtx = (i: EventInstance, e: React.MouseEvent) => void;
 type SlotCtx = (start: Date, end: Date, allDay: boolean, e: React.MouseEvent) => void;
 
-function MonthView({ anchor, weekStart, onDay, onEvent, onEventContext, onSlotContext, onCreate }: { anchor: Date; weekStart: number; onDay: (d: Date) => void; onEvent: (i: EventInstance, el: Element) => void; onEventContext: EvCtx; onSlotContext: SlotCtx; onCreate: (d: Date) => void }) {
+function MonthView({ anchor, weekStart, onDay, onEvent, onEventContext, onSlotContext, onCreate, onDragCommit }: { anchor: Date; weekStart: number; onDay: (d: Date) => void; onEvent: (i: EventInstance, el: Element) => void; onEventContext: EvCtx; onSlotContext: SlotCtx; onCreate: (d: Date) => void; onDragCommit: (i: EventInstance, patch: DragPatch) => void }) {
   const cal = useCalendar();
   const grid = useMemo(() => monthGrid(anchor, weekStart), [anchor, weekStart]);
   const instances = cal.instancesIn(grid[0]!, addDays(grid[41]!, 1));
   const weeks = [...Array(6)].map((_, w) => grid.slice(w * 7, w * 7 + 7));
   const dow = weeks[0]!.map((d) => formatWeekday(d));
   const maxPer = 4;
+  const [draggingKey, setDraggingKey] = useState<string | null>(null);
+  const draggedRef = useRef(false);
+
+  /*
+   * A month cell is a day and nothing finer, so the only question a drag here
+   * asks is "which day". The cell under the pointer is found by asking the
+   * document rather than by tracking enter and leave on forty-two cells: one
+   * question at the end beats bookkeeping throughout.
+   */
+  const beginChipDrag = (inst: EventInstance, e: React.PointerEvent) => {
+    if (e.button !== 0 && e.pointerType === "mouse") return;
+    if (!canDragEvent(inst.event, inst.calendar)) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const el = e.currentTarget as HTMLElement;
+    el.setPointerCapture(e.pointerId);
+    let landedOn: string | null = null;
+    const onPointerMove = (ev: PointerEvent) => {
+      const cell = document.elementFromPoint(ev.clientX, ev.clientY)?.closest<HTMLElement>(".month-cell");
+      const date = cell?.dataset.date ?? null;
+      if (date) landedOn = date;
+      if (!draggedRef.current) draggedRef.current = true;
+      setDraggingKey(inst.key);
+    };
+    const finish = () => {
+      el.removeEventListener("pointermove", onPointerMove);
+      el.removeEventListener("pointerup", finish);
+      el.removeEventListener("pointercancel", finish);
+      try {
+        el.releasePointerCapture(e.pointerId);
+      } catch {
+        /* already released */
+      }
+      setDraggingKey(null);
+      // Built from the parts rather than parsed: `new Date("2026-09-04")` is
+      // read as UTC and lands on the day before wherever the offset is negative.
+      const parts = landedOn?.split("-").map(Number);
+      const target = parts && parts.length === 3 ? new Date(parts[0]!, parts[1]! - 1, parts[2]!) : null;
+      if (target && !isSameDay(target, inst.start)) {
+        onDragCommit(inst, moveToDayPatch(inst.event.start, target));
+      }
+      window.setTimeout(() => (draggedRef.current = false), 0);
+    };
+    el.addEventListener("pointermove", onPointerMove);
+    el.addEventListener("pointerup", finish);
+    el.addEventListener("pointercancel", finish);
+  };
+
   return (
     <div className="month-grid">
       <div className="dow-row">{dow.map((d) => <div key={d}>{d}</div>)}</div>
@@ -216,9 +295,9 @@ function MonthView({ anchor, weekStart, onDay, onEvent, onEventContext, onSlotCo
             const evs = instances.filter((i) => i.start < dayEnd && i.end > d);
             const shown = evs.slice(0, maxPer);
             return (
-              <div key={d.toISOString()} className={`month-cell ${d.getMonth() !== anchor.getMonth() ? "other" : ""} ${isToday(d) ? "today" : ""}`} onClick={() => onCreate(d)} onDoubleClick={() => onDay(d)} onContextMenu={(e) => onSlotContext(new Date(d.getTime() + 9 * 3600_000), new Date(d.getTime() + 10 * 3600_000), false, e)}>
+              <div key={d.toISOString()} data-date={toLocalDateOnly(d)} className={`month-cell ${d.getMonth() !== anchor.getMonth() ? "other" : ""} ${isToday(d) ? "today" : ""}`} onClick={() => onCreate(d)} onDoubleClick={() => onDay(d)} onContextMenu={(e) => onSlotContext(new Date(d.getTime() + 9 * 3600_000), new Date(d.getTime() + 10 * 3600_000), false, e)}>
                 <span className="day-num" onClick={(e) => { e.stopPropagation(); onDay(d); }}>{d.getDate() === 1 ? formatDayMonth(d) : d.getDate()}</span>
-                {shown.map((i) => <EventChip key={i.key} inst={i} day={d} onClick={(el) => onEvent(i, el)} onContext={(e) => onEventContext(i, e)} />)}
+                {shown.map((i) => <EventChip key={i.key} inst={i} day={d} onClick={(el) => onEvent(i, el)} onContext={(e) => onEventContext(i, e)} onDragStart={canDragEvent(i.event, i.calendar) ? (e) => beginChipDrag(i, e) : undefined} dragging={draggingKey === i.key} suppressClick={() => draggedRef.current} />)}
                 {evs.length > maxPer && <span className="more" onClick={(e) => { e.stopPropagation(); onDay(d); }}>{translate("+{n} more", { n: evs.length - maxPer })}</span>}
               </div>
             );
@@ -248,11 +327,11 @@ function useEventColor() {
   return (inst: EventInstance) => eventColor(inst.event, inst.calendar?.color, categories);
 }
 
-function EventChip({ inst, day, onClick, onContext }: { inst: EventInstance; day: Date; onClick: (el: Element) => void; onContext?: (e: React.MouseEvent) => void }) {
+function EventChip({ inst, day, onClick, onContext, onDragStart, dragging, suppressClick }: { inst: EventInstance; day: Date; onClick: (el: Element) => void; onContext?: (e: React.MouseEvent) => void; onDragStart?: (e: React.PointerEvent) => void; dragging?: boolean; suppressClick?: () => boolean }) {
   const color = useEventColor()(inst);
   const spansDay = inst.allDay || inst.end.getTime() - inst.start.getTime() >= DAY_MS || !isSameDay(inst.start, inst.end) && inst.start < day;
   return (
-    <div className={`ev-chip ${spansDay ? "" : "timed"} ${statusClass(inst)}`} style={{ background: color, borderColor: color }} onClick={(e) => { e.stopPropagation(); onClick(e.currentTarget); }} onContextMenu={onContext} title={inst.event.title ?? ""}>
+    <div className={`ev-chip ${spansDay ? "" : "timed"} ${statusClass(inst)} ${dragging ? "dragging" : ""} ${onDragStart ? "draggable" : ""}`} style={{ background: color, borderColor: color }} onPointerDown={onDragStart} onClick={(e) => { e.stopPropagation(); if (suppressClick?.()) return; onClick(e.currentTarget); }} onContextMenu={onContext} title={inst.event.title ?? ""}>
       {!spansDay && <span className="ev-dot" style={{ background: color }} />}
       {!spansDay && <span className="ev-time">{formatTime(inst.start)}</span>}
       <span className="truncate">{inst.event.title || "(untitled)"}</span>
@@ -262,7 +341,7 @@ function EventChip({ inst, day, onClick, onContext }: { inst: EventInstance; day
 
 /* ---------------- Week / Day ---------------- */
 
-function TimeGrid({ days, onEvent, onEventContext, onSlotContext, onCreate, onDayHeader, workStart, workEnd }: { days: Date[]; onEvent: (i: EventInstance, el: Element) => void; onEventContext: EvCtx; onSlotContext: SlotCtx; onCreate: (s: Date, e: Date, allDay: boolean) => void; onDayHeader: (d: Date) => void; workStart: number; workEnd: number }) {
+function TimeGrid({ days, onEvent, onEventContext, onSlotContext, onCreate, onDayHeader, onDragCommit, workStart, workEnd }: { days: Date[]; onEvent: (i: EventInstance, el: Element) => void; onEventContext: EvCtx; onSlotContext: SlotCtx; onCreate: (s: Date, e: Date, allDay: boolean) => void; onDayHeader: (d: Date) => void; onDragCommit: (i: EventInstance, patch: DragPatch) => void; workStart: number; workEnd: number }) {
   const cal = useCalendar();
   const colorOf = useEventColor();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -271,6 +350,53 @@ function TimeGrid({ days, onEvent, onEventContext, onSlotContext, onCreate, onDa
   const instances = cal.instancesIn(start, end);
   const [now, setNow] = useState(new Date());
   const [drag, setDrag] = useState<{ day: Date; startMin: number; endMin: number } | null>(null);
+  /*
+   * Dragging an event, as opposed to dragging out a new one on empty grid --
+   * which is what `drag` above is. Held as a delta in minutes rather than as a
+   * new time, so the preview is one number and the commit is the same
+   * arithmetic the tests cover.
+   */
+  const [moving, setMoving] = useState<{ key: string; deltaMin: number; mode: "move" | "resize" } | null>(null);
+  /* A drag ends with a pointerup, and a pointerup on the same element is also
+     a click. Without this, letting go of a moved event opens its popover. */
+  const draggedRef = useRef(false);
+
+  const beginDrag = (inst: EventInstance, mode: "move" | "resize", e: React.PointerEvent) => {
+    if (e.button !== 0 && e.pointerType === "mouse") return;
+    if (!canDragEvent(inst.event, inst.calendar)) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const el = e.currentTarget as HTMLElement;
+    const startY = e.clientY;
+    let delta = 0;
+    el.setPointerCapture(e.pointerId);
+    const onPointerMove = (ev: PointerEvent) => {
+      delta = snap(pixelsToMinutes(ev.clientY - startY, HOUR_H));
+      if (delta !== 0) draggedRef.current = true;
+      setMoving({ key: inst.key, deltaMin: delta, mode });
+    };
+    const finish = () => {
+      el.removeEventListener("pointermove", onPointerMove);
+      el.removeEventListener("pointerup", finish);
+      el.removeEventListener("pointercancel", finish);
+      try {
+        el.releasePointerCapture(e.pointerId);
+      } catch {
+        /* already released, which is fine */
+      }
+      setMoving(null);
+      if (delta !== 0) {
+        const seconds = (inst.end.getTime() - inst.start.getTime()) / 1000;
+        onDragCommit(inst, mode === "move" ? movePatch(inst.event.start, delta) : resizePatch(seconds, delta));
+      }
+      // Cleared after the click that follows this pointerup has been swallowed.
+      window.setTimeout(() => (draggedRef.current = false), 0);
+    };
+    el.addEventListener("pointermove", onPointerMove);
+    el.addEventListener("pointerup", finish);
+    el.addEventListener("pointercancel", finish);
+  };
+
   useEffect(() => {
     const t = window.setInterval(() => setNow(new Date()), 60_000);
     return () => window.clearInterval(t);
@@ -354,7 +480,27 @@ function TimeGrid({ days, onEvent, onEventContext, onSlotContext, onCreate, onDa
                 {evs.map(({ inst, top, height, left, width }) => {
                   const color = colorOf(inst);
                   return (
-                    <div key={inst.key} className={`ev-block ${statusClass(inst)}`} style={{ top, height: Math.max(height, 18), left: `${left}%`, width: `calc(${width}% - 3px)`, background: color }} onClick={(e) => { e.stopPropagation(); onEvent(inst, e.currentTarget); }} onContextMenu={(e) => onEventContext(inst, e)} title={inst.event.title ?? ""}>
+                    <div
+                      key={inst.key}
+                      className={`ev-block ${statusClass(inst)} ${moving?.key === inst.key ? "dragging" : ""} ${canDragEvent(inst.event, inst.calendar) ? "draggable" : ""}`}
+                      style={{
+                        top: top + (moving?.key === inst.key && moving.mode === "move" ? (moving.deltaMin / 60) * HOUR_H : 0),
+                        height: Math.max(height + (moving?.key === inst.key && moving.mode === "resize" ? (moving.deltaMin / 60) * HOUR_H : 0), 18),
+                        left: `${left}%`,
+                        width: `calc(${width}% - 3px)`,
+                        background: color,
+                      }}
+                      onPointerDown={(e) => beginDrag(inst, "move", e)}
+                      onClick={(e) => { e.stopPropagation(); if (draggedRef.current) return; onEvent(inst, e.currentTarget); }}
+                      onContextMenu={(e) => onEventContext(inst, e)}
+                      title={inst.event.title ?? ""}
+                    >
+                      {canDragEvent(inst.event, inst.calendar) && (
+                        /* Its own element rather than an edge zone on the block,
+                           so a thumb has something to aim at and the move drag
+                           does not have to guess which one was meant. */
+                        <div className="ev-resize" onPointerDown={(e) => beginDrag(inst, "resize", e)} aria-hidden="true" />
+                      )}
                       <div className="ev-title">{inst.event.title || "(untitled)"}</div>
                       {height > 30 && <div className="ev-time">{formatTime(inst.start)} – {formatTime(inst.end)}</div>}
                     </div>
