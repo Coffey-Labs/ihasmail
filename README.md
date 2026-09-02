@@ -117,6 +117,46 @@ nowhere to live across a restart. Removing it means moving the session upstream
 into a token Stalwart itself issues and can revoke, which is what the OAuth work
 in [ROADMAP.md](ROADMAP.md) is for.
 
+### Settings the installation decides
+
+A deployment can seed and lock user settings, which is what a school wanting
+"warn about outside senders" on for three thousand pupils needs — asking three
+thousand pupils is not a plan.
+
+```bash
+-e SETTINGS_DEFAULTS='{"externalSenderBanner":true}' \
+-e SETTINGS_ENFORCED='{"externalRecipientConfirm":true}'
+```
+
+Or, where mounting a file is easier than quoting JSON in a unit file:
+
+```bash
+-e SETTINGS_POLICY_FILE=/etc/ihasmail/policy.json
+```
+
+```json
+{
+  "defaults":  { "externalSenderBanner": true },
+  "enforced":  { "externalRecipientConfirm": true }
+}
+```
+
+The two are different powers. **`defaults`** seed an account that has never had
+settings of its own; the reader can change any of them afterwards, and they are
+a starting point rather than a rule. **`enforced`** are reapplied on every load
+and cannot be changed at all — their controls stay visible in Settings and go
+dead with a line saying why, because a control that is simply missing reads as a
+bug to anyone who has used ihasmail without a policy.
+
+Both are given in the same names and values a settings export uses, so
+`Settings → General → Export` on a configured account is the quickest way to
+write one. Keys this build does not have are ignored rather than stored, and
+malformed JSON stops the server at startup rather than silently doing nothing.
+
+Enforcement is applied in the settings store rather than only on the controls,
+so an imported settings file or a settings file synced from a device that
+predates the policy cannot get around it.
+
 ## Architecture
 
 ```

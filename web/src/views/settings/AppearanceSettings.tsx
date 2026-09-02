@@ -4,6 +4,7 @@ import { Switch, useIsTouch } from "@/ui/misc";
 import { SWIPE_CHOICES, type SwipeAction } from "@/lib/swipe";
 import { TRANSLATION_ISSUE_URL, UI_LANGUAGES } from "@/lib/languages";
 import { t as translate, tNode } from "@/lib/i18n";
+import { isEnforced } from "@/lib/settingsPolicy";
 
 /**
  * A swatch for each palette, drawn from the colours that palette actually
@@ -99,7 +100,7 @@ export function AppearanceSettings() {
       <div className="field-row">
         <div className="field">
           <label>{translate("Display density")}</label>
-          <select className="select" value={s.density} onChange={(e) => update({ density: e.target.value as typeof s.density })}>
+          <select disabled={isEnforced("density")} className="select" value={s.density} onChange={(e) => update({ density: e.target.value as typeof s.density })}>
             <option value="comfortable">{translate("Comfortable")}</option>
             <option value="cozy">{translate("Cozy (default)")}</option>
             <option value="compact">{translate("Compact")}</option>
@@ -107,7 +108,7 @@ export function AppearanceSettings() {
         </div>
         <div className="field">
           <label>{translate("Text size")}</label>
-          <select className="select" value={s.fontSize} onChange={(e) => update({ fontSize: e.target.value as typeof s.fontSize })}>
+          <select disabled={isEnforced("fontSize")} className="select" value={s.fontSize} onChange={(e) => update({ fontSize: e.target.value as typeof s.fontSize })}>
             <option value="small">{translate("Small")}</option>
             <option value="medium">{translate("Medium")}</option>
             <option value="large">{translate("Large")}</option>
@@ -192,9 +193,9 @@ export function AppearanceSettings() {
       </p>
 
       <h2>{translate("Sidebar")}</h2>
-      <Switch checked={s.labelsSidebar} onChange={(v) => update({ labelsSidebar: v })} label={translate("Show labels in the sidebar")} />
-      <Switch checked={s.showHiddenFolders} onChange={(v) => update({ showHiddenFolders: v })} label={translate("Show unsubscribed (hidden) folders")} />
-      <Switch checked={s.sidebarCollapsed} onChange={(v) => update({ sidebarCollapsed: v })} label={translate("Collapse sidebar to icons")} />
+      <Switch locked={isEnforced("labelsSidebar")} checked={s.labelsSidebar} onChange={(v) => update({ labelsSidebar: v })} label={translate("Show labels in the sidebar")} />
+      <Switch locked={isEnforced("showHiddenFolders")} checked={s.showHiddenFolders} onChange={(v) => update({ showHiddenFolders: v })} label={translate("Show unsubscribed (hidden) folders")} />
+      <Switch locked={isEnforced("sidebarCollapsed")} checked={s.sidebarCollapsed} onChange={(v) => update({ sidebarCollapsed: v })} label={translate("Collapse sidebar to icons")} />
     </div>
   );
 }

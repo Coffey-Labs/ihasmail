@@ -43,6 +43,7 @@ import type { Catalog } from "@/lib/i18n";
  */
 export const catalog: Catalog = {
   strings: {
+    "Set for everyone here. You cannot change this.": "Hier voor iedereen ingesteld. U kunt dit niet wijzigen.",
     "Export iCAL file": "iCAL-bestand exporteren",
     "Could not export this calendar: {error}": "Kon deze agenda niet exporteren: {error}",
     // ── Actions ────────────────────────────────────────────────────────

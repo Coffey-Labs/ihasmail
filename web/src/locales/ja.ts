@@ -46,6 +46,7 @@ import type { Catalog } from "@/lib/i18n";
  */
 export const catalog: Catalog = {
   strings: {
+    "Set for everyone here. You cannot change this.": "この環境全体で設定されています。変更できません。",
     "Export iCAL file": "iCAL ファイルをエクスポート",
     "Could not export this calendar: {error}": "このカレンダーをエクスポートできませんでした: {error}",
     // ── Actions ────────────────────────────────────────────────────────

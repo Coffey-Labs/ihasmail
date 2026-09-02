@@ -24,6 +24,7 @@ import {
   withPrefs,
   type DateFormat,
 } from "@/lib/datetime";
+import { isEnforced } from "@/lib/settingsPolicy";
 
 /** Illustrative instant used for the format previews: 22 Nov 2025, 18:23. */
 const SAMPLE = new Date(2025, 10, 22, 18, 23);
@@ -69,7 +70,7 @@ export function GeneralSettings() {
       <div className="field-row">
         <div className="field">
           <label>{t("Reading pane")}</label>
-          <select className="select" value={s.readingPane} onChange={(e) => update({ readingPane: e.target.value as typeof s.readingPane })}>
+          <select disabled={isEnforced("readingPane")} className="select" value={s.readingPane} onChange={(e) => update({ readingPane: e.target.value as typeof s.readingPane })}>
             <option value="right">{t("Right of the list")}</option>
             <option value="bottom">{t("Below the list")}</option>
             <option value="off">{t("Off (open messages full width)")}</option>
@@ -77,7 +78,7 @@ export function GeneralSettings() {
         </div>
         <div className="field">
           <label>{t("Mark as read")}</label>
-          <select className="select" value={String(s.markReadDelay)} onChange={(e) => update({ markReadDelay: Number(e.target.value) })}>
+          <select disabled={isEnforced("markReadDelay")} className="select" value={String(s.markReadDelay)} onChange={(e) => update({ markReadDelay: Number(e.target.value) })}>
             <option value="0">{t("Immediately when opened")}</option>
             <option value="2">{t("After 2 seconds")}</option>
             <option value="5">{t("After 5 seconds")}</option>
@@ -86,21 +87,21 @@ export function GeneralSettings() {
         </div>
         <div className="field">
           <label>{t("After archiving or deleting")}</label>
-          <select className="select" value={s.autoAdvance} onChange={(e) => update({ autoAdvance: e.target.value as typeof s.autoAdvance })}>
+          <select disabled={isEnforced("autoAdvance")} className="select" value={s.autoAdvance} onChange={(e) => update({ autoAdvance: e.target.value as typeof s.autoAdvance })}>
             <option value="list">{t("Go back to the list")}</option>
             <option value="older">{t("Open the next (older) conversation")}</option>
             <option value="newer">{t("Open the previous (newer) conversation")}</option>
           </select>
         </div>
       </div>
-      <Switch checked={s.conversationMode} onChange={(v) => update({ conversationMode: v })} label={t("Conversation view")} hint={t("Group messages from the same thread together.")} />
-      <Switch checked={s.showPreview} onChange={(v) => update({ showPreview: v })} label={t("Show message snippets")} hint={t("Preview the first line of each message in the list.")} />
-      <Switch checked={s.showAvatars} onChange={(v) => update({ showAvatars: v })} label={t("Show sender avatars")} />
+      <Switch locked={isEnforced("conversationMode")} checked={s.conversationMode} onChange={(v) => update({ conversationMode: v })} label={t("Conversation view")} hint={t("Group messages from the same thread together.")} />
+      <Switch locked={isEnforced("showPreview")} checked={s.showPreview} onChange={(v) => update({ showPreview: v })} label={t("Show message snippets")} hint={t("Preview the first line of each message in the list.")} />
+      <Switch locked={isEnforced("showAvatars")} checked={s.showAvatars} onChange={(v) => update({ showAvatars: v })} label={t("Show sender avatars")} />
 
       <div className="field-row">
         <div className="field">
           <label>{t("Message order")}</label>
-          <select className="select" value={s.listSortPreset} onChange={(e) => update({ listSortPreset: e.target.value as SortPreset })}>
+          <select disabled={isEnforced("listSortPreset")} className="select" value={s.listSortPreset} onChange={(e) => update({ listSortPreset: e.target.value as SortPreset })}>
             <option value="newest">{t("Newest first")}</option>
             <option value="oldest">{t("Oldest first")}</option>
             <option value="unreadFirst">{t("Unread first")}</option>
@@ -113,7 +114,7 @@ export function GeneralSettings() {
         </div>
         <div className="field">
           <label>{t("Applies to")}</label>
-          <select className="select" value={s.listSortScope} onChange={(e) => update({ listSortScope: e.target.value as "inbox" | "all" })}>
+          <select disabled={isEnforced("listSortScope")} className="select" value={s.listSortScope} onChange={(e) => update({ listSortScope: e.target.value as "inbox" | "all" })}>
             <option value="inbox">{t("The Inbox only")}</option>
             <option value="all">{t("Every folder")}</option>
           </select>
@@ -172,15 +173,15 @@ export function GeneralSettings() {
       <div className="field-row">
         <div className="field">
           <label>{t("Default format")}</label>
-          <select className="select" value={s.composeFormat} onChange={(e) => update({ composeFormat: e.target.value as typeof s.composeFormat })}>
+          <select disabled={isEnforced("composeFormat")} className="select" value={s.composeFormat} onChange={(e) => update({ composeFormat: e.target.value as typeof s.composeFormat })}>
             <option value="html">{t("Rich text (HTML)")}</option>
             <option value="text">{t("Plain text")}</option>
           </select>
         </div>
       </div>
-      <Switch checked={s.includeQuote} onChange={(v) => update({ includeQuote: v })} label={t("Quote original message in replies")} />
-      <Switch checked={s.signatureAboveQuote} onChange={(v) => update({ signatureAboveQuote: v })} label={t("Place signature above quoted text")} />
-      <Switch checked={s.spellcheck} onChange={(v) => update({ spellcheck: v })} label={t("Spell check while typing")} />
+      <Switch locked={isEnforced("includeQuote")} checked={s.includeQuote} onChange={(v) => update({ includeQuote: v })} label={t("Quote original message in replies")} />
+      <Switch locked={isEnforced("signatureAboveQuote")} checked={s.signatureAboveQuote} onChange={(v) => update({ signatureAboveQuote: v })} label={t("Place signature above quoted text")} />
+      <Switch locked={isEnforced("spellcheck")} checked={s.spellcheck} onChange={(v) => update({ spellcheck: v })} label={t("Spell check while typing")} />
 
       <h2>{t("Locale")}</h2>
       <div className="field-row">
@@ -193,7 +194,7 @@ export function GeneralSettings() {
         </div>
         <div className="field">
           <label>{t("Week starts on")}</label>
-          <select className="select" value={String(s.weekStart)} onChange={(e) => update({ weekStart: Number(e.target.value) as 0 | 1 | 6 })}>
+          <select disabled={isEnforced("weekStart")} className="select" value={String(s.weekStart)} onChange={(e) => update({ weekStart: Number(e.target.value) as 0 | 1 | 6 })}>
             <option value="1">{t("Monday")}</option>
             <option value="0">{t("Sunday")}</option>
             <option value="6">{t("Saturday")}</option>
@@ -203,7 +204,7 @@ export function GeneralSettings() {
       <div className="field-row">
         <div className="field">
           <label>{t("Language & region")}</label>
-          <select className="select" value={s.locale} onChange={(e) => update({ locale: e.target.value })}>
+          <select disabled={isEnforced("locale")} className="select" value={s.locale} onChange={(e) => update({ locale: e.target.value })}>
             <option value="">{t("Automatic ({locale})", { locale: localeLabel(autoLocale) })}</option>
             {localeOptions().map((o) => <option key={o.tag} value={o.tag}>{o.label} — {o.tag}</option>)}
           </select>
@@ -211,7 +212,7 @@ export function GeneralSettings() {
         </div>
         <div className="field">
           <label>{t("Date format")}</label>
-          <select className="select" value={s.dateFormat} onChange={(e) => update({ dateFormat: e.target.value as DateFormat })}>
+          <select disabled={isEnforced("dateFormat")} className="select" value={s.dateFormat} onChange={(e) => update({ dateFormat: e.target.value as DateFormat })}>
             {DATE_FORMATS.map((f) => (
               <option key={f.value} value={f.value}>
                 {t(f.label)} ({withPrefs({ locale: s.locale, dateFormat: f.value }, () => formatDate(SAMPLE))})
@@ -221,7 +222,7 @@ export function GeneralSettings() {
         </div>
         <div className="field">
           <label>{t("Time format")}</label>
-          <select className="select" value={s.timeFormat} onChange={(e) => update({ timeFormat: e.target.value as typeof s.timeFormat })}>
+          <select disabled={isEnforced("timeFormat")} className="select" value={s.timeFormat} onChange={(e) => update({ timeFormat: e.target.value as typeof s.timeFormat })}>
             <option value="auto">{t("Automatic ({example})", { example: withPrefs({ locale: s.locale, timeFormat: "auto" }, () => formatClock(SAMPLE)) })}</option>
             <option value="24">{t("24-hour clock (18:23)")}</option>
             <option value="12">{t("12-hour clock (6:23 PM)")}</option>

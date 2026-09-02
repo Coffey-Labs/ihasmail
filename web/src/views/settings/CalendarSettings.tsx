@@ -3,6 +3,7 @@ import { ColorSwatches, CALENDAR_COLORS, Switch } from "@/ui/misc";
 import { promptDialog } from "@/ui/dialog";
 import { Plus, Trash2 } from "lucide-react";
 import { t } from "@/lib/i18n";
+import { isEnforced } from "@/lib/settingsPolicy";
 
 export function CalendarSettings() {
   const s = useSettings((st) => st.settings);
@@ -14,7 +15,7 @@ export function CalendarSettings() {
       <div className="field-row">
         <div className="field">
           <label>{t("Default view")}</label>
-          <select className="select" value={s.calendarDefaultView} onChange={(e) => update({ calendarDefaultView: e.target.value as typeof s.calendarDefaultView })}>
+          <select disabled={isEnforced("calendarDefaultView")} className="select" value={s.calendarDefaultView} onChange={(e) => update({ calendarDefaultView: e.target.value as typeof s.calendarDefaultView })}>
             <option value="day">{t("Day")}</option>
             <option value="week">{t("Week")}</option>
             <option value="month">{t("Month")}</option>
@@ -23,7 +24,7 @@ export function CalendarSettings() {
         </div>
         <div className="field">
           <label>{t("Default event length")}</label>
-          <select className="select" value={String(s.defaultEventDuration)} onChange={(e) => update({ defaultEventDuration: Number(e.target.value) })}>
+          <select disabled={isEnforced("defaultEventDuration")} className="select" value={String(s.defaultEventDuration)} onChange={(e) => update({ defaultEventDuration: Number(e.target.value) })}>
             <option value="15">{t("15 minutes")}</option>
             <option value="30">{t("30 minutes")}</option>
             <option value="45">{t("45 minutes")}</option>
@@ -34,7 +35,7 @@ export function CalendarSettings() {
         </div>
         <div className="field">
           <label>{t("Default reminder")}</label>
-          <select className="select" value={String(s.defaultAlertMinutes)} onChange={(e) => update({ defaultAlertMinutes: Number(e.target.value) })}>
+          <select disabled={isEnforced("defaultAlertMinutes")} className="select" value={String(s.defaultAlertMinutes)} onChange={(e) => update({ defaultAlertMinutes: Number(e.target.value) })}>
             <option value="-1">{t("None")}</option>
             <option value="0">{t("At time of event")}</option>
             <option value="5">{t("5 minutes before")}</option>
@@ -116,19 +117,19 @@ export function CalendarSettings() {
       <div className="field-row">
         <div className="field">
           <label>{t("Working hours start")}</label>
-          <select className="select" value={String(s.workDayStart)} onChange={(e) => update({ workDayStart: Number(e.target.value) })}>
+          <select disabled={isEnforced("workDayStart")} className="select" value={String(s.workDayStart)} onChange={(e) => update({ workDayStart: Number(e.target.value) })}>
             {[...Array(24)].map((_, h) => <option key={h} value={h}>{`${h}:00`}</option>)}
           </select>
         </div>
         <div className="field">
           <label>{t("Working hours end")}</label>
-          <select className="select" value={String(s.workDayEnd)} onChange={(e) => update({ workDayEnd: Number(e.target.value) })}>
+          <select disabled={isEnforced("workDayEnd")} className="select" value={String(s.workDayEnd)} onChange={(e) => update({ workDayEnd: Number(e.target.value) })}>
             {[...Array(25)].map((_, h) => <option key={h} value={h}>{`${h}:00`}</option>)}
           </select>
         </div>
         <div className="field">
           <label>{t("Week starts on")}</label>
-          <select className="select" value={String(s.weekStart)} onChange={(e) => update({ weekStart: Number(e.target.value) as 0 | 1 | 6 })}>
+          <select disabled={isEnforced("weekStart")} className="select" value={String(s.weekStart)} onChange={(e) => update({ weekStart: Number(e.target.value) as 0 | 1 | 6 })}>
             <option value="1">{t("Monday")}</option>
             <option value="0">{t("Sunday")}</option>
             <option value="6">{t("Saturday")}</option>
