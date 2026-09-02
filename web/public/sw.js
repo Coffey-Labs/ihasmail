@@ -74,7 +74,18 @@ self.addEventListener("fetch", (event) => {
  * credentials), so it is stashed for a tab to collect and confirm.
  */
 
-const VERIFY_KEY = "ihasmail-push-verification";
+/*
+ * Absolute, and anchored to the mount rather than to whatever page happens to
+ * be open.
+ *
+ * A relative key is resolved against the URL of whoever is asking: the worker
+ * lives at `<base>/sw.js`, so it stored this under `<base>/…`, while a tab at
+ * `/mail/inbox/abc` looked for it under `/mail/inbox/…`. The two only ever
+ * agreed when the open page was the root, so a verification code that arrived
+ * with no tab open was written where the next tab would not look -- and the
+ * subscription stayed silent, which is the same thing push failing looks like.
+ */
+const VERIFY_KEY = `${BASE}/ihasmail-push-verification`;
 
 function textOf(email) {
   const from = email?.from?.[0];

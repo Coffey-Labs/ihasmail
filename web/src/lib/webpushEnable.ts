@@ -6,6 +6,7 @@
  * permission prompt, none of which exists under a test runner.
  */
 import { CAP } from "@/jmap/client";
+import { withBase } from "./basePath";
 import { isDeviceTrusted } from "@/lib/storage";
 import { useSession } from "@/store/session";
 import { useMail } from "@/store/mail";
@@ -48,10 +49,13 @@ export function listenForVerification(): void {
 async function collectStoredVerification(): Promise<void> {
   try {
     const cache = await caches.open("ihasmail-v2");
-    const hit = await cache.match("ihasmail-push-verification");
+    // The same absolute key the worker writes. Relative would be resolved
+    // against this document's URL, which is a different place on every route.
+    const key = withBase("/ihasmail-push-verification");
+    const hit = await cache.match(key);
     if (!hit) return;
     const { id, code } = (await hit.json()) as { id?: string; code?: string };
-    await cache.delete("ihasmail-push-verification");
+    await cache.delete(key);
     if (id && code) await verifySubscription(id, code);
   } catch {
     /* nothing waiting, or no cache: not a failure */
