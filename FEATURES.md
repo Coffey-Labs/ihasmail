@@ -152,6 +152,26 @@ more attempt. A drag that is merely more sideways than not stays a scroll.
   message count; it can be switched off to list messages individually.
 - **Multi-select** with `x`, shift-click for ranges, `Ctrl/Cmd+A` for all, and
   a long press on a touchscreen.
+- **Select the whole folder**, not just the rows that happen to be loaded. The
+  header checkbox takes the loaded page, which on a folder of ten thousand is
+  fifty of them; a line then offers the other 9,950 by name, and taking it is a
+  separate press. A checkbox that silently meant ten thousand when the screen
+  shows fifty would be the worst of both, so each option says what it actually
+  covers.
+
+  The wider selection is a *query*, not a list of ids: what it reaches is
+  resolved from the server when an action runs, walked a page at a time,
+  because a folder holds far more than one call returns. It is resolved
+  **uncollapsed** — "everything in this folder" means every message rather than
+  one per thread. And it is consumed by the action that used it, so the next
+  action does not silently reach the whole folder again.
+
+  **Undo is withheld once the selection reaches messages that were never
+  loaded.** Undo restores the folders each message was in, which can only be
+  known for messages the browser holds; built from the others it would write an
+  empty set of folders and leave the message in none at all. Withholding the
+  offer is better than restoring something wrong, and the toast simply does not
+  carry it.
 - **Drag and drop** onto any folder in the tree, moving the selection or the
   row under the cursor.
 - **Context menu** on any row: reply, forward, archive, delete, spam, read/unread,
