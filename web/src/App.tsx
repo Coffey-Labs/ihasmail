@@ -22,6 +22,7 @@ import { armSettingsSync, loadRemoteSettings, queueSettingsPush, settingsAlready
 import { listenForVerification, renewWebPush } from "@/lib/webpushEnable";
 import { useLanguageVersion, whenLanguageReady } from "@/lib/i18n";
 import { confirmLeaveUnsaved, hasUnsavedChanges } from "@/lib/unsavedChanges";
+import { BASE_PATH } from "@/lib/basePath";
 
 const ContactsView = lazy(() => import("@/views/contacts/ContactsView").then((m) => ({ default: m.ContactsView })));
 const CalendarView = lazy(() => import("@/views/calendar/CalendarView").then((m) => ({ default: m.CalendarView })));
@@ -83,6 +84,17 @@ export function App() {
      * Reload and tab close are covered by `beforeunload` instead.
      */
     <Router
+      /*
+       * The one place the mount prefix enters the router. Every `<Route path>`,
+       * `<Link href>` and `navigate()` in the app stays written root-absolute
+       * -- `/mail/:mailboxId?` -- and wouter strips the base off the address
+       * before matching and puts it back on when it navigates. So a deep link
+       * to `/mail/inbox/abc` under a `/mail` mount is `/mail/mail/inbox/abc`
+       * and nothing in the views has to know it.
+       *
+       * Empty is wouter's own default, so the root case is untouched.
+       */
+      base={BASE_PATH}
       aroundNav={(navigate, to, options) => {
         if (!hasUnsavedChanges()) {
           navigate(to, options);

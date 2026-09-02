@@ -1,3 +1,5 @@
+import { withBase } from "./basePath";
+
 let baseTitle = "ihasmail";
 let faviconCanvas: HTMLCanvasElement | null = null;
 let baseFavicon: HTMLImageElement | null = null;
@@ -14,13 +16,13 @@ export function setUnreadBadge(count: number): void {
     if (!link) return;
     if (!baseFavicon) {
       baseFavicon = new Image();
-      baseFavicon.src = "/img/favicon-64.png";
+      baseFavicon.src = withBase("/img/favicon-64.png");
       baseFavicon.onload = () => setUnreadBadge(count);
       return;
     }
     if (!baseFavicon.complete) return;
     if (count <= 0) {
-      link.href = "/img/favicon-64.png";
+      link.href = withBase("/img/favicon-64.png");
       return;
     }
     faviconCanvas ??= document.createElement("canvas");
@@ -60,7 +62,7 @@ export function showNotification(title: string, opts: NotificationOptions & { on
   if (!("Notification" in window) || Notification.permission !== "granted") return;
   if (document.visibilityState === "visible" && document.hasFocus()) return;
   try {
-    const n = new Notification(title, { icon: "/img/icon-192.png", badge: "/img/favicon-64.png", ...opts });
+    const n = new Notification(title, { icon: withBase("/img/icon-192.png"), badge: withBase("/img/favicon-64.png"), ...opts });
     n.onclick = () => {
       window.focus();
       opts.onClick?.();

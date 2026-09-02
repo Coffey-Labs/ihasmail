@@ -2,6 +2,7 @@ import { useSession } from "@/store/session";
 import { client } from "@/jmap/client";
 import { DEFAULT_SOURCE_URL } from "@/lib/source";
 import { APP_VERSION } from "@/lib/version";
+import { withBase } from "@/lib/basePath";
 import { t, tNode } from "@/lib/i18n";
 
 export function AboutSettings() {
@@ -14,7 +15,7 @@ export function AboutSettings() {
       <h1>{t("About ihasmail")}</h1>
       <p className="lead">{tNode("A fast, friendly, open-source webmail for {server}, built on JMAP.", { server: <a href="https://stalw.art" target="_blank" rel="noreferrer">{t("Stalwart Mail Server")}</a> })}</p>
       <div className="row" style={{ gap: 16, alignItems: "center", marginBottom: 16 }}>
-        <img src="/img/logo.png" alt={t("ihasmail")} width={96} />
+        <img src={withBase("/img/logo.png")} alt={t("ihasmail")} width={96} />
         <div>
           {/* A product name and a version string: neither is a word to translate. */}
           <div style={{ fontWeight: 700, fontSize: "1.2em" }} className="notranslate" translate="no">ihasmail v{APP_VERSION}</div>

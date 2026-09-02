@@ -23,6 +23,7 @@ import { settings, useSettings } from "./settings";
 import { useSession } from "./session";
 import { mailboxDisplayName } from "@/lib/mailboxName";
 import { plural, t } from "@/lib/i18n";
+import { withBase } from "@/lib/basePath";
 
 /*
  * Named explicitly so `shareWith` comes back, which it does not otherwise --
@@ -1041,7 +1042,10 @@ async function notifyNewMail(created: Id[], get: () => MailState) {
         tag: e.id,
         onClick: () => {
           window.location.hash = "";
-          window.history.pushState({}, "", `/mail/${inbox}/${e.threadId}`);
+          // The one navigation that does not go through wouter -- it is
+          // synthesising a popstate so the router picks the address up -- so
+          // it is also the one that has to add the mount prefix itself.
+          window.history.pushState({}, "", withBase(`/mail/${inbox}/${e.threadId}`));
           window.dispatchEvent(new PopStateEvent("popstate"));
         },
       });

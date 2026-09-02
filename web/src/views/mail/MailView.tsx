@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useSearch } from "wouter";
 import { DEFAULT_SORT, useMail, type ListQuery } from "@/store/mail";
 import { useSettings } from "@/store/settings";
+import { withBase } from "@/lib/basePath";
 import { useCompose } from "@/store/compose";
 import { buildFilter, describeFilter, parseQuery } from "@/lib/search";
 import { keyboard } from "@/lib/keyboard";
@@ -353,7 +354,7 @@ export function MailView({ mailboxId, threadId, search }: { mailboxId?: string; 
             <ThreadView key={threadId} threadId={threadId} mailboxId={mailboxId ?? null} onBack={() => openThread(null)} actions={actions} onNavigate={(delta) => { const idx = currentRowIndex; const next = ids[idx + delta]; const t = next ? rowThreadId(next) : undefined; if (t) { setFocusId(next!); openThread(t); } }} hasPrev={currentRowIndex > 0} hasNext={currentRowIndex >= 0 && currentRowIndex < ids.length - 1} />
           ) : (
             <div className="no-thread">
-              <img src="/img/logo.png" alt="" />
+              <img src={withBase("/img/logo.png")} alt="" />
               <div>{list?.total ? plural(list.total, { one: "{n} conversation", other: "{n} conversations" }) : translate("No conversation selected")}</div>
               <div className="hint">{tNode("Select a conversation to read it here · Press {key} for shortcuts", { key: <kbd className="kbd">?</kbd> })}</div>
             </div>

@@ -954,6 +954,7 @@ wizard, because either would be state.
 | `STALWART_URL` | — | Where Stalwart is; the JMAP session is discovered at `/.well-known/jmap` |
 | `APP_SECRET` | — | Key material for sealing sessions. **Required in production** — the server refuses to start without it |
 | `HOST` / `PORT` | `0.0.0.0` / `8080` | Listen address |
+| `BASE_PATH` | — (the domain root) | Subpath to serve from, e.g. `/mail`. Must be set for the **build** as well as the run — see below |
 | `TRUST_PROXY` | `1` | Believe `X-Forwarded-*` |
 | `TRUSTED_PROXIES` | loopback + private ranges | Which peers to believe |
 | `SECURE_COOKIES` | `auto` | `Secure` when the request arrived over HTTPS; `1`/`0` to force |
@@ -973,6 +974,41 @@ Full documentation, including TLS and reverse proxies:
 [Configuring](https://docs.ihasmail.org/configure/). `Caddyfile.example` and
 `nginx.example.conf` are in the repository.
 
+### Serving from a subpath
+
+`BASE_PATH` mounts the whole app under a prefix, for a host that is not
+ihasmail's alone:
+
+```bash
+docker build --build-arg BASE_PATH=/mail -t ihasmail .
+docker run -e BASE_PATH=/mail ... ihasmail
+```
+
+`/mail`, `mail` and `/mail/` all mean the same mount; unset means the domain
+root, which is exactly what it has always been. Everything moves together —
+`/mail/api/health`, every deep link, the icons, the manifest, the service
+worker's scope and the session cookie's `Path`.
+
+Two things are worth knowing before you reach for it.
+
+**The prefix must arrive intact.** Point the proxy at ihasmail without
+stripping it: `proxy_pass http://127.0.0.1:8080;` with no trailing slash in
+nginx, `reverse_proxy` without a `uri strip_prefix` in Caddy. A proxy that
+strips the prefix is talking to an app at the root, and should be paired with
+no `BASE_PATH` at all.
+
+**It is baked in at build time, not only at run time.** This is the one setting
+that cannot wait for the process to start: the web bundle writes its own
+`<script src>` into `index.html` when it is built, so a build that does not
+know the prefix produces a shell that cannot load itself under one. Hence the
+`--build-arg` above. Get it wrong and the page comes up blank — so the server
+checks the built shell against its own `BASE_PATH` at the first request and
+says so in the log rather than leaving you with an empty page and a 404.
+
+The manifest and the service worker need neither: a manifest's URLs resolve
+against the manifest's own address, and the worker's own address tells it where
+it was mounted. Both follow the prefix with nothing substituted into them.
+
 ## Rebranding
 
 `APP_NAME` and `SOURCE_URL` are variables; the logo, icons and palette are
@@ -984,7 +1020,8 @@ and in Settings › About.
 ## Operations
 
 - **`GET /api/health`** answers name, version and `ok`, and is what the
-  container health check uses.
+  container health check uses. Under a `BASE_PATH` it moves with everything
+  else, to `/mail/api/health`; the image's health check follows it.
 - **Versions** read `2026.8.30+pr129`: the date of the commit the build came
   from, and the pull request it arrived through (or `+g<sha>` for one that did
   not). It comes from git at build time; nothing writes a version into the tree.

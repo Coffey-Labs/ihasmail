@@ -1,4 +1,5 @@
 import { resolveVersion } from "../../scripts/version.mjs";
+import { normalizeBasePath } from "../../scripts/basePath.mjs";
 import { randomBytes } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
@@ -130,6 +131,19 @@ export const config = {
   sourceUrl: env("SOURCE_URL", "https://github.com/Coffey-Labs/ihasmail"),
   host: env("HOST", "0.0.0.0"),
   port: int("PORT", 8080),
+  /**
+   * The subpath this instance answers on: `/mail` for a proxy that maps
+   * `https://example.com/mail/` here, and `""` -- the default -- for the root.
+   *
+   * The prefix is expected to arrive intact: a proxy that strips it before
+   * forwarding should leave BASE_PATH unset, because then as far as this
+   * process is concerned it *is* at the root. What must match is the web
+   * build, which bakes the same variable into its asset URLs; a server that
+   * strips a prefix the bundle still asks for serves an app that cannot load
+   * its own scripts. `staticHandler` says so at the first request rather than
+   * leaving a blank page to explain itself.
+   */
+  basePath: normalizeBasePath(process.env.BASE_PATH),
   stalwartUrl,
   appSecret,
   trustProxy: bool("TRUST_PROXY", true),

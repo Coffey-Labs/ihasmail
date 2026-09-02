@@ -116,12 +116,28 @@ const requireSession: MiddlewareHandler<Env> = async (c, next) => {
   await next();
 };
 
+/**
+ * Scope the session cookie to the mount, not the whole host.
+ *
+ * Under a prefix the browser is talking to a hostname that other applications
+ * share, and a cookie at `/` would be sent to every one of them. Path scoping
+ * is not a security boundary -- anything on the origin can reach the cookie
+ * jar -- but it keeps the credential out of requests that have no business
+ * carrying it, and it lets two ihasmail instances live at `/mail` and
+ * `/mail2` on one host without signing each other out, which a shared cookie
+ * name at `/` would do.
+ *
+ * `/` for the root case: an empty Path is not the same thing and browsers
+ * would fall back to the directory of the request that set it.
+ */
+const cookiePath = config.basePath || "/";
+
 function setSessionCookie(c: Context, value: string, remember: boolean) {
   setCookie(c, config.cookieName, value, {
     httpOnly: true,
     sameSite: "Lax",
     secure: isSecureRequest(c),
-    path: "/",
+    path: cookiePath,
     ...(remember ? { maxAge: config.sessionRememberTtl } : {}),
   });
 }
@@ -138,7 +154,12 @@ function upstreamFailure(c: Context, err: unknown) {
   return c.json({ error: "upstream_error", message: "Could not reach the mail server" }, 502);
 }
 
-export function createApp(): Hono<Env> {
+/**
+ * `basePath` is a parameter rather than read straight from the config so the
+ * tests can mount the same app twice, at the root and under a prefix, without
+ * re-importing the module to change one environment variable.
+ */
+export function createApp(basePath = config.basePath): Hono<Env> {
   const app = new Hono<Env>();
   app.use("*", securityHeaders);
 
@@ -247,7 +268,7 @@ export function createApp(): Hono<Env> {
     } catch (err) {
       if (err instanceof UpstreamError && err.status === 401) {
         sessions.destroy(session.id);
-        deleteCookie(c, config.cookieName, { path: "/" });
+        deleteCookie(c, config.cookieName, { path: cookiePath });
       }
       return upstreamFailure(c, err);
     }
@@ -260,7 +281,7 @@ export function createApp(): Hono<Env> {
       sessions.destroy(session.id);
       forgetUpstreamSession(session.id);
     }
-    deleteCookie(c, config.cookieName, { path: "/" });
+    deleteCookie(c, config.cookieName, { path: cookiePath });
     return c.json({ ok: true });
   });
 
@@ -473,7 +494,7 @@ export function createApp(): Hono<Env> {
       if (res.status === 401) {
         sessions.destroy(session.id);
         forgetUpstreamSession(session.id);
-        deleteCookie(c, config.cookieName, { path: "/" });
+        deleteCookie(c, config.cookieName, { path: cookiePath });
         return c.json({ error: "unauthenticated" }, 401);
       }
       return passthrough(res);
@@ -599,10 +620,10 @@ export function createApp(): Hono<Env> {
     return c.json({ error: "internal_error" }, 500);
   });
 
-  app.route("/api", api);
+  app.route(`${basePath}/api`, api);
 
   // ---------- Static SPA ----------
-  app.get("*", staticHandler(config.staticDir));
+  app.get("*", staticHandler(config.staticDir, basePath));
   return app;
 }
 

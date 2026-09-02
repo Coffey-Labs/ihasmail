@@ -3,6 +3,7 @@ import { stat, readFile } from "node:fs/promises";
 import { extname, join, normalize, resolve, sep } from "node:path";
 import { Readable } from "node:stream";
 import type { Context, Handler } from "hono";
+import { stripBasePath } from "../../scripts/basePath.mjs";
 
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -47,9 +48,30 @@ export const APP_CSP = [
   "manifest-src 'self'",
 ].join("; ");
 
-export function staticHandler(root: string): Handler {
+export function staticHandler(root: string, basePath = ""): Handler {
   const absRoot = resolve(root);
   let indexCache: { body: string; mtime: number } | null = null;
+  let mismatchWarned = false;
+
+  /**
+   * A build that does not know the prefix loads nothing under it, and says so
+   * with a blank page and a 404 in a console nobody has open. The shell is
+   * already being read here, so checking what it asks for costs one substring
+   * search per rebuild and turns a mystery into a line in the log.
+   *
+   * A warning rather than a refusal: this reads a built artefact to guess at a
+   * misconfiguration, and a wrong guess that stops the server from starting is
+   * worse than the problem it is describing.
+   */
+  function warnOnBaseMismatch(body: string) {
+    if (mismatchWarned || !basePath) return;
+    if (body.includes(`src="${basePath}/assets/`)) return;
+    mismatchWarned = true;
+    console.warn(
+      `[ihasmail] BASE_PATH is ${basePath}, but the web build in ${absRoot} references its assets elsewhere. ` +
+        `The prefix is baked in at build time: rebuild with BASE_PATH=${basePath} set, or the app will not load.`,
+    );
+  }
 
   async function serveIndex(c: Context) {
     try {
@@ -57,7 +79,9 @@ export function staticHandler(root: string): Handler {
       const st = await stat(p);
       if (!indexCache || indexCache.mtime !== st.mtimeMs) {
         indexCache = { body: await readFile(p, "utf8"), mtime: st.mtimeMs };
+        mismatchWarned = false;
       }
+      warnOnBaseMismatch(indexCache.body);
       c.header("Content-Type", "text/html; charset=utf-8");
       c.header("Cache-Control", "no-cache");
       c.header("Content-Security-Policy", APP_CSP);
@@ -70,7 +94,16 @@ export function staticHandler(root: string): Handler {
 
   return async (c) => {
     if (c.req.method !== "GET" && c.req.method !== "HEAD") return c.text("Method Not Allowed", 405);
-    const urlPath = decodeURIComponent(new URL(c.req.url).pathname);
+    /*
+     * Everything below works in paths relative to the mount, so the prefix
+     * comes off once, here. Anything outside it is a 404 and not the app
+     * shell: under `/mail` this process shares a hostname with whatever else
+     * the proxy serves, and answering `/` or `/other-app/thing` with our
+     * index would shadow a neighbour rather than let it 404 honestly.
+     */
+    const fullPath = decodeURIComponent(new URL(c.req.url).pathname);
+    const urlPath = stripBasePath(basePath, fullPath);
+    if (urlPath === null) return c.text("Not Found", 404);
     if (urlPath === "/" || urlPath === "/index.html") return serveIndex(c);
     const rel = normalize(urlPath).replace(/^(\.\.[/\\])+/, "");
     const filePath = join(absRoot, rel);
