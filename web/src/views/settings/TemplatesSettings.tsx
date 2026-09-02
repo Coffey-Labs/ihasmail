@@ -5,6 +5,7 @@ import { Dialog } from "@/ui/dialog";
 import { RichEditor } from "../compose/RichEditor";
 import { htmlToText } from "@/lib/text";
 import { t as translate } from "@/lib/i18n";
+import { PLACEHOLDER_NAMES } from "@/lib/templatePlaceholders";
 
 export function TemplatesSettings() {
   const templates = useSettings((s) => s.settings.templates);
@@ -37,8 +38,48 @@ export function TemplatesSettings() {
               <RichEditor html={editing.html} onChange={(html) => setEditing({ ...editing, html })} showToolbar placeholder={translate("Template text…")} />
             </div>
           </div>
+          <PlaceholderReference />
         </Dialog>
       )}
+    </div>
+  );
+}
+
+/**
+ * What each placeholder answers, shown under the body so the names are
+ * discoverable without documentation. Rendered from `PLACEHOLDER_NAMES` rather
+ * than from this map, so a name added to the lib and forgotten here appears
+ * with no description instead of quietly not appearing at all.
+ */
+function placeholderHint(name: string): string {
+  switch (name) {
+    case "recipientName": return translate("Who the message is addressed to");
+    case "recipientFirstName": return translate("Their first name alone");
+    case "recipientEmail": return translate("Their address");
+    case "myName": return translate("The name on the identity you are sending as");
+    case "myEmail": return translate("That identity's address");
+    case "subject": return translate("The subject already on the message");
+    case "date": return translate("Today, in your date format");
+    case "time": return translate("Now, on your clock");
+    default: return "";
+  }
+}
+
+function PlaceholderReference() {
+  return (
+    <div className="field">
+      <label>{translate("Placeholders")}</label>
+      <div className="placeholder-list">
+        {PLACEHOLDER_NAMES.map((name) => (
+          <div key={name} className="placeholder-row">
+            <code>{`{{${name}}}`}</code>
+            <span className="hint">{placeholderHint(name)}</span>
+          </div>
+        ))}
+      </div>
+      <p className="hint">
+        {translate("Filled in when the template is inserted, so you can edit the result before sending. One that cannot be answered yet — a recipient's name on a message you have not addressed — is left in the body as written, rather than becoming a blank.")}
+      </p>
     </div>
   );
 }

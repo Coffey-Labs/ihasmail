@@ -309,7 +309,16 @@ minimisable and maximisable; full-screen on mobile.
   identity. Signature images live in Files too and are turned into inline
   `cid:` parts when the message is sent.
 - **Templates**: named subject + body, inserted into any draft, managed in
-  Settings.
+  Settings. Both carry **placeholders** — `{{recipientName}}`,
+  `{{recipientFirstName}}`, `{{recipientEmail}}`, `{{myName}}`, `{{myEmail}}`,
+  `{{subject}}`, `{{date}}` and `{{time}}` — filled at the moment the template
+  is inserted, so what they came to is visible and editable before anything is
+  sent rather than changing under the message afterwards. Dates and times
+  follow the same format settings as the rest of the app. A placeholder that
+  cannot be answered yet — a recipient's name on a draft nobody has addressed —
+  is **left in the body exactly as written**, because substituting an empty
+  string there produces "Hi ,", a greeting that is wrong rather than one that
+  is visibly unfinished. A name that is not a placeholder is left alone too.
 - **Attachments** by picking or dragging onto the composer, with progress per
   file and the size limit the server states (`MAX_UPLOAD_BYTES`, 50 MB by
   default). A pasted image is inserted inline instead, and pasted HTML is
