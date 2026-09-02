@@ -19,6 +19,7 @@ import type {
   Thread,
   VacationResponse,
   ChangesResponse,
+  Invocation,
 } from "@/jmap/types";
 import { toast } from "@/ui/toast";
 import { settings, useSettings } from "./settings";
@@ -130,6 +131,8 @@ export interface MailState {
   vacation: VacationResponse | null;
   list: ListState | null;
   selected: Record<Id, true>;
+  /** Unread messages per label keyword, for the sidebar. */
+  labelCounts: Record<string, number>;
   /**
    * The selection means "everything the current query matches", not the rows
    * that happen to be loaded. Ticking the header box selects the loaded page;
@@ -190,6 +193,8 @@ export interface MailState {
 
   select(ids: Id[], on: boolean): void;
   clearSelection(): void;
+  /** Refresh the per-label unread counts, in one request. */
+  loadLabelCounts(): Promise<void>;
   selectAll(): void;
   /** Extend the selection from the loaded rows to everything the query matches. */
   selectAllMatching(): void;
@@ -221,6 +226,7 @@ export const useMail = create<MailState>((set, get) => ({
   vacation: null,
   list: null,
   selected: {},
+  labelCounts: {},
   selectedAll: false,
   anchorId: null,
   loadingThreads: {},
@@ -260,6 +266,11 @@ export const useMail = create<MailState>((set, get) => ({
     const mailboxes: Record<Id, Mailbox> = {};
     for (const m of res.list) mailboxes[m.id] = m;
     set({ mailboxes, mailboxState: res.state, mailboxesLoaded: true });
+    // Label counts move for the same reasons folder counts do -- something was
+    // read, moved or deleted -- so they are refreshed on the same beat rather
+    // than on a timer of their own. Not awaited: the folder tree should not
+    // wait on decoration.
+    void get().loadLabelCounts();
   },
 
   roleId(role) {
@@ -299,7 +310,7 @@ export const useMail = create<MailState>((set, get) => ({
     set({
       list: { ...q, key, ids: reuse ? cur.ids : [], total: reuse ? cur.total : 0, queryState: null, loading: true, loadingMore: false, error: null, exhausted: false },
       selected: {},
-  selectedAll: false,
+      selectedAll: false,
       anchorId: null,
     });
     try {
@@ -919,6 +930,43 @@ export const useMail = create<MailState>((set, get) => ({
       return { selected: next };
     });
   },
+  async loadLabelCounts() {
+    const accountId = get().accountId;
+    const labels = settings().labels;
+    if (!accountId || !labels.length) {
+      if (Object.keys(get().labelCounts).length) set({ labelCounts: {} });
+      return;
+    }
+    /*
+     * One request carrying a query per label, rather than a request each. The
+     * count is the whole answer, so `limit: 0` keeps the server from sending
+     * ids that would only be thrown away -- what is wanted is `total`.
+     */
+    const calls: Invocation[] = labels.map((l, i) => [
+      "Email/query",
+      {
+        accountId,
+        filter: { operator: "AND", conditions: [{ hasKeyword: l.keyword }, { notKeyword: "$seen" }] },
+        limit: 0,
+        calculateTotal: true,
+      },
+      `c${i}`,
+    ]);
+    try {
+      const res = await client.request(calls);
+      const counts: Record<string, number> = {};
+      for (const [, result, id] of res.methodResponses) {
+        const label = labels[Number(String(id).slice(1))];
+        if (!label) continue;
+        counts[label.keyword] = (result as { total?: number }).total ?? 0;
+      }
+      set({ labelCounts: counts });
+    } catch {
+      // A count is decoration. Failing to get one is not worth a toast, and
+      // the sidebar falls back to drawing the label without a number.
+    }
+  },
+
   clearSelection() {
     set({ selected: {}, selectedAll: false });
   },

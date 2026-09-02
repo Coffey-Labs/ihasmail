@@ -235,6 +235,25 @@ and they survive ihasmail entirely. A message can carry any number. They are
 managed in Settings › Labels, applied from `l` or the context menu, and
 optionally listed in the sidebar.
 
+- **Nesting.** A label can sit under another, and the sidebar indents it.
+  Nesting is **display only** — the keywords stay flat on the message, so
+  moving a label under another rewrites nothing in the mailbox and a client
+  that knows nothing about ihasmail sees exactly what it always did. The parent
+  picker will not offer a label's own descendants, so a loop cannot be built;
+  and because settings sync between devices, a label whose parent was deleted
+  elsewhere comes back to the top level rather than disappearing, while a cycle
+  arriving from an older device is broken rather than hung on.
+- **How prominent each one is**: always in the sidebar, only while it has
+  unread mail, or never. "Only when unread" is the useful one — something filed
+  two years ago should not hold a row for ever.
+- A label kept by that rule **keeps its ancestors**, whatever they were set to.
+  A child cannot be drawn under a parent that is not there, and promoting it to
+  the top level would silently rearrange the tree at the moment the reader is
+  least able to explain why. The parent comes back as a container instead.
+- **Unread counts** sit beside each label, fetched for every label in a single
+  request rather than one apiece, and refreshed on the same beat as the folder
+  counts — the things that move them are the same things.
+
 ## Search
 
 The query runs on the **server**, over the whole mailbox, not over the part the
