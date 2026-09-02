@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { FolderRef } from "@/lib/sieveFolders";
 import { SPAM_HEADER_PROPS } from "@/lib/spamScore";
 import { groupByArchivePath, archivePath, type ArchiveGranularity } from "@/lib/archiveDate";
+import { isOptionalSort, withoutOptionalSorts } from "@/lib/listSort";
 import { JmapMethodError, chunk, client, setErrorMessage } from "@/jmap/client";
 import type {
   Comparator,
@@ -1129,7 +1130,45 @@ function sortIdentities(list: Identity[], accountId: Id): Identity[] {
   return [...list].sort((a, b) => (a.id === pref ? -1 : b.id === pref ? 1 : a.email.localeCompare(b.email)));
 }
 
+/**
+ * Sort properties a server has already refused, so it is asked once and not
+ * once per folder for the rest of the session.
+ *
+ * Keyed by nothing: a refusal is about the server, and there is only one.
+ */
+let sortRefused = false;
+
 async function runQuery(accountId: Id, q: ListQuery, position: number, limit: number) {
+  /*
+   * `hasKeyword` is an optional sort in RFC 8621, and a server that will not
+   * do it fails the whole query rather than degrading it -- so "unread first"
+   * on such a server means a folder that does not open at all, which is a
+   * worse outcome than one in the wrong order.
+   *
+   * The refusal is caught once, the optional levels dropped, and the query
+   * retried. Nothing is said the first time: the reader asked for an order and
+   * got the closest the server can give, and a toast on every folder change
+   * would be the app complaining about its own request.
+   */
+  const query = sortRefused ? { ...q, sort: withoutOptionalSorts(q.sort) } : q;
+  try {
+    return await runQueryOnce(accountId, query, position, limit);
+  } catch (err) {
+    const optional = query.sort.some(isOptionalSort);
+    if (!optional || !isUnsupportedSort(err)) throw err;
+    sortRefused = true;
+    return await runQueryOnce(accountId, { ...q, sort: withoutOptionalSorts(q.sort) }, position, limit);
+  }
+}
+
+/** The error a server raises for a sort property it does not implement. */
+function isUnsupportedSort(err: unknown): boolean {
+  const type = (err as { type?: string } | null)?.type;
+  const message = String((err as Error | null)?.message ?? "");
+  return type === "unsupportedSort" || /unsupportedSort/i.test(message);
+}
+
+async function runQueryOnce(accountId: Id, q: ListQuery, position: number, limit: number) {
   const calls: Array<[string, Record<string, unknown>, string]> = [
     ["Email/query", { accountId, filter: q.filter, sort: q.sort, collapseThreads: q.collapseThreads, position, limit, calculateTotal: true }, "q"],
     ["Email/get", { accountId, "#ids": { resultOf: "q", name: "Email/query", path: "/ids" }, properties: LIST_PROPS }, "e"],
