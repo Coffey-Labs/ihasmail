@@ -666,8 +666,12 @@ a.menu-item:hover { color: var(--fg); }
 .attachment .att-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: var(--accent-soft); color: var(--accent-soft-fg); flex: 0 0 auto; overflow: hidden; }
 .attachment .att-icon img { width: 100%; height: 100%; object-fit: cover; }
 .attachment .att-text { flex: 1; min-width: 0; }
-.attachment .att-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: .92em; }
-.attachment .att-size { color: var(--fg-muted); font-size: .8em; }
+/* Both are spans, and `overflow`/`text-overflow` do nothing on an inline
+   element -- so the name never truncated and the size ran on after it on the
+   same line. Only long names showed it, which is every .eml named from a
+   subject. */
+.attachment .att-name { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: .92em; }
+.attachment .att-size { display: block; color: var(--fg-muted); font-size: .8em; }
 .attachment .att-actions { display: none; gap: 0; }
 .attachment:hover .att-actions { display: flex; }
 .attachment:hover .att-size { display: none; }
@@ -1376,6 +1380,21 @@ button.dp-open:disabled { cursor: default; opacity: .5; }
 .composer-field label .link-btn { background: none; border: 0; padding: 0; font: inherit; color: inherit; cursor: pointer; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; }
 .composer-field label .link-btn:hover { color: var(--accent); }
 .composer-field label .link-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+
+/* The spam filter's own working, in the message details. */
+.spam-summary { display: flex; flex-direction: column; gap: 6px; }
+/* Capped, so a rule with no note does not fling its score to the far side of a
+   wide reading pane. */
+.spam-rules { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; max-width: 30rem; }
+.spam-rules li { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: baseline; }
+.spam-weight { font-family: var(--font-mono); font-size: 12px; text-align: right; color: var(--fg-muted); }
+.spam-weight.bad { color: var(--danger); }
+.spam-weight.good { color: var(--success); }
+
+/* The placeholder reference under a template's body. */
+.placeholder-list { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; align-items: baseline; }
+.placeholder-row { display: contents; }
+.placeholder-list code { font-family: var(--font-mono); font-size: 12.5px; background: var(--bg-sunken); border: 1px solid var(--border); border-radius: 4px; padding: .1em .4em; white-space: nowrap; }
 
 /* The senders whose remote images load without asking, in Privacy & safety. */
 .trusted-senders { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }

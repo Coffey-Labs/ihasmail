@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertOctagon, Archive, ArrowLeft, ChevronDown, ChevronUp, FolderInput, Forward, Mail, MailOpen, MailPlus, MoreVertical, Printer, Reply, ReplyAll, ShieldCheck, Star, Tag, Trash2, Download } from "lucide-react";
+import { AlertOctagon, Archive, ArrowLeft, ChevronDown, ChevronUp, FolderInput, Forward, Mail, MailOpen, MailPlus, MoreVertical, Printer, Reply, ReplyAll, ShieldCheck, Star, Tag, Trash2, Download , Paperclip} from "lucide-react";
 import { useMail } from "@/store/mail";
 import { useSettings } from "@/store/settings";
 import { useCompose } from "@/store/compose";
@@ -302,6 +302,7 @@ export function ThreadView({ threadId, mailboxId, onBack, actions, onNavigate, h
               <span className="spacer" />
               <button className="icon-btn" onClick={replyMore.open} aria-label={t("More ways to send this")}><MoreVertical size={18} /></button>
               <Popover anchor={replyMore.anchor} onClose={replyMore.close} align="end" width={220}>
+                <MenuItem icon={<Paperclip size={16} />} label={t("Forward as attachment")} onClick={() => useCompose.getState().forwardAsAttachment(last)} />
                 <MenuItem icon={<MailPlus size={16} />} label={t("Compose as new")} onClick={() => void useCompose.getState().composeAsNew(last)} />
               </Popover>
             </div>

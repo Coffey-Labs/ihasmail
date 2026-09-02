@@ -1,11 +1,12 @@
 import { Fragment, memo, useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent, type ReactNode } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { Archive, ArrowLeft, CalendarPlus, CheckSquare, FolderInput, PanelRight, PanelBottom, PanelTop, Filter, Inbox, Mail, MailOpen, MailPlus, MoreVertical, Paperclip, RefreshCw, Reply, Search, Star, Tag, Trash2, AlertOctagon, Forward, Eraser, ShieldCheck, X } from "lucide-react";
+import { Archive, ArrowLeft, CalendarDays, CalendarRange, CalendarPlus, CheckSquare, FolderInput, PanelRight, PanelBottom, PanelTop, Filter, Inbox, Mail, MailOpen, MailPlus, MoreVertical, Paperclip, RefreshCw, Reply, Search, Star, Tag, Trash2, AlertOctagon, Forward, Eraser, ShieldCheck, X } from "lucide-react";
 import { useLocation } from "wouter";
 import { useMail, type ListState } from "@/store/mail";
 import { dateTimeKey, useSettings } from "@/store/settings";
 import type { Email, Id } from "@/jmap/types";
 import { formatListDate } from "@/lib/format";
+import { groupByArchivePath, archivePath, type ArchiveGranularity } from "@/lib/archiveDate";
 import { canEmpty, confirmAndEmpty, emptyLabel } from "@/lib/emptyFolder";
 import { displayName, shortName } from "@/lib/address";
 import { Avatar, Empty, useIsMobile, useIsTouch } from "@/ui/misc";
@@ -224,6 +225,22 @@ export function MessageList({ title, list, openThreadId, focusId, setFocusId, on
   );
 
   const ctxTargets = useMemo(() => (ctxRow ? (selected[ctxRow] ? Object.keys(selected) : [ctxRow]) : []), [ctxRow, selected]);
+
+  /*
+   * Name the destination where there is only one, so the menu says where the
+   * mail is actually going rather than describing the rule. A selection that
+   * spans months has no single answer, and claiming one would be worse than
+   * naming the rule -- so that case falls back to it.
+   */
+  const archiveDateLabel = useCallback(
+    (granularity: ArchiveGranularity) => {
+      const groups = groupByArchivePath(ctxTargets.map((id) => ({ id, receivedAt: emails[id]?.receivedAt })), granularity);
+      const only = groups.length === 1 ? groups[0]! : null;
+      if (only?.segments.length) return t("Archive to {folder}", { folder: archivePath(only.segments) });
+      return granularity === "year" ? t("Archive by year") : t("Archive by month");
+    },
+    [ctxTargets, emails],
+  );
   const allSelected = ids.length > 0 && ids.every((id) => selected[id]);
   const someUnread = ctxTargets.some((id) => !emails[id]?.keywords.$seen);
   const someUnstarred = ctxTargets.some((id) => !emails[id]?.keywords.$flagged);
@@ -475,9 +492,12 @@ export function MessageList({ title, list, openThreadId, focusId, setFocusId, on
       <Popover anchor={ctxMenu.anchor} onClose={ctxMenu.close} width={250}>
         <MenuItem icon={<Reply size={16} />} label={t("Reply")} onClick={() => { const e = ctxRow ? emails[ctxRow] : undefined; if (e) void useCompose.getState().reply(e, "reply"); }} />
         <MenuItem icon={<Forward size={16} />} label={t("Forward")} onClick={() => { const e = ctxRow ? emails[ctxRow] : undefined; if (e) void useCompose.getState().reply(e, "forward"); }} />
+        <MenuItem icon={<Paperclip size={16} />} label={t("Forward as attachment")} onClick={() => { const e = ctxRow ? emails[ctxRow] : undefined; if (e) useCompose.getState().forwardAsAttachment(e); }} />
         <MenuItem icon={<MailPlus size={16} />} label={t("Compose as new")} onClick={() => { const e = ctxRow ? emails[ctxRow] : undefined; if (e) void useCompose.getState().composeAsNew(e); }} />
         <MenuSep />
         <MenuItem icon={<Archive size={16} />} label={t("Archive")} kbd="e" onClick={() => void actions.archive(ctxTargets)} />
+        <MenuItem icon={<CalendarRange size={16} />} label={archiveDateLabel("year")} onClick={() => void useMail.getState().archiveByDate(ctxTargets, "year")} />
+        <MenuItem icon={<CalendarDays size={16} />} label={archiveDateLabel("month")} onClick={() => void useMail.getState().archiveByDate(ctxTargets, "month")} />
         <MenuItem icon={<Trash2 size={16} />} label={t("Delete")} kbd="#" onClick={() => void actions.trash(ctxTargets)} />
         <MenuItem icon={<AlertOctagon size={16} />} label={mailbox?.role === "junk" ? "Not spam" : "Report spam"} kbd="!" onClick={() => void actions.spam(ctxTargets)} />
         <MenuSep />

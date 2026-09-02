@@ -110,6 +110,21 @@ every drag.
 - **Hold a folder** in the drawer for the menu its ⋮ button opens.
 - **Pull the message list** down to refresh it.
 - **Drag in from the left edge** of a conversation to go back to the list.
+- **Swipe the calendar sideways** in day or month view to step to the next
+  period or back — dragging left pulls the next one in from the right, the way
+  paper and every phone do it. Week and agenda scroll through a range rather
+  than turning to the next one, so a sideways flick would not obviously mean
+  anything there and does nothing. A drag that begins on an event is left
+  alone, which keeps dragging an event to move it available to be built later
+  without having to be untangled from this first.
+
+  It asks for a longer drag than a row swipe does, and not because the
+  consequence is bigger — stepping back undoes it, while a swiped row has
+  already been archived. It is because this gesture has no way to change its
+  mind: a row slides open as it goes, so the strip underneath names what will
+  happen and letting go early calls it off, and a toast offers Undo afterwards.
+  Stepping the calendar shows nothing on the way and offers nothing after, so
+  the distance is the only chance to not mean it.
 
 The toolbar's refresh button and the thread's back arrow both stay. A gesture
 with no visible control is one only the people who already know about it can
@@ -149,6 +164,21 @@ more attempt. A drag that is merely more sideways than not stays a scroll.
 Archive, delete, spam, star, mark read/unread, move and label all offer **Undo**
 in the toast that follows, and the undo restores the previous state rather than
 guessing at an inverse.
+
+**Archive by date** files into `Archive/<year>` or `Archive/<year>/<month>`,
+creating the folders as needed and reusing them after that — including ones
+made by hand or by another client. The names are numeric and zero-padded
+(`2026`, `2026/09`) rather than month names, because these are real server-side
+mailboxes: every other client sees them, a folder created as "September" by
+someone reading in English stays "September" for the same account read in
+Japanese, and `09` sorts between `08` and `10` where a name does not. The date
+is read in the reader's own timezone, so it agrees with the date shown against
+the message in the list.
+
+A selection spanning two months is two destinations, not one, and both are
+written; the menu names the folder where there is a single answer and describes
+the rule where there is not, and the toast afterwards says how many folders it
+touched. One Undo puts the whole selection back wherever it came from.
 
 `Delete` moves to the bin. **Empty** destroys, and is offered only on Deleted
 Items and Junk Mail — enforced where the action happens, not merely hidden in
@@ -229,8 +259,33 @@ same query string — so what it builds can be read, edited and learned from.
 - **Attachments** listed with type and size: download, open in a new tab, and an
   inline preview for images and PDFs.
 - **Show original**, **Show headers**, **Download (.eml)** and **Print**.
+- **Forward as attachment** sends the message itself rather than a quotation of
+  it — headers, structure and every attachment intact, which is what a bounce
+  or a phishing report needs and what quoting destroys. It costs **no upload at
+  all**: a message's `blobId` is its own RFC822 blob and already lives in the
+  account, so a 40 MB message attaches by reference as fast as a small one. In
+  the message's ⋮ menu, the list's right-click menu, and the overflow on the
+  reply strip at the foot of a thread, which is the one a thumb finds on a
+  phone.
+- Saved and attached `.eml` files are **named from the subject in whatever
+  script it is written in**. The rule keeps letters and drops only what a
+  filesystem cannot take — path separators, the names Windows reserves, control
+  characters — so a Russian or Japanese subject keeps its own name instead of
+  becoming a row of underscores.
 - **Unsubscribe** where the message carries `List-Unsubscribe`.
 - **Sender details** expand to the full From/To/Cc/Reply-To with addresses.
+- **What the spam filter said** sits in those details, read back off the
+  message rather than scored here: the verdict, the score, the threshold it was
+  measured against, and the rules that moved it, largest mover first and signed
+  so which way each pushed is visible. Both the SpamAssassin-shaped `X-Spam-*`
+  set that Stalwart's own filter writes and Rspamd's `X-Spamd-Result` are read;
+  anything else is left alone rather than guessed at. Two things it will not
+  do: a score is always given the threshold it was measured against, because
+  6.7 is damning against 5 and unremarkable against 15 and the number alone is
+  not something a reader can act on — where no threshold was stated, it says
+  so; and where the filter recorded no verdict, none is invented from the score,
+  since the filter applies policy ihasmail cannot see. Mail that arrived without
+  these headers shows nothing.
 - **Message body theming** is off by default — sender HTML is left exactly as it
   was designed, on a light card. One setting lets mail that brings no colours of
   its own follow the app's theme instead.
@@ -309,7 +364,16 @@ minimisable and maximisable; full-screen on mobile.
   identity. Signature images live in Files too and are turned into inline
   `cid:` parts when the message is sent.
 - **Templates**: named subject + body, inserted into any draft, managed in
-  Settings.
+  Settings. Both carry **placeholders** — `{{recipientName}}`,
+  `{{recipientFirstName}}`, `{{recipientEmail}}`, `{{myName}}`, `{{myEmail}}`,
+  `{{subject}}`, `{{date}}` and `{{time}}` — filled at the moment the template
+  is inserted, so what they came to is visible and editable before anything is
+  sent rather than changing under the message afterwards. Dates and times
+  follow the same format settings as the rest of the app. A placeholder that
+  cannot be answered yet — a recipient's name on a draft nobody has addressed —
+  is **left in the body exactly as written**, because substituting an empty
+  string there produces "Hi ,", a greeting that is wrong rather than one that
+  is visibly unfinished. A name that is not a placeholder is left alone too.
 - **Attachments** by picking or dragging onto the composer, with progress per
   file and the size limit the server states (`MAX_UPLOAD_BYTES`, 50 MB by
   default). A pasted image is inserted inline instead, and pasted HTML is
