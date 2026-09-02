@@ -32,8 +32,20 @@ export function ContactsView({ id }: { id?: string }) {
 
   useEffect(() => {
     const onNew = () => setEditing({});
-    const onImport = (ev: Event) => { const f = (ev as CustomEvent<File>).detail; if (f) void importFile(f); };
-    const onExport = () => exportAll();
+    /*
+     * Both carry the book they were asked for. They used to mean "whatever the
+     * list is showing", which was the whole of the complaint on #174: two
+     * buttons at the foot of the sidebar that did not say which address book
+     * they acted on. Now they are opened from a book's own menu and say so.
+     */
+    const onImport = (ev: Event) => {
+      const d = (ev as CustomEvent<{ file: File; bookId: string }>).detail;
+      if (d?.file) void importFile(d.file, d.bookId);
+    };
+    const onExport = (ev: Event) => {
+      const d = (ev as CustomEvent<{ accountId: string | null; bookId: string }>).detail;
+      exportBook(d?.accountId ?? null, d?.bookId ?? "all");
+    };
     window.addEventListener("ihm:new-contact", onNew);
     window.addEventListener("ihm:contacts-import", onImport);
     window.addEventListener("ihm:contacts-export", onExport);
@@ -81,16 +93,37 @@ export function ContactsView({ id }: { id?: string }) {
     return <div className="p-16"><Empty icon={<Users size={40} />} title={translate("Contacts are not available")}>{translate("This account does not have the JMAP contacts capability.")}</Empty></div>;
   }
 
-  const exportAll = () => {
-    const text = list.map(toVCard).join("");
+  /*
+   * The cards of the book that was asked for, rather than the cards on screen.
+   * Exporting used to hand you the current list, which meant a search box with
+   * something in it quietly narrowed the export -- fine while the button sat
+   * under that list, wrong now that it is opened from a book in the sidebar.
+   */
+  const cardsOf = (accountId: string | null, book: string) => {
+    if (accountId) {
+      const prefix = `${accountId}:`;
+      return Object.entries(contacts.sharedCards).filter(([key]) => key.startsWith(prefix)).map(([, c]) => c)
+        .filter((c) => book === "all" || c.addressBookIds?.[book]);
+    }
+    const mine = Object.values(contacts.cards);
+    return book === "all" ? mine : mine.filter((c) => c.addressBookIds?.[book]);
+  };
+
+  const exportBook = (accountId: string | null, book: string) => {
+    const cards = cardsOf(accountId, book);
+    if (!cards.length) {
+      toast.error(translate("There is nothing in it to export"));
+      return;
+    }
     const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([text], { type: "text/vcard" }));
+    a.href = URL.createObjectURL(new Blob([cards.map(toVCard).join("")], { type: "text/vcard" }));
     a.download = "contacts.vcf";
     a.click();
   };
 
-  const importFile = async (f: File) => {
-    const book = bookId !== "all" ? contacts.books[bookId] : (books.find((b) => b.isDefault) ?? books[0]);
+  const importFile = async (f: File, intoBookId?: string) => {
+    const target = intoBookId && intoBookId !== "all" ? intoBookId : bookId;
+    const book = target !== "all" ? contacts.books[target] : (books.find((b) => b.isDefault) ?? books[0]);
     if (!book) {
       toast.error(translate("Create an address book first"));
       return;
