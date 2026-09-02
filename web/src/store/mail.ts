@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { FolderRef } from "@/lib/sieveFolders";
+import { groupByArchivePath, archivePath, type ArchiveGranularity } from "@/lib/archiveDate";
 import { JmapMethodError, chunk, client, setErrorMessage } from "@/jmap/client";
 import type {
   Comparator,
@@ -155,6 +156,8 @@ export interface MailState {
   trash(ids: Id[]): Promise<void>;
   destroy(ids: Id[]): Promise<void>;
   archive(ids: Id[]): Promise<void>;
+  /** Archive into a dated subfolder of Archive, creating the folders as needed. */
+  archiveByDate(ids: Id[], granularity: ArchiveGranularity): Promise<void>;
   spam(ids: Id[], isSpam: boolean): Promise<void>;
   emptyMailbox(mailboxId: Id): Promise<void>;
   /** Mark every unread message in a mailbox read; optionally its subfolders too. */
@@ -573,6 +576,66 @@ export const useMail = create<MailState>((set, get) => ({
       return;
     }
     await get().move(ids, archiveId, { label: "Archive" });
+  },
+
+  async archiveByDate(ids, granularity) {
+    const accountId = get().accountId;
+    const archiveId = get().roleId("archive") ?? get().roleId("all");
+    if (!accountId || !ids.length) return;
+    if (!archiveId) {
+      toast.error(t("No Archive folder found. Create one named “Archive” first."));
+      return;
+    }
+    const { emails } = get();
+    const groups = groupByArchivePath(ids.map((id) => ({ id, receivedAt: emails[id]?.receivedAt })), granularity);
+
+    // Where everything came from, captured before anything moves, so one Undo
+    // can put back a selection that went to several folders.
+    const prev: Record<Id, Record<Id, boolean>> = {};
+    for (const id of ids) prev[id] = emails[id]?.mailboxIds ?? {};
+
+    const moved: string[] = [];
+    try {
+      for (const group of groups) {
+        const target = await ensureFolderPath(get, archiveId, group.segments);
+        // Silent: each group would otherwise raise its own toast with its own
+        // Undo, and undoing one third of a move is not what anybody meant.
+        await get().move(group.ids, target, { silent: true });
+        moved.push(group.segments.length ? `Archive/${archivePath(group.segments)}` : "Archive");
+      }
+    } catch (err) {
+      toast.error(t("Archive failed: {error}", { error: (err as Error).message }));
+      void get().getEmails(ids);
+      void get().refreshList();
+      return;
+    }
+
+    // One message naming every destination, because a selection that split
+    // across months should say so rather than claiming a single folder.
+    const where = moved.length === 1 ? moved[0]! : t("{count} folders", { count: String(moved.length) });
+    toast.show(
+      ids.length === 1
+        ? t("Conversation moved to {folder}", { folder: where })
+        : t("{count} conversations moved to {folder}", { count: String(ids.length), folder: where }),
+      {
+        action: {
+          label: "Undo",
+          onClick: async () => {
+            const undo: Record<Id, Record<string, unknown>> = {};
+            for (const id of ids) undo[id] = { mailboxIds: prev[id] };
+            await setEmails(accountId, undo);
+            set((st) => {
+              const next = { ...st.emails };
+              for (const id of ids) if (next[id]) next[id] = { ...next[id]!, mailboxIds: prev[id]! };
+              return { emails: next };
+            });
+            void get().refreshList();
+            void get().loadMailboxes();
+          },
+        },
+      },
+    );
+    void get().loadMailboxes();
   },
 
   async spam(ids, isSpam) {
@@ -1080,6 +1143,27 @@ export function mailboxIcon(role: MailboxRole): string {
 }
 
 export const ROLE_ORDER: Record<string, number> = { inbox: 0, flagged: 1, important: 2, drafts: 3, sent: 4, archive: 5, all: 6, junk: 7, trash: 8 };
+
+/**
+ * Resolve `parentId/segments...` to a mailbox id, creating what is missing.
+ *
+ * Reuses a folder that is already there rather than making a second one beside
+ * it, so archiving by month twice in the same month files into the same place
+ * -- including a folder somebody made by hand, or one another client made
+ * first, which is the usual way `Archive/2026` already exists.
+ *
+ * Sequential on purpose: each level is the next level's parent, and
+ * `createMailbox` reloads the tree, so the lookup for `09` can see the `2026`
+ * that was just created.
+ */
+async function ensureFolderPath(state: () => MailState, parentId: Id, segments: string[]): Promise<Id> {
+  let current = parentId;
+  for (const name of segments) {
+    const existing = Object.values(state().mailboxes).find((m) => m.parentId === current && m.name === name);
+    current = existing ? existing.id : await state().createMailbox(name, current);
+  }
+  return current;
+}
 
 /**
  * A folder and everything under it, with the paths they have right now.
