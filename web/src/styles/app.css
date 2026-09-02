@@ -320,6 +320,8 @@ a.menu-item:hover { color: var(--fg); }
 .segmented button.active { background: var(--accent-soft); color: var(--accent-soft-fg); font-weight: 600; }
 .segmented button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .segmented.left { margin-right: auto; }
+.dialog-foot .hint.left { margin-right: auto; }
+.dialog-foot textarea.code, .dialog-body > textarea.code { font-family: var(--font-mono); }
 
 /* Rendered Markdown in the file viewer. Deliberately plain: this is somebody's
    notes, not a web page, and the point is to read it. */

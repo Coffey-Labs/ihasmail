@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { ChevronRight, Download, Eye, File, Folder, FolderPlus, FolderOpen, Home, MoreVertical, Pencil, Share2, Trash2, Upload, FolderInput } from "lucide-react";
+import { ChevronRight, Download, Eye, File, FilePen, Folder, FolderPlus, FolderOpen, Home, MoreVertical, Pencil, Share2, Trash2, Upload, FolderInput } from "lucide-react";
 import { useFiles } from "@/store/files";
 import { client } from "@/jmap/client";
-import type { FileNode } from "@/jmap/types";
+import type { FileNode, Id } from "@/jmap/types";
 import { formatSize, formatListDate } from "@/lib/format";
 import { canDropFileNode, isShared } from "@/lib/filenode";
 import { previewKind } from "@/lib/preview";
@@ -28,6 +28,11 @@ export function FilesView({ nodeId }: { nodeId?: string }) {
   const [moveNode, setMoveNode] = useState<FileNode | null>(null);
   const [shareNode, setShareNode] = useState<FileNode | null>(null);
   const [preview, setPreview] = useState<PreviewFile | null>(null);
+  /* What the open editor is editing, and the blob its text came from -- the
+     baseline a save is checked against. Kept beside `preview` rather than in
+     it, because the dialog is presentational and knows nothing about nodes. */
+  const [editTarget, setEditTarget] = useState<{ id: Id; blobId: Id | null } | null>(null);
+  const [startInEdit, setStartInEdit] = useState(false);
   /* Shared with the sidebar tree, so a row dragged onto a folder there is
      recognised. See the note on `draggingId` in the store. */
   const draggingId = files.draggingId;
@@ -117,7 +122,33 @@ export function FilesView({ nodeId }: { nodeId?: string }) {
   /* A file with nothing to show still does what it always did. */
   const canPreview = (n: FileNode) => Boolean(n.blobId) && n.nodeType !== "directory" && previewKind(n.type, n.name) !== null;
 
-  const openPreview = (n: FileNode) => setPreview({ name: n.name, type: n.type ?? "application/octet-stream", size: n.size, url: blobUrl(n, false), inlineUrl: blobUrl(n, true) });
+  const openPreview = (n: FileNode, edit = false) => {
+    setPreview({ name: n.name, type: n.type ?? "application/octet-stream", size: n.size, url: blobUrl(n, false), inlineUrl: blobUrl(n, true) });
+    setEditTarget({ id: n.id, blobId: n.blobId });
+    setStartInEdit(edit);
+  };
+
+  /* What the menu can tell from a row: text, and the right to write it. Whether
+     it is *really* editable needs the bytes -- a truncated or non-UTF-8 file
+     opens read-only and says so. */
+  const canEditFile = (n: FileNode) => canPreview(n) && previewKind(n.type, n.name) === "text" && Boolean(n.myRights?.mayModifyContent);
+
+  /*
+   * Only offered where the reader may actually write: a folder shared read-only
+   * still opens, and the Edit button is simply not there. `saveText` checks the
+   * blob it started from, so two people editing the same file get told rather
+   * than one of them losing the work.
+   */
+  const canEditNode = (n: FileNode | undefined) => Boolean(n?.myRights?.mayModifyContent);
+  const saveEdited = async (text: string) => {
+    const target = editTarget;
+    if (!target) return;
+    const next = await files.saveText(target.id, text, target.blobId);
+    // The file has a new blob now; the next save in this same session is
+    // checked against that one, not the one we opened.
+    setEditTarget({ id: target.id, blobId: next });
+    toast.success(t("Saved"));
+  };
 
   /* Double-clicking a file used to download it, which is a decision made for
      you: to look at a picture you had to put it on disk first. Now it opens
@@ -205,6 +236,7 @@ export function FilesView({ nodeId }: { nodeId?: string }) {
             {menuNode.nodeType === "directory" ? <MenuItem icon={<FolderOpen size={16} />} label={t("Open")} onClick={() => navigate(`/files/${menuNode.id}`)} /> : (
               <>
                 {canPreview(menuNode) && <MenuItem icon={<Eye size={16} />} label={t("Preview")} onClick={() => openPreview(menuNode)} />}
+                {canEditFile(menuNode) && <MenuItem icon={<FilePen size={16} />} label={t("Edit")} onClick={() => openPreview(menuNode, true)} />}
                 <MenuItem icon={<Download size={16} />} label={t("Download")} onClick={() => download(menuNode)} />
               </>
             )}
@@ -217,7 +249,12 @@ export function FilesView({ nodeId }: { nodeId?: string }) {
         )}
       </Popover>
       {moveNode && <MoveDialog node={moveNode} onClose={() => setMoveNode(null)} />}
-      <FilePreviewDialog file={preview} onClose={() => setPreview(null)} />
+      <FilePreviewDialog
+        file={preview}
+        onClose={() => { setPreview(null); setEditTarget(null); setStartInEdit(false); }}
+        onSave={editTarget && canEditNode(files.nodes[editTarget.id]) ? saveEdited : undefined}
+        startInEdit={startInEdit}
+      />
       {shareNode && <ShareDialog kind="FileNode" id={shareNode.id} name={shareNode.name} shareWith={shareNode.shareWith ?? null} onClose={() => setShareNode(null)} />}
     </div>
   );

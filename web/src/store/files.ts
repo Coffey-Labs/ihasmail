@@ -5,6 +5,7 @@ import { foldersNeeded, type PlannedUpload } from "@/lib/dropUpload";
 import { isAppFolder } from "@/lib/appFolder";
 import type { FileNode, GetResponse, Id, QueryResponse, SetResponse } from "@/jmap/types";
 import { useSession } from "./session";
+import { t as translate } from "@/lib/i18n";
 
 interface SharedAccount {
   id: Id;
@@ -56,6 +57,12 @@ interface FilesState {
   mkdir(parentId: Id | null, name: string): Promise<Id>;
   upload(parentId: Id | null, files: File[]): Promise<void>;
   rename(id: Id, name: string): Promise<void>;
+  /**
+   * Write text back over a file. `seenBlobId` is what the editor started from:
+   * if the node has moved on since, somebody else saved and this throws rather
+   * than quietly winning.
+   */
+  saveText(id: Id, text: string, seenBlobId: Id | null): Promise<Id>;
   move(id: Id, parentId: Id | null): Promise<void>;
   destroy(ids: Id[]): Promise<void>;
   refresh(ids: Id[]): Promise<void>;
@@ -305,6 +312,35 @@ export const useFiles = create<FilesState>((set, get) => ({
     }
     for (const [key, files] of byFolder) await get().upload(dirIds.get(key) ?? parentId, files);
     void get().loadTree();
+  },
+
+  async saveText(id, text, seenBlobId) {
+    const accountId = get().accountId!;
+    /*
+     * Look before writing.
+     *
+     * `ifInState` is the obvious tool and the wrong one here: it is the state
+     * of every FileNode in the account, so an unrelated upload in another
+     * folder would fail this save, and a reader who is told "someone changed
+     * it" when nobody did learns to click through the warning. The node's own
+     * blobId is the thing that actually answers the question.
+     */
+    const fresh = await client.call<GetResponse<FileNode>>("FileNode/get", { accountId, ids: [id], properties: fileNodeProps() });
+    const now = fresh.list[0];
+    if (!now) throw new Error(translate("That file is no longer there."));
+    if (now.blobId !== seenBlobId) throw new Error(translate("Somebody else saved this file while it was open. Copy your changes, close it, and start again."));
+
+    const type = now.type || "text/plain";
+    const blob = new Blob([text], { type });
+    const up = await client.upload(accountId, blob, { type });
+    const res = await client.call<SetResponse<FileNode>>("FileNode/set", {
+      accountId,
+      update: { [id]: { blobId: up.blobId, type, size: blob.size } },
+    });
+    const err = res.notUpdated?.[id];
+    if (err) throw new Error(setErrorMessage(err));
+    await get().refresh([id]);
+    return up.blobId;
   },
 
   async rename(id, name) {
