@@ -986,7 +986,7 @@ export const catalog: Catalog = {
     "New all-day event on {date}": "Neuer ganztägiger Termin am {date}",
     "New event at {time}": "Neuer Termin um {time}",
     "New identity": "Neue Absenderidentität",
-    "No Archive folder found. Create one named “Archive” first.": "Kein Archivordner gefunden. Legen Sie zuerst einen mit dem Namen „Archive“ an.",
+    "No Archive folder is set. A folder needs the Archive role on the server; naming it “Archive” is not enough.": "Kein Archivordner festgelegt. Ein Ordner braucht auf dem Server die Rolle „Archive“; ihn so zu benennen genügt nicht.",
     "No contacts yet": "Noch keine Kontakte",
     "No longer shared": "Nicht mehr freigegeben",
     "No matches": "Keine Treffer",

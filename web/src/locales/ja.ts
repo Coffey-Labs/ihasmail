@@ -967,7 +967,7 @@ export const catalog: Catalog = {
     "New all-day event on {date}": "{date} に終日の予定を作成",
     "New event at {time}": "{time} に予定を作成",
     "New identity": "新しい差出人",
-    "No Archive folder found. Create one named “Archive” first.": "アーカイブフォルダーが見つかりません。先に「Archive」という名前で作成してください。",
+    "No Archive folder is set. A folder needs the Archive role on the server; naming it “Archive” is not enough.": "アーカイブフォルダーが設定されていません。サーバーでフォルダーに「Archive」ロールが必要です。名前をそうするだけでは不十分です。",
     "No contacts yet": "連絡先がまだありません",
     "No longer shared": "共有を解除しました",
     "No matches": "一致するものがありません",

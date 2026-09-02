@@ -966,7 +966,7 @@ export const catalog: Catalog = {
     "New all-day event on {date}": "在 {date} 新建全天日程",
     "New event at {time}": "在 {time} 新建日程",
     "New identity": "新建发件身份",
-    "No Archive folder found. Create one named “Archive” first.": "未找到归档文件夹。请先创建一个名为「Archive」的文件夹。",
+    "No Archive folder is set. A folder needs the Archive role on the server; naming it “Archive” is not enough.": "未设置归档文件夹。文件夹需要在服务器上具有「Archive」角色，仅命名为此并不够。",
     "No contacts yet": "还没有联系人",
     "No longer shared": "已停止共享",
     "No matches": "没有匹配项",

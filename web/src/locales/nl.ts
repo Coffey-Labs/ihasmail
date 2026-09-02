@@ -955,7 +955,7 @@ export const catalog: Catalog = {
     "New all-day event on {date}": "Nieuwe hele dag durende afspraak op {date}",
     "New event at {time}": "Nieuwe afspraak om {time}",
     "New identity": "Nieuwe afzender",
-    "No Archive folder found. Create one named “Archive” first.": "Geen archiefmap gevonden. Maak er eerst een met de naam ‘Archive’.",
+    "No Archive folder is set. A folder needs the Archive role on the server; naming it “Archive” is not enough.": "Geen archiefmap ingesteld. Een map heeft op de server de rol ‘Archive’ nodig; die naam geven is niet genoeg.",
     "No contacts yet": "Nog geen contacten",
     "No longer shared": "Niet langer gedeeld",
     "No matches": "Geen overeenkomsten",
