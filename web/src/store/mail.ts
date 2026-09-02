@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { FolderRef } from "@/lib/sieveFolders";
+import { SPAM_HEADER_PROPS } from "@/lib/spamScore";
 import { JmapMethodError, chunk, client, setErrorMessage } from "@/jmap/client";
 import type {
   Comparator,
@@ -89,6 +90,7 @@ export const FULL_PROPS = [
   "header:Auto-Submitted:asText",
   "header:Precedence:asText",
   "header:Authentication-Results:asText",
+  ...SPAM_HEADER_PROPS,
 ];
 
 export const BODY_PROPS = ["partId", "blobId", "size", "name", "type", "charset", "disposition", "cid", "language", "location", "subParts", "headers"];
