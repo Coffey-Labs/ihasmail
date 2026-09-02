@@ -19,6 +19,26 @@ export type ImagePolicy = "ask" | "always" | "contacts";
 export type ComposeFormat = "html" | "text";
 export type ReadReceiptPolicy = "ask" | "never";
 
+/** How prominent a label is in the sidebar. */
+export type LabelVisibility = "always" | "unread" | "hidden";
+
+export interface Label {
+  /** The IMAP keyword itself, which is what actually rides on the message. */
+  keyword: string;
+  name: string;
+  color: string;
+  /**
+   * The keyword of the label this one sits under, if any.
+   *
+   * Nesting is display only. The keywords stay flat on the message, which is
+   * what keeps them readable by every other client -- a label moved under
+   * another one does not rewrite anything in the mailbox.
+   */
+  parent?: string;
+  /** Absent means "always", so a settings file written before this parses unchanged. */
+  visibility?: LabelVisibility;
+}
+
 export interface Template {
   id: string;
   name: string;
@@ -117,7 +137,7 @@ export interface Settings {
   labelsSidebar: boolean;
   fontSize: "small" | "medium" | "large";
   templates: Template[];
-  labels: Array<{ keyword: string; name: string; color: string }>;
+  labels: Label[];
   /**
    * Folder colours, by mailbox id. Local to this browser, like every other
    * colour here: JMAP has nowhere on a Mailbox to keep one.

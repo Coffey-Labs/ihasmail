@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { AlertOctagon, Archive, ChevronDown, ChevronLeft, Clock, ChevronRight, File, Folder, FolderPlus, Inbox, Mail, MoreVertical, Palette, Send, Star, Tag, Trash2, Plus, Pencil, Eye, EyeOff, CheckCheck, Eraser, Share2, X } from "lucide-react";
 import { useMail } from "@/store/mail";
 import { canEmpty, confirmAndEmpty, emptyLabel } from "@/lib/emptyFolder";
+import { labelTree, visibleLabels } from "@/lib/labelTree";
 import { isScheduledMailbox } from "@/store/scheduled";
 import { useSettings } from "@/store/settings";
 import type { Id, Mailbox } from "@/jmap/types";
@@ -40,6 +41,8 @@ export function MailboxTree() {
   const showHidden = useSettings((s) => s.settings.showHiddenFolders);
   const labels = useSettings((s) => s.settings.labels);
   const labelsSidebar = useSettings((s) => s.settings.labelsSidebar);
+  const labelCounts = useMail((s) => s.labelCounts);
+  const shownLabels = useMemo(() => visibleLabels(labelTree(labels, labelCounts)), [labels, labelCounts]);
   const menu = useMenu();
   const [menuTarget, setMenuTarget] = useState<Mailbox | null>(null);
   const [shareTarget, setShareTarget] = useState<Mailbox | null>(null);
@@ -225,7 +228,7 @@ export function MailboxTree() {
         ))}
         {/* Labels are a flat list that belongs to the mailbox, not to whichever
             folder is on screen, so they stay at the top level of the drill. */}
-        {!drill && labelsSidebar && labels.length > 0 && (
+        {!drill && labelsSidebar && shownLabels.length > 0 && (
           <>
             <div className="nav-section">
               <span>{t("Labels")}</span>
@@ -233,10 +236,19 @@ export function MailboxTree() {
                 <Pencil size={14} />
               </Link>
             </div>
-            {labels.map((l) => (
-              <Link key={l.keyword} href={`/search?q=label:${encodeURIComponent(l.keyword)}`} className="nav-item folder-row" title={l.name}>
-                <span className="nav-label-color" style={{ "--label-color": l.color } as React.CSSProperties} />
-                <span className="nav-label">{l.name}</span>
+            {shownLabels.map((n) => (
+              <Link
+                key={n.label.keyword}
+                href={`/search?q=label:${encodeURIComponent(n.label.keyword)}`}
+                className="nav-item folder-row"
+                title={n.label.name}
+                /* Indented rather than nested in the DOM: the rows are a flat
+                   list of links and a nested one would break keyboard order. */
+                style={{ paddingLeft: 12 + n.depth * 14 }}
+              >
+                <span className="nav-label-color" style={{ "--label-color": n.label.color } as React.CSSProperties} />
+                <span className="nav-label">{n.label.name}</span>
+                {n.unread > 0 && <span className="nav-count">{n.unread}</span>}
               </Link>
             ))}
           </>
