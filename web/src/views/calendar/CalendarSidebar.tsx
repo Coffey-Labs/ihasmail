@@ -1,10 +1,11 @@
 import { useMemo, useRef, useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { ChevronLeft, ChevronRight, MoreVertical, Pencil, Plus, Share2, Trash2, Eye, EyeOff, Star, Upload, UserMinus, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, MoreVertical, Pencil, Plus, Share2, Trash2, Eye, EyeOff, Star, Upload, UserMinus, X, AlertTriangle } from "lucide-react";
 import { useCalendar } from "@/store/calendar";
 import { dateTimeKey, useSettings } from "@/store/settings";
 import { addMonths, isSameDay, isToday, monthGrid, startOfDay, toLocalDateOnly } from "@/lib/dates";
 import { BIRTHDAY_CALENDAR_ID } from "@/lib/birthdays";
+import { subscriptionCalendarId } from "@/store/calendar";
 import { useContacts } from "@/store/contacts";
 import { formatMonthYear } from "@/lib/format";
 import { formatWeekday } from "@/lib/datetime";
@@ -65,6 +66,17 @@ export function CalendarSidebar() {
 
   if (!cal.available) return null;
   const birthdaysOn = useSettings((st) => st.settings.birthdayCalendar);
+  const subscriptions = useSettings((st) => st.settings.icalSubscriptions);
+  /*
+   * Refreshed when the calendar is opened, and not on a timer. ihasmail has
+   * nowhere to run a schedule -- no worker, no server-side state -- so the
+   * honest guarantee is that a subscription is as current as the last time
+   * somebody looked, which is also when it matters.
+   */
+  useEffect(() => {
+    if (subscriptions.length) void useCalendar.getState().refreshSubscriptions();
+  }, [subscriptions]);
+
   /*
    * The cards have to be loaded for there to be any birthdays to derive, and
    * the calendar is a view somebody can land on directly without ever opening
@@ -109,6 +121,26 @@ export function CalendarSidebar() {
           <span className="cal-name">{t("Birthdays")}</span>
         </div>
       )}
+      {subscriptions.map((sub) => {
+        const id = subscriptionCalendarId(sub.id);
+        const failed = cal.subscriptionErrors[sub.id];
+        const count = cal.subscriptionEvents[sub.id]?.length ?? 0;
+        return (
+          <div
+            key={id}
+            className={`cal-list-item ${cal.hidden[id] ? "hidden-cal" : ""}`}
+            onClick={() => cal.toggleHidden(id)}
+            title={failed ? t("Could not read this calendar: {reason}", { reason: failed }) : t("Subscribed to {url}", { url: sub.url })}
+          >
+            <span className="cal-color" style={{ background: sub.color, borderColor: sub.color }} />
+            <span className="cal-name">{sub.name}</span>
+            {/* A subscription that cannot be read says so here rather than
+                drawing an empty calendar, which looks like a calendar with
+                nothing in it. */}
+            {failed ? <AlertTriangle size={12} className="faint" aria-label={t("Could not be read")} /> : count === 0 ? null : null}
+          </div>
+        );
+      })}
       {calendars.map((c) => (
         <div key={c.id} className={`cal-list-item ${cal.hidden[c.id] ? "hidden-cal" : ""}`} onClick={() => cal.toggleHidden(c.id)} onContextMenu={(e) => { e.preventDefault(); setMenuCal(c); menu.openAt(e.clientX, e.clientY); }}>
           <span className="cal-color" style={{ background: c.color ?? "var(--accent)", borderColor: c.color ?? "var(--accent)" }} />

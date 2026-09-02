@@ -41,6 +41,14 @@ export interface Label {
   visibility?: LabelVisibility;
 }
 
+/** A calendar subscribed to by URL, read-only and redrawn on every refresh. */
+export interface IcalSubscription {
+  id: string;
+  url: string;
+  name: string;
+  color: string;
+}
+
 export interface Template {
   id: string;
   name: string;
@@ -152,6 +160,12 @@ export interface Settings {
    * dates nobody put there is a surprise rather than a feature.
    */
   birthdayCalendar: boolean;
+  /**
+   * Calendars subscribed to by URL. The subscription is the setting; the
+   * events themselves are fetched on demand and never stored, so this follows
+   * the account the way every other preference does and costs nothing to sync.
+   */
+  icalSubscriptions: IcalSubscription[];
   /** What order the message list is in. See lib/listSort.ts. */
   listSortPreset: SortPreset;
   listSortLevels: SortLevel[];
@@ -267,6 +281,7 @@ export const DEFAULT_SETTINGS: Settings = {
   timeZone: null,
   labelsSidebar: true,
   birthdayCalendar: false,
+  icalSubscriptions: [],
   listSortPreset: "newest",
   listSortLevels: [],
   listSortScope: "inbox",

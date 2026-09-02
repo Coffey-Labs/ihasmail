@@ -5,6 +5,8 @@ import { toUTCDate, toLocalDateTime, zonedToDate, parseDuration, DAY_MS, browser
 import { t } from "@/lib/i18n";
 import { useContacts } from "./contacts";
 import { BIRTHDAY_CALENDAR_ID, birthdaysInRange, isBirthdayEvent, type Birthday } from "@/lib/birthdays";
+import { looksLikeCalendar, parseIcs, type IcsEvent } from "@/lib/ics";
+import { withBase } from "@/lib/basePath";
 import { settings, useSettings } from "./settings";
 import { useSession } from "./session";
 
@@ -261,6 +263,11 @@ interface CalendarState {
   error: string | null;
   identities: ParticipantIdentity[];
   hidden: Record<Id, true>;
+  /** Events from each subscribed calendar, by subscription id. Never persisted. */
+  subscriptionEvents: Record<string, IcsEvent[]>;
+  /** Why a subscription last failed, if it did. */
+  subscriptionErrors: Record<string, string>;
+  subscriptionsLoading: boolean;
   /** Waiting to be opened in the editor; see `EventDraft`. */
   draft: EventDraft | null;
 
@@ -273,6 +280,8 @@ interface CalendarState {
   setSharedSubscribed(accountId: Id, calendarId: Id, subscribed: boolean): Promise<void>;
   loadRange(start: Date, end: Date, force?: boolean): Promise<void>;
   instancesIn(start: Date, end: Date): EventInstance[];
+  /** Re-fetch every subscribed calendar. */
+  refreshSubscriptions(): Promise<void>;
   getEvent(id: Id): Promise<CalendarEvent | null>;
   createEvent(event: Partial<CalendarEvent>, calendarId: Id, sendInvites: boolean): Promise<Id>;
   /** Returns the properties that had to be left to the series, if any. */
@@ -334,6 +343,9 @@ export const useCalendar = create<CalendarState>((set, get) => ({
   error: null,
   identities: [],
   hidden: {},
+  subscriptionEvents: {},
+  subscriptionErrors: {},
+  subscriptionsLoading: false,
   draft: null,
 
   async init() {
@@ -502,6 +514,42 @@ export const useCalendar = create<CalendarState>((set, get) => ({
     }
   },
 
+  async refreshSubscriptions() {
+    const subs = settings().icalSubscriptions;
+    if (!subs.length) {
+      if (Object.keys(get().subscriptionEvents).length) set({ subscriptionEvents: {}, subscriptionErrors: {} });
+      return;
+    }
+    set({ subscriptionsLoading: true });
+    const events: Record<string, IcsEvent[]> = {};
+    const errors: Record<string, string> = {};
+    /*
+     * Sequential rather than parallel. These are other people's servers, and a
+     * reader with a dozen subscriptions opening the calendar should not put a
+     * dozen simultaneous requests on them from every device they own.
+     */
+    for (const sub of subs) {
+      try {
+        const res = await fetch(withBase(`/api/ics?url=${encodeURIComponent(sub.url)}`), { headers: { "X-Requested-With": "ihasmail" } });
+        if (!res.ok) {
+          const body = (await res.json().catch(() => ({}))) as { error?: string };
+          errors[sub.id] = body.error ?? `HTTP ${res.status}`;
+          continue;
+        }
+        const text = await res.text();
+        if (!looksLikeCalendar(text)) {
+          // A login page answering 200 is the usual shape of this.
+          errors[sub.id] = "not_calendar";
+          continue;
+        }
+        events[sub.id] = parseIcs(text).events;
+      } catch (err) {
+        errors[sub.id] = (err as Error).message;
+      }
+    }
+    set({ subscriptionEvents: events, subscriptionErrors: errors, subscriptionsLoading: false });
+  },
+
   instancesIn(start, end) {
     const { events, ranges, calendars, hidden, sharedEvents, sharedRanges, sharedCalendars } = get();
     /*
@@ -520,6 +568,27 @@ export const useCalendar = create<CalendarState>((set, get) => ({
           start: b.date,
           end: new Date(b.date.getTime() + DAY_MS),
           allDay: true,
+          calendar: cal,
+        });
+      }
+    }
+    /*
+     * Subscribed calendars, from whatever the last refresh fetched. Same funnel
+     * as the birthdays and for the same reason: no view has to know they are
+     * not real calendars, and nothing about them is stored.
+     */
+    for (const sub of settings().icalSubscriptions) {
+      const calId = subscriptionCalendarId(sub.id);
+      if (hidden[calId]) continue;
+      const cal = subscriptionCalendar(sub);
+      for (const e of get().subscriptionEvents[sub.id] ?? []) {
+        if (e.end <= start || e.start >= end) continue;
+        birthdays.push({
+          key: `${calId}:${e.uid}:${e.start.getTime()}`,
+          event: synthesiseSubscriptionEvent(sub.id, e),
+          start: e.start,
+          end: e.end,
+          allDay: e.allDay,
           calendar: cal,
         });
       }
@@ -596,7 +665,7 @@ export const useCalendar = create<CalendarState>((set, get) => ({
      * is the check that makes that true of the store as well, whatever calls
      * it.
      */
-    if (isBirthdayEvent(event.id)) return [];
+    if (isBirthdayEvent(event.id) || isSubscriptionEvent(event.id)) return [];
     const accountId = get().accountId!;
     const id = scope === "occurrence" ? await currentOccurrenceId(accountId, event) : eventIdForScope(event, scope);
     // An occurrence takes less than the series does, and says so about only
@@ -618,7 +687,7 @@ export const useCalendar = create<CalendarState>((set, get) => ({
      * is the check that makes that true of the store as well, whatever calls
      * it.
      */
-    if (isBirthdayEvent(event.id)) return;
+    if (isBirthdayEvent(event.id) || isSubscriptionEvent(event.id)) return;
     const accountId = get().accountId!;
     const id = scope === "occurrence" ? await currentOccurrenceId(accountId, event) : eventIdForScope(event, scope);
     const res = await client.call<SetResponse>("CalendarEvent/set", { accountId, destroy: [id], sendSchedulingMessages: sendInvites });
@@ -840,6 +909,42 @@ function synthesiseBirthdayEvent(b: Birthday): CalendarEvent {
     start: local,
     duration: "P1D",
     showWithoutTime: true,
+    freeBusyStatus: "free",
+  } as unknown as CalendarEvent;
+}
+
+/** The virtual calendar id for a subscription; never a JMAP id. */
+export function subscriptionCalendarId(subId: string): string {
+  return `ihm-ics:${subId}`;
+}
+
+export function isSubscriptionEvent(id: string | null | undefined): boolean {
+  return Boolean(id?.startsWith("ihm-ics:"));
+}
+
+function subscriptionCalendar(sub: { id: string; name: string; color: string }): Calendar {
+  return {
+    id: subscriptionCalendarId(sub.id),
+    name: sub.name,
+    color: sub.color,
+    isSubscribed: true,
+    isVisible: true,
+    // Read-only, and honestly so: everything that asks before offering an edit
+    // reads these rights, so nothing has to know a subscription is special.
+    myRights: { mayReadItems: true, mayWriteAll: false, mayWriteOwn: false, mayUpdatePrivate: false, mayRSVP: false, mayAdmin: false, mayDelete: false },
+  } as unknown as Calendar;
+}
+
+function synthesiseSubscriptionEvent(subId: string, e: IcsEvent): CalendarEvent {
+  const local = `${e.start.getFullYear()}-${String(e.start.getMonth() + 1).padStart(2, "0")}-${String(e.start.getDate()).padStart(2, "0")}T${String(e.start.getHours()).padStart(2, "0")}:${String(e.start.getMinutes()).padStart(2, "0")}:00`;
+  return {
+    id: `${subscriptionCalendarId(subId)}:${e.uid}`,
+    calendarIds: { [subscriptionCalendarId(subId)]: true },
+    title: e.summary,
+    start: local,
+    showWithoutTime: e.allDay,
+    location: e.location,
+    description: e.description,
     freeBusyStatus: "free",
   } as unknown as CalendarEvent;
 }
