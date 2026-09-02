@@ -178,7 +178,9 @@ export interface MailState {
   /** The mailbox plus all of its descendants. */
   descendantMailboxIds(mailboxId: Id): Id[];
 
-  createMailbox(name: string, parentId: Id | null): Promise<Id>;
+  createMailbox(name: string, parentId: Id | null, role?: MailboxRole): Promise<Id>;
+  /** Give something the Archive role -- adopting a folder already named for it, or making one. */
+  ensureArchiveFolder(): Promise<Id>;
   updateMailbox(id: Id, patch: Partial<Mailbox>): Promise<void>;
   destroyMailbox(id: Id, removeEmails?: boolean): Promise<void>;
 
@@ -212,6 +214,34 @@ function listKey(q: { filter: EmailFilter; sort: Comparator[]; collapseThreads: 
 }
 
 export const DEFAULT_SORT: Comparator[] = [{ property: "receivedAt", isAscending: false }];
+
+/**
+ * Nothing carries the Archive role, so offer to fix it rather than explain it.
+ *
+ * The message this replaces described the problem accurately and left the
+ * reader with nothing to do inside ihasmail -- roles were only ever shown, not
+ * set. `Mailbox/set` takes `role`, so the offer is real: one click makes the
+ * folder and files the messages that were being archived when it was missing.
+ *
+ * `retry` is the archiving that could not happen, handed back so the click
+ * finishes the job rather than leaving someone to select the same messages
+ * again.
+ */
+function offerArchiveFolder(retry: () => Promise<void>): void {
+  toast.error(t("No Archive folder is set yet."), {
+    action: {
+      label: t("Create one"),
+      onClick: async () => {
+        try {
+          await useMail.getState().ensureArchiveFolder();
+          await retry();
+        } catch (err) {
+          toast.error(t("Could not set up an Archive folder: {error}", { error: (err as Error).message }));
+        }
+      },
+    },
+  });
+}
 
 export const useMail = create<MailState>((set, get) => ({
   accountId: null,
@@ -610,7 +640,7 @@ export const useMail = create<MailState>((set, get) => ({
   async archive(ids) {
     const archiveId = get().roleId("archive") ?? get().roleId("all");
     if (!archiveId) {
-      toast.error(t("No Archive folder is set. A folder needs the Archive role on the server; naming it “Archive” is not enough."));
+      offerArchiveFolder(() => get().archive(ids));
       return;
     }
     await get().move(ids, archiveId, { label: "Archive" });
@@ -621,7 +651,7 @@ export const useMail = create<MailState>((set, get) => ({
     const archiveId = get().roleId("archive") ?? get().roleId("all");
     if (!accountId || !ids.length) return;
     if (!archiveId) {
-      toast.error(t("No Archive folder is set. A folder needs the Archive role on the server; naming it “Archive” is not enough."));
+      offerArchiveFolder(() => get().archiveByDate(ids, granularity));
       return;
     }
     const { emails } = get();
@@ -809,13 +839,44 @@ export const useMail = create<MailState>((set, get) => ({
     }
   },
 
-  async createMailbox(name, parentId) {
+  async createMailbox(name, parentId, role) {
     const accountId = get().accountId!;
-    const res = await client.call<SetResponse<Mailbox>>("Mailbox/set", { accountId, create: { n: { name, parentId, isSubscribed: true } } });
+    const n: Record<string, unknown> = { name, parentId, isSubscribed: true };
+    // Only when asked. Sending `role: null` on every create would be harmless
+    // and would still say something the caller did not.
+    if (role) n.role = role;
+    const res = await client.call<SetResponse<Mailbox>>("Mailbox/set", { accountId, create: { n } });
     const err = res.notCreated?.n;
     if (err) throw new Error(setErrorMessage(err));
     await get().loadMailboxes();
     return res.created!.n!.id;
+  },
+
+  /*
+   * The Archive folder, made rather than described.
+   *
+   * `Mailbox/set` takes `role` -- confirmed live against 0.16.20 on 2026-09-02,
+   * as an ordinary user through the proxy, no admin API -- so a missing Archive
+   * is something ihasmail can fix instead of explaining a server-side concept
+   * and leaving. Stalwart parses the role names in `SpecialUse::parse`, of
+   * which "archive" is one, and enforces that a role is held by one folder.
+   *
+   * A folder already *named* Archive but carrying no role is adopted rather
+   * than duplicated. That is exactly the state #217 was reported from -- a
+   * folder with the right name and no role, which archiving could not see --
+   * and creating a second Archive beside it would be its own confusion.
+   *
+   * The name is the server's, not a translated one, for the same reason
+   * renaming writes back the server's own: a folder's name is data, and a
+   * German session must not create "Archiv" that an English one cannot find.
+   */
+  async ensureArchiveFolder() {
+    const existing = Object.values(get().mailboxes).find((m) => !m.role && m.name.trim().toLowerCase() === "archive");
+    if (existing) {
+      await get().updateMailbox(existing.id, { role: "archive" });
+      return existing.id;
+    }
+    return get().createMailbox("Archive", null, "archive");
   },
 
   async updateMailbox(id, patch) {

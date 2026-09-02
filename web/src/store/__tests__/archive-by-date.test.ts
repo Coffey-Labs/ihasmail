@@ -178,13 +178,13 @@ describe("archiveByDate", () => {
     expect(s.moves).toEqual([]);
     expect(messages()[0]).toContain("No Archive folder");
     /*
-     * What it says, not just that it complains. The folder is found by its
-     * special-use role and by nothing else, so telling someone to create a
-     * folder *named* "Archive" sent them round a loop that could not end --
-     * naming a folder does not give it the role, and ihasmail cannot assign
-     * one. Issue #217.
+     * And it offers to fix it. The folder is found by its special-use role and
+     * by nothing else, so telling someone to create a folder *named* "Archive"
+     * sent them round a loop that could not end. ihasmail can set the role
+     * itself, so the toast carries the action rather than the explanation.
+     * Issue #217.
      */
-    expect(messages()[0]).toContain("role");
+    expect(useToasts.getState().toasts[0]?.action?.label).toBeTruthy();
     expect(messages()[0]).not.toMatch(/Create one named/);
   });
 
