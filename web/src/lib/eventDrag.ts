@@ -121,12 +121,32 @@ export function movePatch(storedStart: string, deltaMinutes: number): DragPatch 
   return { start: formatStored(addMinutes(base, snap(deltaMinutes))) };
 }
 
-/** Moved to another date, keeping the time of day it already had. */
-export function moveToDayPatch(storedStart: string, day: Date): DragPatch {
+/**
+ * Moved by a whole number of days, keeping the time of day it already had.
+ *
+ * A day *delta*, not a target date, and the difference matters whenever the
+ * event's zone is not the reader's. The month grid's cells are local days; the
+ * event's stored date is in its own zone. Rewriting the stored date to the day
+ * that was dropped on put a Tokyo event dropped on the 11th onto the 10th,
+ * because 15:00 in Tokyo on the 11th is 23:00 in Phoenix on the 10th — the
+ * event went where its own calendar said, not where the pointer did.
+ *
+ * Shifting by the difference between the two local days moves it exactly as
+ * far as the hand did, and adding whole days to a wall clock leaves the time
+ * of day alone without touching the zone.
+ */
+export function moveByDaysPatch(storedStart: string, days: number): DragPatch {
   const base = parseStored(storedStart);
-  if (!base) return {};
-  const moved = new Date(day.getFullYear(), day.getMonth(), day.getDate(), base.getHours(), base.getMinutes(), base.getSeconds(), 0);
+  if (!base || !Number.isFinite(days)) return {};
+  const moved = new Date(base.getFullYear(), base.getMonth(), base.getDate() + Math.round(days), base.getHours(), base.getMinutes(), base.getSeconds(), 0);
   return { start: formatStored(moved) };
+}
+
+/** Whole days between two local dates, ignoring the time of day on each. */
+export function dayDelta(from: Date, to: Date): number {
+  const a = new Date(from.getFullYear(), from.getMonth(), from.getDate()).getTime();
+  const b = new Date(to.getFullYear(), to.getMonth(), to.getDate()).getTime();
+  return Math.round((b - a) / 86400_000);
 }
 
 /**

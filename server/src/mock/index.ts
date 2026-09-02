@@ -248,6 +248,13 @@ const events: Obj[] = [];
   events.push({ id: "ev1", calendarIds: { c1: true }, "@type": "Event", uid: "ev1", title: "Standup", start: local(d(0, 9)), timeZone: tz, duration: "PT30M", recurrenceRule: { "@type": "RecurrenceRule", frequency: "weekly", byDay: [{ day: "mo" }, { day: "tu" }, { day: "we" }, { day: "th" }, { day: "fr" }] }, showWithoutTime: false, status: "confirmed", freeBusyStatus: "busy", privacy: "public" });
   events.push({ id: "ev2", calendarIds: { c2: true }, "@type": "Event", uid: "ev2", title: "Design review", start: local(d(1, 14)), timeZone: tz, duration: "PT1H30M", showWithoutTime: false, locations: { l: { "@type": "Location", name: "Room 2" } }, participants: { me: { "@type": "Participant", name: "Demo User", calendarAddress: `mailto:${USER}`, roles: { owner: true, attendee: true }, participationStatus: "accepted" }, p2: { "@type": "Participant", name: "Ada Lovelace", calendarAddress: "mailto:ada@example.org", roles: { attendee: true, required: true }, participationStatus: "needs-action", expectReply: true } }, organizerCalendarAddress: `mailto:${USER}` });
   events.push({ id: "ev3", calendarIds: { c1: true }, "@type": "Event", uid: "ev3", title: "Conference", start: local(d(3, 0)).slice(0, 10) + "T00:00:00", duration: "P2D", showWithoutTime: true, timeZone: null });
+  /*
+   * One event in a zone that is not the reader's, because every other fixture
+   * here uses the machine's own and so cannot tell a correct conversion from
+   * no conversion at all. Dragging this one is what proves a move keeps the
+   * time the event says it happens at.
+   */
+  events.push({ id: "ev9", calendarIds: { c1: true }, "@type": "Event", uid: "ev9", title: "Tokyo sync", start: local(d(2, 15)), timeZone: "Asia/Tokyo", duration: "PT1H", showWithoutTime: false, color: "#7c3aed" });
   events.push({ id: "ev4", calendarIds: { c1: true }, "@type": "Event", uid: "ev4", title: "Lunch with Grace", start: local(d(2, 12)), timeZone: tz, duration: "PT1H", showWithoutTime: false, color: "#db2777" });
   // Two in the shared account, so a colleague's calendar has something in it.
   sharedEvents.push({ id: "sv1", calendarIds: { c9: true }, "@type": "Event", uid: "sv1", title: "Grace: release planning", start: local(d(1, 10)), timeZone: tz, duration: "PT1H", showWithoutTime: false, status: "confirmed", freeBusyStatus: "busy", privacy: "public" });

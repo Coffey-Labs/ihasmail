@@ -15,7 +15,7 @@ import type { Anchor } from "@/ui/popover";
 import { CalendarContextMenu, eventColor, type CalendarContext } from "./CalendarContextMenu";
 import { toast } from "@/ui/toast";
 import { askEditScope, droppedMessage, runScoped } from "./scope";
-import { canDragEvent, moveToDayPatch, movePatch, pixelsToMinutes, resizePatch, snap, type DragPatch } from "@/lib/eventDrag";
+import { canDragEvent, dayDelta, moveByDaysPatch, movePatch, pixelsToMinutes, resizePatch, snap, type DragPatch } from "@/lib/eventDrag";
 import { t as translate } from "@/lib/i18n";
 
 type View = "month" | "week" | "day" | "agenda";
@@ -275,8 +275,10 @@ function MonthView({ anchor, weekStart, onDay, onEvent, onEventContext, onSlotCo
       // read as UTC and lands on the day before wherever the offset is negative.
       const parts = landedOn?.split("-").map(Number);
       const target = parts && parts.length === 3 ? new Date(parts[0]!, parts[1]! - 1, parts[2]!) : null;
+      // How far the hand moved it, in local days -- see moveByDaysPatch for
+      // why the target date itself is the wrong thing to write.
       if (target && !isSameDay(target, inst.start)) {
-        onDragCommit(inst, moveToDayPatch(inst.event.start, target));
+        onDragCommit(inst, moveByDaysPatch(inst.event.start, dayDelta(inst.start, target)));
       }
       window.setTimeout(() => (draggedRef.current = false), 0);
     };
