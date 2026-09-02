@@ -1060,6 +1060,7 @@ export const catalog: Catalog = {
     "Nothing unread here": "ここに未読はありません",
   },
   plurals: {
+    "Your administrator changed {n} settings": { other: "管理者が {n} 件の設定を変更しました" },
     "Already here: {n} contacts, nothing imported": { other: "すでに存在: {n} 件、インポートなし" },
     "All {n} are already in your contacts": { other: "{n} 件はすでに連絡先にあります" },
     "Exported {n} events": { other: "{n} 件の予定をエクスポートしました" },

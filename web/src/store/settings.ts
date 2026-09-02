@@ -4,7 +4,7 @@ import { hasCachedJson, loadJson, saveJson } from "@/lib/storage";
 import { effectiveMode, legacyTheme, migrateTheme, type Mode, type PaletteId } from "@/lib/palette";
 import type { SortLevel, SortPreset } from "@/lib/listSort";
 import { pendingSettingsKeys, queueSettingsPush } from "@/lib/settingsSync";
-import { policyDefaults, policyEnforced } from "@/lib/settingsPolicy";
+import { policyChanges, policyDefaults, policyEnforced, type PolicyChange } from "@/lib/settingsPolicy";
 import { setDateTimePrefs, setUiLanguageForFormatting, type DateFormat, type TimeFormat } from "@/lib/datetime";
 import type { SwipeAction } from "@/lib/swipe";
 import { resolveUiLanguage } from "@/lib/languages";
@@ -228,6 +228,24 @@ export interface Settings {
    * id belonging to another account simply never matches.
    */
   hiddenIdentities: string[];
+  /**
+   * Installation policy changes this account has already had applied.
+   *
+   * The third power in #207: an admin turns a setting on for everybody who is
+   * already here, and readers may still turn it back off afterwards. That only
+   * works if "already applied" is remembered, or the next sign-in would undo
+   * their decision again and the setting would be enforcement wearing a
+   * different hat.
+   *
+   * Ids, not a high-water mark. The reporter's analogy is a schema migration,
+   * where each change carries its own version, and remembering the set rather
+   * than the maximum is what lets an admin add a change dated earlier than one
+   * already applied without it being silently skipped.
+   *
+   * Synced with the rest, so it is per account and not per browser: signing in
+   * on a phone must not apply everything a second time.
+   */
+  appliedPolicyChanges: string[];
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -314,6 +332,7 @@ export const DEFAULT_SETTINGS: Settings = {
   ],
   defaultIdentityByAccount: {},
   hiddenIdentities: [],
+  appliedPolicyChanges: [],
 };
 
 /**
@@ -411,6 +430,14 @@ interface SettingsState {
    * settings would be overwriting choices rather than defaulting them.
    */
   seedFromPolicy(): void;
+  /**
+   * Apply the installation's change list, each entry once.
+   *
+   * Returns the changes that were applied, so the caller can say what moved --
+   * a setting changing under somebody without a word is the part of this the
+   * reporter was uneasy about, and rightly.
+   */
+  applyPolicyChanges(): PolicyChange[];
 }
 
 const initialSettings = loadJson<Settings>("settings", DEFAULT_SETTINGS);
@@ -462,6 +489,31 @@ export const useSettings = create<SettingsState>((set, get) => ({
     const defaults = policyDefaults();
     if (!Object.keys(defaults).length) return;
     get().update(defaults);
+  },
+  /*
+   * The third power in #207, and the only one that remembers anything.
+   *
+   * A change is applied when this account has not already had it, whatever the
+   * setting currently says: the point is to reach everybody who is already
+   * here, so somebody who had turned it off before the admin decided does get
+   * it turned back on. That is intended and the reporter has confirmed it --
+   * the difference from `enforced` is that they may turn it off again
+   * afterwards and it will stay off, because the version is remembered.
+   *
+   * Ids rather than a high-water mark, so a change dated earlier than one
+   * already applied is not silently skipped.
+   *
+   * One `update` for the lot, not one per change: each would push a settings
+   * file, and a policy with four changes on a first sign-in would write four.
+   */
+  applyPolicyChanges() {
+    const seen = new Set(get().settings.appliedPolicyChanges ?? []);
+    const pending = policyChanges().filter((c) => !seen.has(c.version));
+    if (!pending.length) return [];
+    let patch: Partial<Settings> = {};
+    for (const c of pending) patch = { ...patch, ...c.settings };
+    get().update({ ...patch, appliedPolicyChanges: [...seen, ...pending.map((c) => c.version)] });
+    return pending;
   },
   reset() {
     /* Back to how this installation starts an account, not to how ihasmail

@@ -124,12 +124,16 @@ if (immutable) assertImmutable(sessionFile, fileURLToPath(new URL("../..", impor
  * - `enforced` are applied on every load and cannot be changed here at all. The
  *   controls stay visible and go dead, which the issue asked for by name: a
  *   missing control confuses somebody who has used ihasmail elsewhere.
+ * - `changes` are applied once each, to everybody, including accounts that
+ *   already exist -- and can be changed back afterwards. Each carries its own
+ *   `version`, which is how an account remembers the ones it has had. The
+ *   reporter's own analogy is a schema migration and this is that shape.
  *
  * Read from a file or straight from the environment, because ihasmail's own
  * production runs read-only with no volume -- an installation that cannot mount
  * a file can still set a variable.
  */
-function readSettingsPolicy(): { defaults: Record<string, unknown>; enforced: Record<string, unknown> } {
+function readSettingsPolicy(): { defaults: Record<string, unknown>; enforced: Record<string, unknown>; changes: Array<{ version: string; settings: Record<string, unknown> }> } {
   const parse = (raw: string, where: string): Record<string, unknown> => {
     try {
       const v = JSON.parse(raw) as unknown;
@@ -142,6 +146,30 @@ function readSettingsPolicy(): { defaults: Record<string, unknown>; enforced: Re
     }
   };
 
+  /**
+   * A change list, checked rather than trusted.
+   *
+   * Every entry needs a `version` that is unique within the file: it is what an
+   * account stores to say it has had this one, so a duplicate would make two
+   * changes indistinguishable and a missing one would apply for ever.
+   */
+  const parseChanges = (v: unknown, where: string): Array<{ version: string; settings: Record<string, unknown> }> => {
+    if (v === undefined) return [];
+    if (!Array.isArray(v)) throw new Error(`Invalid ${where}: "changes" must be a list`);
+    const seen = new Set<string>();
+    return v.map((entry, i) => {
+      const e = entry as { version?: unknown; settings?: unknown };
+      const version = typeof e.version === "string" ? e.version.trim() : "";
+      if (!version) throw new Error(`Invalid ${where}: changes[${i}] has no "version"`);
+      if (seen.has(version)) throw new Error(`Invalid ${where}: two changes share the version "${version}"`);
+      seen.add(version);
+      if (!e.settings || typeof e.settings !== "object" || Array.isArray(e.settings)) {
+        throw new Error(`Invalid ${where}: changes[${i}] ("${version}") has no "settings" object`);
+      }
+      return { version, settings: e.settings as Record<string, unknown> };
+    });
+  };
+
   const file = process.env.SETTINGS_POLICY_FILE;
   if (file) {
     if (!existsSync(file)) throw new Error(`SETTINGS_POLICY_FILE does not exist: ${file}`);
@@ -149,11 +177,13 @@ function readSettingsPolicy(): { defaults: Record<string, unknown>; enforced: Re
     return {
       defaults: (whole.defaults as Record<string, unknown>) ?? {},
       enforced: (whole.enforced as Record<string, unknown>) ?? {},
+      changes: parseChanges(whole.changes, `SETTINGS_POLICY_FILE (${file})`),
     };
   }
   return {
     defaults: process.env.SETTINGS_DEFAULTS ? parse(process.env.SETTINGS_DEFAULTS, "SETTINGS_DEFAULTS") : {},
     enforced: process.env.SETTINGS_ENFORCED ? parse(process.env.SETTINGS_ENFORCED, "SETTINGS_ENFORCED") : {},
+    changes: process.env.SETTINGS_CHANGES ? parseChanges(JSON.parse(process.env.SETTINGS_CHANGES), "SETTINGS_CHANGES") : [],
   };
 }
 

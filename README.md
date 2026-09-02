@@ -128,34 +128,106 @@ thousand pupils is not a plan.
 -e SETTINGS_ENFORCED='{"externalRecipientConfirm":true}'
 ```
 
-Or, where mounting a file is easier than quoting JSON in a unit file:
+Three powers, and the differences between them matter:
+
+| Section | Applies to | Reader can change it |
+| --- | --- | --- |
+| `defaults` | accounts that have never had settings of their own | yes, at any time |
+| `enforced` | everyone, on every load | no — the control goes dead |
+| `changes` | everyone, **once each**, including existing accounts | yes, afterwards, and it stays changed |
+
+`changes` is the one that needs explaining. It turns something on for people who
+are *already here* — the reason a plain default is not enough — while still
+leaving them the last word. Each entry carries its own `version`, which every
+account remembers once it has had it, so the change is applied exactly once per
+person and a reader who turns it back off keeps it off. It is a schema migration
+in shape, and that is deliberately whose idea it was ([#207]).
+
+Nothing is configured by default: an installation that sets none of these
+behaves exactly as ihasmail always has.
+
+### Passing a policy to Docker
+
+Where a file is easier to manage than JSON quoted in a unit file — and it
+usually is once there are `changes` in it — mount one and name it:
 
 ```bash
--e SETTINGS_POLICY_FILE=/etc/ihasmail/policy.json
+docker run -d --name ihasmail \
+  -e STALWART_URL=https://mail.example.org \
+  -e APP_SECRET="$(openssl rand -hex 32)" \
+  -e SETTINGS_POLICY_FILE=/etc/ihasmail/policy.json \
+  -v /srv/ihasmail/policy.json:/etc/ihasmail/policy.json:ro \
+  -p 8080:8080 ghcr.io/coffey-labs/ihasmail:latest
 ```
 
 ```json
 {
-  "defaults":  { "externalSenderBanner": true },
-  "enforced":  { "externalRecipientConfirm": true }
+  "defaults": { "externalSenderBanner": true },
+  "enforced": { "externalRecipientConfirm": true },
+  "changes": [
+    { "version": "20260902084513", "settings": { "externalSenderBanner": true } },
+    { "version": "20261014091500", "settings": { "externalLinkWarning": true } }
+  ]
 }
 ```
 
-The two are different powers. **`defaults`** seed an account that has never had
-settings of its own; the reader can change any of them afterwards, and they are
-a starting point rather than a rule. **`enforced`** are reapplied on every load
-and cannot be changed at all — their controls stay visible in Settings and go
-dead with a line saying why, because a control that is simply missing reads as a
-bug to anyone who has used ihasmail without a policy.
+Mount it read-only: the server only ever reads it, and `:ro` keeps that true
+under `--read-only` as well.
 
-Both are given in the same names and values a settings export uses, so
-`Settings → General → Export` on a configured account is the quickest way to
-write one. Keys this build does not have are ignored rather than stored, and
-malformed JSON stops the server at startup rather than silently doing nothing.
+Or without a file at all, which is what an immutable deployment with no volume
+wants:
+
+```bash
+docker run -d --name ihasmail --read-only --tmpfs /tmp \
+  -e IMMUTABLE=1 -e SESSION_FILE= \
+  -e STALWART_URL=https://mail.example.org \
+  -e APP_SECRET="$(openssl rand -hex 32)" \
+  -e SETTINGS_DEFAULTS='{"externalSenderBanner":true}' \
+  -e SETTINGS_ENFORCED='{"externalRecipientConfirm":true}' \
+  -e SETTINGS_CHANGES='[{"version":"20260902084513","settings":{"externalSenderBanner":true}}]' \
+  -p 8080:8080 ghcr.io/coffey-labs/ihasmail:latest
+```
+
+In `docker-compose.yml`:
+
+```yaml
+services:
+  ihasmail:
+    image: ghcr.io/coffey-labs/ihasmail:latest
+    environment:
+      SETTINGS_POLICY_FILE: /etc/ihasmail/policy.json
+    volumes:
+      - ./policy.json:/etc/ihasmail/policy.json:ro
+```
+
+A policy is read once at startup, so **editing it means restarting the
+container**. There is no reload signal, deliberately: an installation-wide
+setting changing under a running instance would be harder to reason about than
+one that changes when you say so.
+
+### Writing a policy
+
+Both sections take the same names and values a settings export uses, so
+`Settings → General → Export` on one account you have configured by hand is the
+quickest way to write one — copy the keys you care about out of the file.
+
+Three checks worth knowing about, because they fail loudly rather than quietly:
+
+- **Malformed JSON stops the server at startup.** A policy that silently did not
+  apply is indistinguishable from the feature not working.
+- **Every change needs a unique `version`.** Two changes sharing one, or a change
+  with no `version` or no `settings`, is a startup error.
+- **Keys this build does not have are dropped**, the same rule an imported
+  settings file gets. A `changes` entry whose keys are *all* unknown is dropped
+  whole rather than recorded as applied, so it still runs on an ihasmail that
+  does have the setting.
 
 Enforcement is applied in the settings store rather than only on the controls,
-so an imported settings file or a settings file synced from a device that
-predates the policy cannot get around it.
+so an imported settings file, a settings file synced from a device that predates
+the policy, and "reset to defaults" cannot get around it. Reset returns to your
+defaults, not to ihasmail's.
+
+[#207]: https://github.com/Coffey-Labs/ihasmail/issues/207
 
 ## Architecture
 

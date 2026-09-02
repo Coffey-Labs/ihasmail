@@ -122,3 +122,96 @@ describe("reset, where the installation has chosen defaults", () => {
     expect(useSettings.getState().settings.conversationMode).toBe(false);
   });
 });
+
+/*
+ * The third power: applied once each, to everybody, and changeable afterwards.
+ *
+ * The difference from `enforced` is entirely in the remembering. Both reach an
+ * account that already exists; only this one lets the reader have the last
+ * word, and only because the version is stored.
+ */
+describe("changes an installation wants applied once", () => {
+  const change = (version: string, settings: Record<string, unknown>) => ({ version, settings } as never);
+
+  it("applies one the account has not had", () => {
+    resetSettingsPolicyForTest({ changes: [change("20260902", { conversationMode: false })] });
+    const applied = useSettings.getState().applyPolicyChanges();
+    expect(applied.map((c) => c.version)).toEqual(["20260902"]);
+    expect(useSettings.getState().settings.conversationMode).toBe(false);
+  });
+
+  it("remembers it, so the next sign-in does not do it again", () => {
+    resetSettingsPolicyForTest({ changes: [change("20260902", { conversationMode: false })] });
+    useSettings.getState().applyPolicyChanges();
+    // The reader decides otherwise, which is the whole difference from enforcing.
+    useSettings.getState().update({ conversationMode: true });
+    expect(useSettings.getState().applyPolicyChanges()).toEqual([]);
+    expect(useSettings.getState().settings.conversationMode).toBe(true);
+  });
+
+  it("reaches an account that had already chosen otherwise", () => {
+    /*
+     * Confirmed as intended on #207: the point is to reach everybody who is
+     * already here, so somebody who turned it off last week does get it turned
+     * back on -- once.
+     */
+    useSettings.getState().update({ conversationMode: false });
+    resetSettingsPolicyForTest({ changes: [change("20260902", { conversationMode: true })] });
+    useSettings.getState().applyPolicyChanges();
+    expect(useSettings.getState().settings.conversationMode).toBe(true);
+  });
+
+  it("applies only the ones that are new, keeping what it has seen", () => {
+    resetSettingsPolicyForTest({ changes: [change("A", { conversationMode: false })] });
+    useSettings.getState().applyPolicyChanges();
+    resetSettingsPolicyForTest({
+      changes: [change("A", { conversationMode: false }), change("B", { showAvatars: false })],
+    });
+    const applied = useSettings.getState().applyPolicyChanges();
+    expect(applied.map((c) => c.version)).toEqual(["B"]);
+    expect(useSettings.getState().settings.appliedPolicyChanges).toEqual(["A", "B"]);
+  });
+
+  it("does not skip a change dated earlier than one already applied", () => {
+    // Ids, not a high-water mark. An admin backfilling a change must not find
+    // it silently ignored because a later one went first.
+    resetSettingsPolicyForTest({ changes: [change("20260902", { conversationMode: false })] });
+    useSettings.getState().applyPolicyChanges();
+    resetSettingsPolicyForTest({
+      changes: [change("20260101", { showAvatars: false }), change("20260902", { conversationMode: false })],
+    });
+    expect(useSettings.getState().applyPolicyChanges().map((c) => c.version)).toEqual(["20260101"]);
+    expect(useSettings.getState().settings.showAvatars).toBe(false);
+  });
+
+  it("goes out as one write however many changes are pending", () => {
+    resetSettingsPolicyForTest({
+      changes: [change("A", { conversationMode: false }), change("B", { showAvatars: false })],
+    });
+    const applied = useSettings.getState().applyPolicyChanges();
+    expect(applied).toHaveLength(2);
+    expect(useSettings.getState().settings.conversationMode).toBe(false);
+    expect(useSettings.getState().settings.showAvatars).toBe(false);
+  });
+
+  it("does nothing, and says so, when there are none", () => {
+    expect(useSettings.getState().applyPolicyChanges()).toEqual([]);
+  });
+
+  it("cannot undo an enforced setting, which outranks it", () => {
+    resetSettingsPolicyForTest({
+      enforced: { conversationMode: true } as never,
+      changes: [change("A", { conversationMode: false })],
+    });
+    useSettings.getState().applyPolicyChanges();
+    expect(useSettings.getState().settings.conversationMode).toBe(true);
+  });
+
+  it("drops a change whose settings this build does not have, rather than recording it", () => {
+    // Recording it as applied would mean it never runs on the ihasmail that
+    // does have the setting.
+    resetSettingsPolicyForTest({ changes: [change("A", { notARealSetting: true })] });
+    expect(useSettings.getState().applyPolicyChanges()).toEqual([]);
+    expect(useSettings.getState().settings.appliedPolicyChanges).toEqual([]);
+  });
+});

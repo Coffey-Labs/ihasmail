@@ -1048,6 +1048,7 @@ export const catalog: Catalog = {
     "Nothing unread here": "Hier is niets ongelezen",
   },
   plurals: {
+    "Your administrator changed {n} settings": { one: "Uw beheerder heeft {n} instelling gewijzigd", other: "Uw beheerder heeft {n} instellingen gewijzigd" },
     "Already here: {n} contacts, nothing imported": { one: "Al aanwezig: {n} contact, niets geïmporteerd", other: "Al aanwezig: {n} contacten, niets geïmporteerd" },
     "All {n} are already in your contacts": { one: "Staat al in uw contacten", other: "Alle {n} staan al in uw contacten" },
     "Exported {n} events": { one: "{n} afspraak geëxporteerd", other: "{n} afspraken geëxporteerd" },

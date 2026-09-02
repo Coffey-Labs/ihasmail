@@ -1057,6 +1057,7 @@ export const catalog: Catalog = {
     "Nothing unread here": "Rien de non lu ici",
   },
   plurals: {
+    "Your administrator changed {n} settings": { one: "Votre administration a modifié {n} paramètre", other: "Votre administration a modifié {n} paramètres" },
     "Already here: {n} contacts, nothing imported": { one: "Déjà présent : {n} contact, rien d’importé", other: "Déjà présents : {n} contacts, rien d’importé" },
     "All {n} are already in your contacts": { one: "Déjà dans vos contacts", other: "Les {n} sont déjà dans vos contacts" },
     "Exported {n} events": { one: "{n} événement exporté", other: "{n} événements exportés" },
