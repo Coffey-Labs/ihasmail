@@ -91,7 +91,11 @@ export async function confirmLeaveUnsaved(): Promise<boolean> {
       title: t("Save your changes?"),
       message: pending.message,
       choices: [
-        { value: "save", label: t("Save changes") },
+        // Save is the highlighted one. Highlighting the destructive answer makes
+        // losing the work the easy thing to click, which is the failure this
+        // dialog exists to prevent -- #175, after the guard shipped with the
+        // emphasis the wrong way round.
+        { value: "save", label: t("Save changes"), primary: true },
         { value: "discard", label: t("Discard changes"), hint: t("What you changed here will be lost."), danger: true },
       ],
       cancelLabel: t("Stay here"),

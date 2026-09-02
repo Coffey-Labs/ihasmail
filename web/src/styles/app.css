@@ -715,6 +715,10 @@ a.menu-item:hover { color: var(--fg); }
 .dialog-choices { display: flex; flex-direction: column; gap: 8px; }
 .dialog-choice { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; text-align: left; padding: 10px 12px; height: auto; }
 .dialog-choice small { font-weight: 400; opacity: 0.75; }
+/* Destructive, the way .menu-item.danger is: a red label on the ordinary
+   surface. A filled red button in a list of answers is the loudest thing in the
+   dialog, which is wrong when it is the answer that loses your work. */
+.dialog-choice.danger { color: var(--danger); }
 
 /* Toasts ----------------------------------------------------------------- */
 .toast-host { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 3000; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; padding: 0 12px; width: 100%; max-width: 520px; }
