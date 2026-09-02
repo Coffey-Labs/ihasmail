@@ -1,4 +1,4 @@
-import { useSettings, type ReadReceiptPolicy } from "@/store/settings";
+import { useSettings } from "@/store/settings";
 import { Switch } from "@/ui/misc";
 import { browserTimeZone, listTimeZones } from "@/lib/dates";
 import { toast } from "@/ui/toast";
@@ -47,7 +47,7 @@ export function GeneralSettings() {
   return (
     <div>
       <h1>{t("General")}</h1>
-      <p className="lead">{t("Reading, sending and list behaviour. Settings are stored in this browser.")}</p>
+      <p className="lead">{t("Reading, sending, and how dates and times are shown. What reaches a sender lives in Privacy & safety.")}</p>
 
       <h2>{t("Reading")}</h2>
       <div className="field-row">
@@ -76,19 +76,10 @@ export function GeneralSettings() {
             <option value="newer">{t("Open the previous (newer) conversation")}</option>
           </select>
         </div>
-        <div className="field">
-          <label>{t("Remote images")}</label>
-          <select className="select" value={s.imagePolicy} onChange={(e) => update({ imagePolicy: e.target.value as typeof s.imagePolicy })}>
-            <option value="ask">{t("Ask before showing (recommended)")}</option>
-            <option value="contacts">{t("Show automatically from my contacts")}</option>
-            <option value="always">{t("Always show")}</option>
-          </select>
-        </div>
       </div>
       <Switch checked={s.conversationMode} onChange={(v) => update({ conversationMode: v })} label={t("Conversation view")} hint={t("Group messages from the same thread together.")} />
       <Switch checked={s.showPreview} onChange={(v) => update({ showPreview: v })} label={t("Show message snippets")} hint={t("Preview the first line of each message in the list.")} />
       <Switch checked={s.showAvatars} onChange={(v) => update({ showAvatars: v })} label={t("Show sender avatars")} />
-      <Switch checked={s.confirmDelete} onChange={(v) => update({ confirmDelete: v })} label={t("Confirm before deleting")} />
 
       <h2>{t("Composing")}</h2>
       <div className="field-row">
@@ -99,32 +90,9 @@ export function GeneralSettings() {
             <option value="text">{t("Plain text")}</option>
           </select>
         </div>
-        <div className="field">
-          <label>{t("Undo send window")}</label>
-          <select className="select" value={String(s.undoSendSeconds)} onChange={(e) => update({ undoSendSeconds: Number(e.target.value) })}>
-            <option value="0">{t("Off")}</option>
-            <option value="5">{t("5 seconds")}</option>
-            <option value="8">{t("8 seconds")}</option>
-            <option value="15">{t("15 seconds")}</option>
-            <option value="30">{t("30 seconds")}</option>
-          </select>
-        </div>
       </div>
       <Switch checked={s.includeQuote} onChange={(v) => update({ includeQuote: v })} label={t("Quote original message in replies")} />
       <Switch checked={s.signatureAboveQuote} onChange={(v) => update({ signatureAboveQuote: v })} label={t("Place signature above quoted text")} />
-      <Switch checked={s.attachmentReminder} onChange={(v) => update({ attachmentReminder: v })} label={t("Attachment reminder")} hint={t("Warn when the message mentions an attachment but none is attached.")} />
-      <Switch checked={s.requestReadReceipt} onChange={(v) => update({ requestReadReceipt: v })} label={t("Always request read receipts")} />
-      <div className="field">
-        <label>{t("When someone requests a read receipt")}</label>
-        <select className="select" value={s.readReceiptPolicy} onChange={(e) => update({ readReceiptPolicy: e.target.value as ReadReceiptPolicy })}>
-          <option value="ask">{t("Ask me on each message")}</option>
-          <option value="never">{t("Never send one")}</option>
-        </select>
-        <p className="hint">
-          
-          {t("A receipt tells whoever asked that this address is live and when the message was read, and the sender chooses where it goes — so there is no automatic option. Bulk mail, mailing lists and anything marked auto-submitted are never offered one at all.")}
-        </p>
-      </div>
       <Switch checked={s.spellcheck} onChange={(v) => update({ spellcheck: v })} label={t("Spell check while typing")} />
 
       <h2>{t("Locale")}</h2>

@@ -1395,3 +1395,6 @@ button.dp-open:disabled { cursor: default; opacity: .5; }
 .placeholder-list { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; align-items: baseline; }
 .placeholder-row { display: contents; }
 .placeholder-list code { font-family: var(--font-mono); font-size: 12.5px; background: var(--bg-sunken); border: 1px solid var(--border); border-radius: 4px; padding: .1em .4em; white-space: nowrap; }
+
+/* The senders whose remote images load without asking, in Privacy & safety. */
+.trusted-senders { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
