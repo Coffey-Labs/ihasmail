@@ -187,6 +187,59 @@ function readSettingsPolicy(): { defaults: Record<string, unknown>; enforced: Re
   };
 }
 
+/**
+ * Which Stalwart a domain signs in to.
+ *
+ * `STALWART_URL` stays required and stays the default; this only adds domains
+ * that go somewhere else (#238). An installation that sets nothing behaves
+ * exactly as it always has.
+ *
+ * Read once at boot and never written, so it mounts read-only and costs
+ * nothing in immutability -- the same shape as the settings policy.
+ *
+ * Servers are deliberately **not** probed here. A mapping is a routing table,
+ * not a health check, and refusing to boot because one of five customers is
+ * having an outage would take the other four down with it. What happens when
+ * one is unreachable is a sign-in question, answered in #239.
+ */
+function readStalwartServers(): Record<string, string> {
+  const file = process.env.STALWART_SERVERS_FILE;
+  if (!file) return {};
+  if (!existsSync(file)) throw new Error(`STALWART_SERVERS_FILE does not exist: ${file}`);
+
+  let raw: unknown;
+  try {
+    raw = JSON.parse(readFileSync(file, "utf8"));
+  } catch (err) {
+    throw new Error(`Invalid STALWART_SERVERS_FILE (${file}): ${(err as Error).message}`);
+  }
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error(`Invalid STALWART_SERVERS_FILE (${file}): expected an object of domain to URL`);
+  }
+
+  const out: Record<string, string> = {};
+  for (const [rawDomain, rawUrl] of Object.entries(raw as Record<string, unknown>)) {
+    /* Lower-cased and stripped of the root dot, because that is how a domain
+       taken off a username will arrive and comparing them any other way means
+       a mapping that silently never matches. */
+    const domain = rawDomain.trim().toLowerCase().replace(/\.$/, "");
+    if (!domain) throw new Error(`Invalid STALWART_SERVERS_FILE (${file}): a domain key is empty`);
+    if (domain in out) throw new Error(`Invalid STALWART_SERVERS_FILE (${file}): "${domain}" appears twice once normalised`);
+    if (typeof rawUrl !== "string") throw new Error(`Invalid STALWART_SERVERS_FILE (${file}): "${domain}" is not a URL`);
+    let parsed: URL;
+    try {
+      parsed = new URL(rawUrl);
+    } catch {
+      throw new Error(`Invalid STALWART_SERVERS_FILE (${file}): "${domain}" is not an absolute URL`);
+    }
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      throw new Error(`Invalid STALWART_SERVERS_FILE (${file}): "${domain}" must be http or https`);
+    }
+    out[domain] = rawUrl.replace(/\/+$/, "");
+  }
+  return out;
+}
+
 export const config = {
   isProd,
   appName: env("APP_NAME", "ihasmail"),
@@ -222,6 +275,7 @@ export const config = {
    */
   basePath: normalizeBasePath(process.env.BASE_PATH),
   stalwartUrl,
+  stalwartServers: readStalwartServers(),
   appSecret,
   trustProxy: bool("TRUST_PROXY", true),
   /**

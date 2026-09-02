@@ -53,3 +53,30 @@ test("the example's commentary cannot be mistaken for a section", () => {
     assert.ok(real.has(key) || key.startsWith("_"), `unexpected top-level key ${key}`);
   }
 });
+
+/**
+ * The shipped server-mapping example, checked the same way and for the same
+ * reason: an example that no longer loads is worse than no example, because
+ * the first experience of the feature is a server that refuses to start.
+ */
+const SERVERS = fileURLToPath(new URL("../../stalwart-servers.example.json", import.meta.url));
+
+test("the example server mapping is valid JSON", () => {
+  assert.doesNotThrow(() => JSON.parse(readFileSync(SERVERS, "utf8")));
+});
+
+test("every entry in the example mapping is a domain and an http(s) URL", () => {
+  const m = JSON.parse(readFileSync(SERVERS, "utf8")) as Record<string, unknown>;
+  const seen = new Set<string>();
+  for (const [key, value] of Object.entries(m)) {
+    if (key.startsWith("_")) continue;
+    const domain = key.trim().toLowerCase().replace(/\.$/, "");
+    assert.ok(domain, "a domain key is empty");
+    assert.ok(!seen.has(domain), `${domain} appears twice once normalised`);
+    seen.add(domain);
+    assert.equal(typeof value, "string", `${domain} is not a string`);
+    const url = new URL(value as string);
+    assert.ok(url.protocol === "http:" || url.protocol === "https:", `${domain} must be http or https`);
+  }
+  assert.ok(seen.size > 0, "the example should show at least one mapping");
+});

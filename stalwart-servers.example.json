@@ -1,0 +1,25 @@
+{
+  "_comment": [
+    "Optional: which Stalwart a domain signs in to.",
+    "",
+    "STALWART_URL stays required and stays the default. This file only adds",
+    "domains that go somewhere else -- delete it and nothing changes.",
+    "",
+    "Point at it with STALWART_SERVERS_FILE=/etc/ihasmail/servers.json and mount",
+    "it read-only. Read once at startup, so editing it means restarting.",
+    "",
+    "A domain that is not listed here, and a bare username with no domain at",
+    "all, go to STALWART_URL. A domain that IS listed never falls back: if its",
+    "server is unreachable that sign-in fails, because falling back would",
+    "authenticate somebody against a server their domain was routed away from.",
+    "",
+    "Keys are lower-cased and stripped of a trailing dot when read. Malformed",
+    "JSON, a duplicate domain, or a value that is not an http(s) URL stops the",
+    "server at startup rather than failing quietly at somebody's sign-in.",
+    "",
+    "Docs: https://docs.ihasmail.org/configure/#several-stalwart-servers"
+  ],
+
+  "example.com": "https://mail.example.com",
+  "customer-b.test": "https://jmap.customer-b.test"
+}
