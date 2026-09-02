@@ -259,6 +259,22 @@ same query string — so what it builds can be read, edited and learned from.
 - **Attachments** listed with type and size: download, open in a new tab, and an
   inline preview for images and PDFs.
 - **Show original**, **Show headers**, **Download (.eml)** and **Print**.
+- **`winmail.dat` opens.** Outlook sending in Rich Text packs every attachment
+  into one TNEF blob that most clients cannot read, so the files inside are
+  gone as far as the reader is concerned. A banner offers to open it and the
+  contents appear as ordinary attachments, named and typed. The long filename
+  is read out of the MAPI stream where there is one, so a file that arrived as
+  `Quarterly Report Final.docx` is not called `QUARTE~1.DOC`.
+
+  It is decoded **in the browser, on request**: the server never sees the
+  contents and has nowhere to keep a decoded copy, and doing the work on sight
+  would spend the bandwidth whether or not anyone wanted what is inside. A blob
+  that goes wrong part-way through keeps the files read before that point —
+  half of them beats none — and the original stays attached either way.
+
+  The message body is deliberately not decoded. TNEF can also carry it as
+  compressed RTF, which is a second format again for a body the reader already
+  has in plain text or HTML nine times in ten.
 - **Forward as attachment** sends the message itself rather than a quotation of
   it — headers, structure and every attachment intact, which is what a bounce
   or a phishing report needs and what quoting destroys. It costs **no upload at

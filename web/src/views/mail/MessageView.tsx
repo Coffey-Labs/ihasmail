@@ -11,6 +11,7 @@ import { useCalendar } from "@/store/calendar";
 import { startAppointment } from "@/lib/appointment";
 import { client } from "@/jmap/client";
 import { emlFilename } from "@/lib/emlName";
+import { isTnef, parseTnef, type TnefAttachment } from "@/lib/tnef";
 import { internalDomains, isExternalSender, linkVerdict } from "@/lib/warnings";
 import { spamReport, type SpamReport } from "@/lib/spamScore";
 import { formatFullDate, formatListDate, formatSize } from "@/lib/format";
@@ -708,6 +709,80 @@ export function attachmentIcon(type: string, name?: string | null) {
   return <File size={18} />;
 }
 
+/**
+ * The files inside a `winmail.dat`, once the reader asks for them.
+ *
+ * Opened on request rather than on sight: the blob has to be fetched and
+ * decoded, and doing that to every message carrying one would spend the
+ * bandwidth whether or not anybody wanted what is inside.
+ *
+ * The decode happens here, in the browser. The server never sees the contents
+ * and stores nothing, which is the same bargain as the rest of the app --
+ * there is nowhere for it to put a decoded copy even if it wanted one.
+ */
+function TnefContents({ part, accountId }: { part: EmailBodyPart; accountId: Id }) {
+  const [state, setState] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [files, setFiles] = useState<TnefAttachment[]>([]);
+  const [urls, setUrls] = useState<string[]>([]);
+
+  // Object URLs hold their blob alive until they are revoked, so they are
+  // released when the message closes rather than left to the page's lifetime.
+  useEffect(() => () => urls.forEach((u) => URL.revokeObjectURL(u)), [urls]);
+
+  const open = async () => {
+    if (!part.blobId) return;
+    setState("loading");
+    try {
+      const blob = await client.fetchBlob(accountId, part.blobId, part.type);
+      const found = parseTnef(await blob.arrayBuffer());
+      setFiles(found);
+      setUrls(found.map((f) => URL.createObjectURL(new Blob([f.data as unknown as BlobPart], { type: f.type }))));
+      setState("done");
+    } catch {
+      setState("error");
+    }
+  };
+
+  if (state === "idle") {
+    return (
+      <div className="list-hint" style={{ margin: "0 16px 8px" }}>
+        <span className="grow">{translate("This message packs its attachments into a winmail.dat, which most clients cannot open.")}</span>
+        <button onClick={() => void open()}>{translate("Open it")}</button>
+      </div>
+    );
+  }
+  if (state === "loading") return <div className="list-hint" style={{ margin: "0 16px 8px" }}><span className="grow">{translate("Opening…")}</span></div>;
+  if (state === "error") {
+    return (
+      <div className="list-hint" style={{ margin: "0 16px 8px" }}>
+        <span className="grow">{translate("Could not read winmail.dat. The original is still attached below.")}</span>
+      </div>
+    );
+  }
+  if (!files.length) {
+    // It decoded, and there was nothing in it. Saying so is better than
+    // leaving the button looking like it did nothing.
+    return (
+      <div className="list-hint" style={{ margin: "0 16px 8px" }}>
+        <span className="grow">{translate("No files inside — it carries only the formatted copy of the message.")}</span>
+      </div>
+    );
+  }
+  return (
+    <div className="attachments">
+      {files.map((f, i) => (
+        <a key={`${f.name}-${i}`} className="attachment" href={urls[i]} download={f.name} title={`${f.name} · ${formatSize(f.size)}`}>
+          <span className="att-icon">{attachmentIcon(f.type, f.name)}</span>
+          <span className="att-text">
+            <span className="att-name">{f.name}</span>
+            <span className="att-size">{formatSize(f.size)}</span>
+          </span>
+        </a>
+      ))}
+    </div>
+  );
+}
+
 function AttachmentList({ attachments, accountId, email }: { attachments: EmailBodyPart[]; accountId: Id; email: Email }) {
   const [preview, setPreview] = useState<EmailBodyPart | null>(null);
   /* Whether we can show it, and whether the server will serve it inline, are
@@ -715,6 +790,9 @@ function AttachmentList({ attachments, accountId, email }: { attachments: EmailB
   const viewable = (a: EmailBodyPart) => Boolean(a.blobId) && previewKind(a.type, a.name) !== null;
   return (
     <>
+      {attachments.filter((a) => isTnef(a.type, a.name) && a.blobId).map((a) => (
+        <TnefContents key={`tnef-${a.blobId}`} part={a} accountId={accountId} />
+      ))}
       <div className="attachments">
         {attachments.map((a, i) => {
           const url = a.blobId ? client.downloadUrl(accountId, a.blobId, a.name ?? "attachment", a.type) : "#";
