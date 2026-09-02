@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { create } from "zustand";
 import { hasCachedJson, loadJson, saveJson } from "@/lib/storage";
+import type { SortLevel, SortPreset } from "@/lib/listSort";
 import { pendingSettingsKeys, queueSettingsPush } from "@/lib/settingsSync";
 import { setDateTimePrefs, setUiLanguageForFormatting, type DateFormat, type TimeFormat } from "@/lib/datetime";
 import type { SwipeAction } from "@/lib/swipe";
@@ -141,6 +142,15 @@ export interface Settings {
    * dates nobody put there is a surprise rather than a feature.
    */
   birthdayCalendar: boolean;
+  /** What order the message list is in. See lib/listSort.ts. */
+  listSortPreset: SortPreset;
+  listSortLevels: SortLevel[];
+  /**
+   * Which folders it covers. Inbox-only is the useful default rather than a
+   * timid one: unread-first is what people want where they triage, and
+   * confusing in Sent, where everything is read.
+   */
+  listSortScope: "inbox" | "all";
   fontSize: "small" | "medium" | "large";
   templates: Template[];
   labels: Label[];
@@ -253,6 +263,9 @@ export const DEFAULT_SETTINGS: Settings = {
   timeZone: null,
   labelsSidebar: true,
   birthdayCalendar: false,
+  listSortPreset: "newest",
+  listSortLevels: [],
+  listSortScope: "inbox",
   fontSize: "medium",
   templates: [],
   labels: [],

@@ -264,6 +264,31 @@ const sharedCards: Obj[] = [
   { id: "sc1", addressBookIds: { ab9: true }, name: { full: "Katherine Johnson" }, emails: { e1: { address: "katherine@example.org", contexts: {} } }, phones: {}, organizations: {}, nicknames: {}, addresses: {}, notes: {}, updated: new Date().toISOString() },
   { id: "sc2", addressBookIds: { ab9: true }, name: { full: "Dorothy Vaughan" }, emails: { e1: { address: "dorothy@example.org", contexts: {} } }, phones: {}, organizations: {}, nicknames: {}, addresses: {}, notes: {}, updated: new Date().toISOString() },
 ];
+/**
+ * One sort property, as Email/query defines them. `hasKeyword` sorts a
+ * boolean, and false comes before true -- which is what makes "unread first"
+ * an *ascending* sort on $seen.
+ */
+function compareBy(x: Obj, y: Obj, property: string, keyword?: string): number {
+  const addr = (v: unknown) => String(((v as Obj[] | undefined)?.[0] as Obj | undefined)?.email ?? "");
+  switch (property) {
+    case "receivedAt": return String(x.receivedAt).localeCompare(String(y.receivedAt));
+    case "sentAt": return String(x.sentAt ?? x.receivedAt).localeCompare(String(y.sentAt ?? y.receivedAt));
+    case "size": return Number(x.size ?? 0) - Number(y.size ?? 0);
+    case "subject": return String(x.subject ?? "").localeCompare(String(y.subject ?? ""));
+    case "from": return addr(x.from).localeCompare(addr(y.from));
+    case "to": return addr(x.to).localeCompare(addr(y.to));
+    case "hasKeyword": {
+      const has = (e: Obj) => (keyword && (e.keywords as Obj | undefined)?.[keyword] ? 1 : 0);
+      return has(x) - has(y);
+    }
+    default: return 0;
+  }
+}
+
+/** A server that does not implement sorting on keywords, so the fallback can be developed against. */
+const NO_KEYWORD_SORT = process.env.MOCK_NO_KEYWORD_SORT === "1";
+
 const booksFor = (accountId: unknown): Obj[] => (accountId === SHARED_ACCOUNT ? sharedAddressBooks : addressBooks);
 /** One per contact, by index; a gap means that card has no birthday. */
 const BIRTHDAYS: Array<{ year?: number; month: number; day: number } | null> = [
@@ -734,7 +759,26 @@ const handlers: Record<string, Handler> = {
   "Mailbox/changes": () => ({ accountId: ACCOUNT, oldState: "1", newState: String(state.n), hasMoreChanges: false, created: [], updated: [], destroyed: [] }),
   "Email/query": (a) => {
     let list = emails.filter((e) => matchFilter(e, a.filter as Obj));
-    list.sort((x, y) => String(y.receivedAt).localeCompare(String(x.receivedAt)));
+    /*
+     * Honour the sort rather than always answering newest-first. This used to
+     * ignore it entirely, which reproduced a server that silently returns a
+     * different order from the one asked for -- the one shape of wrongness a
+     * client cannot detect.
+     */
+    const sort = (a.sort as Obj[] | undefined) ?? [{ property: "receivedAt", isAscending: false }];
+    if (NO_KEYWORD_SORT && sort.some((c) => String(c.property) === "hasKeyword")) {
+      // A method-level failure, the way a real server refuses an optional sort:
+      // the whole call fails rather than the sort being quietly dropped.
+      throw new MethodError("unsupportedSort", "Sorting on hasKeyword is not supported.");
+    }
+    list.sort((x, y) => {
+      for (const c of sort) {
+        const asc = c.isAscending !== false;
+        const cmp = compareBy(x, y, String(c.property), c.keyword as string | undefined);
+        if (cmp !== 0) return asc ? cmp : -cmp;
+      }
+      return 0;
+    });
     if (a.collapseThreads) {
       const seen = new Set<string>();
       list = list.filter((e) => { const t = e.threadId as string; if (seen.has(t)) return false; seen.add(t); return true; });

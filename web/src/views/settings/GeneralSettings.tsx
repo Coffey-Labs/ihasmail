@@ -4,6 +4,7 @@ import { browserTimeZone, listTimeZones } from "@/lib/dates";
 import { toast } from "@/ui/toast";
 import { useState } from "react";
 import { t, tNode } from "@/lib/i18n";
+import { MAX_LEVELS, type SortField, type SortPreset } from "@/lib/listSort";
 import {
   canUnregisterMailtoHandler,
   isInstalledApp,
@@ -34,6 +35,21 @@ const DATE_FORMATS: Array<{ value: DateFormat; label: string }> = [
   { value: "mdy-slash", label: "Month/Day/Year" },
   { value: "ymd-dash", label: "Year-Month-Day (ISO 8601)" },
 ];
+
+/**
+ * What each direction means in the reader's terms. "Descending" is meaningless
+ * for a field like Unread, where the question is which state belongs at the top.
+ */
+const DIRECTION_LABELS: Record<SortField, [string, string]> = {
+  unread: ["Unread first", "Read first"],
+  starred: ["Starred first", "Unstarred first"],
+  date: ["Newest first", "Oldest first"],
+  sent: ["Newest first", "Oldest first"],
+  from: ["Z to A", "A to Z"],
+  to: ["Z to A", "A to Z"],
+  subject: ["Z to A", "A to Z"],
+  size: ["Largest first", "Smallest first"],
+};
 
 export function GeneralSettings() {
   const s = useSettings((st) => st.settings);
@@ -80,6 +96,77 @@ export function GeneralSettings() {
       <Switch checked={s.conversationMode} onChange={(v) => update({ conversationMode: v })} label={t("Conversation view")} hint={t("Group messages from the same thread together.")} />
       <Switch checked={s.showPreview} onChange={(v) => update({ showPreview: v })} label={t("Show message snippets")} hint={t("Preview the first line of each message in the list.")} />
       <Switch checked={s.showAvatars} onChange={(v) => update({ showAvatars: v })} label={t("Show sender avatars")} />
+
+      <div className="field-row">
+        <div className="field">
+          <label>{t("Message order")}</label>
+          <select className="select" value={s.listSortPreset} onChange={(e) => update({ listSortPreset: e.target.value as SortPreset })}>
+            <option value="newest">{t("Newest first")}</option>
+            <option value="oldest">{t("Oldest first")}</option>
+            <option value="unreadFirst">{t("Unread first")}</option>
+            <option value="starredFirst">{t("Starred first")}</option>
+            <option value="largest">{t("Largest first")}</option>
+            <option value="sender">{t("By sender")}</option>
+            <option value="subject">{t("By subject")}</option>
+            <option value="custom">{t("Custom…")}</option>
+          </select>
+        </div>
+        <div className="field">
+          <label>{t("Applies to")}</label>
+          <select className="select" value={s.listSortScope} onChange={(e) => update({ listSortScope: e.target.value as "inbox" | "all" })}>
+            <option value="inbox">{t("The Inbox only")}</option>
+            <option value="all">{t("Every folder")}</option>
+          </select>
+        </div>
+      </div>
+      {s.listSortPreset === "custom" && (
+        <div className="field">
+          <label>{t("Sort by, in order")}</label>
+          {Array.from({ length: MAX_LEVELS }, (_, i) => {
+            const level = s.listSortLevels[i];
+            return (
+              <div className="field-row" key={i} style={{ marginBottom: 6 }}>
+                <select
+                  className="select"
+                  value={level?.field ?? ""}
+                  onChange={(e) => {
+                    const next = [...s.listSortLevels];
+                    if (!e.target.value) next.splice(i);
+                    else next[i] = { field: e.target.value as SortField, descending: level?.descending ?? true };
+                    update({ listSortLevels: next.filter(Boolean).slice(0, MAX_LEVELS) });
+                  }}
+                >
+                  <option value="">{i === 0 ? t("Choose…") : t("Then nothing")}</option>
+                  <option value="unread">{t("Unread")}</option>
+                  <option value="starred">{t("Starred")}</option>
+                  <option value="date">{t("Date received")}</option>
+                  <option value="sent">{t("Date sent")}</option>
+                  <option value="from">{t("Sender")}</option>
+                  <option value="subject">{t("Subject")}</option>
+                  <option value="size">{t("Size")}</option>
+                </select>
+                {level && (
+                  <select
+                    className="select"
+                    value={level.descending ? "desc" : "asc"}
+                    onChange={(e) => {
+                      const next = [...s.listSortLevels];
+                      next[i] = { ...level, descending: e.target.value === "desc" };
+                      update({ listSortLevels: next });
+                    }}
+                  >
+                    <option value="desc">{DIRECTION_LABELS[level.field]![0]}</option>
+                    <option value="asc">{DIRECTION_LABELS[level.field]![1]}</option>
+                  </select>
+                )}
+              </div>
+            );
+          })}
+          <p className="hint">
+            {t("Ordered by the server over the whole folder, not just the messages loaded so far. Ties always fall back to newest first, so the order never shuffles between two looks at the same folder.")}
+          </p>
+        </div>
+      )}
 
       <h2>{t("Composing")}</h2>
       <div className="field-row">

@@ -150,6 +150,28 @@ more attempt. A drag that is merely more sideways than not stays a scroll.
 - **Infinite scroll** with server-side paging, 50 at a time by default.
 - **Conversation view** groups a thread into one row, with the thread's own
   message count; it can be switched off to list messages individually.
+- **Message order** is a setting: newest or oldest first, unread first, starred
+  first, largest first, by sender or by subject — or up to three levels of your
+  own, chosen in Settings › General. It covers the Inbox alone by default,
+  because unread-first is what people want where they triage and confusing in
+  Sent, where everything is read; it can be widened to every folder.
+
+  The ordering is done by the **server**, over the whole folder, for the same
+  reason search is: a list sorted in the browser is sorted only as far as the
+  browser has loaded, which on a folder of ten thousand is the first fifty and
+  a lie about the rest. Search keeps newest-first whatever the setting says — a
+  result list is already ordered by the question that was asked.
+
+  Every order ends with newest-first as a tiebreak, so rows inside a tie do not
+  shuffle between two looks at the same folder.
+
+  **Sorting on a keyword is optional in RFC 8621**, and a server that will not
+  do it fails the whole query rather than degrading it — so "unread first" on
+  such a server would mean a folder that does not open at all. The refusal is
+  caught once, the keyword levels dropped, and the query retried, quietly: the
+  reader asked for an order and got the closest the server can give, and a
+  toast on every folder change would be the app complaining about its own
+  request. `MOCK_NO_KEYWORD_SORT=1` reproduces such a server.
 - **Multi-select** with `x`, shift-click for ranges, `Ctrl/Cmd+A` for all, and
   a long press on a touchscreen.
 - **Select the whole folder**, not just the rows that happen to be loaded. The
