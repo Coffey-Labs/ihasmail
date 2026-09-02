@@ -310,7 +310,7 @@ export const useMail = create<MailState>((set, get) => ({
     set({
       list: { ...q, key, ids: reuse ? cur.ids : [], total: reuse ? cur.total : 0, queryState: null, loading: true, loadingMore: false, error: null, exhausted: false },
       selected: {},
-  selectedAll: false,
+      selectedAll: false,
       anchorId: null,
     });
     try {
