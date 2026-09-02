@@ -44,6 +44,7 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
   const settings = useSettings((s) => s.settings);
   const updateSettings = useSettings((s) => s.update);
   const reply = useCompose((s) => s.reply);
+  const cardRef = useRef<HTMLElement>(null);
   const [details, setDetails] = useState(false);
   const [showSource, setShowSource] = useState(false);
   const [showHeaders, setShowHeaders] = useState(false);
@@ -146,11 +147,47 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
     if (!expanded) onToggle();
   };
 
+  /*
+   * Print this message, not the conversation it happens to sit in.
+   *
+   * The card is inside the thread, so a bare window.print() prints every
+   * message on the page -- which is what the toolbar's "Print conversation"
+   * is for, and not what someone asks for from a single message's menu.
+   * The two marker classes let the print stylesheet drop the siblings for
+   * the duration; the subject heading stays, since a printed message with no
+   * subject on it is a page nobody can file.
+   *
+   * window.print() blocks until the dialog is dismissed, so clearing the
+   * marks after it returns is enough on its own; `afterprint` is there for a
+   * browser that ever makes it asynchronous, and running twice is harmless.
+   */
+  const printThis = () => {
+    const card = cardRef.current;
+    if (!card) {
+      window.print();
+      return;
+    }
+    const root = document.documentElement;
+    const clear = () => {
+      root.classList.remove("printing-one");
+      card.classList.remove("print-target");
+      window.removeEventListener("afterprint", clear);
+    };
+    window.addEventListener("afterprint", clear);
+    root.classList.add("printing-one");
+    card.classList.add("print-target");
+    try {
+      window.print();
+    } finally {
+      clear();
+    }
+  };
+
   return (
     /* `wasUnread` rather than `$seen`: the bar marks what was unread when the
        conversation was opened, and keeps marking it after the auto-mark-read
        timer has told the server otherwise. Losing it mid-read was half of #69. */
-    <article className={`message ${expanded ? "" : "collapsed"} ${wasUnread ?? !e.keywords.$seen ? "unread-msg" : ""}`} data-msg-id={e.id} onClick={collapsedClick}>
+    <article ref={cardRef} className={`message ${expanded ? "" : "collapsed"} ${wasUnread ?? !e.keywords.$seen ? "unread-msg" : ""}`} data-msg-id={e.id} onClick={collapsedClick}>
       <header className="message-head" onClick={(ev) => { if (expanded && !(ev.target as HTMLElement).closest("button,a,.message-details")) onToggle(); }}>
         <Avatar who={from ?? null} />
         <div className="who">
@@ -200,7 +237,7 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
         <MenuItem icon={<Eye size={16} />} label={translate("Show original")} onClick={() => void openSource()} />
         <MenuItem icon={<Code size={16} />} label={translate("Show headers")} onClick={() => setShowHeaders(true)} />
         <MenuItem icon={<Download size={16} />} label={translate("Download (.eml)")} onClick={downloadEml} />
-        <MenuItem icon={<Printer size={16} />} label={translate("Print")} onClick={() => window.print()} />
+        <MenuItem icon={<Printer size={16} />} label={translate("Print")} onClick={printThis} />
         <MenuItem icon={<Filter size={16} />} label={translate("Filter messages like this…")} onClick={() => setFilterOpen(true)} />
         {hasCalendar && <MenuItem icon={<CalendarPlus size={16} />} label={translate("Create event…")} onClick={() => void startAppointment(e, navigate).catch((err: unknown) => toast.error((err as Error).message))} />}
         {from && (
