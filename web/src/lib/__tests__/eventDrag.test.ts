@@ -9,7 +9,8 @@ import {
   resizedBy,
   snap,
   movePatch,
-  moveToDayPatch,
+  moveByDaysPatch,
+  dayDelta,
   resizePatch,
   SNAP_MINUTES,
 } from "@/lib/eventDrag";
@@ -142,8 +143,31 @@ describe("the patch a drag sends, computed in the event's own frame", () => {
     expect(movePatch("2026-09-04T14:00:00", 30).duration).toBeUndefined();
   });
 
-  it("keeps the time of day when moving to another date", () => {
-    expect(moveToDayPatch("2026-09-04T14:30:00", new Date(2026, 8, 10))).toEqual({ start: "2026-09-10T14:30:00" });
+  it("keeps the time of day when moving by whole days", () => {
+    expect(moveByDaysPatch("2026-09-04T14:30:00", 6)).toEqual({ start: "2026-09-10T14:30:00" });
+    expect(moveByDaysPatch("2026-09-04T14:30:00", -3)).toEqual({ start: "2026-09-01T14:30:00" });
+  });
+
+  it("moves by the delta the hand made, not to the date that was dropped on", () => {
+    /*
+     * The month grid's cells are local days; the stored date is in the event's
+     * own zone. Writing the dropped-on date put a Tokyo event dropped on the
+     * 11th onto the 10th, because 15:00 in Tokyo is the previous evening in
+     * Phoenix — it went where its own calendar said, not where the pointer did.
+     */
+    const storedTokyo = "2026-09-04T15:00:00"; // shown to a Phoenix reader on the 3rd
+    const shownOn = new Date(2026, 8, 3);
+    const droppedOn = new Date(2026, 8, 11);
+    const patch = moveByDaysPatch(storedTokyo, dayDelta(shownOn, droppedOn));
+    // Eight days later in its own frame, so eight days later on screen too.
+    expect(patch).toEqual({ start: "2026-09-12T15:00:00" });
+  });
+
+  it("counts whole local days, ignoring the time on either side", () => {
+    expect(dayDelta(new Date(2026, 8, 3, 23, 30), new Date(2026, 8, 4, 0, 30))).toBe(1);
+    expect(dayDelta(new Date(2026, 8, 4), new Date(2026, 8, 4))).toBe(0);
+    expect(dayDelta(new Date(2026, 8, 11), new Date(2026, 8, 3))).toBe(-8);
+    expect(dayDelta(new Date(2026, 8, 30), new Date(2026, 9, 2))).toBe(2);
   });
 
   it("never sends a start for a resize, so the zone question does not arise", () => {
@@ -158,7 +182,8 @@ describe("the patch a drag sends, computed in the event's own frame", () => {
 
   it("says nothing at all about a start it cannot read", () => {
     expect(movePatch("not a date", 30)).toEqual({});
-    expect(moveToDayPatch("", new Date(2026, 8, 10))).toEqual({});
+    expect(moveByDaysPatch("", 3)).toEqual({});
+    expect(moveByDaysPatch("2026-09-04T14:00:00", Number.NaN)).toEqual({});
   });
 });
 

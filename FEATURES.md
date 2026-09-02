@@ -682,7 +682,11 @@ The editor is still there and still does everything a drag cannot.
   change that should go out with notice goes through the editor.
 - The new time is worked out **in the event's own frame** rather than through
   an instant: its stored wall clock is what moves, and its time zone is not
-  touched. Computing a new time from the reader's local hours and then
+  touched. A move in the month grid shifts it by the number of days the hand
+  moved it, rather than writing the date it was dropped on — those are the same
+  thing only while the event's zone is the reader's. An event kept in Tokyo and
+  read from Phoenix is drawn on the previous evening, so writing the dropped-on
+  date sent it a day earlier than the pointer went. Computing a new time from the reader's local hours and then
   re-expressing it in the event's zone converts twice, and the two do not
   cancel.
 
