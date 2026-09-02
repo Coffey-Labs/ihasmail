@@ -1401,3 +1401,6 @@ button.dp-open:disabled { cursor: default; opacity: .5; }
 
 /* The banner naming a sender from outside the organisation. */
 .remote-banner.external-banner { background: var(--warn-soft); border-color: var(--warn); }
+
+/* The line offering the whole folder once the page is selected. */
+.list-hint.select-all-hint { background: var(--accent-soft); color: var(--accent-soft-fg); }

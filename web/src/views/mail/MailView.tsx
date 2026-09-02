@@ -105,6 +105,7 @@ export function MailView({ mailboxId, threadId, search }: { mailboxId?: string; 
   const emails = useMail((s) => s.emails);
   const threads = useMail((s) => s.threads);
   const selected = useMail((s) => s.selected);
+  const selectedAll = useMail((s) => s.selectedAll);
 
   const rowThreadId = useCallback((rowId: Id) => emails[rowId]?.threadId, [emails]);
   const currentRowIndex = useMemo(() => {
@@ -118,7 +119,17 @@ export function MailView({ mailboxId, threadId, search }: { mailboxId?: string; 
 
   /** Email ids affected by an action on rows (selection or focused/open row). */
   const targetIds = useCallback(
-    (rowIds?: Id[]): Id[] => {
+    async (rowIds?: Id[]): Promise<Id[]> => {
+      /*
+       * Everything the query matches, rather than the rows that happen to be
+       * loaded. Resolved from the server here and not expanded below: the
+       * uncollapsed query already returns every message, and the expansion
+       * below walks loaded Email objects, which is exactly what these are not.
+       *
+       * Only when the action came from the selection. An action aimed at one
+       * row -- a right-click, a swipe -- means that row, whatever is ticked.
+       */
+      if (!rowIds && selectedAll) return await useMail.getState().queryAllIds();
       const rows = rowIds ?? (Object.keys(selected).length ? Object.keys(selected) : focusId ? [focusId] : threadId ? ids.filter((id) => rowThreadId(id) === threadId) : []);
       const out = new Set<Id>();
       for (const r of rows) {
@@ -132,7 +143,7 @@ export function MailView({ mailboxId, threadId, search }: { mailboxId?: string; 
       }
       return [...out];
     },
-    [selected, focusId, threadId, ids, rowThreadId, emails, threads, list],
+    [selected, selectedAll, focusId, threadId, ids, rowThreadId, emails, threads, list],
   );
 
   const afterAction = useCallback(
@@ -189,13 +200,13 @@ export function MailView({ mailboxId, threadId, search }: { mailboxId?: string; 
   const actions = useMemo(
     () => ({
       archive: async (rows?: Id[]) => {
-        const t = targetIds(rows);
+        const t = await targetIds(rows);
         if (!t.length) return;
         await useMail.getState().archive(t);
         afterAction(true);
       },
       trash: async (rows?: Id[]) => {
-        const t = targetIds(rows);
+        const t = await targetIds(rows);
         if (!t.length) return;
         const mail = useMail.getState();
         const trashId = mail.roleId("trash");
@@ -208,7 +219,7 @@ export function MailView({ mailboxId, threadId, search }: { mailboxId?: string; 
         afterAction(true);
       },
       spam: async (rows?: Id[]) => {
-        const t = targetIds(rows);
+        const t = await targetIds(rows);
         if (!t.length) return;
         const mail = useMail.getState();
         const junk = mail.roleId("junk");
@@ -217,20 +228,20 @@ export function MailView({ mailboxId, threadId, search }: { mailboxId?: string; 
         afterAction(true);
       },
       read: async (read: boolean, rows?: Id[]) => {
-        const t = targetIds(rows);
+        const t = await targetIds(rows);
         if (t.length) await useMail.getState().markRead(t, read);
         useMail.getState().clearSelection();
       },
       star: async (on: boolean, rows?: Id[]) => {
-        const t = targetIds(rows);
+        const t = await targetIds(rows);
         if (t.length) await useMail.getState().star(t, on);
       },
-      move: (rows?: Id[]) => {
-        const t = targetIds(rows);
+      move: async (rows?: Id[]) => {
+        const t = await targetIds(rows);
         if (t.length) setMovePicker({ ids: t });
       },
-      label: (rows: Id[] | undefined, anchor: { x: number; y: number }) => {
-        const t = targetIds(rows);
+      label: async (rows: Id[] | undefined, anchor: { x: number; y: number }) => {
+        const t = await targetIds(rows);
         if (t.length) setLabelPicker({ ids: t, anchor });
       },
       moveTo: async (ids: Id[], mailboxId: Id) => {
@@ -276,7 +287,7 @@ export function MailView({ mailboxId, threadId, search }: { mailboxId?: string; 
       { keys: "#", description: "Delete", group: "Actions", handler: () => void actions.trash() },
       { keys: "delete", description: "", group: "Actions", handler: () => void actions.trash() },
       { keys: "!", description: "Report spam / not spam", group: "Actions", handler: () => void actions.spam() },
-      { keys: "s", description: "Star / unstar", group: "Actions", handler: () => { const t = targetIds(); const on = !t.every((id) => emails[id]?.keywords.$flagged); void actions.star(on); } },
+      { keys: "s", description: "Star / unstar", group: "Actions", handler: () => { void (async () => { const t = await targetIds(); const on = !t.every((id) => emails[id]?.keywords.$flagged); void actions.star(on); })(); } },
       { keys: "shift+i", description: "Mark as read", group: "Actions", handler: () => void actions.read(true) },
       { keys: "shift+u", description: "Mark as unread", group: "Actions", handler: () => void actions.read(false) },
       { keys: "v", description: "Move to…", group: "Actions", handler: () => actions.move() },
