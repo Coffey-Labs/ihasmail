@@ -1244,6 +1244,24 @@ select optgroup { background-color: var(--bg-elev); color: var(--fg); }
    */
   .printing-one .message:not(.print-target) { display: none !important; }
   .printing-one .thread-subject > .muted { display: none !important; }
+  /*
+   * Printing from the file viewer. The dialog is the document: the mail or the
+   * file listing behind it is not what was asked for, and the chrome of the
+   * dialog itself -- title bar, Print and Download buttons -- is not part of
+   * the file. A PDF never comes through here; it prints itself from its own
+   * iframe (see ui/filepreview.tsx).
+   */
+  /* The dialog is portalled to <body>, so the whole app goes -- hiding `.app`
+     alone left `#root` holding its `height: 100%` and printing a blank first
+     page, the same way `break-inside` did on a message. */
+  .printing-preview #root { display: none !important; }
+  .printing-preview body { height: auto !important; }
+  .printing-preview .dialog-backdrop { position: static !important; display: block !important; padding: 0 !important; background: none !important; backdrop-filter: none !important; animation: none !important; }
+  .printing-preview .dialog { max-width: none !important; max-height: none !important; border: 0 !important; box-shadow: none !important; animation: none !important; background: none !important; }
+  .printing-preview .dialog-head, .printing-preview .dialog-foot { display: none !important; }
+  .printing-preview .dialog-body { padding: 0 !important; overflow: visible !important; }
+  .printing-preview .dialog-body .code { max-height: none !important; overflow: visible !important; border: 0 !important; padding: 0 !important; }
+  .printing-preview .dialog-body img { max-height: none !important; }
   .print-only { display: block; }
   body { background: #fff; color: #000; }
 }
