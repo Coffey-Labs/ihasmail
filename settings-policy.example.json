@@ -1,0 +1,56 @@
+{
+  "_comment": [
+    "A settings policy: what this installation decides, rather than each reader.",
+    "Point at it with SETTINGS_POLICY_FILE=/etc/ihasmail/policy.json and mount it",
+    "read-only. Read once at startup, so editing it means restarting.",
+    "Delete the sections you do not want -- all three are optional, and an",
+    "installation that sets none of them behaves exactly as ihasmail always has.",
+    "Keys and values are the ones a settings export uses: configure one account",
+    "by hand, Settings > General > Export, and copy out what you care about.",
+    "Docs: https://docs.ihasmail.org/configure/#settings-your-installation-decides"
+  ],
+
+  "_defaults_comment": [
+    "A starting point for accounts that have never had settings of their own.",
+    "The reader can change any of these afterwards. An account that already",
+    "exists never sees them -- use `changes` below to reach those."
+  ],
+  "defaults": {
+    "externalSenderBanner": true,
+    "conversationMode": true
+  },
+
+  "_enforced_comment": [
+    "Reapplied on every load, and the reader cannot change them at all. Their",
+    "controls stay visible in Settings and go dead with a line saying why.",
+    "Reset, an imported settings file, and a settings file synced from a device",
+    "that predates this policy all cannot get around them."
+  ],
+  "enforced": {
+    "externalRecipientConfirm": true
+  },
+
+  "_changes_comment": [
+    "Applied once each, to everybody, including accounts that already exist --",
+    "and the reader may change them back afterwards, which sticks.",
+    "",
+    "Each entry needs a `version` that is unique in this file. It is opaque: a",
+    "timestamp sorts and never repeats, but any unique string works. Every",
+    "account remembers the versions it has had, so a change runs exactly once",
+    "per person -- not once per browser.",
+    "",
+    "Note that a change DOES override a decision a reader has already made. That",
+    "is the point of it: it reaches people who are already here. If you want it",
+    "to stay on regardless of what they do next, that is `enforced`, not this."
+  ],
+  "changes": [
+    {
+      "version": "20260902084513",
+      "settings": { "externalSenderBanner": true }
+    },
+    {
+      "version": "20261014091500",
+      "settings": { "externalLinkWarning": true }
+    }
+  ]
+}
