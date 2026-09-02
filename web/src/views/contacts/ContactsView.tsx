@@ -136,10 +136,19 @@ export function ContactsView({ id }: { id?: string }) {
        * LDIF may arrive as .ldif, .ldi, .txt or with no extension at all, and
        * the name is the least reliable thing about it.
        */
-      const n = /^\s*BEGIN:VCARD/im.test(text)
+      const { created, skipped } = /^\s*BEGIN:VCARD/im.test(text)
         ? await contacts.importVCard(text, book.id)
         : await contacts.importLdif(text, book.id);
-      toast.success(plural(n, { one: "Imported {n} contact", other: "Imported {n} contacts" }));
+      /*
+       * The two counts kept apart, as the calendar import keeps them: "Imported
+       * 3 contacts" over a file of two hundred reads as a failure when the rest
+       * were simply already here, and a re-import of an unchanged export would
+       * otherwise report importing nothing at all.
+       */
+      const imported = plural(created, { one: "Imported {n} contact", other: "Imported {n} contacts" });
+      if (!created) toast.success(plural(skipped, { one: "Already here: {n} contact, nothing imported", other: "Already here: {n} contacts, nothing imported" }));
+      else if (skipped) toast.success(`${imported} · ${plural(skipped, { one: "{n} was already here", other: "{n} were already here" })}`);
+      else toast.success(imported);
     } catch (err) {
       toast.error(translate("Could not import this file: {error}", { error: (err as Error).message }));
     }

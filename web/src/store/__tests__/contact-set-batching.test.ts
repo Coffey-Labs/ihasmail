@@ -100,14 +100,14 @@ afterEach(() => {
 describe("importing an LDIF bigger than the server will take at once", () => {
   it("splits it into calls the server will accept, and files all of it", async () => {
     const sets = server({ max: MAX });
-    await expect(useContacts.getState().importLdif(ldifOf(1200), "book1")).resolves.toBe(1200);
+    await expect(useContacts.getState().importLdif(ldifOf(1200), "book1")).resolves.toEqual({ created: 1200, skipped: 0 });
     expect(sizes(sets)).toEqual([500, 500, 200]);
   });
 
   it("splits by what the session advertises, not by a number of its own", async () => {
     client.session!.capabilities[CAP.core] = { maxObjectsInGet: 40, maxObjectsInSet: 40 };
     const sets = server({ max: 40 });
-    await expect(useContacts.getState().importLdif(ldifOf(100), "book1")).resolves.toBe(100);
+    await expect(useContacts.getState().importLdif(ldifOf(100), "book1")).resolves.toEqual({ created: 100, skipped: 0 });
     expect(sizes(sets)).toEqual([40, 40, 20]);
   });
 
@@ -134,7 +134,7 @@ describe("importing an LDIF bigger than the server will take at once", () => {
 describe("importing a vCard file bigger than the server will take at once", () => {
   it("splits it into calls the server will accept, and files all of it", async () => {
     const sets = server({ max: MAX, parsed: vcardsOf(1200) });
-    await expect(useContacts.getState().importVCard("BEGIN:VCARD", "book1")).resolves.toBe(1200);
+    await expect(useContacts.getState().importVCard("BEGIN:VCARD", "book1")).resolves.toEqual({ created: 1200, skipped: 0 });
     expect(sizes(sets)).toEqual([500, 500, 200]);
   });
 
@@ -155,7 +155,7 @@ describe("importing a vCard file bigger than the server will take at once", () =
 
   it("counts what got in when only some of it did", async () => {
     server({ max: MAX, parsed: vcardsOf(2), notCreated: { c1: { type: "invalidProperties" } } });
-    await expect(useContacts.getState().importVCard("BEGIN:VCARD", "book1")).resolves.toBe(1);
+    await expect(useContacts.getState().importVCard("BEGIN:VCARD", "book1")).resolves.toEqual({ created: 1, skipped: 0 });
   });
 });
 

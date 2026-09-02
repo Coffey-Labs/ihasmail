@@ -1047,6 +1047,8 @@ export const catalog: Catalog = {
     "Nothing unread here": "Hier is niets ongelezen",
   },
   plurals: {
+    "Already here: {n} contacts, nothing imported": { one: "Al aanwezig: {n} contact, niets geïmporteerd", other: "Al aanwezig: {n} contacten, niets geïmporteerd" },
+    "All {n} are already in your contacts": { one: "Staat al in uw contacten", other: "Alle {n} staan al in uw contacten" },
     "Exported {n} events": { one: "{n} afspraak geëxporteerd", other: "{n} afspraken geëxporteerd" },
     "Imported {n} events": { one: "{n} afspraak geïmporteerd", other: "{n} afspraken geïmporteerd" },
     "Already here: {n} events, nothing imported": { one: "Al aanwezig: {n} afspraak, niets geïmporteerd", other: "Al aanwezig: {n} afspraken, niets geïmporteerd" },

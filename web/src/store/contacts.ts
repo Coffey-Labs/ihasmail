@@ -28,6 +28,37 @@ import { useMail } from "./mail";
  *
  * [#173]: https://github.com/Coffey-Labs/ihasmail/issues/173
  */
+/**
+ * The UIDs an address book already holds.
+ *
+ * Read once per import rather than once per card, and narrowed to the target
+ * book from `addressBookIds` here rather than through a filter -- the same
+ * arrangement, and for the same reasons, as the calendar's scan in #222.
+ *
+ * Asked of the server rather than read from the cards already in the store.
+ * The store's copy is complete once the view has loaded, and importing is not
+ * something that waits for a view: a scan that is right whatever the client
+ * happens to be holding costs one pass over a list nobody imports into twice a
+ * day.
+ */
+async function uidsInBook(accountId: Id, addressBookId: Id): Promise<Set<string>> {
+  const uids = new Set<string>();
+  const page = client.maxObjectsInGet;
+  for (let position = 0; ; ) {
+    const q = await client.call<QueryResponse>("ContactCard/query", { accountId, position, limit: page, calculateTotal: true });
+    const ids = q.ids ?? [];
+    if (!ids.length) break;
+    for (const part of chunk(ids, page)) {
+      const g = await client.call<GetResponse<ContactCard>>("ContactCard/get", { accountId, ids: part, properties: ["uid", "addressBookIds"] });
+      for (const c of g.list) if (c.uid && c.addressBookIds?.[addressBookId]) uids.add(c.uid);
+    }
+    position += ids.length;
+    // `total` is optional, so the empty page above is what actually ends this.
+    if (q.total != null && position >= q.total) break;
+  }
+  return uids;
+}
+
 async function createCards(accountId: Id, create: Record<string, unknown>): Promise<{ created: number; refused?: SetError }> {
   const keys = Object.keys(create);
   let created = 0;
@@ -122,9 +153,16 @@ interface ContactsState {
   createBook(name: string): Promise<Id>;
   updateBook(id: Id, patch: Partial<AddressBook>): Promise<void>;
   destroyBook(id: Id): Promise<void>;
-  importVCard(text: string, addressBookId: Id): Promise<number>;
-  /** Import an address book in LDIF, read against Mozilla's schema. */
-  importLdif(text: string, addressBookId: Id): Promise<number>;
+  /** Import vCards, skipping any whose UID this book already holds. */
+  importVCard(text: string, addressBookId: Id): Promise<{ created: number; skipped: number }>;
+  /**
+   * Import an address book in LDIF, read against Mozilla's schema.
+   *
+   * `skipped` is always 0: Mozilla's schema has no UID, so there is nothing to
+   * recognise a re-import by. Answered in the same shape as the vCard import so
+   * the caller does not have to know which one it called.
+   */
+  importLdif(text: string, addressBookId: Id): Promise<{ created: number; skipped: number }>;
   loadPrincipals(): Promise<void>;
   suggest(query: string, limit?: number): Promise<Suggestion[]>;
   addRecent(addrs: EmailAddress[]): void;
@@ -422,18 +460,37 @@ export const useContacts = create<ContactsState>((set, get) => ({
     const entry = parsed.parsed?.[up.blobId];
     const cards: ContactCard[] = entry ? (Array.isArray(entry) ? entry : [entry]) : [];
     if (!cards.length) throw new Error("No contacts found in file");
+    const already = await uidsInBook(accountId, addressBookId);
     const create: Record<string, unknown> = {};
+    let skipped = 0;
     cards.forEach((c, i) => {
       const { id: _id, addressBookIds: _ab, ...rest } = c as ContactCard & { id?: Id };
+      /*
+       * A vCard UID is an identity its author meant, so a card whose UID this
+       * book already holds is the same card and re-importing an export used to
+       * leave a second copy of every one of them. Asked for on #174 after the
+       * reporter's colleague hit it, and decided on #173 for events: skip on a
+       * UID that is already here, import what arrives without one, since
+       * nothing can be matched on an identity that is not there.
+       */
+      if (rest.uid && already.has(rest.uid)) {
+        skipped++;
+        return;
+      }
       create[`c${i}`] = { ...rest, uid: rest.uid || crypto.randomUUID(), addressBookIds: { [addressBookId]: true } };
     });
+    // The whole file was already here. Nothing to send, and nothing wrong.
+    if (!Object.keys(create).length) {
+      await get().loadAll();
+      return { created: 0, skipped };
+    }
     try {
       const { created, refused } = await createCards(accountId, create);
       // Nothing at all got in: say why rather than report importing none as
       // though the file had been empty. The LDIF import said this already; a
       // vCard import that quietly returned 0 was the odd one out.
       if (!created) throw new Error(refused ? setErrorMessage(refused) : "the server did not accept any of its contacts");
-      return created;
+      return { created, skipped };
     } finally {
       await get().loadAll();
     }
@@ -467,7 +524,13 @@ export const useContacts = create<ContactsState>((set, get) => ({
     } finally {
       await get().loadAll();
     }
-    return created;
+    /*
+     * Nothing skipped, and nothing that could be. The UID above is invented
+     * here because Mozilla's schema does not define one, so a re-import has no
+     * identity to be recognised by -- see #223, where whether to guess at one
+     * from a name and an address is still an open question.
+     */
+    return { created, skipped: 0 };
   },
 
   async loadPrincipals() {

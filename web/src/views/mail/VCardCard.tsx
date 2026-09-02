@@ -17,9 +17,15 @@ export function VCardCard({ part, accountId }: { part: EmailBodyPart; accountId:
       const text = await client.fetchBlobText(accountId, part.blobId!, "text/vcard");
       const book = Object.values(contacts.books).find((b) => b.isDefault) ?? Object.values(contacts.books)[0];
       if (!book) throw new Error("No address book available");
-      const n = await contacts.importVCard(text, book.id);
+      const { created, skipped } = await contacts.importVCard(text, book.id);
       setDone(true);
-      toast.success(plural(n, { one: "Added {n} contact", other: "Added {n} contacts" }));
+      /*
+       * A card attached to a message is usually one you have already been sent
+       * once. Saying "Added 0 contacts" for that would read as a failure; it is
+       * the opposite -- there was nothing to do.
+       */
+      if (!created && skipped) toast.success(plural(skipped, { one: "Already in your contacts", other: "All {n} are already in your contacts" }));
+      else toast.success(plural(created, { one: "Added {n} contact", other: "Added {n} contacts" }));
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
