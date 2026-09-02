@@ -10,6 +10,7 @@ import { useContacts } from "@/store/contacts";
 import { useCalendar } from "@/store/calendar";
 import { startAppointment } from "@/lib/appointment";
 import { client } from "@/jmap/client";
+import { emlFilename } from "@/lib/emlName";
 import { formatFullDate, formatListDate, formatSize } from "@/lib/format";
 import { displayName, formatAddress } from "@/lib/address";
 import { EMAIL_BASE_CSS, TEXT_EMAIL_CSS, htmlDeclaresColors, sanitizeEmailHtml } from "@/lib/html";
@@ -126,7 +127,7 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
 
   const downloadEml = () => {
     const a = document.createElement("a");
-    a.href = client.downloadUrl(accountId, e.blobId, `${(e.subject || "message").replace(/[^\w.-]+/g, "_")}.eml`, "message/rfc822");
+    a.href = client.downloadUrl(accountId, e.blobId, emlFilename(e.subject), "message/rfc822");
     a.download = "";
     a.click();
   };
@@ -229,6 +230,9 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
         <MenuItem icon={<Reply size={16} />} label={translate("Reply")} onClick={() => void reply(e, "reply")} />
         <MenuItem icon={<ReplyAll size={16} />} label={translate("Reply all")} onClick={() => void reply(e, "replyAll")} />
         <MenuItem icon={<Forward size={16} />} label={translate("Forward")} onClick={() => void reply(e, "forward")} />
+        {/* The same message rather than a quotation of it: headers, attachments
+            and all, for passing one on to be looked at rather than read. */}
+        <MenuItem icon={<Paperclip size={16} />} label={translate("Forward as attachment")} onClick={() => useCompose.getState().forwardAsAttachment(e)} />
         {/* Sends the same mail again rather than passing it on, so it sits with
             the other three rather than down among the read-only actions. */}
         <MenuItem icon={<MailPlus size={16} />} label={translate("Compose as new")} onClick={() => void useCompose.getState().composeAsNew(e)} />

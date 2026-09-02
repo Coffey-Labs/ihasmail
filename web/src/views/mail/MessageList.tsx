@@ -475,6 +475,7 @@ export function MessageList({ title, list, openThreadId, focusId, setFocusId, on
       <Popover anchor={ctxMenu.anchor} onClose={ctxMenu.close} width={250}>
         <MenuItem icon={<Reply size={16} />} label={t("Reply")} onClick={() => { const e = ctxRow ? emails[ctxRow] : undefined; if (e) void useCompose.getState().reply(e, "reply"); }} />
         <MenuItem icon={<Forward size={16} />} label={t("Forward")} onClick={() => { const e = ctxRow ? emails[ctxRow] : undefined; if (e) void useCompose.getState().reply(e, "forward"); }} />
+        <MenuItem icon={<Paperclip size={16} />} label={t("Forward as attachment")} onClick={() => { const e = ctxRow ? emails[ctxRow] : undefined; if (e) useCompose.getState().forwardAsAttachment(e); }} />
         <MenuItem icon={<MailPlus size={16} />} label={t("Compose as new")} onClick={() => { const e = ctxRow ? emails[ctxRow] : undefined; if (e) void useCompose.getState().composeAsNew(e); }} />
         <MenuSep />
         <MenuItem icon={<Archive size={16} />} label={t("Archive")} kbd="e" onClick={() => void actions.archive(ctxTargets)} />

@@ -11,6 +11,7 @@ import { ensureScheduledMailbox, useScheduled } from "./scheduled";
 import { formatScheduleTime, holdUntil } from "@/lib/schedule";
 import { t as translate } from "@/lib/i18n";
 import { settings } from "./settings";
+import { emlFilename } from "@/lib/emlName";
 
 export interface ComposeAttachment {
   id: string;
@@ -84,6 +85,8 @@ interface ComposeState {
   /** Open a message again as a mail that has not been sent yet. */
   composeAsNew(email: Email): Promise<string>;
   reply(email: Email, mode: "reply" | "replyAll" | "forward", opts?: { all?: boolean }): Promise<string>;
+  /** Forward the message whole, as an attachment, rather than quoted into a new one. */
+  forwardAsAttachment(email: Email): string;
   update(key: string, patch: Partial<Draft>): void;
   close(key: string, opts?: { discard?: boolean }): Promise<void>;
   focus(key: string): void;
@@ -379,6 +382,29 @@ export const useCompose = create<ComposeState>((set, get) => ({
     });
     set((st) => ({ drafts: [...st.drafts, d], activeKey: d.key }));
     return d.key;
+  },
+
+  forwardAsAttachment(email) {
+    const accountId = useMail.getState().accountId;
+    const key = get().open({
+      subject: replySubject(email.subject, "Fwd"),
+      relatedEmailId: email.id,
+      relatedKeyword: "$forwarded",
+      replyMode: "forward",
+    });
+    // A message's own blobId *is* its RFC822 blob, and it already lives in this
+    // account -- so this goes through the same path as attach-from-Files and
+    // uploads nothing at all, however large the message.
+    //
+    // It inherits that path's size check as well, which is measured against
+    // `maxSizeUpload` even though nothing is being uploaded. That is worth
+    // knowing rather than working around here: the check belongs to
+    // `addFromFiles` and applies to every by-reference attachment, so if it is
+    // wrong it is wrong in one place and should be fixed there.
+    if (accountId) {
+      void get().addFromFiles(key, [{ accountId, name: emlFilename(email.subject), type: "message/rfc822", size: email.size, blobId: email.blobId }]);
+    }
+    return key;
   },
 
   update(key, patch) {
