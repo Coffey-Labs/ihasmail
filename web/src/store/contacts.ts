@@ -41,8 +41,10 @@ import { useMail } from "./mail";
  * happens to be holding costs one pass over a list nobody imports into twice a
  * day.
  */
-async function scanBook(accountId: Id, addressBookId: Id): Promise<{ uids: Set<string>; likeness: Set<string> }> {
-  const uids = new Set<string>();
+async function scanBook(accountId: Id, addressBookId: Id): Promise<{ byUid: Map<string, Id>; likeness: Set<string> }> {
+  /* The id as well as the UID, because a card that is already here is now
+     updated rather than skipped, and updating needs something to address. */
+  const byUid = new Map<string, Id>();
   const likeness = new Set<string>();
   const page = client.maxObjectsInGet;
   for (let position = 0; ; ) {
@@ -53,7 +55,7 @@ async function scanBook(accountId: Id, addressBookId: Id): Promise<{ uids: Set<s
       const g = await client.call<GetResponse<ContactCard>>("ContactCard/get", { accountId, ids: part, properties: ["uid", "addressBookIds", "name", "emails"] });
       for (const c of g.list) {
         if (!c.addressBookIds?.[addressBookId]) continue;
-        if (c.uid) uids.add(c.uid);
+        if (c.uid && !byUid.has(c.uid)) byUid.set(c.uid, c.id);
         for (const key of likenessKeys(c)) likeness.add(key);
       }
     }
@@ -61,7 +63,7 @@ async function scanBook(accountId: Id, addressBookId: Id): Promise<{ uids: Set<s
     // `total` is optional, so the empty page above is what actually ends this.
     if (q.total != null && position >= q.total) break;
   }
-  return { uids, likeness };
+  return { byUid, likeness };
 }
 
 /**
@@ -90,27 +92,47 @@ function likenessKeys(c: Partial<ContactCard>): string[] {
   return addresses.map((a) => `${name}\u0000${a}`);
 }
 
-async function createCards(accountId: Id, create: Record<string, unknown>): Promise<{ created: number; refused?: SetError }> {
-  const keys = Object.keys(create);
+async function writeCards(
+  accountId: Id,
+  create: Record<string, unknown>,
+  update: Record<Id, unknown> = {},
+): Promise<{ created: number; updated: number; refused?: SetError }> {
+  /*
+   * Creates and updates share one budget. Stalwart counts every object in a
+   * `/set` against `maxObjectsInSet` -- creates, updates and destroys together
+   * -- so batching them separately would let a file of 300 new and 300 changed
+   * cards through as two calls of 300 and be refused for a limit of 500 that
+   * neither half exceeds.
+   */
+  const keys = [
+    ...Object.keys(create).map((k) => ["create", k] as const),
+    ...Object.keys(update).map((k) => ["update", k] as const),
+  ];
   let created = 0;
+  let updated = 0;
   let refused: SetError | undefined;
   for (const part of chunk(keys, client.maxObjectsInSet)) {
-    const sub: Record<string, unknown> = {};
-    for (const k of part) sub[k] = create[k];
+    const subCreate: Record<string, unknown> = {};
+    const subUpdate: Record<string, unknown> = {};
+    for (const [kind, k] of part) {
+      if (kind === "create") subCreate[k] = create[k];
+      else subUpdate[k] = update[k];
+    }
     let res: SetResponse<ContactCard>;
     try {
-      res = await client.call<SetResponse<ContactCard>>("ContactCard/set", { accountId, create: sub });
+      res = await client.call<SetResponse<ContactCard>>("ContactCard/set", { accountId, create: subCreate, update: subUpdate });
     } catch (err) {
       // A batch that failed with earlier ones already filed: those contacts are
       // in the address book, and an error saying only that the import failed
       // sends someone looking for contacts that are already there.
-      if (!created) throw err;
-      throw new Error(`${created} of ${keys.length} contacts were imported before this happened: ${(err as Error).message}`);
+      if (!created && !updated) throw err;
+      throw new Error(`${created + updated} of ${keys.length} contacts were imported before this happened: ${(err as Error).message}`);
     }
     created += Object.keys(res.created ?? {}).length;
-    refused ??= Object.values(res.notCreated ?? {})[0];
+    updated += Object.keys(res.updated ?? {}).length;
+    refused ??= Object.values(res.notCreated ?? {})[0] ?? Object.values(res.notUpdated ?? {})[0];
   }
-  return { created, refused };
+  return { created, updated, refused };
 }
 
 export interface Suggestion {
@@ -184,16 +206,17 @@ interface ContactsState {
   createBook(name: string): Promise<Id>;
   updateBook(id: Id, patch: Partial<AddressBook>): Promise<void>;
   destroyBook(id: Id): Promise<void>;
-  /** Import vCards, skipping any whose UID this book already holds. */
-  importVCard(text: string, addressBookId: Id): Promise<{ created: number; skipped: number; alike: number }>;
+  /** Import vCards, updating any whose UID this book already holds rather than duplicating it. */
+  importVCard(text: string, addressBookId: Id): Promise<{ created: number; updated: number; alike: number }>;
   /**
    * Import an address book in LDIF, read against Mozilla's schema.
    *
-   * `skipped` is always 0: Mozilla's schema has no UID, so there is nothing to
-   * recognise a re-import by. Answered in the same shape as the vCard import so
-   * the caller does not have to know which one it called.
+   * `updated` is always 0: Mozilla's schema has no UID, so there is nothing to
+   * recognise a re-import by and everything arrives as new. `alike` says how
+   * many look like cards already here without acting on it. Answered in the
+   * same shape as the vCard import so the caller need not know which it called.
    */
-  importLdif(text: string, addressBookId: Id): Promise<{ created: number; skipped: number; alike: number }>;
+  importLdif(text: string, addressBookId: Id): Promise<{ created: number; updated: number; alike: number }>;
   loadPrincipals(): Promise<void>;
   suggest(query: string, limit?: number): Promise<Suggestion[]>;
   addRecent(addrs: EmailAddress[]): void;
@@ -491,39 +514,44 @@ export const useContacts = create<ContactsState>((set, get) => ({
     const entry = parsed.parsed?.[up.blobId];
     const cards: ContactCard[] = entry ? (Array.isArray(entry) ? entry : [entry]) : [];
     if (!cards.length) throw new Error("No contacts found in file");
-    const already = (await scanBook(accountId, addressBookId)).uids;
+    const { byUid } = await scanBook(accountId, addressBookId);
     const create: Record<string, unknown> = {};
-    let skipped = 0;
+    const update: Record<Id, unknown> = {};
     cards.forEach((c, i) => {
       const { id: _id, addressBookIds: _ab, ...rest } = c as ContactCard & { id?: Id };
       /*
        * A vCard UID is an identity its author meant, so a card whose UID this
-       * book already holds is the same card and re-importing an export used to
-       * leave a second copy of every one of them. Asked for on #174 after the
-       * reporter's colleague hit it, and decided on #173 for events: skip on a
-       * UID that is already here, import what arrives without one, since
-       * nothing can be matched on an identity that is not there.
+       * book already holds is that card -- and the newer version of it wins.
+       *
+       * It used to be skipped. The reporter asked for the opposite on #174 and
+       * he is right: the reason to import a file a second time is usually that
+       * the first one was not right, and skipping means a corrected export
+       * corrects nothing.
+       *
+       * A merge, not a replacement. Properties the file carries overwrite what
+       * is here; properties it does not mention are left alone, so a phone
+       * number somebody added in ihasmail after the first import survives a
+       * re-import of the original file. The cost is that a field genuinely
+       * deleted at the source stays here -- worth it, because the other way
+       * round loses work nobody asked to lose.
        */
-      if (rest.uid && already.has(rest.uid)) {
-        skipped++;
+      const existing = rest.uid ? byUid.get(rest.uid) : undefined;
+      if (existing) {
+        update[existing] = { ...rest, addressBookIds: undefined };
+        delete (update[existing] as Record<string, unknown>).addressBookIds;
         return;
       }
       create[`c${i}`] = { ...rest, uid: rest.uid || crypto.randomUUID(), addressBookIds: { [addressBookId]: true } };
     });
-    // The whole file was already here. Nothing to send, and nothing wrong.
-    if (!Object.keys(create).length) {
-      await get().loadAll();
-      return { created: 0, skipped, alike: 0 };
-    }
     try {
-      const { created, refused } = await createCards(accountId, create);
+      const { created, updated, refused } = await writeCards(accountId, create, update);
       // Nothing at all got in: say why rather than report importing none as
       // though the file had been empty. The LDIF import said this already; a
       // vCard import that quietly returned 0 was the odd one out.
-      if (!created) throw new Error(refused ? setErrorMessage(refused) : "the server did not accept any of its contacts");
-      /* No likeness count here: a vCard carries a UID, so anything that was
-         already present was skipped by name above rather than guessed at. */
-      return { created, skipped, alike: 0 };
+      if (!created && !updated) throw new Error(refused ? setErrorMessage(refused) : "the server did not accept any of its contacts");
+      /* No likeness count: a vCard carries a UID, so anything already here was
+         matched on it rather than guessed at. */
+      return { created, updated, alike: 0 };
     } finally {
       await get().loadAll();
     }
@@ -559,7 +587,7 @@ export const useContacts = create<ContactsState>((set, get) => ({
     });
     let created: number;
     try {
-      const r = await createCards(accountId, create);
+      const r = await writeCards(accountId, create);
       created = r.created;
       if (!created) throw new Error(r.refused ? setErrorMessage(r.refused) : "the server did not accept any of its contacts");
     } finally {
@@ -576,7 +604,7 @@ export const useContacts = create<ContactsState>((set, get) => ({
      * card was imported -- and it is the confusion rather than the duplication
      * that was reported as the harm.
      */
-    return { created, skipped: 0, alike };
+    return { created, updated: 0, alike };
   },
 
   async loadPrincipals() {

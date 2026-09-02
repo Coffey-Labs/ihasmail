@@ -1061,10 +1061,11 @@ export const catalog: Catalog = {
     "Nothing unread here": "ここに未読はありません",
   },
   plurals: {
+    "Updated {n} contacts, nothing new": { other: "{n} 件の連絡先を更新しました。新規はありません" },
+    "{n} updated": { other: "{n} 件を更新" },
+    "Updated {n} contacts you already had": { other: "すでにある連絡先 {n} 件を更新しました" },
     "{n} of them look like contacts you already had": { other: "うち {n} 件はすでにある連絡先に似ています" },
     "Your administrator changed {n} settings": { other: "管理者が {n} 件の設定を変更しました" },
-    "Already here: {n} contacts, nothing imported": { other: "すでに存在: {n} 件、インポートなし" },
-    "All {n} are already in your contacts": { other: "{n} 件はすでに連絡先にあります" },
     "Exported {n} events": { other: "{n} 件の予定をエクスポートしました" },
     "Imported {n} events": { other: "{n} 件の予定をインポートしました" },
     "Already here: {n} events, nothing imported": { other: "すでに存在: {n} 件、インポートなし" },

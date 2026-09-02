@@ -72,7 +72,7 @@ describe("telling somebody what an LDIF re-import duplicated", () => {
   it("counts an entry that matches an existing card on name and address", async () => {
     server([card("c1", "Jane Doe", "jane@example.com")]);
     const r = await useContacts.getState().importLdif(entry("Jane Doe", "jane@example.com"), "book1");
-    expect(r).toEqual({ created: 1, skipped: 0, alike: 1 });
+    expect(r).toEqual({ created: 1, updated: 0, alike: 1 });
   });
 
   it("imports it anyway, which is the whole point of counting rather than matching", async () => {
@@ -124,7 +124,7 @@ describe("telling somebody what an LDIF re-import duplicated", () => {
   it("counts nothing against an empty book", async () => {
     server([]);
     const r = await useContacts.getState().importLdif(entry("Jane Doe", "jane@example.com"), "book1");
-    expect(r).toEqual({ created: 1, skipped: 0, alike: 0 });
+    expect(r).toEqual({ created: 1, updated: 0, alike: 0 });
   });
 
   it("does not count the file against itself", async () => {
@@ -133,6 +133,6 @@ describe("telling somebody what an LDIF re-import duplicated", () => {
     server([]);
     const twice = entry("Jane Doe", "jane@example.com") + "\n" + entry("Jane Doe", "jane@example.com");
     const r = await useContacts.getState().importLdif(twice, "book1");
-    expect(r).toEqual({ created: 2, skipped: 0, alike: 0 });
+    expect(r).toEqual({ created: 2, updated: 0, alike: 0 });
   });
 });

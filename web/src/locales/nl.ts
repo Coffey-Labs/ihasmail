@@ -1049,10 +1049,11 @@ export const catalog: Catalog = {
     "Nothing unread here": "Hier is niets ongelezen",
   },
   plurals: {
+    "Updated {n} contacts, nothing new": { one: "{n} contact bijgewerkt, niets nieuws", other: "{n} contacten bijgewerkt, niets nieuws" },
+    "{n} updated": { one: "{n} bijgewerkt", other: "{n} bijgewerkt" },
+    "Updated {n} contacts you already had": { one: "Bestaand contact bijgewerkt", other: "{n} bestaande contacten bijgewerkt" },
     "{n} of them look like contacts you already had": { one: "{n} daarvan lijkt op een contact dat u al had", other: "{n} daarvan lijken op contacten die u al had" },
     "Your administrator changed {n} settings": { one: "Uw beheerder heeft {n} instelling gewijzigd", other: "Uw beheerder heeft {n} instellingen gewijzigd" },
-    "Already here: {n} contacts, nothing imported": { one: "Al aanwezig: {n} contact, niets geïmporteerd", other: "Al aanwezig: {n} contacten, niets geïmporteerd" },
-    "All {n} are already in your contacts": { one: "Staat al in uw contacten", other: "Alle {n} staan al in uw contacten" },
     "Exported {n} events": { one: "{n} afspraak geëxporteerd", other: "{n} afspraken geëxporteerd" },
     "Imported {n} events": { one: "{n} afspraak geïmporteerd", other: "{n} afspraken geïmporteerd" },
     "Already here: {n} events, nothing imported": { one: "Al aanwezig: {n} afspraak, niets geïmporteerd", other: "Al aanwezig: {n} afspraken, niets geïmporteerd" },

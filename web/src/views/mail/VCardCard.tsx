@@ -17,14 +17,15 @@ export function VCardCard({ part, accountId }: { part: EmailBodyPart; accountId:
       const text = await client.fetchBlobText(accountId, part.blobId!, "text/vcard");
       const book = Object.values(contacts.books).find((b) => b.isDefault) ?? Object.values(contacts.books)[0];
       if (!book) throw new Error("No address book available");
-      const { created, skipped } = await contacts.importVCard(text, book.id);
+      const { created, updated } = await contacts.importVCard(text, book.id);
       setDone(true);
       /*
-       * A card attached to a message is usually one you have already been sent
-       * once. Saying "Added 0 contacts" for that would read as a failure; it is
-       * the opposite -- there was nothing to do.
+       * A card attached to a message is usually one you already have, and now
+       * the newer copy wins rather than being dropped -- so the message says it
+       * was brought up to date. "Added 0 contacts" would read as a failure when
+       * the opposite happened.
        */
-      if (!created && skipped) toast.success(plural(skipped, { one: "Already in your contacts", other: "All {n} are already in your contacts" }));
+      if (!created && updated) toast.success(plural(updated, { one: "Updated the contact you already had", other: "Updated {n} contacts you already had" }));
       else toast.success(plural(created, { one: "Added {n} contact", other: "Added {n} contacts" }));
     } catch (err) {
       toast.error((err as Error).message);
