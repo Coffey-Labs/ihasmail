@@ -9,7 +9,7 @@ import { useFiles } from "@/store/files";
 import { useSieve } from "@/store/sieve";
 import { push } from "@/jmap/push";
 import { client } from "@/jmap/client";
-import { ToastHost } from "@/ui/toast";
+import { ToastHost, toast } from "@/ui/toast";
 import { ConfirmHost } from "@/ui/dialog";
 import { Spinner } from "@/ui/misc";
 import { LoginPage } from "@/views/Login";
@@ -21,9 +21,9 @@ import { PAINTED_FROM_CACHE, useSettings, syncedPart } from "@/store/settings";
 import { armSettingsSync, loadRemoteSettings, queueSettingsPush, settingsAlreadyLoadedFor, settingsSyncAvailable } from "@/lib/settingsSync";
 import { loadSettingsPolicy } from "@/lib/settingsPolicy";
 import { listenForVerification, renewWebPush } from "@/lib/webpushEnable";
-import { useLanguageVersion, whenLanguageReady } from "@/lib/i18n";
+import { plural, t, useLanguageVersion, whenLanguageReady } from "@/lib/i18n";
 import { confirmLeaveUnsaved, hasUnsavedChanges } from "@/lib/unsavedChanges";
-import { BASE_PATH } from "@/lib/basePath";
+import { BASE_PATH, withBase } from "@/lib/basePath";
 
 const ContactsView = lazy(() => import("@/views/contacts/ContactsView").then((m) => ({ default: m.ContactsView })));
 const CalendarView = lazy(() => import("@/views/calendar/CalendarView").then((m) => ({ default: m.CalendarView })));
@@ -157,6 +157,19 @@ function AuthedApp() {
       // the installation's defaults are what it starts on rather than
       // ihasmail's. Issue #207.
       else useSettings.getState().seedFromPolicy();
+      /*
+       * After both, and for everybody: a change the installation wants applied
+       * once has to reach accounts that already exist, which is the whole of
+       * why it is not just a default. Each is remembered, so a reader who turns
+       * one back off keeps it off. Issue #207.
+       */
+      const applied = useSettings.getState().applyPolicyChanges();
+      if (applied.length) {
+        toast.show(plural(applied.length, {
+          one: "Your administrator changed {n} setting",
+          other: "Your administrator changed {n} settings",
+        }), { action: { label: t("Settings"), onClick: () => { window.location.href = withBase("/settings/general"); } } });
+      }
       // The catalogue for whatever language that turned out to be. Hydrating
       // asks for it; this is waiting for the answer.
       await whenLanguageReady();

@@ -1059,6 +1059,7 @@ export const catalog: Catalog = {
     "Nothing unread here": "这里没有未读邮件",
   },
   plurals: {
+    "Your administrator changed {n} settings": { other: "管理员更改了 {n} 项设置" },
     "Already here: {n} contacts, nothing imported": { other: "已存在 {n} 个，未导入" },
     "All {n} are already in your contacts": { other: "这 {n} 个已在您的联系人中" },
     "Exported {n} events": { other: "已导出 {n} 个日程" },
