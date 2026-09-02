@@ -6,6 +6,7 @@ import { useMail, type ListState } from "@/store/mail";
 import { dateTimeKey, useSettings } from "@/store/settings";
 import type { Email, Id } from "@/jmap/types";
 import { formatListDate } from "@/lib/format";
+import { mailboxDisplayName } from "@/lib/mailboxName";
 import { groupByArchivePath, archivePath, type ArchiveGranularity } from "@/lib/archiveDate";
 import { canEmpty, confirmAndEmpty, emptyLabel } from "@/lib/emptyFolder";
 import { displayName, shortName } from "@/lib/address";
@@ -242,6 +243,8 @@ export function MessageList({ title, list, openThreadId, focusId, setFocusId, on
     [ctxTargets, emails],
   );
   const allSelected = ids.length > 0 && ids.every((id) => selected[id]);
+  const selectedAll = useMail((st) => st.selectedAll);
+  const selectAllMatching = useMail((st) => st.selectAllMatching);
   const someUnread = ctxTargets.some((id) => !emails[id]?.keywords.$seen);
   const someUnstarred = ctxTargets.some((id) => !emails[id]?.keywords.$flagged);
 
@@ -265,7 +268,7 @@ export function MessageList({ title, list, openThreadId, focusId, setFocusId, on
         />
         {selCount > 0 ? (
           <>
-            <span className="tb-count">{plural(selCount, { one: "{n} selected", other: "{n} selected" })}</span>
+            <span className="tb-count">{plural(selectedAll ? (list?.total ?? selCount) : selCount, { one: "{n} selected", other: "{n} selected" })}</span>
             <span className="tb-sep" />
             <button className="icon-btn" title={t("Archive (e)")} onClick={() => void actions.archive()}><Archive size={19} /></button>
             <button className="icon-btn" title={isTrashOrJunk ? t("Delete forever") : t("Delete (#)")} onClick={() => void actions.trash()}><Trash2 size={19} /></button>
@@ -350,6 +353,29 @@ export function MessageList({ title, list, openThreadId, focusId, setFocusId, on
           </>
         )}
       </div>
+      {/*
+        The step past the checkbox. Ticking it selects the rows that are
+        loaded, which on a folder of ten thousand is fifty of them -- and a
+        checkbox that silently meant all ten thousand would be the worst of
+        both. So the wider selection is offered here, in a line that says what
+        each of the two actually covers, and taken deliberately.
+      */}
+      {allSelected && !selectedAll && (list?.total ?? 0) > ids.length && (
+        <div className="list-hint select-all-hint">
+          <span className="grow">{t("All {n} on this page are selected.", { n: String(ids.length) })}</span>
+          <button onClick={() => selectAllMatching()}>
+            {t("Select all {n} in {folder}", { n: String(list!.total), folder: mailbox ? mailboxDisplayName(mailbox) : t("this view") })}
+          </button>
+        </div>
+      )}
+      {selectedAll && (
+        <div className="list-hint select-all-hint">
+          <span className="grow">
+            {t("All {n} in {folder} are selected.", { n: String(list?.total ?? 0), folder: mailbox ? mailboxDisplayName(mailbox) : t("this view") })}
+          </span>
+          <button onClick={() => clearSelection()}>{t("Clear selection")}</button>
+        </div>
+      )}
       {list?.error && (
         <div className="list-hint">
           <span className="grow" style={{ color: "var(--danger)" }}>{list.error}</span>

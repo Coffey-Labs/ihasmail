@@ -130,6 +130,12 @@ export interface MailState {
   vacation: VacationResponse | null;
   list: ListState | null;
   selected: Record<Id, true>;
+  /**
+   * The selection means "everything the current query matches", not the rows
+   * that happen to be loaded. Ticking the header box selects the loaded page;
+   * this is the deliberate second step past it.
+   */
+  selectedAll: boolean;
   anchorId: Id | null;
   loadingThreads: Record<Id, true>;
   lastSeenInboxEmailIds: Id[] | null;
@@ -185,6 +191,10 @@ export interface MailState {
   select(ids: Id[], on: boolean): void;
   clearSelection(): void;
   selectAll(): void;
+  /** Extend the selection from the loaded rows to everything the query matches. */
+  selectAllMatching(): void;
+  /** Every id the current query matches, walked a page at a time. */
+  queryAllIds(): Promise<Id[]>;
   setAnchor(id: Id | null): void;
 
   applyChanges(types: Set<string>): Promise<void>;
@@ -211,6 +221,7 @@ export const useMail = create<MailState>((set, get) => ({
   vacation: null,
   list: null,
   selected: {},
+  selectedAll: false,
   anchorId: null,
   loadingThreads: {},
   lastSeenInboxEmailIds: null,
@@ -236,6 +247,7 @@ export const useMail = create<MailState>((set, get) => ({
       vacation: null,
       list: null,
       selected: {},
+      selectedAll: false,
       anchorId: null,
       lastSeenInboxEmailIds: null,
     });
@@ -287,6 +299,7 @@ export const useMail = create<MailState>((set, get) => ({
     set({
       list: { ...q, key, ids: reuse ? cur.ids : [], total: reuse ? cur.total : 0, queryState: null, loading: true, loadingMore: false, error: null, exhausted: false },
       selected: {},
+  selectedAll: false,
       anchorId: null,
     });
     try {
@@ -466,8 +479,18 @@ export const useMail = create<MailState>((set, get) => ({
     const { emails, mailboxes } = get();
     const prev: Record<Id, Record<Id, boolean>> = {};
     const update: Record<Id, Record<string, unknown>> = {};
+    /*
+     * Undo restores the folders each message was in, which can only be offered
+     * for messages we actually hold. Selecting a whole folder reaches messages
+     * that were never loaded, and an Undo built from those would write an empty
+     * mailboxIds -- putting the message in no folder at all, which is worse
+     * than the move it was undoing. So the offer is withheld rather than
+     * quietly restoring something wrong.
+     */
+    let undoable = true;
     for (const id of ids) {
       const e = emails[id];
+      if (!e) undoable = false;
       prev[id] = e?.mailboxIds ?? {};
       update[id] = { mailboxIds: { [toMailboxId]: true } };
     }
@@ -475,7 +498,7 @@ export const useMail = create<MailState>((set, get) => ({
     set((s) => {
       const next = { ...s.emails };
       for (const id of ids) if (next[id]) next[id] = { ...next[id]!, mailboxIds: { [toMailboxId]: true } };
-      return { emails: next, selected: {} };
+      return { emails: next, selected: {}, selectedAll: false };
     });
     removeFromList(ids, set, get, toMailboxId);
     try {
@@ -490,7 +513,7 @@ export const useMail = create<MailState>((set, get) => ({
         // is looking at in the sidebar rather than the server's own word for it.
         const name = mailboxDisplayName(mailboxes[toMailboxId]) || opts.label || t("folder");
         toast.show(`${ids.length === 1 ? "Conversation" : `${ids.length} conversations`} moved to ${name}`, {
-          action: {
+          action: !undoable ? undefined : {
             label: "Undo",
             onClick: async () => {
               const undo: Record<Id, Record<string, unknown>> = {};
@@ -558,7 +581,7 @@ export const useMail = create<MailState>((set, get) => ({
     set((s) => {
       const next = { ...s.emails };
       for (const id of ids) delete next[id];
-      return { emails: next, selected: {} };
+      return { emails: next, selected: {}, selectedAll: false };
     });
     try {
       const { notDestroyed } = await destroyEmails(accountId, ids);
@@ -595,7 +618,13 @@ export const useMail = create<MailState>((set, get) => ({
     // Where everything came from, captured before anything moves, so one Undo
     // can put back a selection that went to several folders.
     const prev: Record<Id, Record<Id, boolean>> = {};
-    for (const id of ids) prev[id] = emails[id]?.mailboxIds ?? {};
+    // See the note in move(): an Undo for a message we never loaded would
+    // write an empty mailboxIds, so it is not offered at all.
+    let undoable = true;
+    for (const id of ids) {
+      if (!emails[id]) undoable = false;
+      prev[id] = emails[id]?.mailboxIds ?? {};
+    }
 
     const moved: string[] = [];
     try {
@@ -621,7 +650,7 @@ export const useMail = create<MailState>((set, get) => ({
         ? t("Conversation moved to {folder}", { folder: where })
         : t("{count} conversations moved to {folder}", { count: String(ids.length), folder: where }),
       {
-        action: {
+        action: !undoable ? undefined : {
           label: "Undo",
           onClick: async () => {
             const undo: Record<Id, Record<string, unknown>> = {};
@@ -891,14 +920,60 @@ export const useMail = create<MailState>((set, get) => ({
     });
   },
   clearSelection() {
-    set({ selected: {} });
+    set({ selected: {}, selectedAll: false });
   },
   selectAll() {
     const l = get().list;
     if (!l) return;
     const next: Record<Id, true> = {};
     for (const id of l.ids) next[id] = true;
-    set({ selected: next });
+    // Ticking the box is the loaded rows. Going wider is a separate,
+    // deliberate press, because "select all" meaning ten thousand messages
+    // when the screen shows fifty is not something to infer from a checkbox.
+    set({ selected: next, selectedAll: false });
+  },
+
+  selectAllMatching() {
+    if (!get().list) return;
+    set({ selectedAll: true });
+  },
+
+  async queryAllIds() {
+    const { accountId, list } = get();
+    if (!accountId || !list) return [];
+    const page = client.maxObjectsInSet;
+    const out: Id[] = [];
+    let progress: number | null = null;
+    try {
+      for (let position = 0; ; position += page) {
+        const q = await client.call<QueryResponse>("Email/query", {
+          accountId,
+          filter: list.filter,
+          sort: list.sort,
+          /*
+           * Uncollapsed, unlike the list itself. "Everything in this folder"
+           * means every message; the list shows one row per thread only so it
+           * reads well. Expanding threads the way a click does is not possible
+           * here anyway -- that walks loaded Email objects, and the whole point
+           * is the ones that were never loaded.
+           */
+          collapseThreads: false,
+          position,
+          limit: page,
+        });
+        if (!q.ids.length) break;
+        out.push(...q.ids);
+        if (progress === null && q.ids.length === page) {
+          progress = toast.show(t("Working out what is selected…"), { duration: 0 });
+        }
+        // A short page is the last page. Asking again would cost a round trip
+        // to be told the same thing.
+        if (q.ids.length < page) break;
+      }
+    } finally {
+      if (progress !== null) toast.dismiss(progress);
+    }
+    return out;
   },
   setAnchor(id) {
     set({ anchorId: id });
