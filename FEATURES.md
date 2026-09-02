@@ -654,7 +654,8 @@ not reach another that already has ihasmail open until it signs in again.
 
 | Section | Holds |
 | --- | --- |
-| **General** | Reading pane, mark-as-read delay, auto-advance, remote images, conversation view, snippets, avatars, confirm-before-delete; compose format, undo-send window, quoting, signature placement, attachment reminder, read-receipt policy, spell check; time zone, week start, language & region, date format, time format; `mailto:` handler; export / import / reset |
+| **General** | Reading pane, mark-as-read delay, auto-advance, conversation view, snippets, avatars; compose format, quoting, signature placement, spell check; time zone, week start, language & region, date format, time format; `mailto:` handler; export / import / reset |
+| **Privacy & safety** | Remote images and the senders trusted with them, read receipts asked for and answered, undo-send window, attachment reminder, confirm-before-delete |
 | **Appearance** | Theme, accent colour, density, font size, sidebar, swipe actions, interface language |
 | **Identities & signatures** | Addresses, names, Reply-To, HTML signatures, the default, and which to hide from the picker |
 | **Filters & rules** | The visual builder and raw Sieve editor |
@@ -667,6 +668,20 @@ not reach another that already has ihasmail open until it signs in again.
 | **Security & sessions** | Password, two-factor state, app passwords, active webmail sessions |
 | **Keyboard shortcuts** | The full list, grouped |
 | **About** | Version, source URL, server, and the capabilities it advertises |
+
+**Privacy & safety is separate from Security & sessions**, and the line
+between them is worth stating because two similar words in one nav is how a
+menu becomes something people hunt through. Security & sessions is credentials
+and access: password, two-factor state, app passwords, live sessions. Privacy &
+safety is how the app behaves towards the reader and towards senders: what
+loads, what leaks, and what asks before it happens. These had been spread
+through General, which had grown five unrelated headings — remote images filed
+under "Reading", the read-receipt policy under "Composing", the undo-send window
+beside the default message format.
+
+The senders trusted with remote images are listed there and can be withdrawn
+one at a time. Previously a sender was added from a message and could only be
+removed by finding another message from the same sender.
 
 Settings **export** to a JSON file and **import** back, and reset to defaults.
 

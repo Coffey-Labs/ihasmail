@@ -6,3 +6,6 @@ dist/
 server/data/
 .vite/
 coverage/
+
+# Worktrees used by parallel agents; never part of a commit.
+.claude/worktrees/

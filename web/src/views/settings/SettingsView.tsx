@@ -1,6 +1,6 @@
 import { lazy, Suspense, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { ArrowLeft, Bell, Filter, Folder, Info, Keyboard, LayoutTemplate, Palette, PenLine, Plane, Settings as SettingsIcon, ShieldCheck, Tag, Users, Calendar } from "lucide-react";
+import { ArrowLeft, Bell, EyeOff, Filter, Folder, Info, Keyboard, LayoutTemplate, Palette, PenLine, Plane, Settings as SettingsIcon, ShieldCheck, Tag, Users, Calendar } from "lucide-react";
 import { Spinner } from "@/ui/misc";
 import { GeneralSettings } from "./GeneralSettings";
 import { AppearanceSettings } from "./AppearanceSettings";
@@ -9,6 +9,7 @@ import { FoldersSettings } from "./FoldersSettings";
 import { LabelsSettings } from "./LabelsSettings";
 import { TemplatesSettings } from "./TemplatesSettings";
 import { NotificationsSettings } from "./NotificationsSettings";
+import { PrivacySettings } from "./PrivacySettings";
 import { SecuritySettings } from "./SecuritySettings";
 import { AboutSettings } from "./AboutSettings";
 import { ShortcutsSettings } from "./ShortcutsSettings";
@@ -29,6 +30,7 @@ const SECTIONS: Array<{ id: string; label: string; icon: ReactNode; el: ReactNod
   { id: "templates", label: "Templates", icon: <LayoutTemplate size={18} />, el: <TemplatesSettings /> },
   { id: "calendar", label: "Calendar & contacts", icon: <Calendar size={18} />, el: <CalendarSettings /> },
   { id: "notifications", label: "Notifications", icon: <Bell size={18} />, el: <NotificationsSettings /> },
+  { id: "privacy", label: "Privacy & safety", icon: <EyeOff size={18} />, el: <PrivacySettings /> },
   { id: "security", label: "Security & sessions", icon: <ShieldCheck size={18} />, el: <SecuritySettings /> },
   { id: "shortcuts", label: "Keyboard shortcuts", icon: <Keyboard size={18} />, el: <ShortcutsSettings /> },
   { id: "about", label: "About", icon: <Info size={18} />, el: <AboutSettings /> },
