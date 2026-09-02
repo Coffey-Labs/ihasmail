@@ -171,6 +171,10 @@ docker run -d --name ihasmail \
 }
 ```
 
+[`settings-policy.example.json`](settings-policy.example.json) in this repo is
+that file with every section explained in it — copy it and delete what you do
+not want.
+
 Mount it read-only: the server only ever reads it, and `:ro` keeps that true
 under `--read-only` as well.
 
