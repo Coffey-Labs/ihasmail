@@ -2,6 +2,9 @@ import { create } from "zustand";
 import { CAP, client, setErrorMessage } from "@/jmap/client";
 import type { BusyPeriod, Calendar, CalendarEvent, EmailAddress, GetResponse, Id, JSCalendarParticipant, JSCalendarRecurrenceRule, ParticipantIdentity, QueryResponse, SetResponse } from "@/jmap/types";
 import { toUTCDate, toLocalDateTime, zonedToDate, parseDuration, DAY_MS, browserTimeZone } from "@/lib/dates";
+import { t } from "@/lib/i18n";
+import { useContacts } from "./contacts";
+import { BIRTHDAY_CALENDAR_ID, birthdaysInRange, isBirthdayEvent, type Birthday } from "@/lib/birthdays";
 import { settings, useSettings } from "./settings";
 import { useSession } from "./session";
 
@@ -501,6 +504,26 @@ export const useCalendar = create<CalendarState>((set, get) => ({
 
   instancesIn(start, end) {
     const { events, ranges, calendars, hidden, sharedEvents, sharedRanges, sharedCalendars } = get();
+    /*
+     * Birthdays are derived here rather than fetched, and they go through the
+     * same funnel as everything else so no view has to know they are different.
+     * Nothing is stored: the dates live on the contact cards, and a second copy
+     * of the same fact would drift the first time somebody corrected one.
+     */
+    const birthdays: EventInstance[] = [];
+    if (settings().birthdayCalendar && !hidden[BIRTHDAY_CALENDAR_ID]) {
+      const cal = birthdayCalendar();
+      for (const b of birthdaysInRange(Object.values(useContacts.getState().cards), start, end)) {
+        birthdays.push({
+          key: b.id,
+          event: synthesiseBirthdayEvent(b),
+          start: b.date,
+          end: new Date(b.date.getTime() + DAY_MS),
+          allDay: true,
+          calendar: cal,
+        });
+      }
+    }
     const ids = new Set<Id>();
     for (const list of Object.values(ranges)) for (const id of list) ids.add(id);
     const out: EventInstance[] = [];
@@ -543,7 +566,7 @@ export const useCalendar = create<CalendarState>((set, get) => ({
       if (inst.end > start && inst.start < end) out.push(inst);
     }
     out.sort((a, b) => a.start.getTime() - b.start.getTime() || b.end.getTime() - a.end.getTime());
-    return out;
+    return [...out, ...birthdays];
   },
 
   async getEvent(id) {
@@ -566,6 +589,14 @@ export const useCalendar = create<CalendarState>((set, get) => ({
   },
 
   async updateEvent(event, patch, sendInvites, scope) {
+    /*
+     * A derived birthday has no server-side existence, so there is nothing to
+     * write and an id that would mean nothing if sent. The UI already keeps
+     * these out of reach by giving the virtual calendar no write rights; this
+     * is the check that makes that true of the store as well, whatever calls
+     * it.
+     */
+    if (isBirthdayEvent(event.id)) return [];
     const accountId = get().accountId!;
     const id = scope === "occurrence" ? await currentOccurrenceId(accountId, event) : eventIdForScope(event, scope);
     // An occurrence takes less than the series does, and says so about only
@@ -580,6 +611,14 @@ export const useCalendar = create<CalendarState>((set, get) => ({
   },
 
   async destroyEvent(event, sendInvites, scope) {
+    /*
+     * A derived birthday has no server-side existence, so there is nothing to
+     * write and an id that would mean nothing if sent. The UI already keeps
+     * these out of reach by giving the virtual calendar no write rights; this
+     * is the check that makes that true of the store as well, whatever calls
+     * it.
+     */
+    if (isBirthdayEvent(event.id)) return;
     const accountId = get().accountId!;
     const id = scope === "occurrence" ? await currentOccurrenceId(accountId, event) : eventIdForScope(event, scope);
     const res = await client.call<SetResponse>("CalendarEvent/set", { accountId, destroy: [id], sendSchedulingMessages: sendInvites });
@@ -773,6 +812,36 @@ export const useCalendar = create<CalendarState>((set, get) => ({
  */
 export function isRecurring(ev: CalendarEvent): boolean {
   return Boolean(ev.recurrenceRule || ev.recurrenceRules?.length || ev.excludedRecurrenceRules?.length || ev.recurrenceId);
+}
+
+/**
+ * The virtual calendar the birthdays hang off. Not a JMAP calendar and
+ * deliberately not shaped like one: it has no account, cannot be shared, and
+ * every write path checks the id before it does anything.
+ */
+function birthdayCalendar(): Calendar {
+  return {
+    id: BIRTHDAY_CALENDAR_ID,
+    name: t("Birthdays"),
+    color: "#e0a33e",
+    isSubscribed: true,
+    isVisible: true,
+    myRights: { mayReadItems: true, mayWriteAll: false, mayWriteOwn: false, mayUpdatePrivate: false, mayRSVP: false, mayAdmin: false, mayDelete: false },
+  } as unknown as Calendar;
+}
+
+/** A CalendarEvent shaped enough for the views, and for nothing else. */
+function synthesiseBirthdayEvent(b: Birthday): CalendarEvent {
+  const local = `${b.date.getFullYear()}-${String(b.date.getMonth() + 1).padStart(2, "0")}-${String(b.date.getDate()).padStart(2, "0")}T00:00:00`;
+  return {
+    id: b.id,
+    calendarIds: { [BIRTHDAY_CALENDAR_ID]: true },
+    title: b.age === null ? t("{name}\u2019s birthday", { name: b.name }) : t("{name}\u2019s birthday ({age})", { name: b.name, age: String(b.age) }),
+    start: local,
+    duration: "P1D",
+    showWithoutTime: true,
+    freeBusyStatus: "free",
+  } as unknown as CalendarEvent;
 }
 
 export function toInstance(e: CalendarEvent, calendars: Record<Id, Calendar>): EventInstance | null {

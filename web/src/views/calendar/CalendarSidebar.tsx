@@ -1,9 +1,11 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { ChevronLeft, ChevronRight, MoreVertical, Pencil, Plus, Share2, Trash2, Eye, EyeOff, Star, Upload, UserMinus, X } from "lucide-react";
 import { useCalendar } from "@/store/calendar";
 import { dateTimeKey, useSettings } from "@/store/settings";
 import { addMonths, isSameDay, isToday, monthGrid, startOfDay, toLocalDateOnly } from "@/lib/dates";
+import { BIRTHDAY_CALENDAR_ID } from "@/lib/birthdays";
+import { useContacts } from "@/store/contacts";
 import { formatMonthYear } from "@/lib/format";
 import { formatWeekday } from "@/lib/datetime";
 import { MenuItem, MenuSep, Popover, useMenu } from "@/ui/popover";
@@ -62,6 +64,16 @@ export function CalendarSidebar() {
   const dow = useMemo(() => grid.slice(0, 7).map((d) => formatWeekday(d, "narrow")), [grid, locale]);
 
   if (!cal.available) return null;
+  const birthdaysOn = useSettings((st) => st.settings.birthdayCalendar);
+  /*
+   * The cards have to be loaded for there to be any birthdays to derive, and
+   * the calendar is a view somebody can land on directly without ever opening
+   * Contacts.
+   */
+  useEffect(() => {
+    if (birthdaysOn && !useContacts.getState().loaded && !useContacts.getState().loading) void useContacts.getState().loadAll();
+  }, [birthdaysOn]);
+
   const calendars = Object.values(cal.calendars).sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
 
   return (
@@ -85,6 +97,18 @@ export function CalendarSidebar() {
         <span>{t("My calendars")}</span>
         <button className="icon-btn" title={t("New calendar")} onClick={() => setEditCal({})}><Plus size={16} /></button>
       </div>
+      {/* Derived, so no context menu and nothing to share or make default --
+          it is a switch, and Settings is where it is turned off entirely. */}
+      {birthdaysOn && (
+        <div
+          className={`cal-list-item ${cal.hidden[BIRTHDAY_CALENDAR_ID] ? "hidden-cal" : ""}`}
+          onClick={() => cal.toggleHidden(BIRTHDAY_CALENDAR_ID)}
+          title={t("From the birthdays on your contacts. Nothing is stored.")}
+        >
+          <span className="cal-color" style={{ background: "#e0a33e", borderColor: "#e0a33e" }} />
+          <span className="cal-name">{t("Birthdays")}</span>
+        </div>
+      )}
       {calendars.map((c) => (
         <div key={c.id} className={`cal-list-item ${cal.hidden[c.id] ? "hidden-cal" : ""}`} onClick={() => cal.toggleHidden(c.id)} onContextMenu={(e) => { e.preventDefault(); setMenuCal(c); menu.openAt(e.clientX, e.clientY); }}>
           <span className="cal-color" style={{ background: c.color ?? "var(--accent)", borderColor: c.color ?? "var(--accent)" }} />

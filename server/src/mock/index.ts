@@ -265,9 +265,25 @@ const sharedCards: Obj[] = [
   { id: "sc2", addressBookIds: { ab9: true }, name: { full: "Dorothy Vaughan" }, emails: { e1: { address: "dorothy@example.org", contexts: {} } }, phones: {}, organizations: {}, nicknames: {}, addresses: {}, notes: {}, updated: new Date().toISOString() },
 ];
 const booksFor = (accountId: unknown): Obj[] => (accountId === SHARED_ACCOUNT ? sharedAddressBooks : addressBooks);
+/** One per contact, by index; a gap means that card has no birthday. */
+const BIRTHDAYS: Array<{ year?: number; month: number; day: number } | null> = [
+  { year: 1815, month: 12, day: 10 },
+  { month: 6, day: 9 }, // no year: the common case
+  { year: 1912, month: 6, day: 23 },
+  null,
+  { year: 2000, month: 2, day: 29 }, // lands on the 28th in a non-leap year
+  { year: 1918, month: 8, day: 26 },
+];
+
 const cards: Obj[] = people.slice(0, 6).map((p, i) => {
   const [given, surname] = p[0]!.split(" ");
-  return { id: `cc${i}`, addressBookIds: { ab1: true }, "@type": "Card", version: "1.0", uid: `uid-cc${i}`, kind: "individual", name: { components: [{ kind: "given", value: given }, { kind: "surname", value: surname ?? "" }], isOrdered: true }, emails: { e1: { address: p[1], contexts: { work: true } } }, phones: i % 2 ? { p1: { number: `+1 555 010${i}`, features: { mobile: true } } } : undefined, organizations: i % 3 ? { o1: { name: "Example Corp" } } : undefined };
+  return { id: `cc${i}`, addressBookIds: { ab1: true }, "@type": "Card", version: "1.0", uid: `uid-cc${i}`, kind: "individual", name: { components: [{ kind: "given", value: given }, { kind: "surname", value: surname ?? "" }], isOrdered: true }, emails: { e1: { address: p[1], contexts: { work: true } } }, phones: i % 2 ? { p1: { number: `+1 555 010${i}`, features: { mobile: true } } } : undefined, organizations: i % 3 ? { o1: { name: "Example Corp" } } : undefined,
+    /*
+     * Birthdays on most but not all of them, and one with no year, because a
+     * card that records only a day and month is the common case rather than
+     * the exceptional one.
+     */
+    anniversaries: BIRTHDAYS[i] ? { a1: { "@type": "Anniversary", kind: "birth", date: { "@type": "PartialDate", ...BIRTHDAYS[i] } } } : undefined };
 });
 const principals: Obj[] = people.slice(0, 5).map((p, i) => ({ id: `pr${i}`, type: "individual", name: p[0], description: null, email: p[1], timeZone: "UTC" }));
 const fileNodes: Obj[] = [

@@ -507,6 +507,24 @@ nothing for anybody else.
 - **iCal import** through `CalendarEvent/parse` (a file of any number of
   events), from the calendar's own menu, into that calendar. The events are
   filed rather than scheduled: no invitations go out to anyone named in them.
+- **Birthdays**, as a calendar of its own derived from the birthdays already on
+  your contacts. Off until switched on in Settings › Calendar & contacts, and
+  hideable from the calendar's own sidebar without turning it off.
+
+  **Nothing is written anywhere.** The dates live on the cards; a second copy
+  of the same fact would drift the first time somebody corrected one, and
+  keeping a calendar of its own is exactly what ihasmail does not do. An entry
+  disappears when the contact does, or when the birthday is cleared.
+
+  They cannot be edited or deleted, and that falls out of the design rather
+  than being special-cased: the virtual calendar reports no write rights, so
+  every control that asks before offering Edit or Delete already declines. The
+  store refuses a synthesised id as well, whatever calls it.
+
+  A card that records only a day and month — the common case — gets a birthday
+  with no age rather than no birthday. And 29 February falls on the 28th in a
+  year that has no 29th: somebody born in February has a birthday in February,
+  and moving it into March is the arithmetic winning over the fact.
 
 ## Events
 
