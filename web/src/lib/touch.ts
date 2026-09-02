@@ -490,3 +490,129 @@ export function useEdgeBack(el: HTMLElement | null, onBack: () => void, enabled:
     };
   }, [el, enabled]);
 }
+
+/**
+ * How far a horizontal drag must travel before it moves the calendar to
+ * another day or month.
+ *
+ * Further than a row swipe, and not because the consequence is bigger --
+ * stepping a calendar is undone by stepping back, while a swiped row has
+ * already been archived. It is because this gesture has no way to change its
+ * mind. A row slides open as it goes, so the strip underneath names what is
+ * about to happen and letting go early calls it off, and a toast offers Undo
+ * afterwards. Stepping the calendar shows nothing on the way and offers
+ * nothing after, so the distance is the only chance to not mean it.
+ */
+export function navSwipeThreshold(width: number): number {
+  return Math.max(80, Math.min(180, width * 0.3));
+}
+
+/**
+ * Which way a finished drag sends the view: -1 back, +1 forward, 0 nowhere.
+ *
+ * Dragging left pulls the next period in from the right, which is how paper,
+ * phones and every other calendar behave. (It would need mirroring for a
+ * right-to-left interface; there is not one yet, and the day there is, this is
+ * one of the places that has to know.)
+ */
+export function swipeNavDirection(dx: number, width: number): -1 | 0 | 1 {
+  const threshold = navSwipeThreshold(width);
+  if (dx <= -threshold) return 1;
+  if (dx >= threshold) return -1;
+  return 0;
+}
+
+/**
+ * Swipe sideways across a calendar to step it a period at a time.
+ *
+ * Three things it deliberately does not do:
+ *
+ *  - **No visual drag.** The row swipe slides the row open because the strip
+ *    underneath has to name which of six actions is about to happen. Stepping
+ *    a calendar has two outcomes and the direction of the finger already says
+ *    which, so there is nothing to reveal -- and translating the grid would
+ *    break the sticky day header, since a transform makes a containing block.
+ *    The threshold is reported by the vibration motor instead, which is what
+ *    the haptics are for: a swipe fires as the finger passes a line it cannot
+ *    see.
+ *  - **It does not start on an event.** A drag beginning on an event chip is
+ *    left alone, so that moving an event by dragging it stays available to be
+ *    built without having to be untangled from this first. Which gesture is
+ *    meant is decidable at the moment the finger lands, and that is the only
+ *    moment it can be decided cleanly.
+ *  - **It does not start on the toolbar.** Buttons live there.
+ *
+ * The axis lock is the shared one, so it keeps the same bias towards the
+ * vertical: the day grid scrolls through the hours, and a scroll misread as a
+ * swipe throws the reader into another day.
+ */
+export function useSwipeNav(
+  el: HTMLElement | null,
+  opts: { onStep: (n: -1 | 1) => void; enabled: boolean; ignore?: string },
+) {
+  const step = useRef(opts.onStep);
+  step.current = opts.onStep;
+  const { enabled, ignore } = opts;
+
+  useEffect(() => {
+    if (!el || !enabled) return;
+    let startX: number | null = null;
+    let startY = 0;
+    let axis: Axis = null;
+    let fired = false;
+
+    const onStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      const t = e.touches[0]!;
+      if (ignore && (t.target as Element | null)?.closest?.(ignore)) return;
+      startX = t.clientX;
+      startY = t.clientY;
+      axis = null;
+      fired = false;
+    };
+
+    const onMove = (e: TouchEvent) => {
+      if (startX === null || e.touches.length !== 1) return;
+      const t = e.touches[0]!;
+      const dx = t.clientX - startX;
+      const dy = t.clientY - startY;
+      if (!axis) {
+        axis = lockAxis(dx, dy);
+        // Committed to scrolling: stay out of the way for the rest of the drag.
+        if (axis === "y") startX = null;
+        return;
+      }
+      if (axis !== "x") return;
+      // Once sideways, the browser must not also scroll.
+      if (e.cancelable) e.preventDefault();
+      if (!fired && swipeNavDirection(dx, el.clientWidth || window.innerWidth) !== 0) {
+        fired = true;
+        haptic();
+      }
+    };
+
+    const onEnd = (e: TouchEvent) => {
+      if (startX === null) return;
+      const t = e.changedTouches[0];
+      const dx = t ? t.clientX - startX : 0;
+      const wasX = axis === "x";
+      startX = null;
+      axis = null;
+      fired = false;
+      if (!wasX) return;
+      const dir = swipeNavDirection(dx, el.clientWidth || window.innerWidth);
+      if (dir !== 0) step.current(dir);
+    };
+
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: false });
+    el.addEventListener("touchend", onEnd);
+    el.addEventListener("touchcancel", onEnd);
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
+      el.removeEventListener("touchcancel", onEnd);
+    };
+  }, [el, enabled, ignore]);
+}

@@ -110,6 +110,21 @@ every drag.
 - **Hold a folder** in the drawer for the menu its ⋮ button opens.
 - **Pull the message list** down to refresh it.
 - **Drag in from the left edge** of a conversation to go back to the list.
+- **Swipe the calendar sideways** in day or month view to step to the next
+  period or back — dragging left pulls the next one in from the right, the way
+  paper and every phone do it. Week and agenda scroll through a range rather
+  than turning to the next one, so a sideways flick would not obviously mean
+  anything there and does nothing. A drag that begins on an event is left
+  alone, which keeps dragging an event to move it available to be built later
+  without having to be untangled from this first.
+
+  It asks for a longer drag than a row swipe does, and not because the
+  consequence is bigger — stepping back undoes it, while a swiped row has
+  already been archived. It is because this gesture has no way to change its
+  mind: a row slides open as it goes, so the strip underneath names what will
+  happen and letting go early calls it off, and a toast offers Undo afterwards.
+  Stepping the calendar shows nothing on the way and offers nothing after, so
+  the distance is the only chance to not mean it.
 
 The toolbar's refresh button and the thread's back arrow both stay. A gesture
 with no visible control is one only the people who already know about it can
