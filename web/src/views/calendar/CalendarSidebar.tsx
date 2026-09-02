@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { ChevronLeft, ChevronRight, MoreVertical, Pencil, Plus, Share2, Trash2, Eye, EyeOff, Star, Upload, UserMinus, X, AlertTriangle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, MoreVertical, Pencil, Plus, Share2, Trash2, Eye, EyeOff, Star, Upload, UserMinus, X, AlertTriangle } from "lucide-react";
 import { useCalendar } from "@/store/calendar";
 import { dateTimeKey, useSettings } from "@/store/settings";
 import { addMonths, isSameDay, isToday, monthGrid, startOfDay, toLocalDateOnly } from "@/lib/dates";
@@ -40,6 +40,26 @@ export function CalendarSidebar() {
    */
   const fileRef = useRef<HTMLInputElement>(null);
   const importInto = useRef<Id | null>(null);
+
+  /*
+   * Handing the file over, which the browser only does from a click. The
+   * revoke below is what keeps a calendar's worth of text from sitting in
+   * memory after the download has started.
+   */
+  const exportFile = async (c: Calendar) => {
+    try {
+      const { text, count } = await cal.exportIcs(c.id);
+      const url = URL.createObjectURL(new Blob([text], { type: "text/calendar" }));
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${c.name.replace(/[^\w.-]+/g, "_") || "calendar"}.ics`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success(plural(count, { one: "Exported {n} event", other: "Exported {n} events" }));
+    } catch (err) {
+      toast.error(t("Could not export this calendar: {error}", { error: (err as Error).message }));
+    }
+  };
 
   const importFile = async (file: File) => {
     const calendarId = importInto.current;
@@ -219,6 +239,9 @@ export function CalendarSidebar() {
                 fileRef.current?.click();
               }}
             />
+            {/* No rights test: exporting is reading, and a calendar you cannot
+                read is not in this list to begin with. */}
+            <MenuItem icon={<Download size={16} />} label={t("Export iCAL file")} onClick={() => void exportFile(menuCal)} />
             <MenuItem icon={<Share2 size={16} />} label={t("Share…")} onClick={() => setShare(menuCal)} disabled={!menuCal.myRights.mayShare} />
             {/* Revoking every share at once, without walking the dialog and
                 removing people one at a time. Only offered when there is

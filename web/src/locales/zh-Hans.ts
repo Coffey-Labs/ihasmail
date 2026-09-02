@@ -45,6 +45,8 @@ import type { Catalog } from "@/lib/i18n";
  */
 export const catalog: Catalog = {
   strings: {
+    "Export iCAL file": "导出 iCAL 文件",
+    "Could not export this calendar: {error}": "无法导出此日历：{error}",
     // ── Actions ────────────────────────────────────────────────────────
     "Archive": "归档",
     "Archive (e)": "归档 (e)",
@@ -1056,6 +1058,7 @@ export const catalog: Catalog = {
     "Nothing unread here": "这里没有未读邮件",
   },
   plurals: {
+    "Exported {n} events": { other: "已导出 {n} 个日程" },
     "Imported {n} events": { other: "已导入 {n} 个日程" },
     "Already here: {n} events, nothing imported": { other: "已存在 {n} 个，未导入" },
     "{n} were already here": { other: "{n} 个已存在" },
