@@ -281,27 +281,49 @@ function finish(e: Partial<IcsEvent> & { dtend?: Date; duration?: number }): Ics
  *
  * What is deliberately not here, stated rather than discovered:
  *
- * - **No VTIMEZONE components.** A `TZID` is emitted with the IANA name the
- *   server holds -- "Europe/Berlin" -- and no definition of that zone beside
- *   it. Generating one means shipping a zone database to the browser to
- *   describe rules the reader's own system already knows. Every client that
- *   matters resolves IANA names; a strict validator will complain, and the
- *   alternative -- converting everything to UTC -- would be worse, because a
- *   weekly 09:00 that becomes 08:00 for half the year is a wrong calendar
- *   rather than a pedantic one.
- * - **Overrides are applied at the top level only.** A recurrence override is a
- *   JSON patch, and a patch addressing `locations/x/name` is not something this
- *   flattens; those paths are left on the master's value. Plain overridden
- *   properties -- a moved time, a changed title -- come across.
+ * - **Overrides are applied at the top level only.** (See below.)
+ *   A recurrence override is a JSON patch, and a patch addressing
+ *   `locations/x/name` is not something this flattens; those paths are left on
+ *   the master's value. Plain overridden properties -- a moved time, a changed
+ *   title -- come across.
  * - **No localizations, no relatedTo, no per-participant delegation.** Nothing
  *   in ihasmail sets them.
  */
 export function toIcs(events: JSCalendarEvent[], calendarName?: string): string {
   const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//ihasmail//EN", "CALSCALE:GREGORIAN"];
   if (calendarName) lines.push(`X-WR-CALNAME:${escText(calendarName)}`);
+  for (const zone of zonesUsed(events)) lines.push(...vtimezone(zone, ...windowFor(events)));
   for (const e of events) lines.push(...vevent(e));
   lines.push("END:VCALENDAR");
   return lines.map(foldLine).join("\r\n") + "\r\n";
+}
+
+/** Every named zone the events refer to; UTC needs no definition. */
+function zonesUsed(events: JSCalendarEvent[]): string[] {
+  const zones = new Set<string>();
+  for (const e of events) {
+    if (e.showWithoutTime) continue;
+    const tz = e.timeZone;
+    if (tz && tz !== "Etc/UTC" && tz !== "UTC") zones.add(tz);
+  }
+  return [...zones].sort();
+}
+
+/**
+ * The years a definition has to cover.
+ *
+ * A zone's rules are not a fact, they are a decision somebody makes and
+ * changes, so a VTIMEZONE states them for a span rather than for ever. From the
+ * year before the earliest event -- an event can be moved earlier by an
+ * override -- to ten years past the latest, which covers an open-ended weekly
+ * meeting for as long as anyone plans around one.
+ */
+function windowFor(events: JSCalendarEvent[]): [number, number] {
+  const years = events.map((e) => Number(e.start.slice(0, 4))).filter((y) => Number.isFinite(y) && y > 1000);
+  const now = new Date().getUTCFullYear();
+  const first = years.length ? Math.min(...years) : now;
+  const last = Math.max(now, years.length ? Math.max(...years) : now);
+  return [first - 1, last + 10];
 }
 
 /** RFC 5545 escaping. A comma and a semicolon separate values, so both go. */
@@ -479,4 +501,149 @@ function rrule(r: JSCalendarRecurrenceRule, allDay: boolean): string {
   if (r.bySetPosition?.length) parts.push(`BYSETPOS=${r.bySetPosition.join(",")}`);
   if (r.firstDayOfWeek) parts.push(`WKST=${DAYS[r.firstDayOfWeek] ?? r.firstDayOfWeek.toUpperCase()}`);
   return parts.join(";");
+}
+
+/* ------------------------------------------------------------------ */
+/* Time zones                                                          */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A zone's definition, worked out from the one the browser already has.
+ *
+ * This exists because leaving it out was wrong, and provably so. A `TZID`
+ * naming an IANA zone with nothing defining it is not resolved by ical.js --
+ * Mozilla's own iCalendar library, and the one Thunderbird's calendar uses --
+ * which falls back to *floating* time. A 09:00 in Phoenix then reads as 09:00
+ * wherever the file is opened: seven hours out, silently, on every timed event.
+ * Measured, not assumed.
+ *
+ * The reason it was left out -- that generating one means shipping a zone
+ * database -- was also wrong. The browser has the IANA database already, behind
+ * `Intl`, and an offset for an instant is a formatting question. Transitions
+ * are then found by looking for the months where the answer changes and
+ * bisecting inside them, rather than by knowing any rules.
+ *
+ * Each transition is written as its own dated sub-component instead of as an
+ * RRULE. It is more lines and no cleverness: a rule has to be *derived*, and a
+ * derived rule that is subtly wrong moves somebody's meeting, while a list of
+ * dates can only be incomplete at the ends -- which is what the window is for.
+ */
+export function vtimezone(tzid: string, fromYear: number, toYear: number): string[] {
+  let offsetAt: (d: Date) => number;
+  try {
+    offsetAt = offsetFinder(tzid);
+  } catch {
+    /* A zone `Intl` does not know: say nothing rather than say something wrong.
+       The TZID stays on the events, which is where it was before this. */
+    return [];
+  }
+
+  const start = Date.UTC(fromYear, 0, 1);
+  const end = Date.UTC(toYear, 11, 31);
+  const MONTH = 30 * 24 * 3600 * 1000;
+
+  const transitions: Array<{ at: number; from: number; to: number }> = [];
+  let prev = offsetAt(new Date(start));
+  const firstOffset = prev;
+  for (let t = start; t < end; t += MONTH) {
+    const next = Math.min(t + MONTH, end);
+    const here = offsetAt(new Date(next));
+    if (here === prev) continue;
+    // Somewhere in this month. Bisect to the minute, which is finer than any
+    // transition anybody has ever scheduled.
+    let lo = t;
+    let hi = next;
+    // All the way down, rather than to the nearest second and rounded: rounding
+    // the wrong way writes a 02:00 change as 02:00:01, and thirty more halvings
+    // of a range that is already one month is nothing.
+    while (hi - lo > 1) {
+      const mid = lo + Math.floor((hi - lo) / 2);
+      if (offsetAt(new Date(mid)) === prev) lo = mid;
+      else hi = mid;
+    }
+    transitions.push({ at: hi, from: prev, to: here });
+    prev = here;
+  }
+
+  const out = ["BEGIN:VTIMEZONE", `TZID:${tzid}`];
+  if (!transitions.length) {
+    /* A zone that does not change -- Phoenix, Tokyo, UTC+X -- is one standing
+       rule, and RFC 5545 still wants a sub-component to hang it on. */
+    out.push("BEGIN:STANDARD", `DTSTART:${localStamp(new Date(start), firstOffset)}`,
+      `TZOFFSETFROM:${offsetText(firstOffset)}`, `TZOFFSETTO:${offsetText(firstOffset)}`,
+      ...tzNameLine(tzid, new Date(start)), "END:STANDARD");
+  } else {
+    for (const tr of transitions) {
+      /* Daylight is the side with the larger offset from UTC; the names are
+         only labels, but a reader that shows them should not show them
+         backwards. */
+      const kind = tr.to > tr.from ? "DAYLIGHT" : "STANDARD";
+      out.push(`BEGIN:${kind}`,
+        /* DTSTART is local time read in the *old* offset, which is what
+           TZOFFSETFROM is there to say. */
+        `DTSTART:${localStamp(new Date(tr.at), tr.from)}`,
+        `TZOFFSETFROM:${offsetText(tr.from)}`,
+        `TZOFFSETTO:${offsetText(tr.to)}`,
+        ...tzNameLine(tzid, new Date(tr.at + 60_000)),
+        `END:${kind}`);
+    }
+  }
+  out.push("END:VTIMEZONE");
+  return out;
+}
+
+/**
+ * Minutes east of UTC at an instant, from the zone database `Intl` carries.
+ *
+ * Formatting the instant into the zone and reading the clock back is the
+ * portable way to ask this: `timeZoneName: "longOffset"` is newer than some
+ * browsers this has to run in, and the difference between the two readings is
+ * the offset by definition.
+ */
+function offsetFinder(tzid: string): (d: Date) => number {
+  const dtf = new Intl.DateTimeFormat("en-US", {
+    timeZone: tzid, hourCycle: "h23",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+  });
+  // Throws RangeError here, on construction, if the zone is not known.
+  dtf.format(new Date());
+  return (d: Date) => {
+    const p: Record<string, string> = {};
+    for (const part of dtf.formatToParts(d)) p[part.type] = part.value;
+    const asUTC = Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day), Number(p.hour) % 24, Number(p.minute), Number(p.second));
+    return Math.round((asUTC - d.getTime()) / 60_000);
+  };
+}
+
+/** TZNAME, or nothing at all where there is no name worth writing. */
+function tzNameLine(tzid: string, at: Date): string[] {
+  const name = zoneName(tzid, at);
+  return name ? [`TZNAME:${name}`] : [];
+}
+
+/** The zone's short label at an instant -- "MST", "CEST" -- or "" if it has none. */
+function zoneName(tzid: string, at: Date): string {
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", { timeZone: tzid, timeZoneName: "short" }).formatToParts(at);
+    const name = parts.find((p) => p.type === "timeZoneName")?.value.replace(/[^A-Za-z0-9+-]/g, "") ?? "";
+    /* Where a zone has no abbreviation in common use, `Intl` answers "GMT+9",
+       which repeats the offset beside it and reads as a mistake. */
+    return /^(GMT|UTC)[+-]?/.test(name) ? "" : name;
+  } catch {
+    return tzid;
+  }
+}
+
+/** "+0200" / "-0700", which is how iCalendar writes an offset. */
+function offsetText(minutes: number): string {
+  const sign = minutes < 0 ? "-" : "+";
+  const abs = Math.abs(minutes);
+  return `${sign}${String(Math.floor(abs / 60)).padStart(2, "0")}${String(abs % 60).padStart(2, "0")}`;
+}
+
+/** An instant written as the wall clock it shows at a given offset. */
+function localStamp(at: Date, offsetMinutes: number): string {
+  const shifted = new Date(at.getTime() + offsetMinutes * 60_000);
+  return shifted.toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "").slice(0, 15);
 }

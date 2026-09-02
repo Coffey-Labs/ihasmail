@@ -17,7 +17,16 @@ const base: JSCalendarEvent = {
 };
 
 const lines = (e: JSCalendarEvent[], name?: string) => toIcs(e, name).split("\r\n");
-const find = (e: JSCalendarEvent[], prefix: string) => lines(e).filter((l) => l.startsWith(prefix));
+/*
+ * From the first event onwards. The zone definitions above carry DTSTART and
+ * TZNAME of their own, and a test asking "what is this event's DTSTART" must
+ * not be answered by a transition rule.
+ */
+const eventLines = (e: JSCalendarEvent[]) => {
+  const all = lines(e);
+  return all.slice(all.indexOf("BEGIN:VEVENT"));
+};
+const find = (e: JSCalendarEvent[], prefix: string) => eventLines(e).filter((l) => l.startsWith(prefix));
 const one = (e: JSCalendarEvent, prefix: string) => find([e], prefix)[0];
 
 describe("the document around the events", () => {
@@ -207,5 +216,90 @@ describe("what comes back out of the parser", () => {
   it("reads back a title that needed escaping, unescaped", () => {
     const back = parseIcs(toIcs([{ ...base, title: "Budget; Q4, final" }]));
     expect(back.events[0]!.summary).toBe("Budget; Q4, final");
+  });
+});
+
+/*
+ * Time zone definitions.
+ *
+ * These exist because leaving them out was wrong, and measurably: ical.js --
+ * Mozilla's library, the one Thunderbird's calendar uses -- reads a TZID with
+ * nothing defining it as *floating*, so a 09:00 in Phoenix opened anywhere else
+ * reads as 09:00 there. Seven hours out, silently, on every timed event.
+ */
+describe("the zones an export names", () => {
+  const inZone = (uid: string, tz: string, start = "2026-09-02T09:00:00") =>
+    ({ ...base, uid, timeZone: tz, start }) as JSCalendarEvent;
+
+  it("defines every zone its events refer to", () => {
+    const l = lines([inZone("a", "America/Phoenix"), inZone("b", "Asia/Tokyo")]);
+    expect(l.filter((x) => x === "BEGIN:VTIMEZONE")).toHaveLength(2);
+    expect(l).toContain("TZID:America/Phoenix");
+    expect(l).toContain("TZID:Asia/Tokyo");
+  });
+
+  it("defines a zone once however many events use it", () => {
+    const l = lines([inZone("a", "Europe/Berlin"), inZone("b", "Europe/Berlin"), inZone("c", "Europe/Berlin")]);
+    expect(l.filter((x) => x === "BEGIN:VTIMEZONE")).toHaveLength(1);
+  });
+
+  it("says nothing about UTC, which needs no definition", () => {
+    expect(lines([inZone("a", "Etc/UTC")]).filter((x) => x === "BEGIN:VTIMEZONE")).toHaveLength(0);
+  });
+
+  it("says nothing about an all-day event, which has no zone to define", () => {
+    const e = { ...base, showWithoutTime: true, timeZone: "Europe/Berlin" } as JSCalendarEvent;
+    expect(lines([e]).filter((x) => x === "BEGIN:VTIMEZONE")).toHaveLength(0);
+  });
+
+  it("writes a zone that never changes as one standing rule", () => {
+    // Phoenix keeps MST all year: one sub-component, and the two offsets equal.
+    const l = lines([inZone("a", "America/Phoenix")]);
+    expect(l.filter((x) => x === "BEGIN:DAYLIGHT")).toHaveLength(0);
+    expect(l.filter((x) => x === "BEGIN:STANDARD")).toHaveLength(1);
+    expect(l).toContain("TZOFFSETFROM:-0700");
+    expect(l).toContain("TZOFFSETTO:-0700");
+    expect(l).toContain("TZNAME:MST");
+  });
+
+  it("finds the transitions of a zone that does change", () => {
+    const l = lines([inZone("a", "Europe/Berlin")]);
+    // Both directions, and at the hours the EU actually changes at.
+    expect(l).toContain("DTSTART:20260329T020000");
+    expect(l).toContain("DTSTART:20261025T030000");
+    const spring = l.indexOf("DTSTART:20260329T020000");
+    expect(l[spring - 1]).toBe("BEGIN:DAYLIGHT");
+    expect(l[spring + 1]).toBe("TZOFFSETFROM:+0100");
+    expect(l[spring + 2]).toBe("TZOFFSETTO:+0200");
+  });
+
+  it("covers years around the events rather than only the year they fall in", () => {
+    // An open-ended weekly meeting outlives the year it was created in, so a
+    // definition that stopped at that year would leave later occurrences
+    // undefined.
+    const l = lines([inZone("a", "Europe/Berlin")]);
+    const years = new Set(l.filter((x) => x.startsWith("DTSTART:")).map((x) => x.slice(8, 12)));
+    expect(years.size).toBeGreaterThan(5);
+    expect([...years].some((y) => Number(y) > 2030)).toBe(true);
+  });
+
+  it("leaves out a zone name that only repeats the offset", () => {
+    // Intl answers "GMT+9" for Tokyo, which says nothing TZOFFSETTO has not.
+    const l = lines([inZone("a", "Asia/Tokyo")]);
+    expect(l.some((x) => x.startsWith("TZNAME:GMT"))).toBe(false);
+    expect(l).toContain("TZOFFSETTO:+0900");
+  });
+
+  it("says nothing at all about a zone the browser does not know", () => {
+    // Rather than writing a definition made up out of nothing. The TZID stays
+    // on the event, which is where it was before any of this.
+    const l = lines([inZone("a", "Mars/Olympus_Mons")]);
+    expect(l.filter((x) => x === "BEGIN:VTIMEZONE")).toHaveLength(0);
+    expect(l).toContain("DTSTART;TZID=Mars/Olympus_Mons:20260902T090000");
+  });
+
+  it("puts the definitions before the events that use them", () => {
+    const l = lines([inZone("a", "Europe/Berlin")]);
+    expect(l.indexOf("BEGIN:VTIMEZONE")).toBeLessThan(l.indexOf("BEGIN:VEVENT"));
   });
 });
