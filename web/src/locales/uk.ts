@@ -213,7 +213,7 @@ export const catalog: Catalog = {
     "Never send one": "Ніколи не надсилати",
     "Not this time": "Не цього разу",
     "It would go to {address}, which is not where the message came from.": "Воно пішло б на {address}, а лист надійшов не звідти.",
-    "Use “Show original” for the complete raw message.": "Натисніть «Показати оригінал», щоб побачити лист повністю.",
+    "Use {action} for the complete raw message.": "{action} — повне вихідне повідомлення.",
 
     // ── Folders, calendar, contacts, files ─────────────────────────────
     "Folder": "Тека",

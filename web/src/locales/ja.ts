@@ -216,7 +216,7 @@ export const catalog: Catalog = {
     "Never send one": "送信しない",
     "Not this time": "今回は送信しない",
     "It would go to {address}, which is not where the message came from.": "送信先は {address} で、メールの送信元とは異なります。",
-    "Use “Show original” for the complete raw message.": "完全な原文は「元のメールを表示」でご覧いただけます。",
+    "Use {action} for the complete raw message.": "完全な生メッセージは {action} から。",
 
     // ── Folders, calendar, contacts, files ─────────────────────────────
     "Folder": "フォルダー",

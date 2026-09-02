@@ -225,7 +225,7 @@ export const catalog: Catalog = {
     "Never send one": "Nie senden",
     "Not this time": "Diesmal nicht",
     "It would go to {address}, which is not where the message came from.": "Sie ginge an {address} — nicht dorthin, woher die Nachricht kam.",
-    "Use “Show original” for the complete raw message.": "Nutzen Sie „Original anzeigen“ für die vollständige Rohnachricht.",
+    "Use {action} for the complete raw message.": "{action} für die vollständige Rohnachricht.",
 
     // ── Folders, calendar, contacts, files ─────────────────────────────
     "Folder": "Ordner",
