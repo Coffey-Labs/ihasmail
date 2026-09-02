@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { create } from "zustand";
 import { hasCachedJson, loadJson, saveJson } from "@/lib/storage";
+import { effectiveMode, legacyTheme, migrateTheme, type Mode, type PaletteId } from "@/lib/palette";
 import type { SortLevel, SortPreset } from "@/lib/listSort";
 import { pendingSettingsKeys, queueSettingsPush } from "@/lib/settingsSync";
 import { setDateTimePrefs, setUiLanguageForFormatting, type DateFormat, type TimeFormat } from "@/lib/datetime";
@@ -48,7 +49,16 @@ export interface Template {
 }
 
 export interface Settings {
+  /**
+   * Kept, and kept correct, for a device still running a build that only knows
+   * this field. It cannot express "Gruvbox", but it can express light or dark,
+   * which is the half that stops an older device showing a theme nobody chose.
+   */
   theme: Theme;
+  /** The colours. */
+  palette: PaletteId;
+  /** Light, dark, or whatever the system says. */
+  mode: Mode;
   accent: string;
   density: Density;
   readingPane: ReadingPane;
@@ -203,14 +213,6 @@ export interface Settings {
    * id belonging to another account simply never matches.
    */
   hiddenIdentities: string[];
-  /**
-   * The theme the top-bar toggle goes back to from light. Remembered rather
-   * than assumed, so flipping to light and back returns you to the theme you
-   * were on — "ihasmail", "system" or plain "dark" — instead of dropping
-   * everyone onto the same one. Never "light": that is the side being
-   * toggled away from.
-   */
-  lastDarkTheme: Exclude<Theme, "light">;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -222,6 +224,8 @@ export const DEFAULT_SETTINGS: Settings = {
    * it — is moved off it.
    */
   theme: "ihasmail",
+  palette: "ihasmail",
+  mode: "dark",
   accent: "teal",
   density: "cozy",
   readingPane: "right",
@@ -294,7 +298,6 @@ export const DEFAULT_SETTINGS: Settings = {
   ],
   defaultIdentityByAccount: {},
   hiddenIdentities: [],
-  lastDarkTheme: "ihasmail",
 };
 
 /**
@@ -338,6 +341,20 @@ export function acceptRemote(remote: Record<string, unknown>): Partial<Settings>
     if (DEVICE_KEYS.has(key as keyof Settings)) continue;
     if (value === undefined) continue;
     out[key] = value;
+  }
+  /*
+   * A file written before palettes existed carries `theme` and neither
+   * `palette` nor `mode`, so it is read through the old enum. Settings live in
+   * the account's own Files and are opened by whatever version happens to run
+   * next, so this is not a one-release migration -- it has to keep working.
+   *
+   * Only when the new fields are absent: a file that has both is newer, and
+   * its `theme` is the derived copy rather than the choice.
+   */
+  if (out.palette === undefined && out.mode === undefined && typeof remote.theme === "string") {
+    const migrated = migrateTheme(remote.theme);
+    out.palette = migrated.palette;
+    out.mode = migrated.mode;
   }
   return out as Partial<Settings>;
 }
@@ -389,11 +406,16 @@ applyDateTimePrefs(initialSettings);
 export const useSettings = create<SettingsState>((set, get) => ({
   settings: initialSettings,
   update(patch) {
-    // Picking a theme anywhere — the toggle, Appearance, an imported file —
-    // is what teaches the toggle where to come back to. Doing it here rather
-    // than at the call sites means a fourth way to set a theme cannot forget.
-    const next = patch.theme && patch.theme !== "light" ? { ...patch, lastDarkTheme: patch.theme } : patch;
-    const settings = { ...get().settings, ...next };
+    /*
+     * `theme` is derived, never chosen: whatever set the palette or the mode --
+     * the toggle, Appearance, an imported file -- the legacy field is brought
+     * back into line here rather than at the call sites, so a fourth way to
+     * change the theme cannot forget to update it and strand an older device
+     * on a theme nobody picked.
+     */
+    const merged = { ...get().settings, ...patch };
+    const prefersDark = Boolean(window.matchMedia?.("(prefers-color-scheme: dark)").matches);
+    const settings = { ...merged, theme: legacyTheme({ palette: merged.palette, mode: merged.mode }, prefersDark) };
     saveJson("settings", settings);
     set({ settings });
     applyTheme(settings);
@@ -401,7 +423,7 @@ export const useSettings = create<SettingsState>((set, get) => ({
     applyLang(settings);
     // Dragging a splitter changes a device key on every frame and must not put
     // a request in the air; anything else is queued and coalesced.
-    if (Object.keys(next).some((k) => !DEVICE_KEYS.has(k as keyof Settings))) {
+    if (Object.keys(patch).some((k) => !DEVICE_KEYS.has(k as keyof Settings))) {
       queueSettingsPush(syncedPart(settings));
     }
   },
@@ -481,28 +503,37 @@ const THEME_COLOR = { light: "#ffffff", dark: "#0b1220", ihasmail: "#0d2430" } a
 
 export function applyTheme(s: Settings = useSettings.getState().settings): void {
   const root = document.documentElement;
-  const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches;
-  const dark = isDarkTheme(s.theme, prefersDark);
-  // ihasmail keeps data-theme="dark" and adds a palette on top, so every
-  // dark-only rule in the stylesheet applies to it without being repeated.
-  root.dataset.theme = dark ? "dark" : "light";
-  if (s.theme === "ihasmail") root.dataset.palette = "ihasmail";
+  const prefersDark = Boolean(window.matchMedia?.("(prefers-color-scheme: dark)").matches);
+  const mode = effectiveMode(s.mode, prefersDark);
+  /*
+   * Two attributes, because they answer two questions. `data-theme` is the
+   * mode, and every dark-only rule in the stylesheet keys off it without
+   * knowing any palette exists; `data-palette` layers the colours on top. The
+   * accent variants out-specify both, which is what lets an accent still apply
+   * over any palette.
+   */
+  root.dataset.theme = mode;
+  if (s.palette && s.palette !== "default") root.dataset.palette = s.palette;
   else delete root.dataset.palette;
   root.dataset.density = s.density;
   root.dataset.accent = s.accent;
   root.dataset.fontsize = s.fontSize;
   const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]:not([media])');
-  if (meta) meta.content = s.theme === "ihasmail" ? THEME_COLOR.ihasmail : dark ? THEME_COLOR.dark : THEME_COLOR.light;
+  if (meta) meta.content = paletteThemeColor(s.palette, mode);
 }
 
 /**
- * Where the top-bar toggle goes next. Away from dark is always light; back
- * from light is wherever you last were, which is the whole point of
- * remembering it.
+ * The browser chrome colour, read from the palette's own background so it does
+ * not have to be listed twice and cannot drift from it.
  */
-export function toggleTarget(effective: "light" | "dark", lastDarkTheme: Settings["lastDarkTheme"]): Theme {
-  return effective === "dark" ? "light" : lastDarkTheme;
+function paletteThemeColor(palette: PaletteId, mode: "light" | "dark"): string {
+  if (typeof getComputedStyle === "function") {
+    const value = getComputedStyle(document.documentElement).getPropertyValue("--bg").trim();
+    if (value) return value;
+  }
+  return mode === "dark" ? THEME_COLOR.dark : THEME_COLOR.light;
 }
+
 
 /** Whether a theme paints dark, resolving "system" against the OS. */
 export function isDarkTheme(theme: Theme, prefersDark = false): boolean {
@@ -523,7 +554,7 @@ if (typeof window !== "undefined") {
  * resolves to whatever the OS is doing right now, and follows it as it changes.
  */
 export function useEffectiveTheme(): "light" | "dark" {
-  const theme = useSettings((s) => s.settings.theme);
+  const mode = useSettings((s) => s.settings.mode);
   const [systemDark, setSystemDark] = useState(() => window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false);
   useEffect(() => {
     const mq = window.matchMedia?.("(prefers-color-scheme: dark)");
@@ -532,7 +563,7 @@ export function useEffectiveTheme(): "light" | "dark" {
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
   }, []);
-  return isDarkTheme(theme, systemDark) ? "dark" : "light";
+  return effectiveMode(mode, systemDark);
 }
 
 export const settings = () => useSettings.getState().settings;

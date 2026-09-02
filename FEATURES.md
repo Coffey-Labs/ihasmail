@@ -936,12 +936,41 @@ offering to translate a page the reader cannot read.
 
 ## Themes
 
-Follow the system, light, dark, or **ihasmail** — the palette this project's
-site is painted in, and what a new account starts on. It is a theme rather than
-an accent because it changes backgrounds, borders and text as well as the
-highlight colour. Accent colours sit on top of any of them. The top-bar toggle
-remembers which dark theme you came from, so flipping to light and back returns
-you to the one you were on.
+Two questions, asked separately: **which palette** and **light or dark**. They
+used to be one setting, which works for exactly one palette and stops working
+at two.
+
+| Palette | |
+| --- | --- |
+| **Classic** | The plain light and dark this app has always had |
+| **ihasmail** | The palette this project's site is painted in, and what a new account starts on |
+| **Dracula** | Dracula, and Alucard as its light half |
+| **Gruvbox** | |
+| **Rosé Pine** | Dawn as its light half |
+| **Tokyo Night** | Day as its light half |
+
+Every one has both halves, so the top-bar toggle only ever changes the side and
+never the colours. Accent colours still sit on top of any of them.
+
+The four borrowed palettes are the work of their own projects and are used
+under the MIT licence — see [NOTICE](NOTICE). Only the published colour values
+are used, taken from each project's own repository; the values as fetched are
+recorded in `.palette-sources/palettes-upstream.md`.
+
+**The shades between those values are derived, and every one is checked.**
+ihasmail needs about thirty tokens and these projects publish between twelve
+and twenty, so the tiers in between are computed by
+`scripts/build-palettes.py`, which then measures every text colour against the
+surface it sits on — 4.5:1 for prose, 3:1 for borders and marks — and lifts
+anything that falls short, towards white on a dark ground and towards black on
+a light one so the hue survives. The script refuses to write a palette that
+would not pass.
+
+That check is not a formality. **Every one of the nine palette halves needed at
+least one lift**, because these palettes are designed for code editors rather
+than for prose at this size: Dracula's comment grey is 3.03:1 on its own
+background, and Rosé Pine's gold is 2.7:1 on Dawn. Shipping them as published
+would have quietly ended the WCAG AA claim two sections down.
 
 ---
 

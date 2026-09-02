@@ -3,7 +3,8 @@ import { Link, useLocation } from "wouter";
 import { BookOpen, Calendar, ChevronsUpDown, FolderOpen, Globe, HelpCircle, LogOut, Mail, Menu as MenuIcon, Moon, PenSquare, Plus, RefreshCw, Settings, Sun, Upload, Users, X } from "lucide-react";
 import { useSession } from "@/store/session";
 import { withBase } from "@/lib/basePath";
-import { toggleTarget, useEffectiveTheme, useSettings } from "@/store/settings";
+import { useEffectiveTheme, useSettings } from "@/store/settings";
+import { toggleTarget } from "@/lib/palette";
 import { useMail } from "@/store/mail";
 import { draftFromMailto, useCompose } from "@/store/compose";
 import { Avatar, useIsMobile } from "@/ui/misc";
@@ -268,18 +269,20 @@ function QuotaBar() {
  */
 function ThemeToggle() {
   const effective = useEffectiveTheme();
-  const lastDarkTheme = useSettings((s) => s.settings.lastDarkTheme);
+  const settings = useSettings((s) => s.settings);
   const update = useSettings((s) => s.update);
-  const next = toggleTarget(effective, lastDarkTheme);
-  // The label names where you are going, and going back is not always "dark"
-  // any more -- it is whichever theme you were on before flipping to light.
-  const label = next === "light" ? "light mode" : next === "system" ? "your system theme" : next === "ihasmail" ? "the ihasmail theme" : "dark mode";
+  const prefersDark = Boolean(window.matchMedia?.("(prefers-color-scheme: dark)").matches);
+  const next = toggleTarget({ palette: settings.palette, mode: settings.mode }, prefersDark);
+  // Name where it is going, and by the palette when the palette is changing --
+  // going back to ihasmail's own colours is not the same as "dark mode".
+  // The palette never changes now, so the label is only ever the side.
+  const label = next.mode === "light" ? t("light mode") : t("dark mode");
   return (
     <button
       className="icon-btn"
       aria-label={t("Switch to {theme}", { theme: label })}
       title={t("Switch to {theme}", { theme: label })}
-      onClick={() => update({ theme: next })}
+      onClick={() => update(next)}
     >
       {effective === "dark" ? <Sun size={21} /> : <Moon size={21} />}
     </button>
