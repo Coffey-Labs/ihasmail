@@ -136,7 +136,7 @@ export function ContactsView({ id }: { id?: string }) {
        * LDIF may arrive as .ldif, .ldi, .txt or with no extension at all, and
        * the name is the least reliable thing about it.
        */
-      const { created, skipped } = /^\s*BEGIN:VCARD/im.test(text)
+      const { created, skipped, alike } = /^\s*BEGIN:VCARD/im.test(text)
         ? await contacts.importVCard(text, book.id)
         : await contacts.importLdif(text, book.id);
       /*
@@ -149,6 +149,18 @@ export function ContactsView({ id }: { id?: string }) {
       if (!created) toast.success(plural(skipped, { one: "Already here: {n} contact, nothing imported", other: "Already here: {n} contacts, nothing imported" }));
       else if (skipped) toast.success(`${imported} · ${plural(skipped, { one: "{n} was already here", other: "{n} were already here" })}`);
       else toast.success(imported);
+      /*
+       * Said separately, and after, because it is a different kind of fact.
+       * LDIF has no UID to match on, so nothing was skipped and nothing was
+       * merged -- these are simply here twice now, and saying so is the whole
+       * of what can honestly be said without guessing (#223).
+       */
+      if (alike) {
+        toast.show(plural(alike, {
+          one: "{n} of them looks like a contact you already had",
+          other: "{n} of them look like contacts you already had",
+        }), { duration: 9000 });
+      }
     } catch (err) {
       toast.error(translate("Could not import this file: {error}", { error: (err as Error).message }));
     }

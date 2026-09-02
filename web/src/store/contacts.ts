@@ -41,22 +41,53 @@ import { useMail } from "./mail";
  * happens to be holding costs one pass over a list nobody imports into twice a
  * day.
  */
-async function uidsInBook(accountId: Id, addressBookId: Id): Promise<Set<string>> {
+async function scanBook(accountId: Id, addressBookId: Id): Promise<{ uids: Set<string>; likeness: Set<string> }> {
   const uids = new Set<string>();
+  const likeness = new Set<string>();
   const page = client.maxObjectsInGet;
   for (let position = 0; ; ) {
     const q = await client.call<QueryResponse>("ContactCard/query", { accountId, position, limit: page, calculateTotal: true });
     const ids = q.ids ?? [];
     if (!ids.length) break;
     for (const part of chunk(ids, page)) {
-      const g = await client.call<GetResponse<ContactCard>>("ContactCard/get", { accountId, ids: part, properties: ["uid", "addressBookIds"] });
-      for (const c of g.list) if (c.uid && c.addressBookIds?.[addressBookId]) uids.add(c.uid);
+      const g = await client.call<GetResponse<ContactCard>>("ContactCard/get", { accountId, ids: part, properties: ["uid", "addressBookIds", "name", "emails"] });
+      for (const c of g.list) {
+        if (!c.addressBookIds?.[addressBookId]) continue;
+        if (c.uid) uids.add(c.uid);
+        for (const key of likenessKeys(c)) likeness.add(key);
+      }
     }
     position += ids.length;
     // `total` is optional, so the empty page above is what actually ends this.
     if (q.total != null && position >= q.total) break;
   }
-  return uids;
+  return { uids, likeness };
+}
+
+/**
+ * What makes two cards *look* like the same person -- name and one address.
+ *
+ * Deliberately not used to skip or merge anything. It is a guess, and it is
+ * wrong in both directions: two colleagues who share a name and a shared alias
+ * collapse into one, and somebody whose address changed since the last export
+ * looks like a stranger. Either mistake is silent and one of them is
+ * unrecoverable, which is why #223 leaves the decision open.
+ *
+ * Counting is a different act from acting. An LDIF re-import duplicates
+ * everything -- Mozilla's schema has no UID, so the import invents one and
+ * nothing can match -- and the reported harm was confusion rather than data
+ * loss: somebody imports a file twice and cannot tell what happened. Being told
+ * "40 of these look like contacts you already had" answers that without
+ * touching a single card.
+ *
+ * One key per address, so a person whose second address matches is still
+ * recognised.
+ */
+function likenessKeys(c: Partial<ContactCard>): string[] {
+  const name = contactDisplayName(c as ContactCard).trim().toLowerCase();
+  if (!name) return [];
+  const addresses = Object.values(c.emails ?? {}).map((e) => e.address?.trim().toLowerCase()).filter(Boolean);
+  return addresses.map((a) => `${name}\u0000${a}`);
 }
 
 async function createCards(accountId: Id, create: Record<string, unknown>): Promise<{ created: number; refused?: SetError }> {
@@ -154,7 +185,7 @@ interface ContactsState {
   updateBook(id: Id, patch: Partial<AddressBook>): Promise<void>;
   destroyBook(id: Id): Promise<void>;
   /** Import vCards, skipping any whose UID this book already holds. */
-  importVCard(text: string, addressBookId: Id): Promise<{ created: number; skipped: number }>;
+  importVCard(text: string, addressBookId: Id): Promise<{ created: number; skipped: number; alike: number }>;
   /**
    * Import an address book in LDIF, read against Mozilla's schema.
    *
@@ -162,7 +193,7 @@ interface ContactsState {
    * recognise a re-import by. Answered in the same shape as the vCard import so
    * the caller does not have to know which one it called.
    */
-  importLdif(text: string, addressBookId: Id): Promise<{ created: number; skipped: number }>;
+  importLdif(text: string, addressBookId: Id): Promise<{ created: number; skipped: number; alike: number }>;
   loadPrincipals(): Promise<void>;
   suggest(query: string, limit?: number): Promise<Suggestion[]>;
   addRecent(addrs: EmailAddress[]): void;
@@ -460,7 +491,7 @@ export const useContacts = create<ContactsState>((set, get) => ({
     const entry = parsed.parsed?.[up.blobId];
     const cards: ContactCard[] = entry ? (Array.isArray(entry) ? entry : [entry]) : [];
     if (!cards.length) throw new Error("No contacts found in file");
-    const already = await uidsInBook(accountId, addressBookId);
+    const already = (await scanBook(accountId, addressBookId)).uids;
     const create: Record<string, unknown> = {};
     let skipped = 0;
     cards.forEach((c, i) => {
@@ -482,7 +513,7 @@ export const useContacts = create<ContactsState>((set, get) => ({
     // The whole file was already here. Nothing to send, and nothing wrong.
     if (!Object.keys(create).length) {
       await get().loadAll();
-      return { created: 0, skipped };
+      return { created: 0, skipped, alike: 0 };
     }
     try {
       const { created, refused } = await createCards(accountId, create);
@@ -490,7 +521,9 @@ export const useContacts = create<ContactsState>((set, get) => ({
       // though the file had been empty. The LDIF import said this already; a
       // vCard import that quietly returned 0 was the odd one out.
       if (!created) throw new Error(refused ? setErrorMessage(refused) : "the server did not accept any of its contacts");
-      return { created, skipped };
+      /* No likeness count here: a vCard carries a UID, so anything that was
+         already present was skipped by name above rather than guessed at. */
+      return { created, skipped, alike: 0 };
     } finally {
       await get().loadAll();
     }
@@ -509,8 +542,16 @@ export const useContacts = create<ContactsState>((set, get) => ({
     const accountId = get().accountId!;
     const cards = parseLdif(text).map(cardFromLdif).filter((c): c is Partial<ContactCard> => c !== null);
     if (!cards.length) throw new Error("it has no contacts in it");
+    /*
+     * Read before anything is created, so "already had" means before this
+     * import rather than including it. Every card here is imported either way;
+     * this only counts.
+     */
+    const before = await scanBook(accountId, addressBookId);
+    let alike = 0;
     const create: Record<string, unknown> = {};
     cards.forEach((c, i) => {
+      if (likenessKeys(c).some((k) => before.likeness.has(k))) alike++;
       // Built here rather than read from the file: LDIF identifies an entry by
       // its distinguished name, which says where it sat in somebody's
       // directory and is no use as a contact's identity anywhere else.
@@ -529,8 +570,13 @@ export const useContacts = create<ContactsState>((set, get) => ({
      * here because Mozilla's schema does not define one, so a re-import has no
      * identity to be recognised by -- see #223, where whether to guess at one
      * from a name and an address is still an open question.
+     *
+     * `alike` is what can be said without answering it: how many of these look
+     * like contacts that were already here. Reporting is not matching -- every
+     * card was imported -- and it is the confusion rather than the duplication
+     * that was reported as the harm.
      */
-    return { created, skipped: 0 };
+    return { created, skipped: 0, alike };
   },
 
   async loadPrincipals() {

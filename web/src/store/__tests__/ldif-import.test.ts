@@ -63,7 +63,7 @@ describe("importing an LDIF address book", () => {
   it("creates every entry in one call, not one call each", async () => {
     const sets = server();
     const n = await useContacts.getState().importLdif(TWO, "book1");
-    expect(n).toEqual({ created: 2, skipped: 0 });
+    expect(n).toEqual({ created: 2, skipped: 0, alike: 0 });
     expect(sets).toHaveLength(1);
     expect(Object.keys(sets[0]!.create!)).toEqual(["c0", "c1"]);
   });
@@ -105,7 +105,7 @@ describe("importing an LDIF address book", () => {
   it("skips entries too empty to be a person, and imports the rest", async () => {
     const sets = server();
     const n = await useContacts.getState().importLdif(`${TWO}\ndn: cn=Nobody\nobjectClass: top\n`, "book1");
-    expect(n).toEqual({ created: 2, skipped: 0 });
+    expect(n).toEqual({ created: 2, skipped: 0, alike: 0 });
     expect(Object.keys(sets[0]!.create!)).toHaveLength(2);
   });
 
@@ -116,6 +116,6 @@ describe("importing an LDIF address book", () => {
 
   it("counts what got in when only some of it did", async () => {
     server({ notCreated: { c1: { type: "invalidProperties" } } });
-    await expect(useContacts.getState().importLdif(TWO, "book1")).resolves.toEqual({ created: 1, skipped: 0 });
+    await expect(useContacts.getState().importLdif(TWO, "book1")).resolves.toEqual({ created: 1, skipped: 0, alike: 0 });
   });
 });

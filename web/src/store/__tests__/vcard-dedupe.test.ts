@@ -73,7 +73,7 @@ afterEach(() => {
 describe("re-importing vCards the book already has", () => {
   it("skips a card whose uid is already in this book", async () => {
     const sets = server({ parsed: [card("ada@x", "Ada"), card("alan@x", "Alan")], existing: [here("ada@x")] });
-    await expect(useContacts.getState().importVCard("BEGIN:VCARD", "book1")).resolves.toEqual({ created: 1, skipped: 1 });
+    await expect(useContacts.getState().importVCard("BEGIN:VCARD", "book1")).resolves.toEqual({ created: 1, skipped: 1, alike: 0 });
     expect(Object.values(sets[0]!.create!).map((c) => (c.name as { full: string }).full)).toEqual(["Alan"]);
   });
 
@@ -81,26 +81,26 @@ describe("re-importing vCards the book already has", () => {
     // The same person legitimately filed in two address books is not a
     // duplicate, any more than the same event in two calendars is.
     const sets = server({ parsed: [card("ada@x", "Ada")], existing: [here("ada@x", "book2")] });
-    await expect(useContacts.getState().importVCard("BEGIN:VCARD", "book1")).resolves.toEqual({ created: 1, skipped: 0 });
+    await expect(useContacts.getState().importVCard("BEGIN:VCARD", "book1")).resolves.toEqual({ created: 1, skipped: 0, alike: 0 });
     expect(Object.keys(sets[0]!.create!)).toHaveLength(1);
   });
 
   it("imports a card that arrived with no uid, rather than guessing at one", async () => {
     const noUid = { "@type": "Card", version: "1.0", kind: "individual", name: { full: "Anon" } };
     const sets = server({ parsed: [noUid], existing: [here("ada@x")] });
-    await expect(useContacts.getState().importVCard("BEGIN:VCARD", "book1")).resolves.toEqual({ created: 1, skipped: 0 });
+    await expect(useContacts.getState().importVCard("BEGIN:VCARD", "book1")).resolves.toEqual({ created: 1, skipped: 0, alike: 0 });
     expect(Object.values(sets[0]!.create!)[0]!.uid).toEqual(expect.any(String));
   });
 
   it("sends nothing at all when the whole file is already here", async () => {
     const sets = server({ parsed: [card("ada@x", "Ada"), card("alan@x", "Alan")], existing: [here("ada@x"), here("alan@x")] });
-    await expect(useContacts.getState().importVCard("BEGIN:VCARD", "book1")).resolves.toEqual({ created: 0, skipped: 2 });
+    await expect(useContacts.getState().importVCard("BEGIN:VCARD", "book1")).resolves.toEqual({ created: 0, skipped: 2, alike: 0 });
     expect(sets).toHaveLength(0);
   });
 
   it("imports everything into an empty book", async () => {
     const sets = server({ parsed: [card("ada@x", "Ada"), card("alan@x", "Alan")] });
-    await expect(useContacts.getState().importVCard("BEGIN:VCARD", "book1")).resolves.toEqual({ created: 2, skipped: 0 });
+    await expect(useContacts.getState().importVCard("BEGIN:VCARD", "book1")).resolves.toEqual({ created: 2, skipped: 0, alike: 0 });
     expect(Object.keys(sets[0]!.create!)).toHaveLength(2);
   });
 });
@@ -116,6 +116,6 @@ describe("LDIF, which has nothing to match on", () => {
      * name and an address instead is the open question on #223.
      */
     server({ existing: [here("anything")] });
-    await expect(useContacts.getState().importLdif(TWO, "book1")).resolves.toEqual({ created: 2, skipped: 0 });
+    await expect(useContacts.getState().importLdif(TWO, "book1")).resolves.toEqual({ created: 2, skipped: 0, alike: 0 });
   });
 });
