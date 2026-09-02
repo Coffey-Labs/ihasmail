@@ -296,8 +296,8 @@ interface CalendarState {
   findByUid(uid: string): Promise<CalendarEvent | null>;
   parseIcs(blobId: Id): Promise<CalendarEvent[]>;
   importEvent(event: Partial<CalendarEvent>, calendarId: Id): Promise<Id>;
-  /** Import a whole .ics file. Returns how many events it created. */
-  importIcs(text: string, calendarId: Id): Promise<number>;
+  /** Import a whole .ics file. Says how many it created, and how many were already here. */
+  importIcs(text: string, calendarId: Id): Promise<{ created: number; skipped: number }>;
   applyChanges(types: Set<string>): void;
   invalidate(): void;
   setDraft(draft: EventDraft | null): void;
@@ -328,6 +328,41 @@ const EVENT_PROPS = [
 function forImport(event: Partial<CalendarEvent>): Partial<CalendarEvent> {
   const { id: _id, calendarIds: _c, baseEventId: _b, utcStart: _us, utcEnd: _ue, isOrigin: _io, method: _m, ...rest } = event as CalendarEvent & { method?: string };
   return rest;
+}
+
+/**
+ * The UIDs a calendar already holds.
+ *
+ * A UID is what makes an event the same event across calendars, and the import
+ * already keeps the file's own wherever there is one -- so the thing needed to
+ * recognise a re-import was there all along and nothing looked at it. Asked for
+ * once per import rather than once per event: `CalendarEvent/query` does take a
+ * `uid` filter, but a file of two thousand events would be two thousand
+ * queries.
+ *
+ * Read without `expandRecurrences`, so a weekly series is one event with one
+ * UID rather than one per occurrence, and filtered to the target calendar here
+ * rather than in the query -- the same event legitimately lives in two
+ * calendars, and `calendarIds` says which without relying on a filter this
+ * client has not confirmed the server supports.
+ */
+async function uidsInCalendar(accountId: Id, calendarId: Id): Promise<Set<string>> {
+  const uids = new Set<string>();
+  const page = client.maxObjectsInGet;
+  for (let position = 0; ; ) {
+    const q = await client.call<QueryResponse>("CalendarEvent/query", { accountId, position, limit: page });
+    const ids = q.ids ?? [];
+    if (!ids.length) break;
+    for (const part of chunk(ids, page)) {
+      const g = await client.call<GetResponse<CalendarEvent>>("CalendarEvent/get", { accountId, ids: part, properties: ["uid", "calendarIds"] });
+      for (const e of g.list) if (e.uid && e.calendarIds?.[calendarId]) uids.add(e.uid);
+    }
+    position += ids.length;
+    // `total` is optional, so the empty page above is what actually ends this;
+    // this only saves the round trip that would find it.
+    if (q.total != null && position >= q.total) break;
+  }
+  return uids;
 }
 
 export const useCalendar = create<CalendarState>((set, get) => ({
@@ -827,14 +862,28 @@ export const useCalendar = create<CalendarState>((set, get) => ({
     const up = await client.upload(accountId, new Blob([text], { type: "text/calendar" }), { type: "text/calendar" });
     const events = await get().parseIcs(up.blobId);
     if (!events.length) throw new Error("it has no events in it");
+    const already = await uidsInCalendar(accountId, calendarId);
     const create: Record<string, unknown> = {};
+    let skipped = 0;
     events.forEach((e, i) => {
       const rest = forImport(e);
-      // A UID is what makes an event the same event across calendars, so the
-      // file's own is kept wherever it has one. Only what arrives without gets
-      // invented, and an event with no UID is not one anything can match to.
+      /*
+       * A UID is what makes an event the same event across calendars, so the
+       * file's own is kept wherever it has one. Only what arrives without gets
+       * invented, and an event with no UID is not one anything can match to --
+       * which is also why an event without one is imported rather than guessed
+       * about. Re-importing an export used to leave second copies of
+       * everything; asked for on #173, decided there.
+       */
+      if (rest.uid && already.has(rest.uid)) {
+        skipped++;
+        return;
+      }
       create[`e${i}`] = { "@type": "Event", ...rest, uid: rest.uid || crypto.randomUUID(), calendarIds: { [calendarId]: true } };
     });
+    // Everything in the file was already here. Nothing to send, and nothing
+    // wrong either -- say so rather than reporting an import of no events.
+    if (!Object.keys(create).length) return { created: 0, skipped };
     const keys = Object.keys(create);
     let created = 0;
     let refused: SetError | undefined;
@@ -858,7 +907,7 @@ export const useCalendar = create<CalendarState>((set, get) => ({
     // Nothing at all got in: say why rather than report importing zero events
     // as though the file had been empty.
     if (!created) throw new Error(refused ? setErrorMessage(refused) : "the server did not accept any of its events");
-    return created;
+    return { created, skipped };
   },
 
   applyChanges(types) {

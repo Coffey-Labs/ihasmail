@@ -1046,6 +1046,9 @@ export const catalog: Catalog = {
     "Nothing unread here": "Aquí no hay nada sin leer",
   },
   plurals: {
+    "Imported {n} events": { one: "{n} evento importado", other: "{n} eventos importados" },
+    "Already here: {n} events, nothing imported": { one: "Ya estaba aquí: {n} evento, no se importó nada", other: "Ya estaban aquí: {n} eventos, no se importó nada" },
+    "{n} were already here": { one: "{n} ya estaba aquí", other: "{n} ya estaban aquí" },
     "{n} messages": { one: "{n} mensaje", other: "{n} mensajes" },
     "{n} selected": { one: "{n} seleccionado", other: "{n} seleccionados" },
     "{n} conversations": { one: "{n} conversación", other: "{n} conversaciones" },
