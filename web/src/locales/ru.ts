@@ -961,7 +961,7 @@ export const catalog: Catalog = {
     "New all-day event on {date}": "Новое событие на весь день {date}",
     "New event at {time}": "Новое событие в {time}",
     "New identity": "Новый профиль отправителя",
-    "No Archive folder found. Create one named “Archive” first.": "Папка архива не найдена. Сначала создайте папку с именем «Archive».",
+    "No Archive folder is set. A folder needs the Archive role on the server; naming it “Archive” is not enough.": "Папка архива не задана. На сервере папке нужна роль «Archive»; просто назвать её так недостаточно.",
     "No contacts yet": "Контактов пока нет",
     "No longer shared": "Общий доступ прекращён",
     "No matches": "Совпадений нет",

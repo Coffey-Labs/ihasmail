@@ -177,6 +177,15 @@ describe("archiveByDate", () => {
     expect(s.created).toEqual([]);
     expect(s.moves).toEqual([]);
     expect(messages()[0]).toContain("No Archive folder");
+    /*
+     * What it says, not just that it complains. The folder is found by its
+     * special-use role and by nothing else, so telling someone to create a
+     * folder *named* "Archive" sent them round a loop that could not end --
+     * naming a folder does not give it the role, and ihasmail cannot assign
+     * one. Issue #217.
+     */
+    expect(messages()[0]).toContain("role");
+    expect(messages()[0]).not.toMatch(/Create one named/);
   });
 
   it("has nothing to do with an empty selection", async () => {

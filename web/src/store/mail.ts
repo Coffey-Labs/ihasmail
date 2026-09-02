@@ -610,7 +610,7 @@ export const useMail = create<MailState>((set, get) => ({
   async archive(ids) {
     const archiveId = get().roleId("archive") ?? get().roleId("all");
     if (!archiveId) {
-      toast.error(t("No Archive folder found. Create one named “Archive” first."));
+      toast.error(t("No Archive folder is set. A folder needs the Archive role on the server; naming it “Archive” is not enough."));
       return;
     }
     await get().move(ids, archiveId, { label: "Archive" });
@@ -621,7 +621,7 @@ export const useMail = create<MailState>((set, get) => ({
     const archiveId = get().roleId("archive") ?? get().roleId("all");
     if (!accountId || !ids.length) return;
     if (!archiveId) {
-      toast.error(t("No Archive folder found. Create one named “Archive” first."));
+      toast.error(t("No Archive folder is set. A folder needs the Archive role on the server; naming it “Archive” is not enough."));
       return;
     }
     const { emails } = get();
