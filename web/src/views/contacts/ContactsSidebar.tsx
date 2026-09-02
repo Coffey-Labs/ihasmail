@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Book, BookOpen, Download, Pencil, Plus, RefreshCw, Share2, Trash2, Upload, UserMinus, Users, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Book, BookOpen, Download, MoreVertical, Pencil, Plus, RefreshCw, Share2, Trash2, Upload, UserMinus, Users, X } from "lucide-react";
 import { useContacts } from "@/store/contacts";
 import { useSession } from "@/store/session";
 import { useSettings } from "@/store/settings";
@@ -41,13 +41,39 @@ async function refreshShares(force = false): Promise<void> {
  * distinction would be lying about whose contacts these are.
  */
 export function ContactsSidebar() {
-  /* Import and export act on the list the view is showing, so they are asked
-     for by event rather than reaching across into it. */
-  const onImport = (file: File) => window.dispatchEvent(new CustomEvent("ihm:contacts-import", { detail: file }));
-  const onExport = () => window.dispatchEvent(new CustomEvent("ihm:contacts-export"));
+  /* Import and export are the view's to carry out -- it holds the cards -- so
+     they are asked for by event rather than reaching across into it. What has
+     changed is that the event now names the book, instead of meaning "whatever
+     is selected". */
+  const onImport = (file: File, bookId: string) => window.dispatchEvent(new CustomEvent("ihm:contacts-import", { detail: { file, bookId } }));
+  const onExport = (accountId: string | null, bookId: string) => window.dispatchEvent(new CustomEvent("ihm:contacts-export", { detail: { accountId, bookId } }));
   const contacts = useContacts();
   const settings = useSettings((s) => s.settings);
-  const [menuBook, setMenuBook] = useState<AddressBook | null>(null);
+  /*
+   * What the open menu belongs to. One state rather than three, because the
+   * rows differ in what they can offer: everything can be exported, only your
+   * own can be imported into, renamed, shared or deleted.
+   */
+  type MenuTarget =
+    | { kind: "all" }
+    | { kind: "own"; book: AddressBook }
+    | { kind: "shared"; accountId: string; book: AddressBook };
+  const [target, setTarget] = useState<MenuTarget | null>(null);
+  const menuBook = target && target.kind === "own" ? target.book : null;
+  /*
+   * The file picker for "Import contacts…". A MenuItem is a button and cannot
+   * wrap a hidden input, so the input lives at the end of the sidebar and the
+   * menu item reaches it through this -- the same arrangement the calendar's
+   * iCAL import uses, which is the point of #224.
+   *
+   * The book is remembered separately because opening the picker closes the
+   * menu, and `target` goes with it: by the time a file comes back there would
+   * be nothing left saying which book it was chosen for.
+   */
+  const fileRef = useRef<HTMLInputElement>(null);
+  const importInto = useRef<string | null>(null);
+  const openMenu = (e: React.MouseEvent, t: MenuTarget) => { e.stopPropagation(); e.preventDefault(); setTarget(t); menu.open(e); };
+  const openMenuAt = (e: React.MouseEvent, t: MenuTarget) => { e.preventDefault(); setTarget(t); menu.openAt(e.clientX, e.clientY); };
   const [share, setShare] = useState<AddressBook | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const menu = useMenu();
@@ -71,9 +97,14 @@ export function ContactsSidebar() {
   return (
     <>
       <div className="nav-section"><span>{t("Contacts")}</span></div>
-      <div className={`nav-item ${isOn(null, "all") ? "active" : ""}`} onClick={() => contacts.select({ accountId: null, bookId: "all" })}>
+      <div
+        className={`nav-item ${isOn(null, "all") ? "active" : ""}`}
+        onClick={() => contacts.select({ accountId: null, bookId: "all" })}
+        onContextMenu={(e) => openMenuAt(e, { kind: "all" })}
+      >
         <Users size={17} />
         <span className="grow truncate">{t("All contacts")}</span>
+        <button className="icon-btn xs nav-more" onClick={(e) => openMenu(e, { kind: "all" })} aria-label={t("Contact options")}><MoreVertical size={14} /></button>
       </div>
 
       <div className="nav-section">
@@ -100,11 +131,12 @@ export function ContactsSidebar() {
           key={b.id}
           className={`nav-item ${isOn(null, b.id) ? "active" : ""}`}
           onClick={() => contacts.select({ accountId: null, bookId: b.id })}
-          onContextMenu={(e) => { e.preventDefault(); setMenuBook(b); menu.openAt(e.clientX, e.clientY); }}
+          onContextMenu={(e) => openMenuAt(e, { kind: "own", book: b })}
         >
           <Book size={17} />
           <span className="grow truncate">{b.name}</span>
           {Object.keys(b.shareWith ?? {}).length > 0 && <Share2 size={12} className="faint" aria-label={t("Shared")} />}
+          <button className="icon-btn xs nav-more" onClick={(e) => openMenu(e, { kind: "own", book: b })} aria-label={t("Address book options")}><MoreVertical size={14} /></button>
         </div>
       ))}
 
@@ -125,17 +157,14 @@ export function ContactsSidebar() {
           className={`nav-item ${isOn(accountId, book.id) ? "active" : ""}`}
           onClick={() => contacts.select({ accountId, bookId: book.id })}
           title={`${book.name} — shared by ${accountName}`}
+          onContextMenu={(e) => openMenuAt(e, { kind: "shared", accountId, book })}
         >
           <BookOpen size={17} />
           <span className="grow truncate">{book.name}</span>
-          <button
-            className="icon-btn sm"
-            title={t("Remove from my contacts")}
-            aria-label={t("Remove from my contacts")}
-            onClick={(e) => { e.stopPropagation(); void contacts.setBookSubscribed(accountId, book.id, false); }}
-          >
-            <X size={13} />
-          </button>
+          {/* A menu rather than the bare X it replaces: somebody else's book can
+              still be exported, and losing that when the sidebar's export button
+              went would have been a regression dressed as a tidy-up. */}
+          <button className="icon-btn xs nav-more" onClick={(e) => openMenu(e, { kind: "shared", accountId, book })} aria-label={t("Address book options")}><MoreVertical size={14} /></button>
         </div>
       ))}
       {!subscribed.length && (
@@ -167,18 +196,49 @@ export function ContactsSidebar() {
         </>
       )}
 
-      {/* Import and export lived in the pane this replaced. */}
-      <div style={{ padding: "12px 8px" }} className="col gap-8">
-        <label className="btn btn-sm btn-block">
-          <Upload size={14} />  {t("Import contacts")}
-          <input type="file" accept=".vcf,.vcard,.ldif,.ldi,text/vcard,text/directory" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) onImport(f); e.target.value = ""; }} />
-        </label>
-        <button className="btn btn-sm btn-block" onClick={onExport}><Download size={14} /> {sel.bookId === "all" ? t("Export all") : t("Export book")}</button>
-      </div>
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".vcf,.vcard,.ldif,.ldi,text/vcard,text/directory"
+        hidden
+        onChange={(e) => { const f = e.target.files?.[0]; const into = importInto.current; if (f && into) onImport(f, into); e.target.value = ""; }}
+      />
 
-      <Popover anchor={menu.anchor} onClose={menu.close} width={210}>
+      <Popover anchor={menu.anchor} onClose={menu.close} width={230}>
+        {target && (
+          <>
+            {/* Exporting is the one thing every row can do -- your own books,
+                somebody else's, and the whole lot together. */}
+            <MenuItem
+              icon={<Download size={16} />}
+              label={target.kind === "all" ? t("Export all contacts") : t("Export address book")}
+              onClick={() => onExport(target.kind === "shared" ? target.accountId : null, target.kind === "all" ? "all" : target.book.id)}
+            />
+            {/* Importing needs somewhere to put them. "All contacts" is not a
+                book, so it files into the default one, which is what the button
+                at the foot of the sidebar quietly did anyway. */}
+            {target.kind !== "shared" && (
+              <MenuItem
+                icon={<Upload size={16} />}
+                label={t("Import contacts…")}
+                onClick={() => { importInto.current = target.kind === "all" ? "all" : target.book.id; fileRef.current?.click(); }}
+              />
+            )}
+            {target.kind === "shared" && (
+              <>
+                <MenuSep />
+                <MenuItem
+                  icon={<X size={16} />}
+                  label={t("Remove from my contacts")}
+                  onClick={() => void contacts.setBookSubscribed(target.accountId, target.book.id, false)}
+                />
+              </>
+            )}
+          </>
+        )}
         {menuBook && (
           <>
+            <MenuSep />
             <MenuItem
               icon={<Pencil size={16} />}
               label={t("Rename")}
