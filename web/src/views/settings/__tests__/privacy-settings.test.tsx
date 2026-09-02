@@ -104,4 +104,53 @@ describe("Privacy & safety", () => {
     });
     expect(useSettings.getState().settings.trustedImageSenders).toEqual(["bob@example.com"]);
   });
+
+  it("offers the three warnings, all switched off", async () => {
+    await render(<PrivacySettings />);
+    const text = host.textContent ?? "";
+    expect(text).toContain("Mark messages from outside");
+    expect(text).toContain("Ask before sending outside");
+    expect(text).toContain("Ask before sending to a large group");
+    expect(text).toContain("Ask before opening a link in a message");
+
+    const s = useSettings.getState().settings;
+    expect(s.externalSenderBanner).toBe(false);
+    expect(s.externalRecipientConfirm).toBe(false);
+    expect(s.externalLinkWarning).toBe(false);
+    expect(s.replyAllThreshold).toBe(0);
+  });
+
+  it("hides each domain list until its warning is switched on", async () => {
+    await render(<PrivacySettings />);
+    expect(host.textContent).not.toContain("Also count these domains as inside");
+    expect(host.textContent).not.toContain("Open links to these domains without asking");
+
+    await act(async () => {
+      useSettings.setState({ settings: { ...DEFAULT_SETTINGS, externalSenderBanner: true, externalLinkWarning: true } });
+    });
+    await render(<PrivacySettings />);
+    expect(host.textContent).toContain("Also count these domains as inside");
+    expect(host.textContent).toContain("Open links to these domains without asking");
+  });
+
+  it("normalises a typed domain, so the list holds something that can match", async () => {
+    await act(async () => {
+      useSettings.setState({ settings: { ...DEFAULT_SETTINGS, externalLinkWarning: true } });
+    });
+    await render(<PrivacySettings />);
+    const input = host.querySelector<HTMLInputElement>('input.input');
+    expect(input, "domain input").toBeTruthy();
+
+    for (const [typed, stored] of [["@Example.com", "example.com"], ["ada@Partner.ORG", "partner.org"], ["https://third.net/path", "third.net"]]) {
+      await act(async () => {
+        const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")!.set!;
+        setter.call(input!, typed);
+        input!.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      await act(async () => {
+        input!.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      });
+      expect(useSettings.getState().settings.trustedLinkDomains).toContain(stored);
+    }
+  });
 });

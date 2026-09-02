@@ -126,6 +126,22 @@ export interface Settings {
   sidebarCollapsed: boolean;
   showHiddenFolders: boolean;
   trustedImageSenders: string[];
+  /**
+   * The three warnings, each off until switched on. A client that starts by
+   * interrupting is one people learn to click through, and a warning clicked
+   * through without reading costs the same attention and buys nothing.
+   */
+  externalSenderBanner: boolean;
+  externalRecipientConfirm: boolean;
+  /**
+   * Domains that count as inside, *in addition to* the account's own identity
+   * domains, which are always internal and are not configuration.
+   */
+  internalDomains: string[];
+  /** People on a message before sending asks. 0 is off. */
+  replyAllThreshold: number;
+  externalLinkWarning: boolean;
+  trustedLinkDomains: string[];
   archiveOnReply: boolean;
   autoAdvance: "newer" | "older" | "list";
   spellcheck: boolean;
@@ -217,6 +233,12 @@ export const DEFAULT_SETTINGS: Settings = {
   sidebarCollapsed: false,
   showHiddenFolders: false,
   trustedImageSenders: [],
+  externalSenderBanner: false,
+  externalRecipientConfirm: false,
+  internalDomains: [],
+  replyAllThreshold: 0,
+  externalLinkWarning: false,
+  trustedLinkDomains: [],
   archiveOnReply: false,
   autoAdvance: "list",
   spellcheck: true,

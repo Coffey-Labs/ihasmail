@@ -1,4 +1,7 @@
+import { useState } from "react";
 import { useSettings, type ReadReceiptPolicy } from "@/store/settings";
+import { useMail } from "@/store/mail";
+import { domainOf } from "@/lib/address";
 import { Switch } from "@/ui/misc";
 import { X } from "lucide-react";
 import { t } from "@/lib/i18n";
@@ -22,6 +25,8 @@ export function PrivacySettings() {
   const s = useSettings((st) => st.settings);
   const update = useSettings((st) => st.update);
   const trusted = s.trustedImageSenders;
+  const identities = useMail((st) => st.identities);
+  const ownDomains = [...new Set(identities.map((i) => domainOf(i.email)).filter(Boolean))];
 
   return (
     <div>
@@ -74,6 +79,60 @@ export function PrivacySettings() {
         </p>
       </div>
 
+      <h2>{t("Warnings")}</h2>
+      <p className="hint" style={{ marginTop: -8 }}>
+        {t("All three start switched off. A client that begins by interrupting is one people learn to click through, and a warning clicked through without reading costs the same attention and buys nothing.")}
+      </p>
+
+      <Switch
+        checked={s.externalSenderBanner}
+        onChange={(v) => update({ externalSenderBanner: v })}
+        label={t("Mark messages from outside")}
+        hint={t("A banner on any message whose sender is not on one of your own domains.")}
+      />
+      <Switch
+        checked={s.externalRecipientConfirm}
+        onChange={(v) => update({ externalRecipientConfirm: v })}
+        label={t("Ask before sending outside")}
+        hint={t("Names the outside recipients and asks, rather than refusing.")}
+      />
+      {(s.externalSenderBanner || s.externalRecipientConfirm) && (
+        <DomainList
+          label={t("Also count these domains as inside")}
+          hint={t("Your own identity domains are always inside and do not need listing. A domain here also covers its subdomains.")}
+          value={s.internalDomains}
+          onChange={(internalDomains) => update({ internalDomains })}
+          suggestions={ownDomains}
+        />
+      )}
+
+      <div className="field">
+        <label>{t("Ask before sending to a large group")}</label>
+        <select className="select" value={String(s.replyAllThreshold)} onChange={(e) => update({ replyAllThreshold: Number(e.target.value) })}>
+          <option value="0">{t("Never ask")}</option>
+          <option value="5">{t("5 people or more")}</option>
+          <option value="10">{t("10 people or more")}</option>
+          <option value="20">{t("20 people or more")}</option>
+          <option value="50">{t("50 people or more")}</option>
+        </select>
+        <p className="hint">{t("Counts people rather than headers, so one address in To and nine in Cc is a message to ten. Catches a reply-all onto a long thread.")}</p>
+      </div>
+
+      <Switch
+        checked={s.externalLinkWarning}
+        onChange={(v) => update({ externalLinkWarning: v })}
+        label={t("Ask before opening a link in a message")}
+        hint={t("A link whose text names one domain and whose destination is another is always flagged, even where the destination is trusted — being trusted is not the same as being the place the text claimed.")}
+      />
+      {s.externalLinkWarning && (
+        <DomainList
+          label={t("Open links to these domains without asking")}
+          hint={t("Added here, or from the dialog when a link is opened. A domain also covers its subdomains.")}
+          value={s.trustedLinkDomains}
+          onChange={(trustedLinkDomains) => update({ trustedLinkDomains })}
+        />
+      )}
+
       <h2>{t("Before it happens")}</h2>
       <div className="field">
         <label>{t("Undo send window")}</label>
@@ -88,6 +147,81 @@ export function PrivacySettings() {
       </div>
       <Switch checked={s.attachmentReminder} onChange={(v) => update({ attachmentReminder: v })} label={t("Attachment reminder")} hint={t("Warn when the message mentions an attachment but none is attached.")} />
       <Switch checked={s.confirmDelete} onChange={(v) => update({ confirmDelete: v })} label={t("Confirm before deleting")} />
+    </div>
+  );
+}
+
+/**
+ * A list of domains, added one at a time and removed by their chip.
+ *
+ * Typed entries are normalised on the way in -- a leading `@`, stray case, a
+ * whole address pasted instead of a domain -- because the thing being compared
+ * against is a hostname, and a list holding "@Example.com " silently matches
+ * nothing at all.
+ */
+function DomainList({
+  label,
+  hint,
+  value,
+  onChange,
+  suggestions = [],
+}: {
+  label: string;
+  hint: string;
+  value: string[];
+  onChange: (next: string[]) => void;
+  suggestions?: string[];
+}) {
+  const [draft, setDraft] = useState("");
+  const add = (raw: string) => {
+    const d = raw.trim().toLowerCase().replace(/^@/, "").replace(/^.*@/, "").replace(/^https?:\/\//, "").split("/")[0] ?? "";
+    if (!d || value.includes(d)) {
+      setDraft("");
+      return;
+    }
+    onChange([...value, d]);
+    setDraft("");
+  };
+  const missing = suggestions.filter((d) => !value.includes(d));
+  return (
+    <div className="field">
+      <label>{label}</label>
+      {value.length > 0 && (
+        <div className="trusted-senders">
+          {value.map((d) => (
+            <span key={d} className="chip">
+              <span className="notranslate" translate="no">{d}</span>
+              <button className="chip-x" aria-label={t("Remove {domain}", { domain: d })} onClick={() => onChange(value.filter((x) => x !== d))}>
+                <X size={13} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="row gap-4">
+        <input
+          className="input"
+          value={draft}
+          placeholder={t("example.com")}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              add(draft);
+            }
+          }}
+        />
+        <button className="btn btn-sm" disabled={!draft.trim()} onClick={() => add(draft)}>{t("Add")}</button>
+      </div>
+      {missing.length > 0 && (
+        <p className="hint">
+          {t("Your own:")}{" "}
+          {missing.map((d) => (
+            <button key={d} className="link-btn notranslate" translate="no" onClick={() => add(d)}>{d}</button>
+          ))}
+        </p>
+      )}
+      <p className="hint">{hint}</p>
     </div>
   );
 }

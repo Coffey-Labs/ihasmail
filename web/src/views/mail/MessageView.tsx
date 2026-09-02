@@ -11,16 +11,17 @@ import { useCalendar } from "@/store/calendar";
 import { startAppointment } from "@/lib/appointment";
 import { client } from "@/jmap/client";
 import { emlFilename } from "@/lib/emlName";
+import { internalDomains, isExternalSender, linkVerdict } from "@/lib/warnings";
 import { spamReport, type SpamReport } from "@/lib/spamScore";
 import { formatFullDate, formatListDate, formatSize } from "@/lib/format";
-import { displayName, formatAddress } from "@/lib/address";
+import { displayName, domainOf, formatAddress } from "@/lib/address";
 import { EMAIL_BASE_CSS, TEXT_EMAIL_CSS, htmlDeclaresColors, sanitizeEmailHtml } from "@/lib/html";
 import { openableInTab, previewKind } from "@/lib/preview";
 import { FilePreviewDialog } from "@/ui/filepreview";
 import { findQuoteStart, textToHtml } from "@/lib/text";
 import { Avatar } from "@/ui/misc";
 import { MenuItem, MenuSep, Popover, useMenu } from "@/ui/popover";
-import { Dialog } from "@/ui/dialog";
+import { Dialog, choiceDialog} from "@/ui/dialog";
 import { toast } from "@/ui/toast";
 import type { ListActions } from "./MessageList";
 import { InviteCard } from "./InviteCard";
@@ -47,6 +48,59 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
   const accountId = useMail((s) => s.accountId)!;
   const settings = useSettings((s) => s.settings);
   const updateSettings = useSettings((s) => s.update);
+
+  /** Null when the warning is off, so an ordinary link keeps the browser's own handling. */
+  const linkGuard = settings.externalLinkWarning ? (href: string, text: string | null) => void followLink(href, text) : null;
+
+  /*
+   * Following a link out of a message, when the reader has asked to be asked.
+   *
+   * The click is cancelled and the navigation re-issued after the answer,
+   * because there is no way to hold a real navigation open across a dialog.
+   * `window.open` runs in the continuation of the dialog's own click, which is
+   * still the user gesture the popup blocker wants to see.
+   *
+   * Both message bodies go through here -- the sanitised HTML one and the
+   * plain-text one -- because a link in a plain-text mail is linkified by us
+   * and is exactly as capable of pointing somewhere else as one the sender
+   * marked up.
+   */
+  const followLink = useCallback(
+    async (href: string, text: string | null) => {
+      const verdict = linkVerdict(href, text, settings.trustedLinkDomains);
+      const open = () => window.open(href, "_blank", "noopener,noreferrer");
+      if (!verdict.warn) {
+        open();
+        return;
+      }
+      const answer = await choiceDialog({
+        title: verdict.reason === "mismatch" ? translate("This link does not go where it says") : translate("Open a link to {domain}?", { domain: verdict.domain }),
+        message:
+          verdict.reason === "mismatch"
+            ? tNode("It reads {shown} but goes to {actual}.", {
+                shown: <strong className="notranslate" translate="no">{verdict.shownDomain}</strong>,
+                actual: <strong className="notranslate" translate="no">{verdict.domain}</strong>,
+              })
+            : tNode("The full address is {href}.", { href: <span className="mono small notranslate" translate="no">{href}</span> }),
+        choices: [
+          { value: "open", label: translate("Open it") },
+          // Not offered for a mismatch: what would be trusted is the
+          // destination, and the destination is not the thing in question.
+          ...(verdict.reason === "untrusted"
+            ? [{ value: "always", label: translate("Open, and stop asking about {domain}", { domain: verdict.domain }) }]
+            : []),
+        ],
+      });
+      if (answer === "always") {
+        updateSettings({ trustedLinkDomains: [...settings.trustedLinkDomains, verdict.domain] });
+        open();
+      } else if (answer === "open") {
+        open();
+      }
+    },
+    [updateSettings, settings.trustedLinkDomains],
+  );
+
   const reply = useCompose((s) => s.reply);
   const cardRef = useRef<HTMLElement>(null);
   const [details, setDetails] = useState(false);
@@ -115,6 +169,16 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
   const receiptRequested = Boolean(e["header:Disposition-Notification-To:asAddresses"]?.length);
   const authFailed = /\b(dkim|spf|dmarc)=fail\b/i.test(e["header:Authentication-Results:asText"] ?? "");
   const spam = useMemo(() => spamReport(e), [e]);
+  const identities = useMail((st) => st.identities);
+  /*
+   * Only computed when the warning is on, because the domains it compares
+   * against come from the identities and the settings, and neither is worth
+   * walking for a reader who has not asked for the banner.
+   */
+  const externalSender = useMemo(() => {
+    if (!settings.externalSenderBanner) return false;
+    return isExternalSender(e.from, internalDomains(identities.map((i) => i.email), settings.internalDomains));
+  }, [settings.externalSenderBanner, settings.internalDomains, identities, e.from]);
 
   const openSource = async () => {
     setShowSource(true);
@@ -322,6 +386,16 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
               </button>
             </div>
           )}
+          {externalSender && (
+            <div className="remote-banner external-banner" style={{ margin: "0 16px 8px" }}>
+              <ShieldAlert size={16} />
+              <span className="grow">
+                {tNode("This message came from {domain}, which is outside your organisation.", {
+                  domain: <strong className="notranslate" translate="no">{domainOf(from?.email ?? "")}</strong>,
+                })}
+              </span>
+            </div>
+          )}
           {rendered && rendered.remoteCount > 0 && !remoteAllowed && (
             <div className="remote-banner" style={{ margin: "0 16px 8px" }}>
               <ImageIcon size={16} />
@@ -333,7 +407,7 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
           {icsPart && <InviteCard email={e} part={icsPart} />}
           {vcfParts.map((p) => <VCardCard key={p.blobId ?? p.partId ?? ""} part={p} accountId={accountId} />)}
           <div className="message-body">
-            {showHtml && rendered ? <HtmlBody html={rendered.html} bodyStyle={rendered.bodyStyle} themed={themed} onShowImages={showImages} /> : <TextBody text={textRaw ?? ""} />}
+            {showHtml && rendered ? <HtmlBody html={rendered.html} bodyStyle={rendered.bodyStyle} themed={themed} onShowImages={showImages} onFollowLink={linkGuard} /> : <TextBody text={textRaw ?? ""} onFollowLink={linkGuard} />}
           </div>
           {attachments.length > 0 && <AttachmentList attachments={attachments} accountId={accountId} email={e} />}
           {unsubscribe && (
@@ -390,7 +464,7 @@ function findPart(p: EmailBodyPart | undefined, pred: (p: EmailBodyPart) => bool
 
 const QUOTE_SELECTORS = [".gmail_quote", "blockquote[type=cite]", ".moz-cite-prefix", "#divRplyFwdMsg", ".yahoo_quoted", "div[id^=appendonsend]", ".ms-outlook-mobile-reference-message", "#OLK_SRC_BODY_SECTION", ".protonmail_quote", ".ihm-quote"];
 
-function HtmlBody({ html, bodyStyle, themed, onShowImages }: { html: string; bodyStyle: string; themed: boolean; onShowImages: () => void }) {
+function HtmlBody({ html, bodyStyle, themed, onShowImages, onFollowLink }: { html: string; bodyStyle: string; themed: boolean; onFollowLink: ((href: string, text: string | null) => void) | null; onShowImages: () => void }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const [hasQuote, setHasQuote] = useState(false);
   const [quoteOpen, setQuoteOpen] = useState(false);
@@ -411,13 +485,18 @@ function HtmlBody({ html, bodyStyle, themed, onShowImages }: { html: string; bod
           ev.preventDefault();
           return;
         }
+        if (onFollowLink && /^https?:/i.test(href)) {
+          ev.preventDefault();
+          onFollowLink(href, a.textContent);
+          return;
+        }
         a.setAttribute("target", "_blank");
         a.setAttribute("rel", "noopener noreferrer nofollow");
       }
       const img = t.closest("img[data-ihm-blocked]");
       if (img) onShowImages();
     },
-    [openCompose, onShowImages],
+    [openCompose, onShowImages, onFollowLink],
   );
 
   useEffect(() => {
@@ -517,7 +596,7 @@ function HtmlBody({ html, bodyStyle, themed, onShowImages }: { html: string; bod
   );
 }
 
-function TextBody({ text }: { text: string }) {
+function TextBody({ text, onFollowLink }: { text: string; onFollowLink: ((href: string, text: string | null) => void) | null }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const [quoteOpen, setQuoteOpen] = useState(false);
   const openCompose = useCompose((s) => s.open);
@@ -535,14 +614,20 @@ function TextBody({ text }: { text: string }) {
     root.innerHTML = `<style>${TEXT_EMAIL_CSS}</style><div class="ihm-text-root">${textToHtml(main)}${quoted ? `<div class="ihm-quoted" ${quoteOpen ? "" : "hidden"}>\n${textToHtml(quoted)}</div>` : ""}</div>`;
     const onClick = (ev: Event) => {
       const a = (ev.target as HTMLElement).closest("a");
-      if (a && a.getAttribute("href")?.startsWith("mailto:")) {
+      const href = a?.getAttribute("href") ?? "";
+      if (a && href.startsWith("mailto:")) {
         ev.preventDefault();
-        openCompose({ to: [{ name: null, email: a.getAttribute("href")!.slice(7) }] });
+        openCompose({ to: [{ name: null, email: href.slice(7) }] });
+        return;
+      }
+      if (a && onFollowLink && /^https?:/i.test(href)) {
+        ev.preventDefault();
+        void onFollowLink(href, a.textContent);
       }
     };
     root.addEventListener("click", onClick);
     return () => root.removeEventListener("click", onClick);
-  }, [main, quoted, quoteOpen, openCompose]);
+  }, [main, quoted, quoteOpen, openCompose, onFollowLink]);
 
   return (
     <>
