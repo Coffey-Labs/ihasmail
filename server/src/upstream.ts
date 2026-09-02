@@ -10,6 +10,15 @@ export interface UpstreamSession {
   uploadUrl: string;
   eventSourceUrl: string;
   state: string;
+  /**
+   * Which Stalwart this document came from.
+   *
+   * Recorded rather than looked up again, because the relative URLs inside it
+   * -- apiUrl, uploadUrl and the rest -- only mean anything against the server
+   * that issued them. Anything holding a session already knows where to send
+   * the next request. Not part of the JMAP session resource; ours.
+   */
+  baseUrl: string;
 }
 
 export class UpstreamError extends Error {
@@ -24,16 +33,37 @@ export class UpstreamError extends Error {
 const sessionCache = new Map<string, { session: UpstreamSession; fetchedAt: number }>();
 const SESSION_CACHE_MS = 5 * 60_000;
 
-export function wellKnownUrl(): string {
-  return `${config.stalwartUrl}/.well-known/jmap`;
+/**
+ * The Stalwart a username belongs to.
+ *
+ * `STALWART_URL` is the default and is always the answer for a domain nobody
+ * mapped -- and for a bare username, which Stalwart accepts and which has no
+ * domain to map (#238).
+ *
+ * A *mapped* domain never falls back. If its server is unreachable that
+ * sign-in fails, because falling back would authenticate somebody against a
+ * server their domain was deliberately routed away from -- and if the same
+ * account name exists there, they would land in another tenant's mailbox. The
+ * fallback is a decision about unmapped domains, taken before any network
+ * call, not a recovery path.
+ */
+export function upstreamFor(username: string): string {
+  const at = username.lastIndexOf("@");
+  if (at < 0) return config.stalwartUrl;
+  const domain = username.slice(at + 1).trim().toLowerCase().replace(/\.$/, "");
+  return config.stalwartServers[domain] ?? config.stalwartUrl;
+}
+
+export function wellKnownUrl(base: string = config.stalwartUrl): string {
+  return `${base}/.well-known/jmap`;
 }
 
 /**
  * Fetch the JMAP session resource from Stalwart using the given Authorization
  * header. Throws UpstreamError(401) on bad credentials.
  */
-export async function fetchUpstreamSession(authorization: string): Promise<UpstreamSession> {
-  const res = await fetch(wellKnownUrl(), {
+export async function fetchUpstreamSession(authorization: string, base: string = config.stalwartUrl): Promise<UpstreamSession> {
+  const res = await fetch(wellKnownUrl(base), {
     headers: { authorization, accept: "application/json" },
     redirect: "follow",
     signal: AbortSignal.timeout(config.upstreamTimeout),
@@ -46,13 +76,13 @@ export async function fetchUpstreamSession(authorization: string): Promise<Upstr
   }
   const session = (await res.json()) as UpstreamSession;
   if (!session.apiUrl) throw new UpstreamError("Upstream returned an invalid JMAP session", 502);
-  return session;
+  return { ...session, baseUrl: base };
 }
 
-export async function getUpstreamSession(sessionId: string, authorization: string, force = false) {
+export async function getUpstreamSession(sessionId: string, authorization: string, base: string = config.stalwartUrl, force = false) {
   const cached = sessionCache.get(sessionId);
   if (!force && cached && Date.now() - cached.fetchedAt < SESSION_CACHE_MS) return cached.session;
-  const session = await fetchUpstreamSession(authorization);
+  const session = await fetchUpstreamSession(authorization, base);
   sessionCache.set(sessionId, { session, fetchedAt: Date.now() });
   return session;
 }
@@ -210,9 +240,9 @@ function localeOf(call: [string, Record<string, unknown>, string] | undefined): 
  * Which edition the server is running. Stalwart deliberately does not publish
  * its version number to clients, but 0.16 does report its edition here.
  */
-async function fetchEdition(authorization: string): Promise<string | null> {
+async function fetchEdition(authorization: string, base: string): Promise<string | null> {
   try {
-    const res = await fetch(`${config.stalwartUrl}/api/account`, {
+    const res = await fetch(`${base}/api/account`, {
       headers: { authorization, accept: "application/json" },
       signal: AbortSignal.timeout(config.upstreamTimeout),
     });
@@ -230,7 +260,7 @@ export async function getAccountInfo(sessionId: string, authorization: string, s
   let info = EMPTY_INFO;
   try {
     info = await fetchAccountInfo(authorization, session);
-    info = { ...info, edition: await fetchEdition(authorization) };
+    info = { ...info, edition: await fetchEdition(authorization, session.baseUrl) };
   } catch {
     /* all of this is a nicety - never fail the session over it */
   }
@@ -258,9 +288,9 @@ export function localizeSession(s: UpstreamSession, extras: Record<string, unkno
 }
 
 /** Resolve a possibly-relative upstream URL template against STALWART_URL. */
-export function absoluteUpstream(url: string): string {
+export function absoluteUpstream(url: string, base: string = config.stalwartUrl): string {
   try {
-    return new URL(url, config.stalwartUrl).toString();
+    return new URL(url, base).toString();
   } catch {
     return url;
   }

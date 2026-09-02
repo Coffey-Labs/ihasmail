@@ -16,6 +16,7 @@ import {
   forgetUpstreamSession,
   getAccountInfo,
   getUpstreamSession,
+  upstreamFor,
   localizeSession,
 } from "./upstream.js";
 import {
@@ -237,7 +238,7 @@ export function createApp(basePath = config.basePath): Hono<Env> {
     const effectivePassword = totp ? `${password}$${totp}` : password;
     const authorization = `Basic ${Buffer.from(`${username}:${effectivePassword}`, "utf8").toString("base64")}`;
     try {
-      const upstream = await fetchUpstreamSession(authorization);
+      const upstream = await fetchUpstreamSession(authorization, upstreamFor(username));
       // ihasmail requires Stalwart 0.16 or newer. Refuse here, once and
       // clearly, rather than signing someone in and letting Files, the account
       // locale and self-service credentials each fail in their own way with
@@ -311,7 +312,7 @@ export function createApp(basePath = config.basePath): Hono<Env> {
   api.get("/auth/session", requireSession, async (c) => {
     const session = c.get("session");
     try {
-      const upstream = await getUpstreamSession(session.id, session.authorization, c.req.query("refresh") === "1");
+      const upstream = await getUpstreamSession(session.id, session.authorization, upstreamFor(session.username), c.req.query("refresh") === "1");
       const info = await getAccountInfo(session.id, session.authorization, upstream);
       return c.json(localizeSession(upstream, sessionExtras(session, info)));
     } catch (err) {
@@ -528,8 +529,8 @@ export function createApp(basePath = config.basePath): Hono<Env> {
       return c.json({ error: "unsupported_media_type" }, 415);
     }
     try {
-      const upstream = await getUpstreamSession(session.id, session.authorization);
-      const res = await fetch(absoluteUpstream(upstream.apiUrl), {
+      const upstream = await getUpstreamSession(session.id, session.authorization, upstreamFor(session.username));
+      const res = await fetch(absoluteUpstream(upstream.apiUrl, upstream.baseUrl), {
         method: "POST",
         headers: {
           authorization: session.authorization,
@@ -562,8 +563,8 @@ export function createApp(basePath = config.basePath): Hono<Env> {
     // suggestion; count the bytes as they go past.
     const body = c.req.raw.body ? c.req.raw.body.pipeThrough(byteCap(config.maxUploadBytes)) : null;
     try {
-      const upstream = await getUpstreamSession(session.id, session.authorization);
-      const url = absoluteUpstream(expandTemplate(upstream.uploadUrl, { accountId }));
+      const upstream = await getUpstreamSession(session.id, session.authorization, upstreamFor(session.username));
+      const url = absoluteUpstream(expandTemplate(upstream.uploadUrl, { accountId }), upstream.baseUrl);
       const res = await fetch(url, {
         method: "POST",
         headers: {
@@ -588,8 +589,8 @@ export function createApp(basePath = config.basePath): Hono<Env> {
     const accept = c.req.query("accept") ?? "application/octet-stream";
     const inline = c.req.query("inline") === "1";
     try {
-      const upstream = await getUpstreamSession(session.id, session.authorization);
-      const url = absoluteUpstream(expandTemplate(upstream.downloadUrl, { accountId, blobId, name, type: accept }));
+      const upstream = await getUpstreamSession(session.id, session.authorization, upstreamFor(session.username));
+      const url = absoluteUpstream(expandTemplate(upstream.downloadUrl, { accountId, blobId, name, type: accept }), upstream.baseUrl);
       const res = await fetch(url, {
         // Ask for the bytes as they are. undici would otherwise negotiate gzip
         // on our behalf and hand back a decompressed body whose content-length
@@ -639,8 +640,8 @@ export function createApp(basePath = config.basePath): Hono<Env> {
     const closeafter = c.req.query("closeafter") ?? "no";
     const ping = c.req.query("ping") ?? "30";
     try {
-      const upstream = await getUpstreamSession(session.id, session.authorization);
-      const url = absoluteUpstream(expandTemplate(upstream.eventSourceUrl, { types, closeafter, ping }));
+      const upstream = await getUpstreamSession(session.id, session.authorization, upstreamFor(session.username));
+      const url = absoluteUpstream(expandTemplate(upstream.eventSourceUrl, { types, closeafter, ping }), upstream.baseUrl);
       const controller = new AbortController();
       c.req.raw.signal.addEventListener("abort", () => controller.abort());
       const res = await fetch(url, {

@@ -117,6 +117,47 @@ nowhere to live across a restart. Removing it means moving the session upstream
 into a token Stalwart itself issues and can revoke, which is what the OAuth work
 in [ROADMAP.md](ROADMAP.md) is for.
 
+### Several Stalwart servers
+
+One ihasmail can front more than one Stalwart, choosing by the domain somebody
+signs in with. **`STALWART_URL` stays required and stays the default**, so an
+installation that sets nothing else behaves exactly as it always has.
+
+```bash
+-e STALWART_SERVERS_FILE=/etc/ihasmail/servers.json \
+-v /srv/ihasmail/servers.json:/etc/ihasmail/servers.json:ro
+```
+
+```json
+{
+  "example.com": "https://mail.example.com",
+  "customer-b.test": "https://jmap.customer-b.test"
+}
+```
+
+[`stalwart-servers.example.json`](stalwart-servers.example.json) is that file
+with the rules written in it.
+
+A domain nobody listed — and a bare username, which Stalwart accepts and which
+has no domain at all — goes to `STALWART_URL`. **A listed domain never falls
+back.** If its server is unreachable that sign-in fails rather than retrying
+against the default, because falling back would authenticate somebody against a
+server their domain was deliberately routed away from; if the same account name
+existed there they would land in another tenant's mailbox.
+
+Read once at startup, so editing it means restarting the container. Malformed
+JSON, a duplicate domain once lower-cased, or a value that is not an `http(s)`
+URL stops the server rather than failing quietly at somebody's sign-in. The
+servers themselves are not contacted at boot — a mapping is a routing table,
+not a health check, and one customer's outage must not stop ihasmail starting
+for everybody else.
+
+This is one server per *person*, chosen at sign-in. Several servers at once for
+one person, with unified or cross-account views, is not supported: JMAP account
+ids are only unique within a server, so it would mean namespacing ids through
+the proxy. Reading somebody else's mail, calendars or files on the *same* server
+already works through JMAP sharing.
+
 ### Settings the installation decides
 
 A deployment can seed and lock user settings, which is what a school wanting
