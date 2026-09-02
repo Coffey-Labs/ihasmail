@@ -1172,10 +1172,69 @@ select optgroup { background-color: var(--bg-elev); color: var(--fg); }
   .msg-row:hover .msg-meta .msg-date { display: inline; }
   .nav-item .nav-more, .cal-list-item .nav-more { opacity: 1; }
 }
+/*
+ * Print.
+ *
+ * Paper has no theme. Whatever palette is on screen, the tokens are pinned to
+ * a light, unpainted set here -- backgrounds white rather than the light
+ * theme's greys, since a printer would otherwise lay ink over the whole sheet.
+ * Doing it on the tokens rather than per rule is what reaches the message
+ * body: it renders in a shadow root this stylesheet cannot select into, and
+ * follows the app theme through inherited custom properties (see
+ * EMAIL_BASE_CSS in lib/html.ts). Mail that brings colours of its own is left
+ * alone -- it is not themed in the first place.
+ *
+ * `!important` rather than a longer selector: the dark palettes sit on
+ * :root[data-theme] and :root[data-palette][data-accent], and out-specifying
+ * every one of them is a chain that the next palette breaks.
+ */
 @media print {
-  .topbar, .sidebar, .mail-list-pane, .thread-toolbar, .composer-dock, .toast-host, .mobile-tabbar, .fab, .reply-box, .thread-actions, .quote-toggle { display: none !important; }
+  :root {
+    --bg: #fff !important;
+    --bg-elev: #fff !important;
+    --bg-sunken: #fff !important;
+    --bg-hover: transparent !important;
+    --bg-active: transparent !important;
+    --unread-bg: #fff !important;
+    --read-bg: #fff !important;
+    --selected-bg: transparent !important;
+    --fg: #000 !important;
+    --fg-muted: #3a3a3a !important;
+    --fg-faint: #5a5a5a !important;
+    --border: #ccc !important;
+    --border-strong: #999 !important;
+    --accent: #0f766e !important;
+    --accent-fg: #fff !important;
+    --accent-soft: transparent !important;
+    --accent-soft-fg: #0b5750 !important;
+    --danger: #b91c1c !important;
+    --danger-soft: transparent !important;
+    --warn: #92400e !important;
+    --warn-soft: transparent !important;
+    --success: #15803d !important;
+    --success-soft: transparent !important;
+    --link: #0e7490 !important;
+    --star: #444 !important;
+    --q1: #1d4ed8 !important;
+    --q2: #15803d !important;
+    --q3: #7e22ce !important;
+    --shadow-1: none !important;
+    --shadow-2: none !important;
+    --shadow-3: none !important;
+    color-scheme: light !important;
+  }
+  .topbar, .sidebar, .mail-list-pane, .splitter, .thread-toolbar, .composer-dock, .toast-host, .mobile-tabbar, .fab, .reply-box, .thread-actions, .quote-toggle { display: none !important; }
+  .message-head .meta .icon-btn, .message-head .who .to button { display: none !important; }
   .app, .app-body, .main, .mail-layout, .mail-reading-pane, .thread-view, .thread-scroll { display: block !important; height: auto !important; overflow: visible !important; grid-template-columns: 1fr !important; border: 0 !important; }
-  .message { break-inside: avoid; border: 1px solid #ccc; }
+  /*
+   * `break-inside: avoid` on the whole card is what put the first message on
+   * page two: a message longer than a sheet cannot honour it, and Chrome
+   * answers by moving the card to a fresh page and breaking it there anyway --
+   * leaving page one holding nothing but the subject. Only the header is
+   * indivisible now, and it is kept with the body that follows it.
+   */
+  .message { break-inside: auto; border: 1px solid var(--border); }
+  .message-head { break-inside: avoid; break-after: avoid; }
   .print-only { display: block; }
   body { background: #fff; color: #000; }
 }
