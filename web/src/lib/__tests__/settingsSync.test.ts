@@ -43,20 +43,27 @@ describe("which settings follow the account", () => {
 });
 
 describe("applying a settings file", () => {
+  /*
+   * A file carrying the old `theme` and no palette is read through the old
+   * enum, so these gain the two fields it resolves to. That is the migration,
+   * not a leak: see the palette tests for the rule itself.
+   */
+  const MIGRATED_DARK = { theme: "dark", palette: "default", mode: "dark" };
+
   it("takes known, non-device keys", () => {
     const applied = acceptRemote({ theme: "dark", weekStart: 0, locale: "de-DE" });
-    expect(applied).toEqual({ theme: "dark", weekStart: 0, locale: "de-DE" });
+    expect(applied).toEqual({ ...MIGRATED_DARK, weekStart: 0, locale: "de-DE" });
   });
 
   it("ignores keys it has never heard of", () => {
     // A newer ihasmail's settings, or a hand-edited file.
-    expect(acceptRemote({ theme: "dark", somethingNewer: 42 })).toEqual({ theme: "dark" });
+    expect(acceptRemote({ theme: "dark", somethingNewer: 42 })).toEqual(MIGRATED_DARK);
   });
 
   it("refuses device keys even when the file carries them", () => {
     // An earlier build wrote the whole settings object up; that file must not
     // now drag one machine's pane width onto every other one.
-    expect(acceptRemote({ theme: "dark", listPaneWidth: 900, fontSize: "large" })).toEqual({ theme: "dark" });
+    expect(acceptRemote({ theme: "dark", listPaneWidth: 900, fontSize: "large" })).toEqual(MIGRATED_DARK);
   });
 
   it("does not invent keys from an empty file", () => {

@@ -1,0 +1,58 @@
+# Third-party notices
+
+ihasmail is licensed under the AGPL-3.0; see LICENSE. This file records work by
+other people that ships inside it and the terms it comes under.
+
+## Colour palettes
+
+Four of the palettes offered in Settings › Appearance are the work of their own
+projects and are used under the MIT licence. Only the published colour values
+are used — no code, and nothing from anyone else's reimplementation of them.
+The values as fetched from each project are recorded in
+`.palette-sources/palettes-upstream.md`, and the shades between them are
+derived by `scripts/build-palettes.py`, which also lifts any tier that would
+not meet the contrast ihasmail claims.
+
+### Dracula and Alucard
+
+Copyright (c) 2016 Dracula Theme — https://github.com/dracula/dracula-theme
+Licensed under the MIT licence. "Dracula" is the dark variant and "Alucard" the
+light one; both are published in that repository's own "Color Palette (OSS)"
+section.
+
+### Gruvbox
+
+Copyright (c) 2018 Pavel Pertsev — https://github.com/morhetz/gruvbox
+Licensed under the MIT licence.
+
+### Rosé Pine
+
+Copyright (c) 2021 Rosé Pine — https://github.com/rose-pine/rose-pine-theme
+Licensed under the MIT licence. The light variant is "Dawn".
+
+### Tokyo Night
+
+Copyright (c) 2019 enkia — https://github.com/enkia/tokyo-night-vscode-theme
+Licensed under the MIT licence. The light variant is "Day".
+
+---
+
+The MIT licence, under which all four are used:
+
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+    FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+    DEALINGS IN THE SOFTWARE.

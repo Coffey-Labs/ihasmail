@@ -1,22 +1,44 @@
 import { useSettings } from "@/store/settings";
+import { PALETTES, effectiveMode, type Mode, type PaletteId } from "@/lib/palette";
 import { Switch, useIsTouch } from "@/ui/misc";
 import { SWIPE_CHOICES, type SwipeAction } from "@/lib/swipe";
 import { TRANSLATION_ISSUE_URL, UI_LANGUAGES } from "@/lib/languages";
 import { t as translate, tNode } from "@/lib/i18n";
 
 /**
- * The theme cards, each previewing the background it actually paints. Kept as
- * data rather than three inline ternaries so a fourth does not mean editing a
- * conditional in three places.
+ * A swatch for each palette, drawn from the colours that palette actually
+ * paints, so a card looks like what picking it does. Kept as data rather than
+ * inline ternaries so a sixth palette does not mean editing a conditional in
+ * three places.
  */
-const THEMES = [
-  { id: "system", label: "Match system", preview: "linear-gradient(90deg,#f6f8fa 50%,#0b1220 50%)" },
-  { id: "light", label: "Light", preview: "#f6f8fa" },
-  { id: "dark", label: "Dark", preview: "#0b1220" },
+const PALETTE_PREVIEW: Record<PaletteId, { light: string; dark: string }> = {
+  default: { light: "#f6f8fa", dark: "#0b1220" },
   // The ihasmail.org palette: its background, with its teal and the logo's
-  // orange showing, so the card looks like what picking it does.
-  { id: "ihasmail", label: "ihasmail", preview: "linear-gradient(135deg,#0d2430 0%,#12303e 55%,#46cac3 55%,#46cac3 78%,#f9a34b 78%)" },
-] as const;
+  // orange showing.
+  ihasmail: { light: "linear-gradient(135deg,#f4f9f9 0%,#e7f1f2 55%,#379e98 55%,#379e98 78%,#c5813b 78%)", dark: "linear-gradient(135deg,#0d2430 0%,#12303e 55%,#46cac3 55%,#46cac3 78%,#f9a34b 78%)" },
+  dracula: {
+    light: "linear-gradient(135deg,#fffbeb 0%,#fffbeb 55%,#644ac9 55%,#644ac9 78%,#a3144d 78%)",
+    dark: "linear-gradient(135deg,#282a36 0%,#2f3140 55%,#bd93f9 55%,#bd93f9 78%,#ff79c6 78%)",
+  },
+  gruvbox: {
+    light: "linear-gradient(135deg,#fbf1c7 0%,#f2e5bc 55%,#076678 55%,#076678 78%,#af3a03 78%)",
+    dark: "linear-gradient(135deg,#282828 0%,#32302f 55%,#83a598 55%,#83a598 78%,#fe8019 78%)",
+  },
+  "rose-pine": {
+    light: "linear-gradient(135deg,#faf4ed 0%,#fffaf3 55%,#907aa9 55%,#907aa9 78%,#d7827e 78%)",
+    dark: "linear-gradient(135deg,#191724 0%,#1f1d2e 55%,#c4a7e7 55%,#c4a7e7 78%,#ebbcba 78%)",
+  },
+  "tokyo-night": {
+    light: "linear-gradient(135deg,#e6e7ed 0%,#d6d8df 55%,#2959aa 55%,#2959aa 78%,#8c4351 78%)",
+    dark: "linear-gradient(135deg,#1a1b26 0%,#1f2130 55%,#7aa2f7 55%,#7aa2f7 78%,#bb9af7 78%)",
+  },
+};
+
+const MODES: Array<{ id: Mode; label: string }> = [
+  { id: "system", label: "Match system" },
+  { id: "light", label: "Light" },
+  { id: "dark", label: "Dark" },
+];
 
 const ACCENTS = [
   { id: "teal", color: "#0f766e" },
@@ -30,6 +52,7 @@ const ACCENTS = [
 export function AppearanceSettings() {
   const s = useSettings((st) => st.settings);
   const update = useSettings((st) => st.update);
+  const prefersDark = Boolean(window.matchMedia?.("(prefers-color-scheme: dark)").matches);
   const isTouch = useIsTouch();
   const chosen = UI_LANGUAGES.find((l) => l.tag === s.uiLanguage);
   const betaChosen = Boolean(chosen?.beta);
@@ -38,16 +61,26 @@ export function AppearanceSettings() {
       <h1>{translate("Appearance")}</h1>
       <p className="lead">{translate("Make ihasmail yours.")}</p>
       <h2>{translate("Theme")}</h2>
-      <div className="theme-grid">
-        {THEMES.map((t) => (
-          <button key={t.id} className={`theme-card ${s.theme === t.id ? "active" : ""}`} onClick={() => update({ theme: t.id })}>
-            <div className="preview" style={{ background: t.preview }} />
-            {translate(t.label)}
+      <div className="mode-switch" role="group" aria-label={translate("Light or dark")}>
+        {MODES.map((m) => (
+          <button key={m.id} className={s.mode === m.id ? "active" : ""} onClick={() => update({ mode: m.id })}>
+            {translate(m.label)}
           </button>
         ))}
       </div>
+      <div className="theme-grid" style={{ marginTop: 12 }}>
+        {PALETTES.map((p) => {
+          const shown = effectiveMode(s.mode, prefersDark);
+          return (
+            <button key={p.id} className={`theme-card ${s.palette === p.id ? "active" : ""}`} onClick={() => update({ palette: p.id })}>
+              <div className="preview" style={{ background: PALETTE_PREVIEW[p.id][shown] || PALETTE_PREVIEW[p.id].dark }} />
+              <span className="notranslate" translate="no">{p.name}</span>
+            </button>
+          );
+        })}
+      </div>
       <p className="hint" style={{ marginTop: 10 }}>
-        {tNode("{name} is the palette from {site}, and what a new account starts on. It is a dark theme, so it counts as dark wherever that matters, and the accent colour below still applies on top of it.", { name: <strong className="notranslate" translate="no">ihasmail</strong>, site: <a href="https://ihasmail.org" target="_blank" rel="noopener noreferrer">ihasmail.org</a> })}
+        {translate("Dracula, Gruvbox, Rosé Pine and Tokyo Night are the work of their own projects and are used under the MIT licence; the shades between their published colours are derived, and every one of them is checked for contrast. The accent colour below still applies over any of them.")}
       </p>
       <Switch
         checked={s.themeMessageBody}
