@@ -666,8 +666,12 @@ a.menu-item:hover { color: var(--fg); }
 .attachment .att-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; background: var(--accent-soft); color: var(--accent-soft-fg); flex: 0 0 auto; overflow: hidden; }
 .attachment .att-icon img { width: 100%; height: 100%; object-fit: cover; }
 .attachment .att-text { flex: 1; min-width: 0; }
-.attachment .att-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: .92em; }
-.attachment .att-size { color: var(--fg-muted); font-size: .8em; }
+/* Both are spans, and `overflow`/`text-overflow` do nothing on an inline
+   element -- so the name never truncated and the size ran on after it on the
+   same line. Only long names showed it, which is every .eml named from a
+   subject. */
+.attachment .att-name { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: .92em; }
+.attachment .att-size { display: block; color: var(--fg-muted); font-size: .8em; }
 .attachment .att-actions { display: none; gap: 0; }
 .attachment:hover .att-actions { display: flex; }
 .attachment:hover .att-size { display: none; }

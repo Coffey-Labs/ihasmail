@@ -259,6 +259,19 @@ same query string — so what it builds can be read, edited and learned from.
 - **Attachments** listed with type and size: download, open in a new tab, and an
   inline preview for images and PDFs.
 - **Show original**, **Show headers**, **Download (.eml)** and **Print**.
+- **Forward as attachment** sends the message itself rather than a quotation of
+  it — headers, structure and every attachment intact, which is what a bounce
+  or a phishing report needs and what quoting destroys. It costs **no upload at
+  all**: a message's `blobId` is its own RFC822 blob and already lives in the
+  account, so a 40 MB message attaches by reference as fast as a small one. In
+  the message's ⋮ menu, the list's right-click menu, and the overflow on the
+  reply strip at the foot of a thread, which is the one a thumb finds on a
+  phone.
+- Saved and attached `.eml` files are **named from the subject in whatever
+  script it is written in**. The rule keeps letters and drops only what a
+  filesystem cannot take — path separators, the names Windows reserves, control
+  characters — so a Russian or Japanese subject keeps its own name instead of
+  becoming a row of underscores.
 - **Unsubscribe** where the message carries `List-Unsubscribe`.
 - **Sender details** expand to the full From/To/Cc/Reply-To with addresses.
 - **What the spam filter said** sits in those details, read back off the
