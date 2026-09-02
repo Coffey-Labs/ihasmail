@@ -1,17 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { ChevronRight, Download, File, Folder, FolderPlus, FolderOpen, Home, MoreVertical, Pencil, Share2, Trash2, Upload, FolderInput } from "lucide-react";
+import { ChevronRight, Download, Eye, File, Folder, FolderPlus, FolderOpen, Home, MoreVertical, Pencil, Share2, Trash2, Upload, FolderInput } from "lucide-react";
 import { useFiles } from "@/store/files";
 import { client } from "@/jmap/client";
 import type { FileNode } from "@/jmap/types";
 import { formatSize, formatListDate } from "@/lib/format";
 import { canDropFileNode, isShared } from "@/lib/filenode";
+import { previewKind } from "@/lib/preview";
 import { entriesFromDrop, hasDirectory, planUpload } from "@/lib/dropUpload";
 import { NODE_MIME } from "./FilesTree";
 import { ShareDialog } from "../settings/ShareDialog";
 import { Empty, Spinner } from "@/ui/misc";
 import { MenuItem, MenuSep, Popover, useMenu } from "@/ui/popover";
 import { confirmDialog, promptDialog, Dialog } from "@/ui/dialog";
+import { FilePreviewDialog, type PreviewFile } from "@/ui/filepreview";
 import { toast } from "@/ui/toast";
 import { t } from "@/lib/i18n";
 
@@ -25,6 +27,7 @@ export function FilesView({ nodeId }: { nodeId?: string }) {
   const [menuNode, setMenuNode] = useState<FileNode | null>(null);
   const [moveNode, setMoveNode] = useState<FileNode | null>(null);
   const [shareNode, setShareNode] = useState<FileNode | null>(null);
+  const [preview, setPreview] = useState<PreviewFile | null>(null);
   /* Shared with the sidebar tree, so a row dragged onto a folder there is
      recognised. See the note on `draggingId` in the store. */
   const draggingId = files.draggingId;
@@ -100,12 +103,29 @@ export function FilesView({ nodeId }: { nodeId?: string }) {
 
   const onDrop = (e: React.DragEvent) => dropOnto(parentId, e);
 
+  const blobUrl = (n: FileNode, inline: boolean) =>
+    client.downloadUrl(files.accountId!, n.blobId!, n.name, n.type ?? "application/octet-stream", inline);
+
   const download = (n: FileNode) => {
     if (!n.blobId) return;
     const a = document.createElement("a");
-    a.href = client.downloadUrl(files.accountId!, n.blobId, n.name, n.type ?? "application/octet-stream");
+    a.href = blobUrl(n, false);
     a.download = n.name;
     a.click();
+  };
+
+  /* A file with nothing to show still does what it always did. */
+  const canPreview = (n: FileNode) => Boolean(n.blobId) && n.nodeType !== "directory" && previewKind(n.type, n.name) !== null;
+
+  const openPreview = (n: FileNode) => setPreview({ name: n.name, type: n.type ?? "application/octet-stream", size: n.size, url: blobUrl(n, false), inlineUrl: blobUrl(n, true) });
+
+  /* Double-clicking a file used to download it, which is a decision made for
+     you: to look at a picture you had to put it on disk first. Now it opens
+     what can be opened and downloads the rest. */
+  const activate = (n: FileNode) => {
+    if (n.nodeType === "directory") navigate(`/files/${n.id}`);
+    else if (canPreview(n)) openPreview(n);
+    else download(n);
   };
 
   return (
@@ -162,7 +182,7 @@ export function FilesView({ nodeId }: { nodeId?: string }) {
                     e.dataTransfer.dropEffect = node ? "move" : "copy";
                   }}
                   onDrop={(e) => { if (n.nodeType === "directory") dropOnto(n.id, e); }}
-                  onClick={() => setSelected(n.id)} onDoubleClick={() => (n.nodeType === "directory" ? navigate(`/files/${n.id}`) : download(n))} onContextMenu={(e) => { e.preventDefault(); setMenuNode(n); menu.openAt(e.clientX, e.clientY); }}>
+                  onClick={() => setSelected(n.id)} onDoubleClick={() => activate(n)} onContextMenu={(e) => { e.preventDefault(); setMenuNode(n); menu.openAt(e.clientX, e.clientY); }}>
                   <td><div className="f-name">{n.nodeType === "directory" ? <Folder size={18} /> : <File size={18} />}<span onClick={(e) => { if (n.nodeType === "directory") { e.stopPropagation(); navigate(`/files/${n.id}`); } }} style={n.nodeType === "directory" ? { cursor: "pointer" } : undefined}>{n.name}</span>{isShared(n) && <Share2 size={13} className="faint" aria-label={t("Shared")} />}</div></td>
                   <td className="hide-mobile muted">{n.nodeType === "directory" ? "—" : formatSize(n.size)}</td>
                   <td className="hide-mobile muted">{formatListDate(n.modified ?? n.created)}</td>
@@ -182,7 +202,12 @@ export function FilesView({ nodeId }: { nodeId?: string }) {
         )}
         {menuNode && (
           <>
-            {menuNode.nodeType === "directory" ? <MenuItem icon={<FolderOpen size={16} />} label={t("Open")} onClick={() => navigate(`/files/${menuNode.id}`)} /> : <MenuItem icon={<Download size={16} />} label={t("Download")} onClick={() => download(menuNode)} />}
+            {menuNode.nodeType === "directory" ? <MenuItem icon={<FolderOpen size={16} />} label={t("Open")} onClick={() => navigate(`/files/${menuNode.id}`)} /> : (
+              <>
+                {canPreview(menuNode) && <MenuItem icon={<Eye size={16} />} label={t("Preview")} onClick={() => openPreview(menuNode)} />}
+                <MenuItem icon={<Download size={16} />} label={t("Download")} onClick={() => download(menuNode)} />
+              </>
+            )}
             <MenuItem icon={<Pencil size={16} />} label={t("Rename")} disabled={!menuNode.myRights?.mayRename} onClick={async () => { const n = await promptDialog({ title: t("Rename"), defaultValue: menuNode.name }); if (n?.trim() && n !== menuNode.name) { try { await files.rename(menuNode.id, n.trim()); } catch (err) { toast.error((err as Error).message); } } }} />
             <MenuItem icon={<FolderInput size={16} />} label={t("Move to…")} onClick={() => setMoveNode(menuNode)} />
             <MenuItem icon={<Share2 size={16} />} label={t("Share…")} disabled={!menuNode.myRights?.mayShare} onClick={() => setShareNode(menuNode)} />
@@ -192,6 +217,7 @@ export function FilesView({ nodeId }: { nodeId?: string }) {
         )}
       </Popover>
       {moveNode && <MoveDialog node={moveNode} onClose={() => setMoveNode(null)} />}
+      <FilePreviewDialog file={preview} onClose={() => setPreview(null)} />
       {shareNode && <ShareDialog kind="FileNode" id={shareNode.id} name={shareNode.name} shareWith={shareNode.shareWith ?? null} onClose={() => setShareNode(null)} />}
     </div>
   );

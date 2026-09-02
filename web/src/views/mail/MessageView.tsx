@@ -13,6 +13,8 @@ import { client } from "@/jmap/client";
 import { formatFullDate, formatListDate, formatSize } from "@/lib/format";
 import { displayName, formatAddress } from "@/lib/address";
 import { EMAIL_BASE_CSS, TEXT_EMAIL_CSS, htmlDeclaresColors, sanitizeEmailHtml } from "@/lib/html";
+import { openableInTab, previewKind } from "@/lib/preview";
+import { FilePreviewDialog } from "@/ui/filepreview";
 import { findQuoteStart, textToHtml } from "@/lib/text";
 import { Avatar } from "@/ui/misc";
 import { MenuItem, MenuSep, Popover, useMenu } from "@/ui/popover";
@@ -569,7 +571,9 @@ export function attachmentIcon(type: string, name?: string | null) {
 
 function AttachmentList({ attachments, accountId, email }: { attachments: EmailBodyPart[]; accountId: Id; email: Email }) {
   const [preview, setPreview] = useState<EmailBodyPart | null>(null);
-  const viewable = (a: EmailBodyPart) => (a.type.startsWith("image/") && a.type !== "image/svg+xml") || a.type === "application/pdf" || a.type === "text/plain";
+  /* Whether we can show it, and whether the server will serve it inline, are
+     different questions -- see the note in lib/preview.ts. */
+  const viewable = (a: EmailBodyPart) => Boolean(a.blobId) && previewKind(a.type, a.name) !== null;
   return (
     <>
       <div className="attachments">
@@ -584,7 +588,7 @@ function AttachmentList({ attachments, accountId, email }: { attachments: EmailB
                 <span className="att-size">{formatSize(a.size)}</span>
                 <span className="att-actions">
                   <button className="icon-btn xs" title={translate("Download")} onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); const l = document.createElement("a"); l.href = url; l.download = a.name ?? ""; l.click(); }}><Download size={14} /></button>
-                  {viewable(a) && <button className="icon-btn xs" title={translate("Open in new tab")} onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); window.open(inlineUrl, "_blank", "noopener"); }}><ExternalLink size={14} /></button>}
+                  {openableInTab(a.type) && a.blobId && <button className="icon-btn xs" title={translate("Open in new tab")} onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); window.open(inlineUrl, "_blank", "noopener"); }}><ExternalLink size={14} /></button>}
                 </span>
               </span>
             </a>
@@ -596,20 +600,18 @@ function AttachmentList({ attachments, accountId, email }: { attachments: EmailB
           </button>
         )}
       </div>
-      <Dialog open={Boolean(preview)} onClose={() => setPreview(null)} title={preview?.name ?? translate("Preview")} size="xl" footer={preview && <a className="btn" href={client.downloadUrl(accountId, preview.blobId!, preview.name ?? "file", preview.type)} download><Download size={16} />  {translate("Download")}</a>}>
-        {preview?.type.startsWith("image/") && <img src={client.downloadUrl(accountId, preview.blobId!, preview.name ?? "image", preview.type, true)} alt={preview.name ?? ""} style={{ maxHeight: "70vh", display: "block", margin: "0 auto" }} />}
-        {preview?.type === "application/pdf" && <iframe title={translate("PDF")} src={client.downloadUrl(accountId, preview.blobId!, preview.name ?? "file.pdf", preview.type, true)} style={{ width: "100%", height: "70vh", border: 0 }} />}
-        {preview?.type === "text/plain" && <TextAttachment url={client.downloadUrl(accountId, preview.blobId!, preview.name ?? "file.txt", preview.type, true)} />}
-        <p className="hint" style={{ marginTop: 8 }}>{translate("From: {sender}", { sender: displayName(email.from?.[0]) })}</p>
-      </Dialog>
+      <FilePreviewDialog
+        file={preview && preview.blobId ? {
+          name: preview.name ?? translate("file"),
+          type: preview.type,
+          size: preview.size,
+          url: client.downloadUrl(accountId, preview.blobId, preview.name ?? "file", preview.type),
+          inlineUrl: client.downloadUrl(accountId, preview.blobId, preview.name ?? "file", preview.type, true),
+        } : null}
+        onClose={() => setPreview(null)}
+        caption={<p className="hint" style={{ marginTop: 8 }}>{translate("From: {sender}", { sender: displayName(email.from?.[0]) })}</p>}
+      />
     </>
   );
 }
 
-function TextAttachment({ url }: { url: string }) {
-  const [text, setText] = useState<string | null>(null);
-  useEffect(() => {
-    fetch(url, { credentials: "same-origin" }).then((r) => r.text()).then(setText).catch(() => setText("Could not load."));
-  }, [url]);
-  return <pre className="code notranslate" translate="no" style={{ maxHeight: "65vh" }}>{text ?? "Loading…"}</pre>;
-}
