@@ -261,6 +261,18 @@ same query string — so what it builds can be read, edited and learned from.
 - **Show original**, **Show headers**, **Download (.eml)** and **Print**.
 - **Unsubscribe** where the message carries `List-Unsubscribe`.
 - **Sender details** expand to the full From/To/Cc/Reply-To with addresses.
+- **What the spam filter said** sits in those details, read back off the
+  message rather than scored here: the verdict, the score, the threshold it was
+  measured against, and the rules that moved it, largest mover first and signed
+  so which way each pushed is visible. Both the SpamAssassin-shaped `X-Spam-*`
+  set that Stalwart's own filter writes and Rspamd's `X-Spamd-Result` are read;
+  anything else is left alone rather than guessed at. Two things it will not
+  do: a score is always given the threshold it was measured against, because
+  6.7 is damning against 5 and unremarkable against 15 and the number alone is
+  not something a reader can act on — where no threshold was stated, it says
+  so; and where the filter recorded no verdict, none is invented from the score,
+  since the filter applies policy ihasmail cannot see. Mail that arrived without
+  these headers shows nothing.
 - **Message body theming** is off by default — sender HTML is left exactly as it
   was designed, on a light card. One setting lets mail that brings no colours of
   its own follow the app's theme instead.

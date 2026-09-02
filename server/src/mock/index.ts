@@ -128,6 +128,14 @@ function addEmail(o: { from: [string, string]; to?: string; subject: string; day
     bodyStructure: { partId: null, blobId: null, size: 0, type: "multipart/mixed", name: null, charset: null, disposition: null, cid: null, subParts: [{ partId: "1", blobId: textBlob, size: text.length, type: "text/plain", name: null, charset: "utf-8", disposition: null, cid: null }, ...(o.html ? [{ partId: "2", blobId: htmlBlob, size: html.length, type: "text/html", name: null, charset: "utf-8", disposition: null, cid: null }] : []), ...attachments] },
     "header:List-Unsubscribe:asText": o.from[1].includes("newsletter") ? "<mailto:unsub@newsletter.example?subject=unsubscribe>, <https://newsletter.example/unsub>" : null,
     "header:X-Priority:asText": o.subject.startsWith("Security") ? "1 (Highest)" : null,
+    // Stalwart's spam filter writes the SpamAssassin-shaped set at delivery, so
+    // delivered mail carries it and mail this account wrote does not.
+    "header:X-Spam-Status:asText":
+      o.mailbox === "junk"
+        ? "Yes, score=14.2 required=5.0 tests=[BAYES_99=3.5, URIBL_BLOCKED=2.7, HTML_IMAGE_ONLY=1.4, SUBJ_ALL_CAPS=1.2, FROM_FREEMAIL=0.4] autolearn=no"
+        : o.mailbox === "inbox"
+          ? "No, score=-1.8 required=5.0 tests=[BAYES_00=-1.9, DKIM_VALID=-0.7, SPF_PASS=-0.1, HTML_MESSAGE=0.9]"
+          : null,
   };
   emails.push(e);
   return e;

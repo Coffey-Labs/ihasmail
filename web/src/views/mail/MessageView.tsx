@@ -10,6 +10,7 @@ import { useContacts } from "@/store/contacts";
 import { useCalendar } from "@/store/calendar";
 import { startAppointment } from "@/lib/appointment";
 import { client } from "@/jmap/client";
+import { spamReport, type SpamReport } from "@/lib/spamScore";
 import { formatFullDate, formatListDate, formatSize } from "@/lib/format";
 import { displayName, formatAddress } from "@/lib/address";
 import { EMAIL_BASE_CSS, TEXT_EMAIL_CSS, htmlDeclaresColors, sanitizeEmailHtml } from "@/lib/html";
@@ -112,6 +113,7 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
   const isHighPriority = /^[12]/.test(e["header:X-Priority:asText"] ?? "") || /high/i.test(e["header:Importance:asText"] ?? "");
   const receiptRequested = Boolean(e["header:Disposition-Notification-To:asAddresses"]?.length);
   const authFailed = /\b(dkim|spf|dmarc)=fail\b/i.test(e["header:Authentication-Results:asText"] ?? "");
+  const spam = useMemo(() => spamReport(e), [e]);
 
   const openSource = async () => {
     setShowSource(true);
@@ -265,6 +267,7 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
               {e.messageId?.[0] && <><dt>{translate("Message-ID")}</dt><dd className="mono small">{e.messageId[0]}</dd></>}
               {e["header:List-Id:asText"] && <><dt>{translate("List")}</dt><dd>{e["header:List-Id:asText"]}</dd></>}
               <dt>{translate("Size")}</dt><dd>{formatSize(e.size)}</dd>
+              {spam && <><dt>{translate("Spam filter")}</dt><dd><SpamSummary report={spam} /></dd></>}
               {receiptRequested && <><dt>{translate("Receipt")}</dt><dd>{receipt.offer ? `Requested, to ${receipt.to!.email}. Never sent automatically.` : refusalText(receipt.refusal!)}</dd></>}
             </dl>
           )}
@@ -549,6 +552,53 @@ function TextBody({ text }: { text: string }) {
         </button>
       )}
     </>
+  );
+}
+
+/* ---------- Spam ---------- */
+
+/**
+ * What the filter said, not what we think of it. The verdict line only claims
+ * as much as the header did: where the filter stated one, it is shown; where
+ * it only left a score, the score is shown on its own rather than being turned
+ * into a verdict here.
+ *
+ * A score is always given its threshold where the header carried one, because
+ * the number is unreadable without it -- 6.7 is damning against 5 and
+ * unremarkable against 15. Where none was stated, that is said.
+ */
+function SpamSummary({ report }: { report: SpamReport }) {
+  const { verdict, score, threshold, rules } = report;
+  return (
+    <div className="spam-summary">
+      <div>
+        {verdict === "spam" && <strong>{translate("Marked as spam")}</strong>}
+        {verdict === "clean" && <strong>{translate("Not spam")}</strong>}
+        {verdict === null && <strong>{translate("No verdict recorded")}</strong>}
+        {score !== null && (
+          <span className="hint">
+            {" — "}
+            {threshold !== null
+              ? translate("scored {score} against a threshold of {threshold}", { score: String(score), threshold: String(threshold) })
+              : translate("scored {score}, with no threshold stated", { score: String(score) })}
+          </span>
+        )}
+      </div>
+      {rules.length > 0 && (
+        <ul className="spam-rules">
+          {rules.map((r, i) => (
+            <li key={`${r.name}-${i}`}>
+              <span className="mono small">{r.name}</span>
+              {r.detail && <span className="hint truncate">{r.detail}</span>}
+              {/* Signed, because which way a rule pushed is the whole point. */}
+              <span className={`spam-weight ${r.score > 0 ? "bad" : r.score < 0 ? "good" : ""}`}>
+                {r.score > 0 ? `+${r.score}` : String(r.score)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 
