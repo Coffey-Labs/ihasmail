@@ -23,6 +23,28 @@ export class RateLimiter {
     return true;
   }
 
+  /**
+   * Give back the attempt `check` just took.
+   *
+   * For an outcome that says nothing about whether the credentials were right.
+   * ihasmail runs in its own container, usually on its own host, so an upstream
+   * that never answered is an ordinary Tuesday rather than an attack -- and the
+   * limiter exists to slow down password guessing, which a server that refused
+   * the connection has not told us anything about. Without this, retrying
+   * through a thirty-second outage spends the window and locks somebody out
+   * until well after the cause has gone (#239).
+   *
+   * Refunds one attempt rather than clearing the key, so a run of real failures
+   * with an outage in the middle still adds up.
+   */
+  refund(key: string): void {
+    const arr = this.hits.get(key);
+    if (!arr?.length) return;
+    arr.pop();
+    if (arr.length) this.hits.set(key, arr);
+    else this.hits.delete(key);
+  }
+
   reset(key: string): void {
     this.hits.delete(key);
   }

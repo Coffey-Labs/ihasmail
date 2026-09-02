@@ -37,6 +37,20 @@ type Env = { Variables: { session: LiveSession } };
 
 export const sessions: SessionBackend = new SessionStore(config.sessionFile);
 const loginLimiter = new RateLimiter(config.loginRateLimit, 15 * 60_000);
+/*
+ * The backstop that is never refunded.
+ *
+ * `loginLimiter` guards password guessing and gives its attempts back when the
+ * upstream never judged the password (#239) -- otherwise retrying through an
+ * outage locks somebody out until after it has ended. But "not counted" cannot
+ * mean "unlimited": each attempt still costs ihasmail an outbound connection
+ * that may sit there until `UPSTREAM_TIMEOUT`, so a flood during an outage is
+ * the one moment the endpoint is cheapest to abuse.
+ *
+ * Hence a second ceiling, per address, twenty times looser and refunded never.
+ * A person retrying an outage will not come near it; something hammering will.
+ */
+const loginFloodLimiter = new RateLimiter(config.loginRateLimit * 20, 15 * 60_000);
 /**
  * Credential changes verify the current password upstream, and Stalwart's
  * fail2ban counts those failures against the *caller's* IP — which for a proxy
@@ -149,10 +163,10 @@ function upstreamFailure(c: Context, err: unknown) {
   }
   const name = (err as Error)?.name ?? "";
   if (name === "TimeoutError" || name === "AbortError") {
-    return c.json({ error: "upstream_timeout", message: "The mail server did not respond in time" }, 504);
+    return c.json({ error: "upstream_timeout", message: "The mail server did not respond in time. This is not a problem with your password." }, 504);
   }
   console.error("[ihasmail] upstream failure:", err);
-  return c.json({ error: "upstream_error", message: "Could not reach the mail server" }, 502);
+  return c.json({ error: "upstream_error", message: "Could not reach the mail server. This is not a problem with your password." }, 502);
 }
 
 /**
@@ -196,7 +210,24 @@ export function createApp(basePath = config.basePath): Hono<Env> {
     if (!username || !password) return c.json({ error: "missing_credentials" }, 400);
     if (username.length > 320 || password.length > 1024) return c.json({ error: "bad_request" }, 400);
 
+    /*
+     * Three checks, answering different questions.
+     *
+     * `limitKey` is this username from this address, and `ip` is any username
+     * from it -- both guard guessing, and both are given back when the upstream
+     * never got as far as judging the password. Refunding only the first would
+     * not fix #239: ten retries through an outage would still spend the address
+     * budget, and behind one office NAT that budget belongs to the whole
+     * building.
+     *
+     * The flood ceiling is the one that is never refunded, and it is the reason
+     * the other two safely can be.
+     */
     const limitKey = `${ip}|${username.toLowerCase()}`;
+    if (!loginFloodLimiter.check(ip)) {
+      c.header("Retry-After", String(loginFloodLimiter.retryAfterSeconds(ip)));
+      return c.json({ error: "rate_limited", message: "Too many login attempts. Please wait and try again." }, 429);
+    }
     if (!loginLimiter.check(limitKey) || !loginLimiter.check(ip)) {
       c.header("Retry-After", String(loginLimiter.retryAfterSeconds(limitKey)));
       return c.json({ error: "rate_limited", message: "Too many login attempts. Please wait and try again." }, 429);
@@ -212,6 +243,10 @@ export function createApp(basePath = config.basePath): Hono<Env> {
       // locale and self-service credentials each fail in their own way with
       // nothing to connect them. The credentials were good, so say so.
       if (!hasStalwartRegistry(upstream)) {
+        // The credentials were accepted; only the server is too old. Not an
+        // attempt worth counting against them.
+        loginLimiter.refund(limitKey);
+        loginLimiter.refund(ip);
         return c.json(
           {
             error: "unsupported_server",
@@ -258,6 +293,16 @@ export function createApp(basePath = config.basePath): Hono<Env> {
           },
           401,
         );
+      }
+      /*
+       * A 401 is a judgement about the password and stays counted. Anything
+       * else -- refused, timed out, DNS, TLS -- is the upstream failing to
+       * answer, which says nothing about the credentials and must not spend
+       * somebody's attempts while they wait for it to come back (#239).
+       */
+      if (!(err instanceof UpstreamError && err.status === 401)) {
+        loginLimiter.refund(limitKey);
+        loginLimiter.refund(ip);
       }
       return upstreamFailure(c, err);
     }
