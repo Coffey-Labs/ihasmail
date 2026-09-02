@@ -11,6 +11,7 @@ import { ensureScheduledMailbox, useScheduled } from "./scheduled";
 import { formatScheduleTime, holdUntil } from "@/lib/schedule";
 import { t as translate } from "@/lib/i18n";
 import { settings } from "./settings";
+import { fillPlaceholders, type PlaceholderContext } from "@/lib/templatePlaceholders";
 
 export interface ComposeAttachment {
   id: string;
@@ -575,8 +576,17 @@ export const useCompose = create<ComposeState>((set, get) => ({
   insertTemplate(key, html, subject) {
     const d = get().drafts.find((x) => x.key === key);
     if (!d) return;
-    const patch: Partial<Draft> = { html: `<div>${sanitizeEditorHtml(html)}</div>${d.html}`, text: `${htmlToText(html)}\n${d.text}` };
-    if (subject && !d.subject) patch.subject = subject;
+    // Placeholders are filled against the draft as it stands right now, which
+    // is why this happens on insert rather than on send: what the template is
+    // filled with is visible and editable afterwards, instead of changing
+    // under the message between writing it and sending it.
+    const ident = d.identityId ? useMail.getState().identities.find((i) => i.id === d.identityId) : undefined;
+    const ctx: PlaceholderContext = { to: d.to, from: ident ? { name: ident.name, email: ident.email } : null, subject: d.subject };
+    // The body is filled once as HTML and the plain-text side derived from the
+    // result, so the two cannot disagree about what a placeholder came to.
+    const filled = fillPlaceholders(html, ctx, { html: true });
+    const patch: Partial<Draft> = { html: `<div>${sanitizeEditorHtml(filled)}</div>${d.html}`, text: `${htmlToText(filled)}\n${d.text}` };
+    if (subject && !d.subject) patch.subject = fillPlaceholders(subject, ctx, { html: false });
     get().update(key, patch);
   },
 }));
