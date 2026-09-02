@@ -5,6 +5,7 @@ import { domainOf } from "@/lib/address";
 import { Switch } from "@/ui/misc";
 import { X } from "lucide-react";
 import { t } from "@/lib/i18n";
+import { isEnforced } from "@/lib/settingsPolicy";
 
 /**
  * Everything about what reaches a sender, and what asks before it happens.
@@ -36,7 +37,7 @@ export function PrivacySettings() {
       <h2>{t("Remote content")}</h2>
       <div className="field">
         <label>{t("Remote images")}</label>
-        <select className="select" value={s.imagePolicy} onChange={(e) => update({ imagePolicy: e.target.value as typeof s.imagePolicy })}>
+        <select disabled={isEnforced("imagePolicy")} className="select" value={s.imagePolicy} onChange={(e) => update({ imagePolicy: e.target.value as typeof s.imagePolicy })}>
           <option value="ask">{t("Ask before showing (recommended)")}</option>
           <option value="contacts">{t("Show automatically from my contacts")}</option>
           <option value="always">{t("Always show")}</option>
@@ -67,10 +68,10 @@ export function PrivacySettings() {
       )}
 
       <h2>{t("Read receipts")}</h2>
-      <Switch checked={s.requestReadReceipt} onChange={(v) => update({ requestReadReceipt: v })} label={t("Always request read receipts")} />
+      <Switch locked={isEnforced("requestReadReceipt")} checked={s.requestReadReceipt} onChange={(v) => update({ requestReadReceipt: v })} label={t("Always request read receipts")} />
       <div className="field">
         <label>{t("When someone requests a read receipt")}</label>
-        <select className="select" value={s.readReceiptPolicy} onChange={(e) => update({ readReceiptPolicy: e.target.value as ReadReceiptPolicy })}>
+        <select disabled={isEnforced("readReceiptPolicy")} className="select" value={s.readReceiptPolicy} onChange={(e) => update({ readReceiptPolicy: e.target.value as ReadReceiptPolicy })}>
           <option value="ask">{t("Ask me on each message")}</option>
           <option value="never">{t("Never send one")}</option>
         </select>
@@ -108,7 +109,7 @@ export function PrivacySettings() {
 
       <div className="field">
         <label>{t("Ask before sending to a large group")}</label>
-        <select className="select" value={String(s.replyAllThreshold)} onChange={(e) => update({ replyAllThreshold: Number(e.target.value) })}>
+        <select disabled={isEnforced("replyAllThreshold")} className="select" value={String(s.replyAllThreshold)} onChange={(e) => update({ replyAllThreshold: Number(e.target.value) })}>
           <option value="0">{t("Never ask")}</option>
           <option value="5">{t("5 people or more")}</option>
           <option value="10">{t("10 people or more")}</option>
@@ -136,7 +137,7 @@ export function PrivacySettings() {
       <h2>{t("Before it happens")}</h2>
       <div className="field">
         <label>{t("Undo send window")}</label>
-        <select className="select" value={String(s.undoSendSeconds)} onChange={(e) => update({ undoSendSeconds: Number(e.target.value) })}>
+        <select disabled={isEnforced("undoSendSeconds")} className="select" value={String(s.undoSendSeconds)} onChange={(e) => update({ undoSendSeconds: Number(e.target.value) })}>
           <option value="0">{t("Off")}</option>
           <option value="5">{t("5 seconds")}</option>
           <option value="8">{t("8 seconds")}</option>
@@ -145,8 +146,8 @@ export function PrivacySettings() {
         </select>
         <p className="hint">{t("The message is held in this browser and has not been submitted yet, so taking it back costs nothing.")}</p>
       </div>
-      <Switch checked={s.attachmentReminder} onChange={(v) => update({ attachmentReminder: v })} label={t("Attachment reminder")} hint={t("Warn when the message mentions an attachment but none is attached.")} />
-      <Switch checked={s.confirmDelete} onChange={(v) => update({ confirmDelete: v })} label={t("Confirm before deleting")} />
+      <Switch locked={isEnforced("attachmentReminder")} checked={s.attachmentReminder} onChange={(v) => update({ attachmentReminder: v })} label={t("Attachment reminder")} hint={t("Warn when the message mentions an attachment but none is attached.")} />
+      <Switch locked={isEnforced("confirmDelete")} checked={s.confirmDelete} onChange={(v) => update({ confirmDelete: v })} label={t("Confirm before deleting")} />
     </div>
   );
 }

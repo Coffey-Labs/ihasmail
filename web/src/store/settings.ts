@@ -4,6 +4,7 @@ import { hasCachedJson, loadJson, saveJson } from "@/lib/storage";
 import { effectiveMode, legacyTheme, migrateTheme, type Mode, type PaletteId } from "@/lib/palette";
 import type { SortLevel, SortPreset } from "@/lib/listSort";
 import { pendingSettingsKeys, queueSettingsPush } from "@/lib/settingsSync";
+import { policyDefaults, policyEnforced } from "@/lib/settingsPolicy";
 import { setDateTimePrefs, setUiLanguageForFormatting, type DateFormat, type TimeFormat } from "@/lib/datetime";
 import type { SwipeAction } from "@/lib/swipe";
 import { resolveUiLanguage } from "@/lib/languages";
@@ -402,6 +403,14 @@ interface SettingsState {
   importJson(json: string): boolean;
   /** Apply the account's settings file over the cached ones. */
   hydrate(remote: Record<string, unknown>): void;
+  /**
+   * Seed an account that has never had settings of its own.
+   *
+   * Only for that case, which is why it is not `update`: these are a starting
+   * point the reader may change, so applying them to somebody who already has
+   * settings would be overwriting choices rather than defaulting them.
+   */
+  seedFromPolicy(): void;
 }
 
 const initialSettings = loadJson<Settings>("settings", DEFAULT_SETTINGS);
@@ -428,7 +437,14 @@ export const useSettings = create<SettingsState>((set, get) => ({
      * change the theme cannot forget to update it and strand an older device
      * on a theme nobody picked.
      */
-    const merged = { ...get().settings, ...patch };
+    /*
+     * Enforcement lives here rather than only on the controls. The controls are
+     * disabled and say why, which is the part a reader sees -- but a setting
+     * the installation has decided must not be changeable through an imported
+     * settings file, a keyboard shortcut, or a control somebody adds later and
+     * forgets to check. There is one door, so the lock is on it. Issue #207.
+     */
+    const merged = { ...get().settings, ...patch, ...policyEnforced() };
     const prefersDark = Boolean(window.matchMedia?.("(prefers-color-scheme: dark)").matches);
     const settings = { ...merged, theme: legacyTheme({ palette: merged.palette, mode: merged.mode }, prefersDark) };
     saveJson("settings", settings);
@@ -442,13 +458,22 @@ export const useSettings = create<SettingsState>((set, get) => ({
       queueSettingsPush(syncedPart(settings));
     }
   },
+  seedFromPolicy() {
+    const defaults = policyDefaults();
+    if (!Object.keys(defaults).length) return;
+    get().update(defaults);
+  },
   reset() {
-    saveJson("settings", DEFAULT_SETTINGS);
-    set({ settings: DEFAULT_SETTINGS });
-    applyTheme(DEFAULT_SETTINGS);
-    applyDateTimePrefs(DEFAULT_SETTINGS);
-    applyLang(DEFAULT_SETTINGS);
-    queueSettingsPush(syncedPart(DEFAULT_SETTINGS));
+    /* Back to how this installation starts an account, not to how ihasmail
+       starts one: resetting must not be a way around a policy, and the defaults
+       an admin chose are the honest meaning of "reset" where there are any. */
+    const base = { ...DEFAULT_SETTINGS, ...policyDefaults(), ...policyEnforced() };
+    saveJson("settings", base);
+    set({ settings: base });
+    applyTheme(base);
+    applyDateTimePrefs(base);
+    applyLang(base);
+    queueSettingsPush(syncedPart(base));
   },
   exportJson() {
     return JSON.stringify(get().settings, null, 2);
@@ -463,7 +488,10 @@ export const useSettings = create<SettingsState>((set, get) => ({
     }
   },
   hydrate(remote) {
-    const settings = mergeRemote(get().settings, remote, pendingSettingsKeys());
+    /* Enforced values win over what the account's own file says: a policy that
+       an older sign-in has already written past would otherwise stay written
+       past for ever. */
+    const settings = { ...mergeRemote(get().settings, remote, pendingSettingsKeys()), ...policyEnforced() };
     // Cache it, so the next first frame on this browser is already right.
     saveJson("settings", settings);
     set({ settings });

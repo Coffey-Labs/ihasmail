@@ -175,6 +175,9 @@ export function createApp(basePath = config.basePath): Hono<Env> {
       sourceUrl: config.sourceUrl,
       imageProxy: config.imageProxy,
       maxUploadBytes: config.maxUploadBytes,
+      /* Sent before sign-in like the rest of this: it says what the
+         installation has decided, not anything about who is asking. */
+      settingsPolicy: config.settingsPolicy,
     }),
   );
 

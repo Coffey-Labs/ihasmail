@@ -7,6 +7,7 @@ import { disableWebPush, enableWebPush, webPushActive } from "@/lib/webpushEnabl
 import { supportsEmailPush, webPushAvailable } from "@/lib/webpush";
 import { toast } from "@/ui/toast";
 import { t } from "@/lib/i18n";
+import { isEnforced } from "@/lib/settingsPolicy";
 
 export function NotificationsSettings() {
   const s = useSettings((st) => st.settings);
@@ -76,7 +77,7 @@ export function NotificationsSettings() {
               : t("Your mail server can wake this browser, but will not include the sender or subject. Your browser still has to be running.")
         }
       />
-      <Switch checked={s.notificationSound} onChange={(v) => update({ notificationSound: v })} label={t("Play a sound for new mail")} />
+      <Switch locked={isEnforced("notificationSound")} checked={s.notificationSound} onChange={(v) => update({ notificationSound: v })} label={t("Play a sound for new mail")} />
       <div className="row mt-16">
         <button className="btn" onClick={() => { showNotification(t("ihasmail test"), { body: t("This is what a new-mail notification looks like.") }); playNewMailSound(); }}>{t("Test notification")}</button>
       </div>

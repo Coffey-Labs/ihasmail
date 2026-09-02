@@ -111,9 +111,56 @@ export function assertImmutable(sessionFile: string, root: string): void {
 if (immutable) assertImmutable(sessionFile, fileURLToPath(new URL("../..", import.meta.url)));
 
 
+/**
+ * Settings an installation decides, rather than each reader.
+ *
+ * A school turning on "warn about outside senders" for three thousand pupils
+ * cannot ask three thousand pupils to turn it on -- issue #207. Two sections,
+ * which are two different powers:
+ *
+ * - `defaults` seed an account that has never had settings of its own. The
+ *   reader can change any of them afterwards; they are a starting point, not a
+ *   rule.
+ * - `enforced` are applied on every load and cannot be changed here at all. The
+ *   controls stay visible and go dead, which the issue asked for by name: a
+ *   missing control confuses somebody who has used ihasmail elsewhere.
+ *
+ * Read from a file or straight from the environment, because ihasmail's own
+ * production runs read-only with no volume -- an installation that cannot mount
+ * a file can still set a variable.
+ */
+function readSettingsPolicy(): { defaults: Record<string, unknown>; enforced: Record<string, unknown> } {
+  const parse = (raw: string, where: string): Record<string, unknown> => {
+    try {
+      const v = JSON.parse(raw) as unknown;
+      if (!v || typeof v !== "object" || Array.isArray(v)) throw new Error("not a JSON object");
+      return v as Record<string, unknown>;
+    } catch (err) {
+      /* Loud, and fatal. A policy that silently did not apply would look like
+         the feature not working, and the admin would have no way to tell. */
+      throw new Error(`Invalid ${where}: ${(err as Error).message}`);
+    }
+  };
+
+  const file = process.env.SETTINGS_POLICY_FILE;
+  if (file) {
+    if (!existsSync(file)) throw new Error(`SETTINGS_POLICY_FILE does not exist: ${file}`);
+    const whole = parse(readFileSync(file, "utf8"), `SETTINGS_POLICY_FILE (${file})`);
+    return {
+      defaults: (whole.defaults as Record<string, unknown>) ?? {},
+      enforced: (whole.enforced as Record<string, unknown>) ?? {},
+    };
+  }
+  return {
+    defaults: process.env.SETTINGS_DEFAULTS ? parse(process.env.SETTINGS_DEFAULTS, "SETTINGS_DEFAULTS") : {},
+    enforced: process.env.SETTINGS_ENFORCED ? parse(process.env.SETTINGS_ENFORCED, "SETTINGS_ENFORCED") : {},
+  };
+}
+
 export const config = {
   isProd,
   appName: env("APP_NAME", "ihasmail"),
+  settingsPolicy: readSettingsPolicy(),
   /**
    * What this build calls itself: `2.16.57`. Set by the image build from
    * `--build-arg IHASMAIL_VERSION`, since `.dockerignore` keeps `.git` out of

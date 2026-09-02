@@ -20,9 +20,9 @@ export function Avatar({ who, size, className }: { who: EmailAddress | { name?: 
   );
 }
 
-export function Switch({ checked, onChange, label, hint, disabled }: { checked: boolean; onChange: (v: boolean) => void; label?: ReactNode; hint?: ReactNode; disabled?: boolean }) {
+export function Switch({ checked, onChange, label, hint, disabled, locked }: { checked: boolean; onChange: (v: boolean) => void; label?: ReactNode; hint?: ReactNode; disabled?: boolean; locked?: boolean }) {
   const sw = (
-    <button type="button" role="switch" aria-checked={checked} className="switch" onClick={() => !disabled && onChange(!checked)} disabled={disabled} />
+    <button type="button" role="switch" aria-checked={checked} className="switch" onClick={() => !disabled && !locked && onChange(!checked)} disabled={disabled || locked} />
   );
   if (!label) return sw;
   return (
@@ -30,6 +30,10 @@ export function Switch({ checked, onChange, label, hint, disabled }: { checked: 
       <div className="switch-text">
         <span>{label}</span>
         {hint && <span className="hint">{hint}</span>}
+        {/* Shown rather than hidden, and said rather than implied: a control
+            that is simply missing reads as a bug to somebody who has used
+            ihasmail without a policy. Issue #207. */}
+        {locked && <span className="hint">{t("Set for everyone here. You cannot change this.")}</span>}
       </div>
       {sw}
     </div>

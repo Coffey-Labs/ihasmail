@@ -19,6 +19,7 @@ import { ComposerDock } from "@/views/compose/ComposerDock";
 import { setUnreadBadge } from "@/lib/notify";
 import { PAINTED_FROM_CACHE, useSettings, syncedPart } from "@/store/settings";
 import { armSettingsSync, loadRemoteSettings, queueSettingsPush, settingsAlreadyLoadedFor, settingsSyncAvailable } from "@/lib/settingsSync";
+import { loadSettingsPolicy } from "@/lib/settingsPolicy";
 import { listenForVerification, renewWebPush } from "@/lib/webpushEnable";
 import { useLanguageVersion, whenLanguageReady } from "@/lib/i18n";
 import { confirmLeaveUnsaved, hasUnsavedChanges } from "@/lib/unsavedChanges";
@@ -145,9 +146,17 @@ function AuthedApp() {
     }
     let cancelled = false;
     void (async () => {
+      /* Before the account's own settings, so both the seeding below and the
+         enforcement inside `hydrate` have something to apply. */
+      await loadSettingsPolicy();
+      if (cancelled) return;
       const remote = await loadRemoteSettings();
       if (cancelled) return;
       if (remote) useSettings.getState().hydrate(remote);
+      // No settings file: this account has never had settings of its own, so
+      // the installation's defaults are what it starts on rather than
+      // ihasmail's. Issue #207.
+      else useSettings.getState().seedFromPolicy();
       // The catalogue for whatever language that turned out to be. Hydrating
       // asks for it; this is waiting for the answer.
       await whenLanguageReady();
