@@ -1,4 +1,5 @@
 import { APP_VERSION } from "./version";
+import { withBase } from "./basePath";
 import { push, type PushState } from "@/jmap/push";
 
 /**
@@ -71,7 +72,7 @@ export function reloadIfServerRebuilt(): Promise<boolean> {
 async function check(): Promise<boolean> {
   let serverVersion: string;
   try {
-    const res = await fetch("/api/health", { credentials: "same-origin", cache: "no-store" });
+    const res = await fetch(withBase("/api/health"), { credentials: "same-origin", cache: "no-store" });
     if (!res.ok) return false;
     const body = (await res.json()) as { version?: unknown };
     if (typeof body.version !== "string" || !body.version) return false;

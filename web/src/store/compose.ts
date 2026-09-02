@@ -10,6 +10,7 @@ import { useMail, FULL_PROPS, BODY_PROPS } from "./mail";
 import { ensureScheduledMailbox, useScheduled } from "./scheduled";
 import { formatScheduleTime, holdUntil } from "@/lib/schedule";
 import { t as translate } from "@/lib/i18n";
+import { BASE_PATH } from "@/lib/basePath";
 import { settings } from "./settings";
 import { emlFilename } from "@/lib/emlName";
 import { fillPlaceholders, type PlaceholderContext } from "@/lib/templatePlaceholders";
@@ -648,6 +649,23 @@ function scheduleAutosave(key: string, get: () => ComposeState) {
   );
 }
 
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/*
+ * How an inline image points at a blob while it is being edited, and how to
+ * find one again on the way out.
+ *
+ * `client.downloadUrl` builds these, so under a subpath they carry the mount
+ * prefix -- and the patterns have to as well. Neither would have failed
+ * loudly. A bare `/api/blob/` still appears *inside* `/mail/api/blob/...`, so
+ * the unanchored replacement would have matched only the tail and left `/mail`
+ * standing in front of a `cid:` reference; the anchored match would simply
+ * have missed, and the message would go out linking to the sender's own
+ * webmail where the picture should be.
+ */
+const BLOB_URL_PREFIX = `${BASE_PATH}/api/blob/`;
+const BLOB_URL_RE = escapeRe(BLOB_URL_PREFIX);
+
 /** Build the JMAP Email creation object from a draft. */
 export async function buildEmailObject(d: Draft, opts: { forSend: boolean; mailboxId?: Id | null }): Promise<Record<string, unknown>> {
   const mail = useMail.getState();
@@ -662,7 +680,7 @@ export async function buildEmailObject(d: Draft, opts: { forSend: boolean; mailb
   // Inline attachments shown via blob URLs in the editor → back to cid: references.
   for (const a of d.attachments) {
     if (a.inline && a.cid && a.blobId && html) {
-      const re = new RegExp(`/api/blob/[^"' )]*${a.blobId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[^"' )]*`, "g");
+      const re = new RegExp(`${BLOB_URL_RE}[^"' )]*${escapeRe(a.blobId)}[^"' )]*`, "g");
       html = html.replace(re, `cid:${a.cid}`);
     }
   }
@@ -670,11 +688,11 @@ export async function buildEmailObject(d: Draft, opts: { forSend: boolean; mailb
   const related: EmailBodyPart[] = [];
   const relatedInline: Array<{ blobId: Id; type: string; name: string; cid: string }> = [];
   // Images referencing stored blobs (e.g. signature logos kept in Files) → inline cid parts.
-  if (html && html.includes("/api/blob/")) {
+  if (html && html.includes(BLOB_URL_PREFIX)) {
     const doc = new DOMParser().parseFromString(html, "text/html");
     for (const img of Array.from(doc.querySelectorAll("img"))) {
       const src = img.getAttribute("src") ?? "";
-      const m = /^\/api\/blob\/([^/]+)\/([^/]+)\/([^?]+)(?:\?([^#]*))?/.exec(src);
+      const m = new RegExp(`^${BLOB_URL_RE}([^/]+)/([^/]+)/([^?]+)(?:\\?([^#]*))?`).exec(src);
       if (!m) continue;
       const blobId = decodeURIComponent(m[2]!);
       const name = decodeURIComponent(m[3]!);

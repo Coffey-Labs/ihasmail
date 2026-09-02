@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Eye, EyeOff, LogIn } from "lucide-react";
 import { useSession } from "@/store/session";
 import { ApiError } from "@/jmap/client";
+import { withBase } from "@/lib/basePath";
 import { DEFAULT_SOURCE_URL } from "@/lib/source";
 import { APP_VERSION } from "@/lib/version";
 import { t } from "@/lib/i18n";
@@ -14,7 +15,7 @@ export function LoginPage() {
   const [sourceUrl, setSourceUrl] = useState(DEFAULT_SOURCE_URL);
   useEffect(() => {
     let live = true;
-    fetch("/api/config")
+    fetch(withBase("/api/config"))
       .then((r) => (r.ok ? r.json() : null))
       .then((c) => { if (live && c?.sourceUrl) setSourceUrl(c.sourceUrl as string); })
       .catch(() => { /* the default stands */ });
@@ -53,7 +54,7 @@ export function LoginPage() {
     <div className="login-page">
       <form className="login-card" onSubmit={submit}>
         <div className="logo">
-          <img src="/img/logo.png" alt="" width={120} height={143} />
+          <img src={withBase("/img/logo.png")} alt="" width={120} height={143} />
           <h1 className="notranslate" translate="no">ihasmail</h1>
           <p className="tagline">{t("Fast, friendly webmail. Your mailbox, your way.")}</p>
         </div>

@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { BookOpen, Calendar, ChevronsUpDown, FolderOpen, Globe, HelpCircle, LogOut, Mail, Menu as MenuIcon, Moon, PenSquare, Plus, RefreshCw, Settings, Sun, Upload, Users, X } from "lucide-react";
 import { useSession } from "@/store/session";
+import { withBase } from "@/lib/basePath";
 import { toggleTarget, useEffectiveTheme, useSettings } from "@/store/settings";
 import { useMail } from "@/store/mail";
 import { draftFromMailto, useCompose } from "@/store/compose";
@@ -80,7 +81,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <MenuIcon size={22} />
         </button>
         <Link href="/mail" className="brand">
-          <img src="/img/logo.png" alt="" />
+          <img src={withBase("/img/logo.png")} alt="" />
           {/* A product name, not a word. "ihasmail" translated is a different
               product, and the one on the tab beside it is still called this. */}
           <span className="brand-name notranslate" translate="no">

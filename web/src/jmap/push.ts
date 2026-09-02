@@ -1,4 +1,5 @@
 import type { Id, StateChange } from "./types";
+import { withBase } from "@/lib/basePath";
 
 export type PushListener = (accountId: Id, type: string, newState: string) => void;
 
@@ -70,7 +71,7 @@ class PushManager {
   private connect(): void {
     if (this.stopped || this.es) return;
     if (this.state !== "connected") this.setState("connecting");
-    const url = `/api/events?types=*&closeafter=no&ping=30`;
+    const url = withBase(`/api/events?types=*&closeafter=no&ping=30`);
     const es = new EventSource(url, { withCredentials: true });
     this.es = es;
     es.onopen = () => {

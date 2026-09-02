@@ -1,4 +1,5 @@
 import type { ContactCard, EmailAddress, JSContactName } from "@/jmap/types";
+import { withBase } from "@/lib/basePath";
 
 /** Best display name for a card. */
 export function contactDisplayName(c: ContactCard): string {
@@ -60,7 +61,7 @@ export function contactPhoto(c: ContactCard, accountId: string): string | null {
   const m = Object.values(c.media ?? {}).find((x) => x.kind === "photo");
   if (!m) return null;
   if (m.uri) return m.uri.startsWith("data:") ? m.uri : null;
-  if (m.blobId) return `/api/blob/${encodeURIComponent(accountId)}/${encodeURIComponent(m.blobId)}/photo?accept=${encodeURIComponent(m.mediaType ?? "image/jpeg")}&inline=1`;
+  if (m.blobId) return withBase(`/api/blob/${encodeURIComponent(accountId)}/${encodeURIComponent(m.blobId)}/photo?accept=${encodeURIComponent(m.mediaType ?? "image/jpeg")}&inline=1`);
   return null;
 }
 

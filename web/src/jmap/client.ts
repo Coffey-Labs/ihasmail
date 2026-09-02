@@ -1,4 +1,5 @@
 import type { Id, Invocation, JmapResponse, JmapSession, MethodError, UploadResponse } from "./types";
+import { withBase } from "@/lib/basePath";
 
 export const CAP = {
   core: "urn:ietf:params:jmap:core",
@@ -62,9 +63,16 @@ export type ResultRef = { resultOf: string; name: string; path: string };
 
 const HEADERS = { "content-type": "application/json", accept: "application/json", "x-requested-with": "ihasmail" };
 
-/** Generic fetch against our same-origin API with CSRF header + auth handling. */
+/**
+ * Generic fetch against our same-origin API with CSRF header + auth handling.
+ *
+ * `path` is written root-absolute at every call site -- `/api/jmap` -- and the
+ * mount prefix is added here rather than there. One place to get it right, and
+ * the `startsWith` below keeps working on the path as written rather than on
+ * whatever the deployment happens to be called.
+ */
 export async function apiFetch<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
-  const res = await fetch(path, {
+  const res = await fetch(withBase(path), {
     ...init,
     headers: { ...HEADERS, ...(init.headers as Record<string, string> | undefined) },
     credentials: "same-origin",
@@ -276,12 +284,12 @@ export class JmapClient {
   }
 
   uploadUrl(accountId: Id): string {
-    return `/api/upload/${encodeURIComponent(accountId)}`;
+    return withBase(`/api/upload/${encodeURIComponent(accountId)}`);
   }
 
   downloadUrl(accountId: Id, blobId: Id, name: string, type: string, inline = false): string {
     const safeName = (name || "attachment").replace(/[/\\?#%]/g, "_");
-    const u = `/api/blob/${encodeURIComponent(accountId)}/${encodeURIComponent(blobId)}/${encodeURIComponent(safeName)}?accept=${encodeURIComponent(type || "application/octet-stream")}`;
+    const u = withBase(`/api/blob/${encodeURIComponent(accountId)}/${encodeURIComponent(blobId)}/${encodeURIComponent(safeName)}?accept=${encodeURIComponent(type || "application/octet-stream")}`);
     return inline ? `${u}&inline=1` : u;
   }
 

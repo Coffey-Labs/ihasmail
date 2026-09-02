@@ -1,4 +1,5 @@
 import DOMPurify from "dompurify";
+import { withBase } from "@/lib/basePath";
 
 export interface SanitizeOptions {
   /** Map of Content-ID (without angle brackets) → URL for inline images. */
@@ -61,7 +62,7 @@ function hardenCss(css: string): string {
 }
 
 export function proxiedImageUrl(url: string): string {
-  return `/api/image?url=${encodeURIComponent(url)}`;
+  return withBase(`/api/image?url=${encodeURIComponent(url)}`);
 }
 
 export function sanitizeEmailHtml(input: string, opts: SanitizeOptions = {}): SanitizeResult {

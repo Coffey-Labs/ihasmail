@@ -1,6 +1,12 @@
 services:
   ihasmail:
-    build: .
+    build:
+      context: .
+      args:
+        # Passed to the build as well as the run because the web bundle writes
+        # its own asset URLs: a build that does not know the prefix produces an
+        # app that cannot load itself under one. Empty is the domain root.
+        BASE_PATH: ${BASE_PATH:-}
     image: ihasmail:2
     restart: unless-stopped
     ports:
@@ -9,6 +15,7 @@ services:
       STALWART_URL: ${STALWART_URL:?set STALWART_URL in .env}
       APP_SECRET: ${APP_SECRET:?set APP_SECRET in .env (openssl rand -base64 48)}
       APP_NAME: ${APP_NAME:-ihasmail}
+      BASE_PATH: ${BASE_PATH:-}
       SOURCE_URL: ${SOURCE_URL:-https://github.com/Coffey-Labs/ihasmail}
       TRUST_PROXY: "1"
       IMAGE_PROXY: "1"

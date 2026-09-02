@@ -2,12 +2,13 @@
   "name": "ihasmail",
   "short_name": "ihasmail",
   "description": "Fast, friendly JMAP webmail for Stalwart",
-  "start_url": "/mail",
-  "scope": "/",
+  "_comment": "JSON has no comments, so: every URL below is relative on purpose. Manifest members resolve against the manifest's own address, so these follow BASE_PATH with nothing substituted into them at build time. Root-absolute values pinned the installed app, its scope and its shortcuts to the domain root whatever the mount was.",
+  "start_url": "mail",
+  "scope": "./",
   "protocol_handlers": [
     {
       "protocol": "mailto",
-      "url": "/mail?mailto=%s"
+      "url": "mail?mailto=%s"
     }
   ],
   "display": "standalone",
@@ -16,17 +17,17 @@
   "theme_color": "#0f766e",
   "icons": [
     {
-      "src": "/img/icon-192.png",
+      "src": "img/icon-192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/img/icon-512.png",
+      "src": "img/icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
     },
     {
-      "src": "/img/icon-maskable.png",
+      "src": "img/icon-maskable.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
@@ -35,16 +36,16 @@
   "shortcuts": [
     {
       "name": "Compose",
-      "url": "/mail?compose=new",
+      "url": "mail?compose=new",
       "description": "Write a new message"
     },
     {
       "name": "Calendar",
-      "url": "/calendar"
+      "url": "calendar"
     },
     {
       "name": "Contacts",
-      "url": "/contacts"
+      "url": "contacts"
     }
   ]
 }
