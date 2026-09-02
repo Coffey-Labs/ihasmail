@@ -4,9 +4,10 @@ import { ChevronLeft, ChevronRight, Plus, Calendar as CalIcon } from "lucide-rea
 import { useCalendar, participantAddresses, type EventInstance } from "@/store/calendar";
 import { useSettings } from "@/store/settings";
 import { addDays, addMonths, DAY_MS, endOfDay, isSameDay, isToday, monthGrid, roundToNext, startOfDay, startOfWeek, toLocalDateOnly, weekDays } from "@/lib/dates";
+import { useSwipeNav } from "@/lib/touch";
 import { formatMonthYear, formatTime } from "@/lib/format";
 import { formatDate, formatDateLong, formatDayMonth, formatHourLabel, formatWeekday, formatWeekdayDate } from "@/lib/datetime";
-import { Empty, useIsMobile } from "@/ui/misc";
+import { Empty, useIsMobile, useIsTouch } from "@/ui/misc";
 import { keyboard } from "@/lib/keyboard";
 import { EventPopover } from "./EventPopover";
 import { EventEditor, type EditorInit } from "./EventEditor";
@@ -90,6 +91,25 @@ export function CalendarView({ view: viewParam, date }: { view?: string; date?: 
     else go(view, addDays(anchor, 30 * n));
   };
 
+  /*
+   * Swipe sideways to step the calendar, on a touchscreen only and only in the
+   * two views where a period is a page: day and month. Week and agenda scroll
+   * through a range rather than turning to the next one, so there is nothing a
+   * sideways flick would obviously mean.
+   *
+   * The buttons in the toolbar stay, and so does n/p. A gesture with no
+   * visible control is one only the people who already know about it can use.
+   */
+  const [mainEl, setMainEl] = useState<HTMLDivElement | null>(null);
+  const isTouch = useIsTouch();
+  useSwipeNav(mainEl, {
+    enabled: isTouch && (effectiveView === "day" || effectiveView === "month"),
+    onStep: (n) => step(n),
+    // Buttons live in the toolbar; an event is where a future drag-to-move
+    // gesture has to start, so this one keeps out of both.
+    ignore: ".cal-toolbar, .ev-chip, .ev-block, .agenda-ev",
+  });
+
   const openNew = useCallback(
     (start?: Date, end?: Date, allDay = false) => {
       const s = start ?? roundToNext(new Date(), 30);
@@ -147,7 +167,7 @@ export function CalendarView({ view: viewParam, date }: { view?: string; date?: 
   };
 
   return (
-    <div className="cal-main">
+    <div className="cal-main" ref={setMainEl}>
       <div className="cal-toolbar">
         <button className="btn btn-sm" onClick={() => go(view, new Date())}>{translate("Today")}</button>
         <button className="icon-btn sm" onClick={() => step(-1)} aria-label={translate("Previous")}><ChevronLeft size={18} /></button>
