@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import { CAP, client, setErrorMessage } from "@/jmap/client";
-import type { BusyPeriod, Calendar, CalendarEvent, EmailAddress, GetResponse, Id, JSCalendarParticipant, JSCalendarRecurrenceRule, ParticipantIdentity, QueryResponse, SetResponse } from "@/jmap/types";
+import { CAP, chunk, client, setErrorMessage } from "@/jmap/client";
+import type { BusyPeriod, Calendar, CalendarEvent, EmailAddress, GetResponse, Id, JSCalendarParticipant, JSCalendarRecurrenceRule, ParticipantIdentity, QueryResponse, SetError, SetResponse } from "@/jmap/types";
 import { toUTCDate, toLocalDateTime, zonedToDate, parseDuration, DAY_MS, browserTimeZone } from "@/lib/dates";
 import { t } from "@/lib/i18n";
 import { useContacts } from "./contacts";
@@ -808,11 +808,16 @@ export const useCalendar = create<CalendarState>((set, get) => ({
    * a browser, and the one already in Stalwart handles what a hand-rolled
    * parser would not.
    *
-   * Every event goes out in one `CalendarEvent/set` rather than a call each.
-   * The round trips are the smaller half of the reason: `createEvent`
-   * invalidates on the way out, and invalidating re-fetches every cached range,
-   * so importing a year of events one at a time would refetch the calendar a
-   * few hundred times.
+   * The events go out `maxObjectsInSet` at a time -- the ceiling the session
+   * advertises, 500 where a server does not say. A call carrying more than that
+   * is refused whole with `requestTooLarge` and creates nothing, so a real
+   * export -- an 800 KB file is thousands of events -- imported nothing at all
+   * while this went out in a single call.
+   *
+   * Batches rather than a call per event, though: `createEvent` invalidates on
+   * the way out, and invalidating re-fetches every cached range, so importing a
+   * year of events one at a time would refetch the calendar a few hundred
+   * times. One invalidate here, after the last batch.
    *
    * No scheduling messages. Importing a file is filing something you already
    * have, and mailing its participants would be a surprise to everyone.
@@ -830,15 +835,29 @@ export const useCalendar = create<CalendarState>((set, get) => ({
       // invented, and an event with no UID is not one anything can match to.
       create[`e${i}`] = { "@type": "Event", ...rest, uid: rest.uid || crypto.randomUUID(), calendarIds: { [calendarId]: true } };
     });
-    const res = await client.call<SetResponse<CalendarEvent>>("CalendarEvent/set", { accountId, create, sendSchedulingMessages: false });
-    get().invalidate();
-    const created = Object.keys(res.created ?? {}).length;
+    const keys = Object.keys(create);
+    let created = 0;
+    let refused: SetError | undefined;
+    try {
+      for (const part of chunk(keys, client.maxObjectsInSet)) {
+        const sub: Record<string, unknown> = {};
+        for (const k of part) sub[k] = create[k];
+        const res = await client.call<SetResponse<CalendarEvent>>("CalendarEvent/set", { accountId, create: sub, sendSchedulingMessages: false });
+        created += Object.keys(res.created ?? {}).length;
+        refused ??= Object.values(res.notCreated ?? {})[0];
+      }
+    } catch (err) {
+      // A batch that failed with earlier ones already filed: those events are
+      // in the calendar, and an error saying only that the import failed sends
+      // someone looking for events that are already there.
+      if (!created) throw err;
+      throw new Error(`${created} of ${keys.length} events were imported before this happened: ${(err as Error).message}`);
+    } finally {
+      if (created) get().invalidate();
+    }
     // Nothing at all got in: say why rather than report importing zero events
     // as though the file had been empty.
-    if (!created) {
-      const first = Object.values(res.notCreated ?? {})[0];
-      throw new Error(first ? setErrorMessage(first) : "the server did not accept any of its events");
-    }
+    if (!created) throw new Error(refused ? setErrorMessage(refused) : "the server did not accept any of its events");
     return created;
   },
 
