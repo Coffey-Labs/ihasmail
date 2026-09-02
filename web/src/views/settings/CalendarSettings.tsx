@@ -1,5 +1,5 @@
 import { useSettings } from "@/store/settings";
-import { ColorSwatches, CALENDAR_COLORS } from "@/ui/misc";
+import { ColorSwatches, CALENDAR_COLORS, Switch } from "@/ui/misc";
 import { promptDialog } from "@/ui/dialog";
 import { Plus, Trash2 } from "lucide-react";
 import { t } from "@/lib/i18n";
@@ -60,6 +60,14 @@ export function CalendarSettings() {
         </div>
       ))}
       <button className="btn mb-16" onClick={async () => { const n = await promptDialog({ title: "New category", placeholder: "Name" }); if (n?.trim() && !s.eventCategories.some((c) => c.name.toLowerCase() === n.trim().toLowerCase())) update({ eventCategories: [...s.eventCategories, { name: n.trim(), color: CALENDAR_COLORS[s.eventCategories.length % CALENDAR_COLORS.length]! }] }); }}><Plus size={16} />  {t("New category")}</button>
+
+      <h2>{t("Birthdays")}</h2>
+      <Switch
+        checked={s.birthdayCalendar}
+        onChange={(v) => update({ birthdayCalendar: v })}
+        label={t("Show birthdays from your contacts")}
+        hint={t("A calendar of its own, derived from the birthdays already on your contact cards. Nothing is written anywhere — the dates stay on the cards, and an event disappears when the contact does or the birthday is cleared. It can be hidden from the calendar\u2019s own sidebar without turning it off here.")}
+      />
 
       <h2>{t("Working hours")}</h2>
       <div className="field-row">

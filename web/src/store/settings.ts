@@ -115,6 +115,12 @@ export interface Settings {
   defaultAlertMinutes: number;
   timeZone: string | null; // null = browser
   labelsSidebar: boolean;
+  /**
+   * Birthdays from the address book, shown as a calendar of their own.
+   * Off by default: it is derived data, and a calendar that fills itself with
+   * dates nobody put there is a surprise rather than a feature.
+   */
+  birthdayCalendar: boolean;
   fontSize: "small" | "medium" | "large";
   templates: Template[];
   labels: Array<{ keyword: string; name: string; color: string }>;
@@ -226,6 +232,7 @@ export const DEFAULT_SETTINGS: Settings = {
   defaultAlertMinutes: 10,
   timeZone: null,
   labelsSidebar: true,
+  birthdayCalendar: false,
   fontSize: "medium",
   templates: [],
   labels: [],
