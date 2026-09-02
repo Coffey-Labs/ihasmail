@@ -5,7 +5,7 @@ import { toUTCDate, toLocalDateTime, zonedToDate, parseDuration, DAY_MS, browser
 import { t } from "@/lib/i18n";
 import { useContacts } from "./contacts";
 import { BIRTHDAY_CALENDAR_ID, birthdaysInRange, isBirthdayEvent, type Birthday } from "@/lib/birthdays";
-import { looksLikeCalendar, parseIcs, type IcsEvent } from "@/lib/ics";
+import { looksLikeCalendar, parseIcs, toIcs, type IcsEvent } from "@/lib/ics";
 import { withBase } from "@/lib/basePath";
 import { settings, useSettings } from "./settings";
 import { useSession } from "./session";
@@ -298,6 +298,8 @@ interface CalendarState {
   importEvent(event: Partial<CalendarEvent>, calendarId: Id): Promise<Id>;
   /** Import a whole .ics file. Says how many it created, and how many were already here. */
   importIcs(text: string, calendarId: Id): Promise<{ created: number; skipped: number }>;
+  /** The whole calendar as one .ics document, and how many events went into it. */
+  exportIcs(calendarId: Id): Promise<{ text: string; count: number }>;
   applyChanges(types: Set<string>): void;
   invalidate(): void;
   setDraft(draft: EventDraft | null): void;
@@ -346,23 +348,29 @@ function forImport(event: Partial<CalendarEvent>): Partial<CalendarEvent> {
  * calendars, and `calendarIds` says which without relying on a filter this
  * client has not confirmed the server supports.
  */
-async function uidsInCalendar(accountId: Id, calendarId: Id): Promise<Set<string>> {
-  const uids = new Set<string>();
+async function eventsInCalendar(accountId: Id, calendarId: Id, properties: string[]): Promise<CalendarEvent[]> {
+  const found: CalendarEvent[] = [];
   const page = client.maxObjectsInGet;
   for (let position = 0; ; ) {
     const q = await client.call<QueryResponse>("CalendarEvent/query", { accountId, position, limit: page });
     const ids = q.ids ?? [];
     if (!ids.length) break;
     for (const part of chunk(ids, page)) {
-      const g = await client.call<GetResponse<CalendarEvent>>("CalendarEvent/get", { accountId, ids: part, properties: ["uid", "calendarIds"] });
-      for (const e of g.list) if (e.uid && e.calendarIds?.[calendarId]) uids.add(e.uid);
+      const g = await client.call<GetResponse<CalendarEvent>>("CalendarEvent/get", { accountId, ids: part, properties });
+      for (const e of g.list) if (e.calendarIds?.[calendarId]) found.push(e);
     }
     position += ids.length;
     // `total` is optional, so the empty page above is what actually ends this;
     // this only saves the round trip that would find it.
     if (q.total != null && position >= q.total) break;
   }
-  return uids;
+  return found;
+}
+
+/** Just the UIDs, for deciding what a re-import would duplicate. */
+async function uidsInCalendar(accountId: Id, calendarId: Id): Promise<Set<string>> {
+  const events = await eventsInCalendar(accountId, calendarId, ["uid", "calendarIds"]);
+  return new Set(events.map((e) => e.uid).filter(Boolean));
 }
 
 export const useCalendar = create<CalendarState>((set, get) => ({
@@ -908,6 +916,26 @@ export const useCalendar = create<CalendarState>((set, get) => ({
     // as though the file had been empty.
     if (!created) throw new Error(refused ? setErrorMessage(refused) : "the server did not accept any of its events");
     return { created, skipped };
+  },
+
+  /*
+   * The calendar out to a file, which is the import read backwards.
+   *
+   * The masters, not the occurrences: the query runs without
+   * `expandRecurrences`, so a weekly series leaves here as one VEVENT carrying
+   * its RRULE rather than as a year of identical ones. An export that had
+   * flattened the rule would import somewhere else as an unmaintainable pile.
+   *
+   * Written in the browser, unlike the import, which hands the parsing to the
+   * server. There is no `CalendarEvent/serialise` to hand this to -- the JMAP
+   * calendar drafts define parsing and nothing the other way -- so it is done
+   * here from the objects the server already returns.
+   */
+  async exportIcs(calendarId) {
+    const accountId = get().accountId!;
+    const events = await eventsInCalendar(accountId, calendarId, EVENT_PROPS);
+    if (!events.length) throw new Error("there is nothing in it to export");
+    return { text: toIcs(events, get().calendars[calendarId]?.name), count: events.length };
   },
 
   applyChanges(types) {

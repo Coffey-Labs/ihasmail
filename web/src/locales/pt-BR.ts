@@ -50,6 +50,8 @@ import type { Catalog } from "@/lib/i18n";
  */
 export const catalog: Catalog = {
   strings: {
+    "Export iCAL file": "Exportar arquivo iCAL",
+    "Could not export this calendar: {error}": "Não foi possível exportar esta agenda: {error}",
     // ── Actions ────────────────────────────────────────────────────────
     "Archive": "Arquivar",
     "Archive (e)": "Arquivar (e)",
@@ -1052,6 +1054,7 @@ export const catalog: Catalog = {
     "Nothing unread here": "Não há nada não lido aqui",
   },
   plurals: {
+    "Exported {n} events": { one: "{n} evento exportado", other: "{n} eventos exportados" },
     "Imported {n} events": { one: "{n} evento importado", other: "{n} eventos importados" },
     "Already here: {n} events, nothing imported": { one: "Já estava aqui: {n} evento, nada importado", other: "Já estavam aqui: {n} eventos, nada importado" },
     "{n} were already here": { one: "{n} já estava aqui", other: "{n} já estavam aqui" },
