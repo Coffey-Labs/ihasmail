@@ -24,6 +24,7 @@ import { listenForVerification, renewWebPush } from "@/lib/webpushEnable";
 import { plural, t, useLanguageVersion, whenLanguageReady } from "@/lib/i18n";
 import { confirmLeaveUnsaved, hasUnsavedChanges } from "@/lib/unsavedChanges";
 import { BASE_PATH, withBase } from "@/lib/basePath";
+import { DEFAULT_APP_NAME } from "@/lib/brand";
 
 const ContactsView = lazy(() => import("@/views/contacts/ContactsView").then((m) => ({ default: m.ContactsView })));
 const CalendarView = lazy(() => import("@/views/calendar/CalendarView").then((m) => ({ default: m.CalendarView })));
@@ -254,7 +255,7 @@ function AuthedApp() {
     const id = s.roleId("inbox");
     return id ? (s.mailboxes[id]?.unreadEmails ?? 0) : 0;
   });
-  const appName = useSession((s) => s.session?.ihasmail?.appName ?? "ihasmail");
+  const appName = useSession((s) => s.session?.ihasmail?.appName) || DEFAULT_APP_NAME;
   useEffect(() => {
     void import("@/lib/notify").then((m) => {
       m.setBaseTitle(appName);

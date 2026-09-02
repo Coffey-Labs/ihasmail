@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { BookOpen, Calendar, ChevronsUpDown, FolderOpen, Globe, HelpCircle, LogOut, Mail, Menu as MenuIcon, Moon, PenSquare, Plus, RefreshCw, Settings, Sun, Upload, Users, X } from "lucide-react";
 import { useSession } from "@/store/session";
 import { withBase } from "@/lib/basePath";
+import { DEFAULT_APP_NAME } from "@/lib/brand";
 import { useEffectiveTheme, useSettings } from "@/store/settings";
 import { toggleTarget } from "@/lib/palette";
 import { useMail } from "@/store/mail";
@@ -37,6 +38,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pushState = useSession((s) => s.pushState);
   const session = useSession((s) => s.session);
   const logout = useSession((s) => s.logout);
+  const appName = useSession((s) => s.session?.ihasmail?.appName) || DEFAULT_APP_NAME;
   const acctMenu = useMenu();
   /*
    * "Go to folder" (#233), hosted here rather than in the mail view because
@@ -90,10 +92,12 @@ export function AppShell({ children }: { children: ReactNode }) {
         </button>
         <Link href="/mail" className="brand">
           <img src={withBase("/img/logo.png")} alt="" />
-          {/* A product name, not a word. "ihasmail" translated is a different
-              product, and the one on the tab beside it is still called this. */}
+          {/* A product name, not a word: translated it is a different product.
+              Read from the session rather than written here, so a deployment
+              that set APP_NAME is called what it calls itself -- the document
+              title has taken it from there all along. */}
           <span className="brand-name notranslate" translate="no">
-            ihasmail
+            {appName}
           </span>
         </Link>
         <SearchBar />
