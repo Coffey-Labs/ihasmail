@@ -459,6 +459,13 @@ minimisable and maximisable; full-screen on mobile.
   upload at all**, however large. A file from someone else's shared folder is
   copied to your account first, because a message can only carry blobs from the
   account sending it; the picker says so before it does.
+
+  The upload limit applies to that copy and to nothing else. `maxSizeUpload` is
+  what the server will accept for a single *upload*, so it bears only on a file
+  that is about to be uploaded — a blob this account already holds is attached
+  by reference and never sent. Checking it in both cases refused a 60 MB message
+  the server was already storing, on the grounds that it could not have been
+  uploaded, which it was not being.
 - **Attachment reminder** when the text mentions an attachment and none is there.
 - **Spell check** toggle.
 - **Drafts** save as you type and on close, with the save state shown.

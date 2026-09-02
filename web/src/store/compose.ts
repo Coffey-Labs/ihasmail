@@ -487,15 +487,33 @@ export const useCompose = create<ComposeState>((set, get) => ({
     const accountId = useMail.getState().accountId;
     if (!accountId || !nodes.length) return;
     const max = client.maxSizeUpload;
-    const atts: ComposeAttachment[] = nodes.map((n) => ({
-      id: uid("a"),
-      name: n.name,
-      type: n.type || "application/octet-stream",
-      size: n.size ?? 0,
-      blobId: n.accountId === accountId ? n.blobId : null,
-      progress: n.accountId === accountId ? 100 : 0,
-      error: (n.size ?? 0) > max ? translate("Larger than {size} MB limit", { size: Math.round(max / 1048576) }) : null,
-    }));
+    const atts: ComposeAttachment[] = nodes.map((n) => {
+      /*
+       * `maxSizeUpload` is what the server will accept for a single *upload*
+       * (RFC 8620), so it only bears on a file that is about to be uploaded.
+       *
+       * A blob already in this account is attached by reference and nothing is
+       * sent, however large it is -- which is the whole point of attaching from
+       * Files, and of forwarding a message as an attachment. Applying the limit
+       * to those refused a 60 MB message the server was already holding, on the
+       * grounds that it could not have been uploaded, which it was not being.
+       *
+       * A file from somebody else's account is fetched and re-uploaded into
+       * this one, because a message can only carry blobs from the account
+       * sending it. That upload is real, and the limit is real for it.
+       */
+      const byReference = n.accountId === accountId;
+      const tooLargeToUpload = !byReference && (n.size ?? 0) > max;
+      return {
+        id: uid("a"),
+        name: n.name,
+        type: n.type || "application/octet-stream",
+        size: n.size ?? 0,
+        blobId: byReference ? n.blobId : null,
+        progress: byReference ? 100 : 0,
+        error: tooLargeToUpload ? translate("Larger than {size} MB limit", { size: Math.round(max / 1048576) }) : null,
+      };
+    });
     get().update(key, { attachments: [...(get().drafts.find((d) => d.key === key)?.attachments ?? []), ...atts] });
 
     for (const [i, a] of atts.entries()) {
