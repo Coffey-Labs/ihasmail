@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Download, Printer } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Code2, Download, Eye, Printer } from "lucide-react";
 import { Dialog } from "./dialog";
 import { formatSize } from "@/lib/format";
 import { previewKind, TEXT_PREVIEW_CHARS, TEXT_PREVIEW_MAX } from "@/lib/preview";
+import { isMarkdown, renderMarkdown } from "@/lib/markdown";
 import { t } from "@/lib/i18n";
 
 /**
@@ -31,6 +32,10 @@ export function FilePreviewDialog({ file, onClose, caption }: { file: PreviewFil
   const kind = file ? previewKind(file.type, file.name) : null;
   const tooBig = kind === "text" && typeof file?.size === "number" && file.size > TEXT_PREVIEW_MAX;
   const pdfRef = useRef<HTMLIFrameElement>(null);
+  const markdown = Boolean(file) && kind === "text" && isMarkdown(file!.type, file!.name);
+  /* Markdown opens as the document it is meant to be; the source is a click
+     away for anyone who wants to see what it actually says. */
+  const [rendered, setRendered] = useState(true);
 
   /*
    * Print what is on screen, not the mail or the file list behind it.
@@ -79,6 +84,12 @@ export function FilePreviewDialog({ file, onClose, caption }: { file: PreviewFil
       size="xl"
       footer={file && (
         <>
+          {markdown && !tooBig && (
+            <div className="segmented left" role="group" aria-label={t("View as")}>
+              <button className={rendered ? "active" : ""} aria-pressed={rendered} onClick={() => setRendered(true)}><Eye size={14} />  {t("Rendered")}</button>
+              <button className={rendered ? "" : "active"} aria-pressed={!rendered} onClick={() => setRendered(false)}><Code2 size={14} />  {t("Source")}</button>
+            </div>
+          )}
           {kind && !tooBig && <button className="btn" onClick={print}><Printer size={16} />  {t("Print")}</button>}
           <a className="btn" href={file.url} download={file.name}><Download size={16} />  {t("Download")}</a>
         </>
@@ -96,7 +107,7 @@ export function FilePreviewDialog({ file, onClose, caption }: { file: PreviewFil
             /* `url`, not `inlineUrl`: fetch pays no attention to
                Content-Disposition, so this works for the text types the server
                will not serve inline -- Markdown among them. */
-            <TextPreview url={file.url} />
+            <TextPreview url={file.url} markdown={markdown && rendered} />
           ) : (
             <p className="hint">{t("There is no preview for this kind of file.")}</p>
           )}
@@ -107,7 +118,7 @@ export function FilePreviewDialog({ file, onClose, caption }: { file: PreviewFil
   );
 }
 
-function TextPreview({ url }: { url: string }) {
+function TextPreview({ url, markdown }: { url: string; markdown: boolean }) {
   const [text, setText] = useState<string | null>(null);
   const [truncated, setTruncated] = useState(false);
   useEffect(() => {
@@ -126,12 +137,18 @@ function TextPreview({ url }: { url: string }) {
       live = false;
     };
   }, [url]);
+  /* Rendering is not free on a long file, and the toggle flips back and forth. */
+  const html = useMemo(() => (markdown && text ? renderMarkdown(text) : null), [markdown, text]);
   return (
     <>
       {/* Someone else's file: not ours to translate, and not ours to reflow. */}
-      <pre className="code notranslate" translate="no" style={{ maxHeight: "65vh", whiteSpace: "pre-wrap" }}>
-        {text ?? t("Loading…")}
-      </pre>
+      {html !== null ? (
+        <div className="md-body notranslate" translate="no" dangerouslySetInnerHTML={{ __html: html }} />
+      ) : (
+        <pre className="code notranslate" translate="no" style={{ maxHeight: "65vh", whiteSpace: "pre-wrap" }}>
+          {text ?? t("Loading…")}
+        </pre>
+      )}
       {truncated && <p className="hint">{t("Only the beginning is shown — download the file for the rest.")}</p>}
     </>
   );

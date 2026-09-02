@@ -88,3 +88,22 @@ test("a Sieve script larger than a compressing hop's threshold survives the prox
     origin.close();
   }
 });
+
+test("only a PDF blob may be framed, and only by us", async () => {
+  /*
+   * The PDF preview is an iframe, and the blanket X-Frame-Options: DENY on
+   * every response blocked it -- the dialog showed Chrome's "refused to
+   * connect" where the file should have been. The middleware now leaves a
+   * header a route has already set, so this pins both halves: the exception
+   * exists, and it did not become the rule.
+   */
+  const app = createApp();
+  const health = await app.request("/api/health");
+  assert.equal(health.headers.get("x-frame-options"), "DENY");
+
+  const { securityHeadersFor } = await import("./app.js");
+  assert.equal(securityHeadersFor("application/pdf", true), "SAMEORIGIN");
+  assert.equal(securityHeadersFor("application/pdf", false), "DENY");
+  assert.equal(securityHeadersFor("image/png", true), "DENY");
+  assert.equal(securityHeadersFor("text/html", true), "DENY");
+});

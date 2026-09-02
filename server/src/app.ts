@@ -82,7 +82,9 @@ const securityHeaders: MiddlewareHandler = async (c, next) => {
   await next();
   const h = c.res.headers;
   h.set("X-Content-Type-Options", "nosniff");
-  h.set("X-Frame-Options", "DENY");
+  /* A route that must be framable says so; everything else is DENY. The blob
+     route is the only one, and only for PDFs -- see the note there. */
+  if (!h.has("X-Frame-Options")) h.set("X-Frame-Options", "DENY");
   h.set("Referrer-Policy", "no-referrer");
   h.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()");
   h.set("Cross-Origin-Opener-Policy", "same-origin");
@@ -538,7 +540,19 @@ export function createApp(): Hono<Env> {
       );
       headers.set("X-Content-Type-Options", "nosniff");
       // Sandbox everything except the browser's built-in PDF viewer (which needs scripts to render).
-      if (!(safeInline && type === "application/pdf")) {
+      if (securityHeadersFor(type, safeInline) === "SAMEORIGIN") {
+        /*
+         * The one response on the server that may be framed.
+         *
+         * A PDF is shown in an iframe -- it is its own document and the app
+         * cannot lay it out -- and the blanket X-Frame-Options: DENY above
+         * blocked that, so the preview showed Chrome's "refused to connect"
+         * instead of the file. SAMEORIGIN, not a relaxation to any site: the
+         * frame is ours, on our origin, and the app's own CSP already says
+         * frame-src 'self'. Nothing else here is framed, so nothing else asks.
+         */
+        headers.set("X-Frame-Options", "SAMEORIGIN");
+      } else {
         headers.set("Content-Security-Policy", "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:");
       }
       headers.set("Cache-Control", "private, max-age=3600");
@@ -695,6 +709,15 @@ function sanitizeContentType(ct: string): string {
   }
   if (lower.startsWith("text/")) return `${lower}; charset=utf-8`;
   return lower || "application/octet-stream";
+}
+
+/**
+ * What X-Frame-Options a blob response carries. Exported so the rule is
+ * testable without standing up an upstream: a PDF served inline may be framed
+ * by us and nothing else may be framed at all.
+ */
+export function securityHeadersFor(type: string, safeInline: boolean): "SAMEORIGIN" | "DENY" {
+  return safeInline && type.split(";")[0]!.trim() === "application/pdf" ? "SAMEORIGIN" : "DENY";
 }
 
 function isInlineSafe(type: string): boolean {

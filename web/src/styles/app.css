@@ -310,6 +310,42 @@ a.menu-item:hover { color: var(--fg); }
 .dialog-body { padding: 8px 20px 16px; overflow: auto; }
 .dialog-foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 12px 20px 16px; border-top: 1px solid var(--border); }
 .dialog-foot .left { margin-right: auto; }
+
+/* Two mutually exclusive views of the same thing, sized to sit in a dialog
+   footer beside the ordinary buttons (see ui/filepreview.tsx). */
+.segmented { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+.segmented button { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; font-size: .9em; color: var(--fg-muted); background: none; }
+.segmented button + button { border-left: 1px solid var(--border); }
+.segmented button:hover { background: var(--bg-hover); color: var(--fg); }
+.segmented button.active { background: var(--accent-soft); color: var(--accent-soft-fg); font-weight: 600; }
+.segmented button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.segmented.left { margin-right: auto; }
+
+/* Rendered Markdown in the file viewer. Deliberately plain: this is somebody's
+   notes, not a web page, and the point is to read it. */
+.md-body { max-height: 65vh; overflow: auto; padding: 4px 2px; overflow-wrap: anywhere; }
+.md-body > :first-child { margin-top: 0; }
+.md-body > :last-child { margin-bottom: 0; }
+.md-body h1, .md-body h2, .md-body h3, .md-body h4 { margin: 1.2em 0 .5em; line-height: 1.25; font-weight: 650; }
+.md-body h1 { font-size: 1.5em; }
+.md-body h2 { font-size: 1.28em; }
+.md-body h3 { font-size: 1.12em; }
+.md-body h4 { font-size: 1em; }
+.md-body p, .md-body ul, .md-body ol, .md-body blockquote, .md-body table { margin: 0 0 .8em; }
+.md-body ul, .md-body ol { padding-left: 1.6em; }
+.md-body li { margin: .2em 0; }
+.md-body a { color: var(--link); }
+.md-body code { font-family: var(--font-mono); font-size: .9em; background: var(--bg-sunken); border-radius: 4px; padding: .1em .35em; }
+.md-body pre { background: var(--bg-sunken); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; overflow-x: auto; }
+.md-body pre code { background: none; padding: 0; }
+.md-body blockquote { margin-left: 0; padding-left: 12px; border-left: 3px solid var(--border-strong); color: var(--fg-muted); }
+.md-body hr { border: 0; border-top: 1px solid var(--border); margin: 1.2em 0; }
+.md-body table { border-collapse: collapse; }
+.md-body th, .md-body td { border: 1px solid var(--border); padding: 5px 9px; text-align: left; }
+.md-body th { background: var(--bg-sunken); }
+/* An image is shown as its link, never fetched -- see lib/markdown.ts. */
+.md-body .md-img::before { content: "🖼 "; }
+.md-body .md-img { color: var(--link); text-decoration: underline dotted; text-underline-offset: 2px; }
 /* "This occurrence or the whole series" — one button per answer, stacked, so
    the destructive one is read rather than landed on by muscle memory. */
 .dialog-choices { display: flex; flex-direction: column; gap: 8px; }
@@ -1261,6 +1297,8 @@ select optgroup { background-color: var(--bg-elev); color: var(--fg); }
   .printing-preview .dialog-head, .printing-preview .dialog-foot { display: none !important; }
   .printing-preview .dialog-body { padding: 0 !important; overflow: visible !important; }
   .printing-preview .dialog-body .code { max-height: none !important; overflow: visible !important; border: 0 !important; padding: 0 !important; }
+  .printing-preview .dialog-body .md-body { max-height: none !important; overflow: visible !important; }
+  .printing-preview .md-body pre { overflow: visible !important; white-space: pre-wrap !important; }
   .printing-preview .dialog-body img { max-height: none !important; }
   .print-only { display: block; }
   body { background: #fff; color: #000; }
