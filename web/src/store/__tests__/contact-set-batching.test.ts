@@ -18,7 +18,7 @@ import type { ContactCard, Id, JmapSession, UploadResponse } from "@/jmap/types"
 
 const MAX = 500;
 
-interface SetArgs { create?: Record<string, Record<string, unknown>>; destroy?: Id[] }
+interface SetArgs { create?: Record<string, Record<string, unknown>>; update?: Record<string, Record<string, unknown>>; destroy?: Id[] }
 
 /**
  * @param max the ceiling on objects in one call, refused whole the way Stalwart
@@ -39,9 +39,12 @@ function server(opts: { max?: number; failOn?: number; parsed?: unknown[]; notCr
       if (name === "ContactCard/set") {
         const nth = sets.length;
         const create = args.create as Record<string, Record<string, unknown>> | undefined;
+        const update = args.update as Record<string, Record<string, unknown>> | undefined;
         const destroy = args.destroy as Id[] | undefined;
-        sets.push({ create, destroy });
-        const n = Object.keys(create ?? {}).length + (destroy?.length ?? 0);
+        sets.push({ create, update, destroy });
+        /* Everything in the call counts against the ceiling, the way Stalwart
+           counts it -- creates and updates share one budget. */
+        const n = Object.keys(create ?? {}).length + Object.keys(update ?? {}).length + (destroy?.length ?? 0);
         if (opts.max != null && n > opts.max) {
           return [
             "error",
@@ -54,7 +57,8 @@ function server(opts: { max?: number; failOn?: number; parsed?: unknown[]; notCr
         return [name, {
           accountId: "a1", oldState: "1", newState: "2",
           created: Object.fromEntries(Object.keys(create ?? {}).filter((k) => !(k in notCreated)).map((k) => [k, { id: `new-${k}` }])),
-          notCreated,
+          updated: Object.fromEntries(Object.keys(update ?? {}).map((k) => [k, null])),
+          notCreated, notUpdated: {},
           destroyed: destroy ?? [],
         }, id];
       }
@@ -81,7 +85,8 @@ const vcardsOf = (n: number) =>
 const cardsInState = (n: number) =>
   Object.fromEntries(Array.from({ length: n }, (_, i) => [`c${i}`, { id: `c${i}`, name: { full: `Person ${i}` } }])) as unknown as Record<Id, ContactCard>;
 
-const sizes = (sets: SetArgs[]) => sets.map((s) => Object.keys(s.create ?? {}).length + (s.destroy?.length ?? 0));
+const sizes = (sets: SetArgs[]) =>
+  sets.map((s) => Object.keys(s.create ?? {}).length + Object.keys(s.update ?? {}).length + (s.destroy?.length ?? 0));
 
 beforeEach(() => {
   client.session = {
@@ -100,14 +105,14 @@ afterEach(() => {
 describe("importing an LDIF bigger than the server will take at once", () => {
   it("splits it into calls the server will accept, and files all of it", async () => {
     const sets = server({ max: MAX });
-    await expect(useContacts.getState().importLdif(ldifOf(1200), "book1")).resolves.toEqual({ created: 1200, skipped: 0, alike: 0 });
+    await expect(useContacts.getState().importLdif(ldifOf(1200), "book1")).resolves.toEqual({ created: 1200, updated: 0, alike: 0 });
     expect(sizes(sets)).toEqual([500, 500, 200]);
   });
 
   it("splits by what the session advertises, not by a number of its own", async () => {
     client.session!.capabilities[CAP.core] = { maxObjectsInGet: 40, maxObjectsInSet: 40 };
     const sets = server({ max: 40 });
-    await expect(useContacts.getState().importLdif(ldifOf(100), "book1")).resolves.toEqual({ created: 100, skipped: 0, alike: 0 });
+    await expect(useContacts.getState().importLdif(ldifOf(100), "book1")).resolves.toEqual({ created: 100, updated: 0, alike: 0 });
     expect(sizes(sets)).toEqual([40, 40, 20]);
   });
 
@@ -134,7 +139,7 @@ describe("importing an LDIF bigger than the server will take at once", () => {
 describe("importing a vCard file bigger than the server will take at once", () => {
   it("splits it into calls the server will accept, and files all of it", async () => {
     const sets = server({ max: MAX, parsed: vcardsOf(1200) });
-    await expect(useContacts.getState().importVCard("BEGIN:VCARD", "book1")).resolves.toEqual({ created: 1200, skipped: 0, alike: 0 });
+    await expect(useContacts.getState().importVCard("BEGIN:VCARD", "book1")).resolves.toEqual({ created: 1200, updated: 0, alike: 0 });
     expect(sizes(sets)).toEqual([500, 500, 200]);
   });
 
@@ -155,7 +160,7 @@ describe("importing a vCard file bigger than the server will take at once", () =
 
   it("counts what got in when only some of it did", async () => {
     server({ max: MAX, parsed: vcardsOf(2), notCreated: { c1: { type: "invalidProperties" } } });
-    await expect(useContacts.getState().importVCard("BEGIN:VCARD", "book1")).resolves.toEqual({ created: 1, skipped: 0, alike: 0 });
+    await expect(useContacts.getState().importVCard("BEGIN:VCARD", "book1")).resolves.toEqual({ created: 1, updated: 0, alike: 0 });
   });
 });
 

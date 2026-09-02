@@ -1053,10 +1053,11 @@ export const catalog: Catalog = {
     "Nothing unread here": "Aquí no hay nada sin leer",
   },
   plurals: {
+    "Updated {n} contacts, nothing new": { one: "{n} contacto actualizado, nada nuevo", other: "{n} contactos actualizados, nada nuevo" },
+    "{n} updated": { one: "{n} actualizado", other: "{n} actualizados" },
+    "Updated {n} contacts you already had": { one: "Se actualizó el contacto que ya tenías", other: "Se actualizaron {n} contactos que ya tenías" },
     "{n} of them look like contacts you already had": { one: "{n} de ellos se parece a un contacto que ya tenías", other: "{n} de ellos se parecen a contactos que ya tenías" },
     "Your administrator changed {n} settings": { one: "Tu administración cambió {n} ajuste", other: "Tu administración cambió {n} ajustes" },
-    "Already here: {n} contacts, nothing imported": { one: "Ya estaba aquí: {n} contacto, no se importó nada", other: "Ya estaban aquí: {n} contactos, no se importó nada" },
-    "All {n} are already in your contacts": { one: "Ya está en tus contactos", other: "Los {n} ya están en tus contactos" },
     "Exported {n} events": { one: "{n} evento exportado", other: "{n} eventos exportados" },
     "Imported {n} events": { one: "{n} evento importado", other: "{n} eventos importados" },
     "Already here: {n} events, nothing imported": { one: "Ya estaba aquí: {n} evento, no se importó nada", other: "Ya estaban aquí: {n} eventos, no se importó nada" },
