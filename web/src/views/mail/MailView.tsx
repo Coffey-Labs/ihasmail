@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useSearch } from "wouter";
 import { DEFAULT_SORT, useMail, type ListQuery } from "@/store/mail";
+import { appliesTo, comparatorsFor } from "@/lib/listSort";
+import type { Comparator } from "@/jmap/types";
 import { useSettings } from "@/store/settings";
 import { withBase } from "@/lib/basePath";
 import { useCompose } from "@/store/compose";
@@ -63,6 +65,20 @@ export function MailView({ mailboxId, threadId, search }: { mailboxId?: string; 
     navigate(`/mail/${inboxId}`, { replace: true });
   }, [search, mailboxId, mailboxesLoaded, mailboxes, inboxId, navigate]);
 
+  /*
+   * Search keeps newest-first whatever the setting says. A result list is
+   * already ordered by the question that was asked, and putting unread at the
+   * top of it answers a different one.
+   */
+  const sortForFolder = useCallback(
+    (mailboxId: Id | null): Comparator[] => {
+      const role = mailboxId ? useMail.getState().mailboxes[mailboxId]?.role : null;
+      if (!appliesTo(settings.listSortScope, role)) return DEFAULT_SORT;
+      return comparatorsFor(settings.listSortPreset, settings.listSortLevels);
+    },
+    [settings.listSortScope, settings.listSortPreset, settings.listSortLevels],
+  );
+
   // Build & run the list query
   const listQuery = useMemo<ListQuery | null>(() => {
     if (search) {
@@ -77,7 +93,7 @@ export function MailView({ mailboxId, threadId, search }: { mailboxId?: string; 
     // Scheduled joins Drafts and Sent as a folder of individual messages: they
     // are outgoing, and collapsing them into their threads hides them.
     const isDraftsOrSent = mb?.role === "drafts" || mb?.role === "sent" || mailboxId === scheduledId;
-    return { key: "", filter: { inMailbox: mailboxId }, sort: DEFAULT_SORT, collapseThreads: settings.conversationMode && !isDraftsOrSent, mailboxId };
+    return { key: "", filter: { inMailbox: mailboxId }, sort: sortForFolder(mailboxId), collapseThreads: settings.conversationMode && !isDraftsOrSent, mailboxId };
   }, [search, q, mailboxId, mailboxes, settings.conversationMode, scheduledId]);
 
   useEffect(() => {
