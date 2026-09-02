@@ -93,6 +93,17 @@ export interface DialogChoice {
   /** Shown under the label, for the choice that needs the caveat. */
   hint?: string;
   danger?: boolean;
+  /**
+   * The safe answer, given the weight a dialog's confirm button has.
+   *
+   * A list of choices has no default until one is said to be, and the
+   * destructive one must not become it by being the only thing with a colour --
+   * which is what "Discard changes" was, on a guard whose whole purpose is to
+   * stop you losing work ([#175]).
+   *
+   * [#175]: https://github.com/Coffey-Labs/ihasmail/issues/175
+   */
+  primary?: boolean;
 }
 
 interface ConfirmRequest {
@@ -178,7 +189,7 @@ export function ConfirmHost() {
       {req.kind === "choice" && (
         <div className="dialog-choices">
           {req.choices?.map((c) => (
-            <button key={c.value} className={`btn dialog-choice ${c.danger ? "btn-danger" : ""}`} onClick={() => done(c.value)}>
+            <button key={c.value} className={`btn dialog-choice ${c.primary ? "btn-primary" : ""} ${c.danger ? "danger" : ""}`} onClick={() => done(c.value)}>
               <span>{c.label}</span>
               {c.hint && <small>{c.hint}</small>}
             </button>
