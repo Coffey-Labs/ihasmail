@@ -47,6 +47,7 @@ import type { Catalog } from "@/lib/i18n";
  */
 export const catalog: Catalog = {
   strings: {
+    "Go to folder…": "Ir a la carpeta…",
     "Set for everyone here. You cannot change this.": "Definido para todos aquí. No puedes cambiarlo.",
     "Export iCAL file": "Exportar archivo iCAL",
     "Could not export this calendar: {error}": "No se pudo exportar este calendario: {error}",
