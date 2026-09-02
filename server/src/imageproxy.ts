@@ -98,32 +98,50 @@ export function fetchPinned(url: URL, addr: string, signal?: AbortSignal): Promi
  * Gmail-style remote content proxy: hides the reader's IP address and
  * user-agent from tracking pixels, and blocks SSRF to internal networks.
  */
-export async function imageProxyHandler(c: Context) {
-  if (!config.imageProxy) return c.json({ error: "disabled" }, 404);
-  const raw = c.req.query("url") ?? "";
+/** Why a guarded fetch refused, in the words the handlers answer with. */
+export type SafeFetchError = "bad_url" | "bad_scheme" | "forbidden_target" | "dns_failure" | "fetch_failed" | "bad_redirect";
+
+export interface SafeFetchResult {
+  res: IncomingMessage;
+  /** The URL actually fetched, which is not the one asked for if it redirected. */
+  url: URL;
+  done: () => void;
+}
+
+/**
+ * Fetch a URL nobody here chose, with every check the image proxy has always
+ * made — and made in one place, because a second copy of an SSRF guard is how
+ * one of them ends up missing a case.
+ *
+ * The name is resolved first and *every* answer has to be acceptable, the
+ * connection is pinned to the address that was checked, and each redirect hop
+ * is re-resolved and re-pinned rather than handed to the socket library.
+ */
+export async function safeFetch(raw: string, timeoutMs = 15_000): Promise<SafeFetchResult | SafeFetchError> {
   let url: URL;
   try {
     url = new URL(raw);
   } catch {
-    return c.json({ error: "bad_url" }, 400);
+    return "bad_url";
   }
-  if (url.protocol !== "http:" && url.protocol !== "https:") return c.json({ error: "bad_scheme" }, 400);
-  if (url.username || url.password) return c.json({ error: "bad_url" }, 400);
+  // webcal: is an http URL wearing a different word; nothing else is allowed.
+  if (url.protocol === "webcal:") url = new URL(`https:${raw.slice(raw.indexOf(":") + 1)}`);
+  if (url.protocol !== "http:" && url.protocol !== "https:") return "bad_scheme";
+  if (url.username || url.password) return "bad_url";
 
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 15_000);
-  let res: IncomingMessage;
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const done = () => clearTimeout(timer);
   try {
     let addr: string;
     try {
       addr = await resolveAllowed(url.hostname);
     } catch (err) {
-      clearTimeout(timer);
-      return err instanceof BlockedTarget ? c.json({ error: "forbidden_target" }, 403) : c.json({ error: "dns_failure" }, 502);
+      done();
+      return err instanceof BlockedTarget ? "forbidden_target" : "dns_failure";
     }
-    res = await fetchPinned(url, addr, controller.signal);
+    let res = await fetchPinned(url, addr, controller.signal);
 
-    // Follow a limited number of redirects, re-checking and re-pinning each hop.
     let hops = 0;
     while (res.statusCode && [301, 302, 303, 307, 308].includes(res.statusCode) && hops < 3) {
       const loc = res.headers.location;
@@ -131,38 +149,58 @@ export async function imageProxyHandler(c: Context) {
       res.resume(); // discard the redirect body
       const next = new URL(loc, url);
       if (next.protocol !== "http:" && next.protocol !== "https:") {
-        clearTimeout(timer);
-        return c.json({ error: "bad_redirect" }, 400);
+        done();
+        return "bad_redirect";
       }
       try {
         addr = await resolveAllowed(next.hostname);
       } catch (err) {
-        clearTimeout(timer);
-        return err instanceof BlockedTarget ? c.json({ error: "forbidden_target" }, 403) : c.json({ error: "dns_failure" }, 502);
+        done();
+        return err instanceof BlockedTarget ? "forbidden_target" : "dns_failure";
       }
       url = next;
       res = await fetchPinned(url, addr, controller.signal);
       hops++;
     }
+    return { res, url, done };
   } catch {
-    clearTimeout(timer);
-    return c.json({ error: "fetch_failed" }, 502);
+    done();
+    return "fetch_failed";
   }
+}
 
+const SAFE_FETCH_STATUS: Record<SafeFetchError, number> = {
+  bad_url: 400,
+  bad_scheme: 400,
+  bad_redirect: 400,
+  forbidden_target: 403,
+  dns_failure: 502,
+  fetch_failed: 502,
+};
+
+export function safeFetchStatus(err: SafeFetchError): number {
+  return SAFE_FETCH_STATUS[err];
+}
+
+export async function imageProxyHandler(c: Context) {
+  if (!config.imageProxy) return c.json({ error: "disabled" }, 404);
+  const got = await safeFetch(c.req.query("url") ?? "");
+  if (typeof got === "string") return c.json({ error: got }, safeFetchStatus(got) as 400);
+  const { res, done } = got;
   if (!res.statusCode || res.statusCode < 200 || res.statusCode >= 300) {
-    clearTimeout(timer);
+    done();
     res.resume();
     return c.json({ error: "fetch_failed" }, 502);
   }
   const type = (res.headers["content-type"] ?? "").split(";")[0]!.trim().toLowerCase();
   if (!type.startsWith("image/") || type === "image/svg+xml") {
-    clearTimeout(timer);
+    done();
     res.resume();
     return c.json({ error: "not_image" }, 415);
   }
   const len = Number(res.headers["content-length"] ?? "0");
   if (len > MAX_IMAGE_BYTES) {
-    clearTimeout(timer);
+    done();
     res.resume();
     return c.json({ error: "too_large" }, 413);
   }
@@ -176,7 +214,7 @@ export async function imageProxyHandler(c: Context) {
       else controller2.enqueue(chunk);
     },
   });
-  res.on("close", () => clearTimeout(timer));
+  res.on("close", done);
   const headers = new Headers({
     "Content-Type": type,
     "Cache-Control": "private, max-age=86400",

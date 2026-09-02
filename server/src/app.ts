@@ -30,6 +30,7 @@ import {
   revokeAppPassword,
 } from "./account.js";
 import { imageProxyHandler } from "./imageproxy.js";
+import { icsProxyHandler } from "./icsproxy.js";
 import { staticHandler } from "./static.js";
 
 type Env = { Variables: { session: LiveSession } };
@@ -613,6 +614,9 @@ export function createApp(basePath = config.basePath): Hono<Env> {
 
   // ---------- Remote image privacy proxy ----------
   api.get("/image", requireSession, imageProxyHandler);
+// Behind the session for the same reason the image proxy is: an open fetcher
+// on someone else's server is a gift to whoever finds it.
+api.get("/ics", requireSession, icsProxyHandler);
 
   api.notFound((c) => c.json({ error: "not_found" }, 404));
   api.onError((err, c) => {

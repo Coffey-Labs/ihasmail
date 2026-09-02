@@ -529,6 +529,34 @@ nothing for anybody else.
 - **iCal import** through `CalendarEvent/parse` (a file of any number of
   events), from the calendar's own menu, into that calendar. The events are
   filed rather than scheduled: no invitations go out to anyone named in them.
+- **Subscribed calendars** by URL — a timetable, a rota, a public holiday list.
+  Added in Settings › Calendar & contacts, read-only, and shown beside your own
+  with their own colour.
+
+  **Nothing is stored.** The document is fetched when you open the calendar and
+  parsed in the browser; the server keeps no copy, no cache and no schedule,
+  which is what lets an immutable container serve this at all. There is no
+  timer either: ihasmail has nowhere to run one, so the honest guarantee is
+  that a subscription is as current as the last time somebody looked — which is
+  also when it matters.
+
+  The fetch has to happen on the server, because a calendar URL belongs to
+  whoever published it and almost none of them send CORS headers. That makes it
+  the second place ihasmail reaches an address a stranger chose, and it goes
+  through **exactly the same guard as the image proxy** — one implementation,
+  not two: the name is resolved and every answer must be acceptable, the
+  connection is pinned to the address that was checked, and each redirect is
+  re-resolved and re-pinned. `webcal:` is understood, because that is how these
+  are published, and it is read as `https:` rather than waved past the checks.
+
+  Two consequences worth stating. A calendar on a private address — including
+  one on your own machine — is refused, by design. And **recurring events are
+  not expanded**: `RRULE` is a small language with a lot of edge cases, and a
+  subscription quietly showing the wrong dates would be worse than one showing
+  the first occurrence.
+
+  A subscription that cannot be read **says so** in the sidebar rather than
+  drawing an empty calendar, which looks like a calendar with nothing in it.
 - **Birthdays**, as a calendar of its own derived from the birthdays already on
   your contacts. Off until switched on in Settings › Calendar & contacts, and
   hideable from the calendar's own sidebar without turning it off.
