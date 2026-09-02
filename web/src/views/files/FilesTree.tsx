@@ -4,7 +4,7 @@ import { ChevronDown, ChevronRight, Folder, FolderOpen, FolderPlus, HardDrive, P
 import { useFiles } from "@/store/files";
 import { useSession } from "@/store/session";
 import type { FileNode, Id } from "@/jmap/types";
-import { canDropFileNode, isShared } from "@/lib/filenode";
+import { canDropFileNodes, NODE_MIME, readDraggedIds, isShared } from "@/lib/filenode";
 import { entriesFromDrop, hasDirectory, planUpload } from "@/lib/dropUpload";
 import { MenuItem, MenuSep, Popover, useMenu } from "@/ui/popover";
 import { confirmDialog, promptDialog } from "@/ui/dialog";
@@ -34,8 +34,6 @@ async function refreshShares(force = false): Promise<void> {
   await useFiles.getState().init();
 }
 
-/** The MIME a dragged node is offered under, so a target can recognise it. */
-export const NODE_MIME = "application/x-ihasmail-filenode";
 
 /**
  * The folder tree beside the file list.
@@ -66,8 +64,8 @@ export function FilesTree() {
 
   /* Shared with the list pane: a drag starting in one has to be recognised by
      the other. See the note on `draggingId` in the store. */
-  const draggingId = useFiles((s) => s.draggingId);
-  const setDraggingId = useFiles((s) => s.setDragging);
+  const draggingIds = useFiles((s) => s.draggingIds);
+  const setDragging = useFiles((s) => s.setDragging);
 
   useEffect(() => {
     if (available && !treeLoaded) void loadTree();
@@ -103,12 +101,12 @@ export function FilesTree() {
 
   const dirs = dirIds.map((id) => nodes[id]).filter((n): n is FileNode => Boolean(n));
   const childrenOf = (parentId: Id | null) => dirs.filter((d) => (d.parentId ?? null) === parentId);
-  const canDropOn = (targetId: Id | null) => Boolean(draggingId) && canDropFileNode(nodes, draggingId!, targetId);
+  const canDropOn = (targetId: Id | null) => canDropFileNodes(nodes, draggingIds, targetId);
 
-  const moveTo = async (id: Id, parentId: Id | null) => {
-    setDraggingId(null);
+  const moveTo = async (ids: Id[], parentId: Id | null) => {
+    setDragging([]);
     try {
-      await useFiles.getState().move(id, parentId);
+      await useFiles.getState().moveMany(ids, parentId);
       if (parentId) setExpanded((x) => ({ ...x, [parentId]: true }));
     } catch (err) {
       toast.error((err as Error).message);
@@ -132,8 +130,8 @@ export function FilesTree() {
     e.stopPropagation();
     setRootDrop(false);
     if (e.dataTransfer.types.includes(NODE_MIME)) {
-      const id = e.dataTransfer.getData(NODE_MIME);
-      if (id && canDropFileNode(nodes, id, targetId)) void moveTo(id, targetId);
+      const ids = readDraggedIds(e.dataTransfer);
+      if (canDropFileNodes(nodes, ids, targetId)) void moveTo(ids, targetId);
       return;
     }
     if (e.dataTransfer.types.includes("Files")) void dropFiles(targetId, e.dataTransfer);
@@ -153,13 +151,13 @@ export function FilesTree() {
     return (
       <div key={d.id}>
         <div
-          className={`nav-item ${currentId === d.id ? "active" : ""} ${draggingId && canDropOn(d.id) ? "drop-target" : ""}`}
+          className={`nav-item ${currentId === d.id ? "active" : ""} ${draggingIds.length && canDropOn(d.id) ? "drop-target" : ""}`}
           style={{ paddingLeft: 8 + depth * 14 }}
           onClick={() => navigate(`/files/${d.id}`)}
           onContextMenu={(e) => { e.preventDefault(); setMenuNode(d); menu.openAt(e.clientX, e.clientY); }}
           draggable
-          onDragStart={(e) => { e.dataTransfer.setData(NODE_MIME, d.id); e.dataTransfer.effectAllowed = "move"; setDraggingId(d.id); }}
-          onDragEnd={() => setDraggingId(null)}
+          onDragStart={(e) => { e.dataTransfer.setData(NODE_MIME, d.id); e.dataTransfer.effectAllowed = "move"; setDragging([d.id]); }}
+          onDragEnd={() => setDragging([])}
           onDragOver={onDragOver(d.id)}
           onDrop={onDrop(d.id)}
         >

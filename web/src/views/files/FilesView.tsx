@@ -1,31 +1,34 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { ChevronRight, Download, Eye, File, FilePen, Folder, FolderPlus, FolderOpen, Home, MoreVertical, Pencil, Share2, Trash2, Upload, FolderInput } from "lucide-react";
+import { ChevronRight, Download, Eye, File, FilePen, Folder, FolderPlus, FolderOpen, Home, MoreVertical, Pencil, Share2, Trash2, Upload, FolderInput, X } from "lucide-react";
 import { useFiles } from "@/store/files";
 import { client } from "@/jmap/client";
 import type { FileNode, Id } from "@/jmap/types";
 import { formatSize, formatListDate } from "@/lib/format";
-import { canDropFileNode, isShared } from "@/lib/filenode";
+import { canDropFileNodes, isShared, NODE_MIME, readDraggedIds } from "@/lib/filenode";
 import { previewKind } from "@/lib/preview";
 import { entriesFromDrop, hasDirectory, planUpload } from "@/lib/dropUpload";
-import { NODE_MIME } from "./FilesTree";
 import { ShareDialog } from "../settings/ShareDialog";
 import { Empty, Spinner } from "@/ui/misc";
 import { MenuItem, MenuSep, Popover, useMenu } from "@/ui/popover";
 import { confirmDialog, promptDialog, Dialog } from "@/ui/dialog";
 import { FilePreviewDialog, type PreviewFile } from "@/ui/filepreview";
 import { toast } from "@/ui/toast";
-import { t } from "@/lib/i18n";
+import { plural, t } from "@/lib/i18n";
 
 export function FilesView({ nodeId }: { nodeId?: string }) {
   const [, navigate] = useLocation();
   const files = useFiles();
   const parentId = nodeId ?? null;
   const [dropping, setDropping] = useState(false);
-  const [selected, setSelected] = useState<string | null>(null);
+  /* A set, and the row a shift-click measures from. Kept as ids rather than
+     indices: the listing reloads under you -- a push, an upload finishing --
+     and an index would then point at a different file. */
+  const [selection, setSelection] = useState<Set<Id>>(() => new Set());
+  const [anchor, setAnchor] = useState<Id | null>(null);
   const menu = useMenu();
   const [menuNode, setMenuNode] = useState<FileNode | null>(null);
-  const [moveNode, setMoveNode] = useState<FileNode | null>(null);
+  const [moveNodes, setMoveNodes] = useState<FileNode[] | null>(null);
   const [shareNode, setShareNode] = useState<FileNode | null>(null);
   const [preview, setPreview] = useState<PreviewFile | null>(null);
   /* What the open editor is editing, and the blob its text came from -- the
@@ -35,9 +38,26 @@ export function FilesView({ nodeId }: { nodeId?: string }) {
   const [startInEdit, setStartInEdit] = useState(false);
   /* Shared with the sidebar tree, so a row dragged onto a folder there is
      recognised. See the note on `draggingId` in the store. */
-  const draggingId = files.draggingId;
-  const setDraggingId = files.setDragging;
+  const draggingIds = files.draggingIds;
+  const setDragging = files.setDragging;
   const inputRef = useRef<HTMLInputElement>(null);
+
+  /* A selection belongs to the folder it was made in. Carrying it across would
+     leave rows selected that are no longer on screen, and the delete two
+     folders later would be a surprise. */
+  useEffect(() => {
+    setSelection(new Set());
+    setAnchor(null);
+  }, [parentId, files.accountId]);
+
+  /* Escape drops it, the way it does everywhere else. */
+  useEffect(() => {
+    const onKey = (ev: KeyboardEvent) => {
+      if (ev.key === "Escape") setSelection((cur) => (cur.size ? new Set() : cur));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   useEffect(() => {
     if (files.available) void files.loadChildren(parentId);
@@ -86,10 +106,11 @@ export function FilesView({ nodeId }: { nodeId?: string }) {
     e.stopPropagation();
     setDropping(false);
     if (e.dataTransfer.types.includes(NODE_MIME)) {
-      const id = e.dataTransfer.getData(NODE_MIME);
-      setDraggingId(null);
-      if (id && canDropFileNode(files.nodes, id, into)) {
-        void files.move(id, into).catch((err) => toast.error((err as Error).message));
+      const ids = readDraggedIds(e.dataTransfer);
+      setDragging([]);
+      if (canDropFileNodes(files.nodes, ids, into)) {
+        setSelection(new Set());
+        void files.moveMany(ids, into).catch((err) => toast.error((err as Error).message));
       }
       return;
     }
@@ -117,6 +138,66 @@ export function FilesView({ nodeId }: { nodeId?: string }) {
     a.href = blobUrl(n, false);
     a.download = n.name;
     a.click();
+  };
+
+  /*
+   * Clicking a row, with the conventions a file manager has taught everyone:
+   * plain replaces the selection, ctrl/cmd adds or removes one, shift takes
+   * the run from the last row clicked to this one. The anchor is the row a
+   * shift measures from, and a plain or toggling click moves it.
+   */
+  const clickRow = (n: FileNode, ev: React.MouseEvent) => {
+    if (ev.shiftKey && anchor) {
+      const from = nodes.findIndex((x) => x.id === anchor);
+      const to = nodes.findIndex((x) => x.id === n.id);
+      if (from >= 0 && to >= 0) {
+        const run = nodes.slice(Math.min(from, to), Math.max(from, to) + 1).map((x) => x.id);
+        setSelection(new Set(ev.ctrlKey || ev.metaKey ? [...selection, ...run] : run));
+        return;
+      }
+    }
+    if (ev.ctrlKey || ev.metaKey) {
+      const next = new Set(selection);
+      if (next.has(n.id)) next.delete(n.id);
+      else next.add(n.id);
+      setSelection(next);
+      setAnchor(n.id);
+      return;
+    }
+    setSelection(new Set([n.id]));
+    setAnchor(n.id);
+  };
+
+  /* Right-clicking inside the selection acts on all of it; right-clicking
+     outside it means you meant that row, so the selection follows the pointer
+     rather than the menu quietly applying to something off-screen. */
+  const menuFor = (n: FileNode, at: (x: number, y: number) => void, x: number, y: number) => {
+    if (!selection.has(n.id)) {
+      setSelection(new Set([n.id]));
+      setAnchor(n.id);
+    }
+    setMenuNode(n);
+    at(x, y);
+  };
+
+  const selectedNodes = () => nodes.filter((n) => selection.has(n.id));
+  /* What the menu and the bar act on: the whole selection when the row is part
+     of it, and that row alone otherwise. */
+  const targets = (n: FileNode | null) => (n && selection.has(n.id) && selection.size > 1 ? selectedNodes() : n ? [n] : selectedNodes());
+
+  const removeNodes = async (list: FileNode[]) => {
+    if (!list.length) return;
+    const title = list.length === 1
+      ? t("Delete “{name}”?", { name: list[0]!.name })
+      : plural(list.length, { one: "Delete {n} item?", other: "Delete {n} items?" });
+    if (!(await confirmDialog({ title, confirmLabel: t("Delete"), danger: true }))) return;
+    try {
+      await files.destroy(list.map((n) => n.id));
+      setSelection(new Set());
+      toast.success(t("Deleted"));
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
   };
 
   /* A file with nothing to show still does what it always did. */
@@ -160,7 +241,7 @@ export function FilesView({ nodeId }: { nodeId?: string }) {
   };
 
   return (
-    <div className={`files-layout ${dropping ? "dropping" : ""}`} onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDropping(true); } else if (e.dataTransfer.types.includes(NODE_MIME) && canDropFileNode(files.nodes, draggingId ?? "", parentId)) { e.preventDefault(); } }} onDragLeave={() => setDropping(false)} onDrop={onDrop}>
+    <div className={`files-layout ${dropping ? "dropping" : ""}`} onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDropping(true); } else if (e.dataTransfer.types.includes(NODE_MIME) && canDropFileNodes(files.nodes, draggingIds, parentId)) { e.preventDefault(); } }} onDragLeave={() => setDropping(false)} onDrop={onDrop}>
       <div className="files-toolbar">
         <div className="breadcrumb">
           <button className={path.length ? "" : "current"} onClick={() => navigate("/files")}><Home size={16} /></button>
@@ -180,9 +261,24 @@ export function FilesView({ nodeId }: { nodeId?: string }) {
           {files.uploads.map((u) => <div key={u.id} className="row"><span className="truncate grow">{u.name}</span>{u.error ? <span style={{ color: "var(--danger)" }}>{u.error}</span> : <span>{u.progress}%</span>}</div>)}
         </div>
       )}
+      {selection.size > 1 && (
+        <div className="selection-bar">
+          <span className="grow">{plural(selection.size, { one: "{n} item selected", other: "{n} items selected" })}</span>
+          <button className="btn btn-sm" onClick={() => setMoveNodes(selectedNodes())}><FolderInput size={16} />  {t("Move to…")}</button>
+          <button className="btn btn-sm btn-danger" onClick={() => void removeNodes(selectedNodes())}><Trash2 size={16} />  {t("Delete")}</button>
+          <button className="icon-btn sm" aria-label={t("Clear selection")} title={t("Clear selection")} onClick={() => setSelection(new Set())}><X size={16} /></button>
+        </div>
+      )}
       {files.error && <div className="error-box" style={{ margin: 12 }}>{files.error}</div>}
       <div
         className="files-scroll"
+        /* Clicking past the last row clears the selection, the way it does in
+           every file manager. Rows stop the click from reaching here by
+           handling it themselves, so this only ever sees the empty space. */
+        onClick={(e) => {
+          if ((e.target as HTMLElement).closest("tr")) return;
+          setSelection((cur) => (cur.size ? new Set() : cur));
+        }}
         onContextMenu={(e) => {
           // Only the empty space below the rows: a row has its own menu.
           if ((e.target as HTMLElement).closest("tr")) return;
@@ -200,24 +296,32 @@ export function FilesView({ nodeId }: { nodeId?: string }) {
               {nodes.map((n) => (
                 <tr
                   key={n.id}
-                  className={`${selected === n.id ? "selected" : ""} ${draggingId && n.nodeType === "directory" && canDropFileNode(files.nodes, draggingId, n.id) ? "drop-target" : ""}`}
+                  className={`${selection.has(n.id) ? "selected" : ""} ${n.nodeType === "directory" && canDropFileNodes(files.nodes, draggingIds, n.id) ? "drop-target" : ""}`}
                   draggable
-                  onDragStart={(e) => { e.dataTransfer.setData(NODE_MIME, n.id); e.dataTransfer.effectAllowed = "move"; setDraggingId(n.id); }}
-                  onDragEnd={() => setDraggingId(null)}
+                  onDragStart={(e) => {
+                    /* Dragging a row that is part of the selection drags all of
+                       it; dragging one outside the selection means that row. */
+                    const ids = selection.has(n.id) ? [...selection] : [n.id];
+                    if (!selection.has(n.id)) { setSelection(new Set([n.id])); setAnchor(n.id); }
+                    e.dataTransfer.setData(NODE_MIME, ids.join(","));
+                    e.dataTransfer.effectAllowed = "move";
+                    setDragging(ids);
+                  }}
+                  onDragEnd={() => setDragging([])}
                   onDragOver={(e) => {
                     if (n.nodeType !== "directory") return;
                     const node = e.dataTransfer.types.includes(NODE_MIME);
-                    if (node ? !(draggingId && canDropFileNode(files.nodes, draggingId, n.id)) : !e.dataTransfer.types.includes("Files")) return;
+                    if (node ? !canDropFileNodes(files.nodes, draggingIds, n.id) : !e.dataTransfer.types.includes("Files")) return;
                     e.preventDefault();
                     e.stopPropagation();
                     e.dataTransfer.dropEffect = node ? "move" : "copy";
                   }}
                   onDrop={(e) => { if (n.nodeType === "directory") dropOnto(n.id, e); }}
-                  onClick={() => setSelected(n.id)} onDoubleClick={() => activate(n)} onContextMenu={(e) => { e.preventDefault(); setMenuNode(n); menu.openAt(e.clientX, e.clientY); }}>
+                  onClick={(e) => clickRow(n, e)} onDoubleClick={() => activate(n)} onContextMenu={(e) => { e.preventDefault(); menuFor(n, menu.openAt, e.clientX, e.clientY); }}>
                   <td><div className="f-name">{n.nodeType === "directory" ? <Folder size={18} /> : <File size={18} />}<span onClick={(e) => { if (n.nodeType === "directory") { e.stopPropagation(); navigate(`/files/${n.id}`); } }} style={n.nodeType === "directory" ? { cursor: "pointer" } : undefined}>{n.name}</span>{isShared(n) && <Share2 size={13} className="faint" aria-label={t("Shared")} />}</div></td>
                   <td className="hide-mobile muted">{n.nodeType === "directory" ? "—" : formatSize(n.size)}</td>
                   <td className="hide-mobile muted">{formatListDate(n.modified ?? n.created)}</td>
-                  <td style={{ textAlign: "right" }}><button className="icon-btn sm" onClick={(e) => { e.stopPropagation(); setMenuNode(n); menu.open(e); }} aria-label={t("Options")}><MoreVertical size={16} /></button></td>
+                  <td style={{ textAlign: "right" }}><button className="icon-btn sm" onClick={(e) => { e.stopPropagation(); if (!selection.has(n.id)) { setSelection(new Set([n.id])); setAnchor(n.id); } setMenuNode(n); menu.open(e); }} aria-label={t("Options")}><MoreVertical size={16} /></button></td>
                 </tr>
               ))}
             </tbody>
@@ -231,7 +335,14 @@ export function FilesView({ nodeId }: { nodeId?: string }) {
             <MenuItem icon={<FolderPlus size={16} />} label={t("New folder")} onClick={async () => { const n = await promptDialog({ title: t("New folder"), placeholder: t("Folder name") }); if (n?.trim()) { try { await files.mkdir(parentId, n.trim()); } catch (err) { toast.error((err as Error).message); } } }} />
           </>
         )}
-        {menuNode && (
+        {menuNode && targets(menuNode).length > 1 && (
+          <>
+            <MenuItem icon={<FolderInput size={16} />} label={plural(targets(menuNode).length, { one: "Move {n} item…", other: "Move {n} items…" })} onClick={() => setMoveNodes(targets(menuNode))} />
+            <MenuSep />
+            <MenuItem danger icon={<Trash2 size={16} />} label={plural(targets(menuNode).length, { one: "Delete {n} item", other: "Delete {n} items" })} onClick={() => void removeNodes(targets(menuNode))} />
+          </>
+        )}
+        {menuNode && targets(menuNode).length <= 1 && (
           <>
             {menuNode.nodeType === "directory" ? <MenuItem icon={<FolderOpen size={16} />} label={t("Open")} onClick={() => navigate(`/files/${menuNode.id}`)} /> : (
               <>
@@ -241,14 +352,14 @@ export function FilesView({ nodeId }: { nodeId?: string }) {
               </>
             )}
             <MenuItem icon={<Pencil size={16} />} label={t("Rename")} disabled={!menuNode.myRights?.mayRename} onClick={async () => { const n = await promptDialog({ title: t("Rename"), defaultValue: menuNode.name }); if (n?.trim() && n !== menuNode.name) { try { await files.rename(menuNode.id, n.trim()); } catch (err) { toast.error((err as Error).message); } } }} />
-            <MenuItem icon={<FolderInput size={16} />} label={t("Move to…")} onClick={() => setMoveNode(menuNode)} />
+            <MenuItem icon={<FolderInput size={16} />} label={t("Move to…")} onClick={() => setMoveNodes([menuNode])} />
             <MenuItem icon={<Share2 size={16} />} label={t("Share…")} disabled={!menuNode.myRights?.mayShare} onClick={() => setShareNode(menuNode)} />
             <MenuSep />
-            <MenuItem danger icon={<Trash2 size={16} />} label={t("Delete")} disabled={!menuNode.myRights?.mayDelete} onClick={async () => { if (await confirmDialog({ title: t("Delete “{name}”?", { name: menuNode.name }), confirmLabel: t("Delete"), danger: true })) { try { await files.destroy([menuNode.id]); toast.success(t("Deleted")); } catch (err) { toast.error((err as Error).message); } } }} />
+            <MenuItem danger icon={<Trash2 size={16} />} label={t("Delete")} disabled={!menuNode.myRights?.mayDelete} onClick={() => void removeNodes([menuNode])} />
           </>
         )}
       </Popover>
-      {moveNode && <MoveDialog node={moveNode} onClose={() => setMoveNode(null)} />}
+      {moveNodes && <MoveDialog nodes={moveNodes} onClose={() => setMoveNodes(null)} onMoved={() => setSelection(new Set())} />}
       <FilePreviewDialog
         file={preview}
         onClose={() => { setPreview(null); setEditTarget(null); setStartInEdit(false); }}
@@ -260,17 +371,22 @@ export function FilesView({ nodeId }: { nodeId?: string }) {
   );
 }
 
-function MoveDialog({ node, onClose }: { node: FileNode; onClose: () => void }) {
+function MoveDialog({ nodes, onClose, onMoved }: { nodes: FileNode[]; onClose: () => void; onMoved: () => void }) {
   const files = useFiles();
   const [cur, setCur] = useState<string | null>(null);
   useEffect(() => {
     void files.loadChildren(cur);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cur]);
-  const dirs = (files.children[cur ?? "root"] ?? []).map((id) => files.nodes[id]).filter((n): n is FileNode => Boolean(n && n.nodeType === "directory" && n.id !== node.id));
+  /* None of the folders being moved can be their own destination, and neither
+     can a folder already holding all of them -- "Move here" would be a no-op. */
+  const moving = new Set(nodes.map((n) => n.id));
+  const dirs = (files.children[cur ?? "root"] ?? []).map((id) => files.nodes[id]).filter((n): n is FileNode => Boolean(n && n.nodeType === "directory" && !moving.has(n.id)));
   const path = files.pathTo(cur);
+  const already = nodes.every((n) => (n.parentId ?? null) === cur);
+  const title = nodes.length === 1 ? t("Move \u201c{name}\u201d", { name: nodes[0]!.name }) : plural(nodes.length, { one: "Move {n} item", other: "Move {n} items" });
   return (
-    <Dialog open onClose={onClose} title={t("Move “{name}”", { name: node.name })} size="sm" footer={<><button className="btn" onClick={onClose}>{t("Cancel")}</button><button className="btn btn-primary" disabled={cur === (node.parentId ?? null)} onClick={async () => { try { await files.move(node.id, cur); toast.success(t("Moved")); onClose(); } catch (err) { toast.error((err as Error).message); } }}>{t("Move here")}</button></>}>
+    <Dialog open onClose={onClose} title={title} size="sm" footer={<><button className="btn" onClick={onClose}>{t("Cancel")}</button><button className="btn btn-primary" disabled={already} onClick={async () => { try { await files.moveMany(nodes.map((n) => n.id), cur); toast.success(t("Moved")); onMoved(); onClose(); } catch (err) { toast.error((err as Error).message); } }}>{t("Move here")}</button></>}>
       <div className="breadcrumb mb-8">
         <button onClick={() => setCur(null)}><Home size={14} /></button>
         {path.map((n) => <span key={n.id} className="row gap-4"><ChevronRight size={12} /><button onClick={() => setCur(n.id)}>{n.name}</button></span>)}
