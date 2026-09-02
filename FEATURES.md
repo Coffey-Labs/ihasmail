@@ -1038,6 +1038,12 @@ would have quietly ended the WCAG AA claim two sections down.
   run. Where the server also implements `emailpush`, the payload carries the
   sender, subject and preview; without it the notification says only that mail
   arrived. Offered only on a device you said was yours.
+- The verification code a subscription needs is handed to an open tab, or left
+  in the browser's cache under a key **anchored to where the app is mounted**
+  for the next tab to collect. Both sides name it absolutely: a relative key is
+  resolved against the URL of whoever asks, so the worker at `<base>/sw.js` and
+  a tab at `/mail/inbox/…` were naming two different entries, and agreed only
+  when the open page happened to be the root.
 - **The subscription is renewed on every app start**, because a JMAP push
   subscription expires — seven days is the ceiling — and re-registering before
   it lapses is the client's job. Renewal can only happen with a page open:
