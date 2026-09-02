@@ -45,6 +45,7 @@ import type { Catalog } from "@/lib/i18n";
  */
 export const catalog: Catalog = {
   strings: {
+    "Go to folder…": "转到文件夹…",
     "Set for everyone here. You cannot change this.": "已为此处所有人设定，您无法更改。",
     "Export iCAL file": "导出 iCAL 文件",
     "Could not export this calendar: {error}": "无法导出此日历：{error}",

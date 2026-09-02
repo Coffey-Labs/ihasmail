@@ -6,14 +6,22 @@ import type { Id, Mailbox } from "@/jmap/types";
 import { t } from "@/lib/i18n";
 import { mailboxDisplayPath } from "@/lib/mailboxName";
 
-export function MailboxPicker({ title, onClose, onPick, exclude }: { title: string; onClose: () => void; onPick: (id: Id) => void; exclude?: Id[] }) {
+/**
+ * @param need which right a folder has to grant to be worth offering.
+ *   `mayAddItems` for a move — a folder you cannot file into is not a
+ *   destination — and `mayReadItems` for going somewhere, since a shared
+ *   folder you may read but not write to is still somewhere you can go. The
+ *   distinction only shows up on shared mail, which is exactly where getting
+ *   it wrong would be invisible to whoever wrote the code.
+ */
+export function MailboxPicker({ title, onClose, onPick, exclude, need = "mayAddItems" }: { title: string; onClose: () => void; onPick: (id: Id) => void; exclude?: Id[]; need?: "mayAddItems" | "mayReadItems" }) {
   const mailboxes = useMail((s) => s.mailboxes);
   const mailboxPath = useMail((s) => s.mailboxPath);
   const [q, setQ] = useState("");
   const [active, setActive] = useState(0);
   const list = useMemo(() => {
     const all = Object.values(mailboxes)
-      .filter((m) => !exclude?.includes(m.id) && m.myRights.mayAddItems)
+      .filter((m) => !exclude?.includes(m.id) && m.myRights[need])
       .map((m) => ({ m, path: mailboxDisplayPath(m, mailboxes) }))
       .sort((a, b) => (a.m.role === "inbox" ? -1 : b.m.role === "inbox" ? 1 : a.path.localeCompare(b.path)));
     const ql = q.trim().toLowerCase();

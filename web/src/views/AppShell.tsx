@@ -15,6 +15,7 @@ import { FilesTree } from "./files/FilesTree";
 import { ContactsSidebar } from "./contacts/ContactsSidebar";
 import { CalendarSidebar } from "./calendar/CalendarSidebar";
 import { ShortcutsDialog, useGlobalShortcuts } from "./Shortcuts";
+import { MailboxPicker } from "./mail/MailboxPicker";
 import { formatSize } from "@/lib/format";
 import { TranslateBoundary } from "@/ui/TranslateBoundary";
 import { t } from "@/lib/i18n";
@@ -37,9 +38,15 @@ export function AppShell({ children }: { children: ReactNode }) {
   const session = useSession((s) => s.session);
   const logout = useSession((s) => s.logout);
   const acctMenu = useMenu();
+  /*
+   * "Go to folder" (#233), hosted here rather than in the mail view because
+   * the `g` shortcuts are global: pressing it from the calendar should still
+   * take you to a folder, and the mail view is not mounted to hear about it.
+   */
+  const [goFolder, setGoFolder] = useState(false);
   const section = location.split("/")[1] || "mail";
 
-  useGlobalShortcuts({ onHelp: () => setHelpOpen(true) });
+  useGlobalShortcuts({ onHelp: () => setHelpOpen(true), onGoToFolder: () => setGoFolder(true) });
   useEffect(() => setDrawer(false), [location]);
 
   // Escape closes it too, for the tablet with a keyboard attached.
@@ -220,6 +227,16 @@ export function AppShell({ children }: { children: ReactNode }) {
         </>
       )}
       <ShortcutsDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
+      {goFolder && (
+        <MailboxPicker
+          title={t("Go to folder…")}
+          /* Read, not write: a shared folder you may read but not file into is
+             still somewhere worth going. */
+          need="mayReadItems"
+          onClose={() => setGoFolder(false)}
+          onPick={(id) => { setGoFolder(false); navigate(`/mail/${id}`); }}
+        />
+      )}
     </div>
   );
 }
