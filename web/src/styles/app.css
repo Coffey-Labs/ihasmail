@@ -1235,6 +1235,15 @@ select optgroup { background-color: var(--bg-elev); color: var(--fg); }
    */
   .message { break-inside: auto; border: 1px solid var(--border); }
   .message-head { break-inside: avoid; break-after: avoid; }
+  /*
+   * "Print" in a message's own menu marks that card and prints it alone;
+   * "Print conversation" in the thread toolbar sets no mark and prints them
+   * all. The subject heading stays either way -- a printed
+   * message with no subject on it is a page nobody can file -- but the
+   * "3 messages" count beside it goes, since only one of them is on the page.
+   */
+  .printing-one .message:not(.print-target) { display: none !important; }
+  .printing-one .thread-subject > .muted { display: none !important; }
   .print-only { display: block; }
   body { background: #fff; color: #000; }
 }
