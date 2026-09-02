@@ -215,7 +215,7 @@ export const catalog: Catalog = {
     "Never send one": "从不发送",
     "Not this time": "这次不发送",
     "It would go to {address}, which is not where the message came from.": "回执会发往 {address}，而邮件并非来自该地址。",
-    "Use “Show original” for the complete raw message.": "使用「显示原始邮件」查看完整原文。",
+    "Use {action} for the complete raw message.": "{action} 可查看完整原始邮件。",
 
     // ── Folders, calendar, contacts, files ─────────────────────────────
     "Folder": "文件夹",

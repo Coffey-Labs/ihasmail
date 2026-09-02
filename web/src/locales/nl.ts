@@ -213,7 +213,7 @@ export const catalog: Catalog = {
     "Never send one": "Nooit versturen",
     "Not this time": "Deze keer niet",
     "It would go to {address}, which is not where the message came from.": "Die zou naar {address} gaan, en daar kwam het bericht niet vandaan.",
-    "Use “Show original” for the complete raw message.": "Gebruik “Origineel tonen” voor het volledige ruwe bericht.",
+    "Use {action} for the complete raw message.": "{action} voor het volledige onbewerkte bericht.",
 
     // ── Folders, calendar, contacts, files ─────────────────────────────
     "Folder": "Map",

@@ -436,7 +436,28 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
           {e.inReplyTo?.length ? <><dt>{translate("In-Reply-To")}</dt><dd className="mono small">{e.inReplyTo.join(" ")}</dd></> : null}
           {e.references?.length ? <><dt>{translate("References")}</dt><dd className="mono small">{e.references.join(" ")}</dd></> : null}
         </dl>
-        <p className="hint">{translate("Use “Show original” for the complete raw message.")}</p>
+        {/*
+          * The action, not a description of where to find it. Telling somebody
+          * an action exists and leaving them to hunt for it is half a job
+          * (#236) -- and one dialog replaces the other, so it reads as going
+          * deeper rather than as opening a second window.
+          *
+          * `tNode` rather than two `translate` calls around a button: the
+          * sentence stays whole for whoever translates it, and languages that
+          * put the verb elsewhere can move the hole.
+          */}
+        <p className="hint">
+          {tNode("Use {action} for the complete raw message.", {
+            action: (
+              <button
+                className="link-btn"
+                onClick={() => { setShowHeaders(false); void openSource(); }}
+              >
+                {translate("Show original")}
+              </button>
+            ),
+          })}
+        </p>
       </Dialog>
     </article>
   );

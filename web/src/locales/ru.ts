@@ -219,7 +219,7 @@ export const catalog: Catalog = {
     "Never send one": "Никогда не отправлять",
     "Not this time": "Не в этот раз",
     "It would go to {address}, which is not where the message came from.": "Оно ушло бы на {address}, а письмо пришло не оттуда.",
-    "Use “Show original” for the complete raw message.": "Нажмите «Показать исходник», чтобы увидеть письмо целиком.",
+    "Use {action} for the complete raw message.": "{action} — полное исходное сообщение.",
 
     // ── Folders, calendar, contacts, files ─────────────────────────────
     "Folder": "Папка",
