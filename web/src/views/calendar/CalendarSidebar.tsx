@@ -45,8 +45,16 @@ export function CalendarSidebar() {
     const calendarId = importInto.current;
     if (!calendarId) return;
     try {
-      const n = await cal.importIcs(await file.text(), calendarId);
-      toast.success(plural(n, { one: "Imported {n} event", other: "Imported {n} events" }));
+      const { created, skipped } = await cal.importIcs(await file.text(), calendarId);
+      /*
+       * The two counts are kept apart on purpose. "Imported 40 events" over a
+       * file of 240 reads as a failure when 200 of them were simply already
+       * here, and a re-import where everything is already here would otherwise
+       * report importing nothing at all.
+       */
+      if (!created) toast.success(plural(skipped, { one: "Already here: {n} event, nothing imported", other: "Already here: {n} events, nothing imported" }));
+      else if (skipped) toast.success(`${plural(created, { one: "Imported {n} event", other: "Imported {n} events" })} · ${plural(skipped, { one: "{n} was already here", other: "{n} were already here" })}`);
+      else toast.success(plural(created, { one: "Imported {n} event", other: "Imported {n} events" }));
     } catch (err) {
       toast.error(t("Could not import this file: {error}", { error: (err as Error).message }));
     }

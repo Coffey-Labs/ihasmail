@@ -1054,6 +1054,9 @@ export const catalog: Catalog = {
     "Nothing unread here": "ここに未読はありません",
   },
   plurals: {
+    "Imported {n} events": { other: "{n} 件の予定をインポートしました" },
+    "Already here: {n} events, nothing imported": { other: "すでに存在: {n} 件、インポートなし" },
+    "{n} were already here": { other: "{n} 件はすでに存在していました" },
     /*
      * One form each, because Japanese has one. Intl.PluralRules returns
      * `other` for every number, so `one`, `few` and `many` would never be

@@ -1048,6 +1048,9 @@ export const catalog: Catalog = {
     "Nothing unread here": "Здесь нет непрочитанного",
   },
   plurals: {
+    "Imported {n} events": { one: "Импортировано {n} событие", few: "Импортировано {n} события", many: "Импортировано {n} событий", other: "Импортировано {n} события" },
+    "Already here: {n} events, nothing imported": { one: "Уже есть: {n} событие, ничего не импортировано", few: "Уже есть: {n} события, ничего не импортировано", many: "Уже есть: {n} событий, ничего не импортировано", other: "Уже есть: {n} события, ничего не импортировано" },
+    "{n} were already here": { one: "{n} уже было здесь", few: "{n} уже были здесь", many: "{n} уже были здесь", other: "{n} уже были здесь" },
     /*
      * Three forms, which is the whole reason plural() takes a map rather than
      * (one, other). Intl.PluralRules picks: 1 is `one`, 2-4 are `few`, 5-20

@@ -1042,6 +1042,9 @@ export const catalog: Catalog = {
     "Nothing unread here": "Тут немає непрочитаного",
   },
   plurals: {
+    "Imported {n} events": { one: "Імпортовано {n} подію", few: "Імпортовано {n} події", many: "Імпортовано {n} подій", other: "Імпортовано {n} події" },
+    "Already here: {n} events, nothing imported": { one: "Уже є: {n} подія, нічого не імпортовано", few: "Уже є: {n} події, нічого не імпортовано", many: "Уже є: {n} подій, нічого не імпортовано", other: "Уже є: {n} події, нічого не імпортовано" },
+    "{n} were already here": { one: "{n} уже була тут", few: "{n} уже були тут", many: "{n} уже були тут", other: "{n} уже були тут" },
     /*
      * Ukrainian takes the same three forms as Russian and the same rule, but
      * not the same words. Sharing a plural structure is not sharing a

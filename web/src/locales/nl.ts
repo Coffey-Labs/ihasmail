@@ -1042,6 +1042,9 @@ export const catalog: Catalog = {
     "Nothing unread here": "Hier is niets ongelezen",
   },
   plurals: {
+    "Imported {n} events": { one: "{n} afspraak geïmporteerd", other: "{n} afspraken geïmporteerd" },
+    "Already here: {n} events, nothing imported": { one: "Al aanwezig: {n} afspraak, niets geïmporteerd", other: "Al aanwezig: {n} afspraken, niets geïmporteerd" },
+    "{n} were already here": { one: "{n} was er al", other: "{n} waren er al" },
     "{n} messages": { one: "{n} bericht", other: "{n} berichten" },
     "{n} selected": { one: "{n} geselecteerd", other: "{n} geselecteerd" },
     "{n} conversations": { one: "{n} gesprek", other: "{n} gesprekken" },

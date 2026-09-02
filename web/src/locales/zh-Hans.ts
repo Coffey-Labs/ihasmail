@@ -1053,6 +1053,9 @@ export const catalog: Catalog = {
     "Nothing unread here": "这里没有未读邮件",
   },
   plurals: {
+    "Imported {n} events": { other: "已导入 {n} 个日程" },
+    "Already here: {n} events, nothing imported": { other: "已存在 {n} 个，未导入" },
+    "{n} were already here": { other: "{n} 个已存在" },
     /*
      * One form each, because Chinese has one. Intl.PluralRules returns `other`
      * for every number, so `one`, `few` and `many` would never be selected —
