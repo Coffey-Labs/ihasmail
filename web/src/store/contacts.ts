@@ -1,13 +1,55 @@
 import { create } from "zustand";
 import { accountKey, loadRaw, saveJson } from "@/lib/storage";
-import { CAP, client, setErrorMessage } from "@/jmap/client";
-import type { AddressBook, ContactCard, EmailAddress, GetResponse, Id, Principal, QueryResponse, SetResponse } from "@/jmap/types";
+import { CAP, chunk, client, setErrorMessage } from "@/jmap/client";
+import type { AddressBook, ContactCard, EmailAddress, GetResponse, Id, Principal, QueryResponse, SetError, SetResponse } from "@/jmap/types";
 import { contactDisplayName, contactEmails, sortKey } from "@/lib/contacts";
 import { parseLdif } from "@/lib/ldif";
 import { cardFromLdif } from "@/lib/mozillaAb";
 import { useSettings } from "./settings";
 import { useSession } from "./session";
 import { useMail } from "./mail";
+
+/**
+ * Create cards in batches the server will take.
+ *
+ * `ContactCard/set` is refused whole over `maxObjectsInSet` -- the server does
+ * not take the first 500 and drop the rest, it creates nothing and answers
+ * `requestTooLarge` -- so an address book big enough to cross the ceiling
+ * imported nothing at all. The same bug the calendar import had, found on a
+ * real 800 KB export ([#173]).
+ *
+ * `maxObjectsInSet` is what the session advertises and 500 where a server does
+ * not say; splitting by it rather than by a constant follows a deployment that
+ * has tuned the limit.
+ *
+ * Both imports come through here, which is what the LDIF import's "from
+ * `ContactCard/set` down they are the same" was always claiming and is now
+ * true of.
+ *
+ * [#173]: https://github.com/Coffey-Labs/ihasmail/issues/173
+ */
+async function createCards(accountId: Id, create: Record<string, unknown>): Promise<{ created: number; refused?: SetError }> {
+  const keys = Object.keys(create);
+  let created = 0;
+  let refused: SetError | undefined;
+  for (const part of chunk(keys, client.maxObjectsInSet)) {
+    const sub: Record<string, unknown> = {};
+    for (const k of part) sub[k] = create[k];
+    let res: SetResponse<ContactCard>;
+    try {
+      res = await client.call<SetResponse<ContactCard>>("ContactCard/set", { accountId, create: sub });
+    } catch (err) {
+      // A batch that failed with earlier ones already filed: those contacts are
+      // in the address book, and an error saying only that the import failed
+      // sends someone looking for contacts that are already there.
+      if (!created) throw err;
+      throw new Error(`${created} of ${keys.length} contacts were imported before this happened: ${(err as Error).message}`);
+    }
+    created += Object.keys(res.created ?? {}).length;
+    refused ??= Object.values(res.notCreated ?? {})[0];
+  }
+  return { created, refused };
+}
 
 export interface Suggestion {
   name: string | null;
@@ -316,16 +358,35 @@ export const useContacts = create<ContactsState>((set, get) => ({
     await get().getCard(id);
   },
 
+  /*
+   * Batched for the same reason the imports are: a selection larger than
+   * `maxObjectsInSet` is refused whole, so "select all" over a big address book
+   * deleted nothing and said why in JMAP's words.
+   *
+   * The ids that actually went are what leaves the list, rather than everything
+   * that was asked for. A batch that fails after earlier ones succeeded must
+   * not leave deleted contacts on screen, and must not take live ones off it.
+   */
   async destroyCards(ids) {
     const accountId = get().accountId!;
-    const res = await client.call<SetResponse>("ContactCard/set", { accountId, destroy: ids });
-    const failed = Object.values(res.notDestroyed ?? {})[0];
+    const gone: Id[] = [];
+    let failed: SetError | undefined;
+    try {
+      for (const part of chunk(ids, client.maxObjectsInSet)) {
+        const res = await client.call<SetResponse>("ContactCard/set", { accountId, destroy: part });
+        gone.push(...(res.destroyed ?? []));
+        failed ??= Object.values(res.notDestroyed ?? {})[0];
+      }
+    } finally {
+      if (gone.length) {
+        set((s) => {
+          const cards = { ...s.cards };
+          for (const id of gone) delete cards[id];
+          return { cards };
+        });
+      }
+    }
     if (failed) throw new Error(setErrorMessage(failed));
-    set((s) => {
-      const cards = { ...s.cards };
-      for (const id of ids) delete cards[id];
-      return { cards };
-    });
   },
 
   async createBook(name) {
@@ -366,9 +427,16 @@ export const useContacts = create<ContactsState>((set, get) => ({
       const { id: _id, addressBookIds: _ab, ...rest } = c as ContactCard & { id?: Id };
       create[`c${i}`] = { ...rest, uid: rest.uid || crypto.randomUUID(), addressBookIds: { [addressBookId]: true } };
     });
-    const res = await client.call<SetResponse<ContactCard>>("ContactCard/set", { accountId, create });
-    await get().loadAll();
-    return Object.keys(res.created ?? {}).length;
+    try {
+      const { created, refused } = await createCards(accountId, create);
+      // Nothing at all got in: say why rather than report importing none as
+      // though the file had been empty. The LDIF import said this already; a
+      // vCard import that quietly returned 0 was the odd one out.
+      if (!created) throw new Error(refused ? setErrorMessage(refused) : "the server did not accept any of its contacts");
+      return created;
+    } finally {
+      await get().loadAll();
+    }
   },
 
   /*
@@ -391,12 +459,13 @@ export const useContacts = create<ContactsState>((set, get) => ({
       // directory and is no use as a contact's identity anywhere else.
       create[`c${i}`] = { "@type": "Card", version: "1.0", ...c, uid: crypto.randomUUID(), addressBookIds: { [addressBookId]: true } };
     });
-    const res = await client.call<SetResponse<ContactCard>>("ContactCard/set", { accountId, create });
-    await get().loadAll();
-    const created = Object.keys(res.created ?? {}).length;
-    if (!created) {
-      const first = Object.values(res.notCreated ?? {})[0];
-      throw new Error(first ? setErrorMessage(first) : "the server did not accept any of its contacts");
+    let created: number;
+    try {
+      const r = await createCards(accountId, create);
+      created = r.created;
+      if (!created) throw new Error(r.refused ? setErrorMessage(r.refused) : "the server did not accept any of its contacts");
+    } finally {
+      await get().loadAll();
     }
     return created;
   },
