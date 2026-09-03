@@ -26,6 +26,23 @@ name: Publish image
 on:
   release:
     types: [published]
+  # Callable, so release.yml can build the release it just cut. This is not a
+  # stylistic choice: a release created with GITHUB_TOKEN does **not** raise a
+  # `release` event -- GitHub refuses to let a token trigger another workflow,
+  # to stop a workflow looping on its own output. A scheduled job that cut a
+  # release and expected this file to notice would silently never publish. The
+  # alternatives are a personal access token kept as a secret, or calling the
+  # workflow directly. This is the one that needs no credential.
+  workflow_call:
+    inputs:
+      ref:
+        description: "Tag, branch or SHA to build"
+        required: true
+        type: string
+      tag_latest:
+        description: "Also move :latest to this build"
+        type: boolean
+        default: false
   # Same reasoning as ci.yml's dispatch trigger: a run GitHub queues and then
   # orphans can be neither rerun nor cancelled, and this workflow otherwise
   # only fires on a release -- which is not something to cut twice because a
