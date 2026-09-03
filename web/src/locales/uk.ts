@@ -1230,8 +1230,33 @@ export const catalog: Catalog = {
     "{count} folders": "Тек: {count}",
     "{name}’s birthday": "День народження: {name}",
     "{name}’s birthday ({age})": "День народження: {name} ({age})",
+    // ── Third pass ──────────────────────────────────────────────────────
+    // Sentences that lib/ and store/ were building in English, and the two
+    // swipe labels that reach t() through a variable and so were invisible
+    // to a scan for t("literal"). See #259.
+    "A read receipt was already sent for this message.": "Сповіщення про прочитання для цього листа вже надіслано.",
+    "Add star": "Позначити",
+    "Could not attach": "Не вдалося вкласти",
+    "Delete forever?": "Видалити назавжди?",
+    "Delete?": "Видалити?",
+    "No recipients": "Немає одержувачів",
+    "No sending identity available": "Немає доступного профілю відправника",
+    "Pick a date and time.": "Виберіть дату й час.",
+    "Pick a time at least a minute from now.": "Виберіть час не менш ніж через хвилину.",
+    "Remove star": "Зняти позначку",
+    "Requested, to {address}. Never sent automatically.": "Запитано, на {address}. Ніколи не надсилається автоматично.",
+    "The sender did not request a read receipt.": "Відправник не запитував сповіщення про прочитання.",
+    "This is bulk or list mail; read receipts for it only confirm the address is live.": "Це масова або списочна розсилка; сповіщення про прочитання лише підтвердить, що адреса діюча.",
+    "This message has not been received, so there is nothing to report.": "Цей лист не було отримано, тож немає про що повідомляти.",
+    "This message was sent automatically, so no read receipt is offered.": "Цей лист надіслано автоматично, тому сповіщення про прочитання не пропонується.",
+    "This server will not hold a message longer than {span}.": "Цей сервер не утримує лист довше ніж {span}.",
+    "Upload failed": "Не вдалося завантажити",
   },
   plurals: {
+    // ── Third pass ─────────────────────────────────────────────────────
+    "Move {n} messages to Trash?": { one: "Перемістити {n} лист до кошика?", few: "Перемістити {n} листи до кошика?", many: "Перемістити {n} листів до кошика?", other: "Перемістити {n} листа до кошика?" },
+    "{n} days": { one: "{n} день", few: "{n} дні", many: "{n} днів", other: "{n} дня" },
+    "{n} hours": { one: "{n} година", few: "{n} години", many: "{n} годин", other: "{n} години" },
     "Updated {n} contacts, nothing new": { one: "Оновлено {n} контакт, нових немає", few: "Оновлено {n} контакти, нових немає", many: "Оновлено {n} контактів, нових немає", other: "Оновлено {n} контакти, нових немає" },
     "{n} updated": { one: "{n} оновлено", few: "{n} оновлено", many: "{n} оновлено", other: "{n} оновлено" },
     "Updated {n} contacts you already had": { one: "Оновлено контакт, який уже був", few: "Оновлено {n} контакти, які вже були", many: "Оновлено {n} контактів, які вже були", other: "Оновлено {n} контакти, які вже були" },
