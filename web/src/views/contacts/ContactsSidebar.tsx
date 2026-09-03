@@ -114,7 +114,7 @@ export function ContactsSidebar() {
           title={t("New address book")}
           aria-label={t("New address book")}
           onClick={async () => {
-            const name = await promptDialog({ title: "New address book", placeholder: "Name" });
+            const name = await promptDialog({ title: t("New address book"), placeholder: t("Name") });
             if (!name?.trim()) return;
             try {
               await contacts.createBook(name.trim());

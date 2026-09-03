@@ -257,7 +257,7 @@ export function FilesTree() {
               label={t("Rename")}
               disabled={!menuNode.myRights?.mayRename}
               onClick={async () => {
-                const name = await promptDialog({ title: "Rename", defaultValue: menuNode.name });
+                const name = await promptDialog({ title: t("Rename"), defaultValue: menuNode.name });
                 if (!name?.trim() || name === menuNode.name) return;
                 try {
                   await useFiles.getState().rename(menuNode.id, name.trim());

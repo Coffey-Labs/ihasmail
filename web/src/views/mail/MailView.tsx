@@ -228,7 +228,16 @@ export function MailView({ mailboxId, threadId, search }: { mailboxId?: string; 
         const trashId = mail.roleId("trash");
         const permanent = t.every((id) => trashId && mail.emails[id]?.mailboxIds[trashId]);
         if (permanent || settings.confirmDelete) {
-          const ok = await confirmDialog({ title: permanent ? "Delete forever?" : "Delete?", message: permanent ? `${t.length} message(s) will be permanently deleted.` : `Move ${t.length} message(s) to Trash?`, confirmLabel: "Delete", danger: permanent });
+          // "message(s)" was doing the work a plural form should: every
+          // language that inflects got a parenthesis instead of agreement.
+          const ok = await confirmDialog({
+            title: permanent ? translate("Delete forever?") : translate("Delete?"),
+            message: permanent
+              ? plural(t.length, { one: "{n} message will be permanently deleted.", other: "{n} messages will be permanently deleted." })
+              : plural(t.length, { one: "Move {n} message to Trash?", other: "Move {n} messages to Trash?" }),
+            confirmLabel: translate("Delete"),
+            danger: permanent,
+          });
           if (!ok) return;
         }
         await mail.trash(t);
