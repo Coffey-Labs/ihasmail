@@ -1,0 +1,177 @@
+# Publish the container image to GHCR.
+#
+# The README and the docs site have told people to run
+# `ghcr.io/coffey-labs/ihasmail:latest` for a long time, and nothing ever
+# pushed it: `docker pull` answered `denied`, because the package did not
+# exist. This is the workflow that makes those instructions true. It is also
+# the prerequisite for the self-hosted app catalogues -- TrueNAS and Unraid
+# both install by pulling an image and neither builds from source.
+#
+# FIRST RUN: a package GHCR creates for the first time is **private**, even in
+# a public repository, and an anonymous `docker pull` will still answer
+# `denied`. Nothing in a workflow can change that -- the visibility is set once
+# by hand under the package's settings, and until it is, this looks like it
+# worked while the docs stay just as wrong as before. Check with a logged-out
+# pull, not with one from a machine that has credentials.
+#
+# Two architectures, each built on its own native runner rather than under
+# QEMU. Emulated arm64 has to run `npm ci` and the Vite build through
+# instruction translation, which takes tens of minutes and occasionally runs
+# out of memory; `ubuntu-24.04-arm` is free for public repositories and does
+# the same work at native speed. The cost is the by-digest dance below: each
+# runner pushes an untagged image, and a final job joins the two digests into
+# one multi-arch tag.
+name: Publish image
+
+on:
+  release:
+    types: [published]
+  # Same reasoning as ci.yml's dispatch trigger: a run GitHub queues and then
+  # orphans can be neither rerun nor cancelled, and this workflow otherwise
+  # only fires on a release -- which is not something to cut twice because a
+  # runner died. `ref` also allows publishing an image for a tag that predates
+  # this workflow, which is how the first one gets built.
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Tag, branch or SHA to build"
+        required: true
+        default: main
+      tag_latest:
+        description: "Also move :latest to this build"
+        type: boolean
+        default: false
+
+env:
+  # Hardcoded rather than derived from github.repository: a registry path must
+  # be lowercase and the owner is spelled `Coffey-Labs`, so deriving it means
+  # remembering to lowercase it. This is the string the docs already name.
+  IMAGE: ghcr.io/coffey-labs/ihasmail
+
+jobs:
+  # The version is worked out once and handed to both builds, so the two
+  # architectures cannot disagree about what they are. scripts/version.mjs
+  # reads the commit date and how the commit arrived, so it needs real history
+  # rather than a shallow clone.
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      docker_tag: ${{ steps.v.outputs.docker_tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - id: v
+        run: |
+          V="$(node scripts/version.mjs)"
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          # A Docker tag may not contain '+', so build metadata becomes '-'.
+          # The build is still *told* the real form, which is what About and
+          # /api/health report.
+          echo "docker_tag=${V/+/-}" >> "$GITHUB_OUTPUT"
+          echo "version $V -> tag ${V/+/-}"
+
+  build:
+    needs: version
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push by digest
+        id: push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          build-args: IHASMAIL_VERSION=${{ needs.version.outputs.version }}
+          # Attestations are off deliberately: they add manifests of their own
+          # to the index, and `imagetools create` below expects the two entries
+          # it pushed rather than four.
+          provenance: false
+          sbom: false
+          cache-from: type=gha,scope=${{ matrix.platform }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.platform }}
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
+      - name: Save the digest
+        run: |
+          mkdir -p /tmp/digests
+          # The prefix is stripped here and put back in the merge job, so the
+          # filename is the bare hash. Leaving it on produces
+          # `image@sha256:sha256:...` when the reference is rebuilt.
+          digest="${{ steps.push.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+      - uses: actions/upload-artifact@v4
+        with:
+          # One artifact per platform; the merge job globs them back together.
+          name: digest-${{ strategy.job-index }}
+          path: /tmp/digests/*
+          retention-days: 1
+          if-no-files-found: error
+
+  # Joins the per-architecture digests into a single tagged manifest, so
+  # `docker pull ghcr.io/coffey-labs/ihasmail:<tag>` resolves on both.
+  publish:
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digest-*
+          merge-multiple: true
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create the manifest
+        run: |
+          # Arrays rather than a string: the tags and the digest references
+          # have to reach docker as separate arguments, and building them by
+          # word-splitting an unquoted variable is the version of this that
+          # breaks the day a value contains a space.
+          tags=(-t "${IMAGE}:${{ needs.version.outputs.docker_tag }}")
+          # :latest follows real releases only. A prerelease that moved it
+          # would hand every `:latest` deployment an unfinished build, and a
+          # dispatch run has to ask for it on purpose.
+          if [ "${{ github.event_name }}" = "release" ] && [ "${{ github.event.release.prerelease }}" = "false" ]; then
+            tags+=(-t "${IMAGE}:latest")
+          elif [ "${{ inputs.tag_latest }}" = "true" ]; then
+            tags+=(-t "${IMAGE}:latest")
+          fi
+          refs=()
+          for f in /tmp/digests/*; do
+            refs+=("${IMAGE}@sha256:$(basename "$f")")
+          done
+          echo "tags: ${tags[*]}"
+          echo "refs: ${refs[*]}"
+          docker buildx imagetools create "${tags[@]}" "${refs[@]}"
+      - name: Show what landed
+        run: docker buildx imagetools inspect "${IMAGE}:${{ needs.version.outputs.docker_tag }}"
