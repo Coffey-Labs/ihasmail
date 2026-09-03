@@ -13,7 +13,7 @@ import { RecipientInput } from "../compose/RecipientInput";
 import { DateField, DateTimeField } from "@/ui/datefield";
 import { browserTimeZone, dateToZonedLocal, formatDuration, fromInputDateTime, listTimeZones, parseDuration, toInputDateTime, toLocalDateOnly, zonedToDate, DAY_MS, humanDuration } from "@/lib/dates";
 import { formatClock, formatNumericDate, formatWeekday, formatWeekdayDate } from "@/lib/datetime";
-import { WEEKDAYS, describeRule, presetFor, ruleFromPreset, type RecurrencePreset } from "@/lib/recurrence";
+import { WEEKDAY_KEYS, weekdayOptions, describeRule, presetFor, ruleFromPreset, type RecurrencePreset } from "@/lib/recurrence";
 import { newKey } from "@/lib/contacts";
 import { availabilityWindow } from "@/lib/availabilityWindow";
 import { askEditScope, droppedMessage, runScoped } from "./scope";
@@ -359,7 +359,7 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
             </select>
           )}
           {!oneDate && (
-          <select className="select" style={{ width: "auto", height: 32 }} value={preset} onChange={(e) => { const p = e.target.value as RecurrencePreset; setPreset(p); if (p === "custom") setRule(rule ?? { "@type": "RecurrenceRule", frequency: "weekly", byDay: [{ "@type": "NDay", day: WEEKDAYS[(start.getDay() + 6) % 7]!.key }] }); else setRule(ruleFromPreset(p, start)); }}>
+          <select className="select" style={{ width: "auto", height: 32 }} value={preset} onChange={(e) => { const p = e.target.value as RecurrencePreset; setPreset(p); if (p === "custom") setRule(rule ?? { "@type": "RecurrenceRule", frequency: "weekly", byDay: [{ "@type": "NDay", day: WEEKDAY_KEYS[(start.getDay() + 6) % 7]! }] }); else setRule(ruleFromPreset(p, start)); }}>
             <option value="none">{translate("Does not repeat")}</option>
             <option value="daily">{translate("Daily")}</option>
             <option value="weekly">{translate("Weekly on {weekday}", { weekday: formatWeekday(start, "long") })}</option>
@@ -381,7 +381,7 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
             </div>
             {customRule.frequency === "weekly" && (
               <div className="row" style={{ gap: 4, marginTop: 8 }}>
-                {WEEKDAYS.map((w) => {
+                {weekdayOptions().map((w) => {
                   const on = customRule.byDay?.some((d) => d.day === w.key);
                   return <button key={w.key} type="button" className={`btn btn-sm btn-pill ${on ? "btn-primary" : ""}`} style={{ width: 36, padding: 0 }} title={w.label} onClick={() => { const cur = customRule.byDay ?? []; const next: JSCalendarNDay[] = on ? cur.filter((d) => d.day !== w.key) : [...cur, { "@type": "NDay", day: w.key }]; setRule({ ...customRule, byDay: next.length ? next : undefined }); }}>{w.short}</button>;
                 })}
