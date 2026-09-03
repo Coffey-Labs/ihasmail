@@ -94,6 +94,32 @@ Full instructions, TLS, and every environment variable:
 [Installing](https://docs.ihasmail.org/install/) ·
 [Configuring](https://docs.ihasmail.org/configure/).
 
+### Container images
+
+Published to GHCR on every release, for `linux/amd64` and `linux/arm64`:
+
+```bash
+docker pull ghcr.io/coffey-labs/ihasmail:latest
+```
+
+| Tag | What it is |
+| --- | --- |
+| `latest` | The newest release. Prereleases never move it |
+| `2026.9.2-pr243` | One specific build — the [version](#version-numbers) with `+` written as `-`, because a Docker tag may not contain `+` |
+
+Pin the dated tag in anything you care about. `latest` is a moving target by
+definition, and rolling back to a named tag is a `docker run` rather than a
+rebuild.
+
+Building it yourself stays fully supported and is what `docker compose up
+--build` above does — the image is a convenience, not a new requirement. If you
+build by hand, pass the version in, because `.dockerignore` excludes `.git` and
+the build cannot work out what it is:
+
+```bash
+docker build --build-arg IHASMAIL_VERSION="$(node scripts/version.mjs)" -t ihasmail:local .
+```
+
 ### Running immutably
 
 The server writes to exactly one path, the optional `SESSION_FILE`. Clear it
