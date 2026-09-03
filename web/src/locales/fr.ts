@@ -1239,8 +1239,33 @@ export const catalog: Catalog = {
     "{count} folders": "{count} dossiers",
     "{name}’s birthday": "Anniversaire de {name}",
     "{name}’s birthday ({age})": "Anniversaire de {name} ({age})",
+    // ── Third pass ──────────────────────────────────────────────────────
+    // Sentences that lib/ and store/ were building in English, and the two
+    // swipe labels that reach t() through a variable and so were invisible
+    // to a scan for t("literal"). See #259.
+    "A read receipt was already sent for this message.": "Un accusé de lecture a déjà été envoyé pour ce message.",
+    "Add star": "Marquer comme suivi",
+    "Could not attach": "Impossible de joindre",
+    "Delete forever?": "Supprimer définitivement ?",
+    "Delete?": "Supprimer ?",
+    "No recipients": "Aucun destinataire",
+    "No sending identity available": "Aucune identité d'envoi disponible",
+    "Pick a date and time.": "Choisissez une date et une heure.",
+    "Pick a time at least a minute from now.": "Choisissez une heure au moins une minute après maintenant.",
+    "Remove star": "Ne plus suivre",
+    "Requested, to {address}. Never sent automatically.": "Demandé, à {address}. Jamais envoyé automatiquement.",
+    "The sender did not request a read receipt.": "L'expéditeur n'a pas demandé d'accusé de lecture.",
+    "This is bulk or list mail; read receipts for it only confirm the address is live.": "Il s'agit d'un envoi en nombre ou de liste ; un accusé de lecture confirmerait seulement que l'adresse est active.",
+    "This message has not been received, so there is nothing to report.": "Ce message n'a pas été reçu, il n'y a donc rien à signaler.",
+    "This message was sent automatically, so no read receipt is offered.": "Ce message a été envoyé automatiquement, aucun accusé de lecture n'est donc proposé.",
+    "This server will not hold a message longer than {span}.": "Ce serveur ne retient pas un message plus de {span}.",
+    "Upload failed": "Échec de l'envoi",
   },
   plurals: {
+    // ── Third pass ─────────────────────────────────────────────────────
+    "Move {n} messages to Trash?": { one: "Déplacer {n} message vers la Corbeille ?", other: "Déplacer {n} messages vers la Corbeille ?" },
+    "{n} days": { one: "{n} jour", other: "{n} jours" },
+    "{n} hours": { one: "{n} heure", other: "{n} heures" },
     "Updated {n} contacts, nothing new": { one: "{n} contact mis à jour, rien de nouveau", other: "{n} contacts mis à jour, rien de nouveau" },
     "{n} updated": { one: "{n} mis à jour", other: "{n} mis à jour" },
     "Updated {n} contacts you already had": { one: "Contact déjà présent mis à jour", other: "{n} contacts déjà présents mis à jour" },
