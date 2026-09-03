@@ -1242,8 +1242,33 @@ export const catalog: Catalog = {
     "{count} folders": "{count} 個のフォルダー",
     "{name}’s birthday": "{name} の誕生日",
     "{name}’s birthday ({age})": "{name} の誕生日（{age}）",
+    // ── Third pass ──────────────────────────────────────────────────────
+    // Sentences that lib/ and store/ were building in English, and the two
+    // swipe labels that reach t() through a variable and so were invisible
+    // to a scan for t("literal"). See #259.
+    "A read receipt was already sent for this message.": "このメールには開封確認をすでに送信しています。",
+    "Add star": "スターを付ける",
+    "Could not attach": "添付できませんでした",
+    "Delete forever?": "完全に削除しますか？",
+    "Delete?": "削除しますか？",
+    "No recipients": "宛先がありません",
+    "No sending identity available": "利用できる差出人がありません",
+    "Pick a date and time.": "日付と時刻を選んでください。",
+    "Pick a time at least a minute from now.": "現在から1分以上あとの時刻を選んでください。",
+    "Remove star": "スターを外す",
+    "Requested, to {address}. Never sent automatically.": "{address} 宛に要求されています。自動送信されることはありません。",
+    "The sender did not request a read receipt.": "差出人は開封確認を要求していません。",
+    "This is bulk or list mail; read receipts for it only confirm the address is live.": "これは一括配信またはメーリングリストのメールです。開封確認を返しても、アドレスが有効であることを伝えるだけです。",
+    "This message has not been received, so there is nothing to report.": "このメールは受信したものではないため、報告する内容がありません。",
+    "This message was sent automatically, so no read receipt is offered.": "このメールは自動送信されたため、開封確認は行いません。",
+    "This server will not hold a message longer than {span}.": "このサーバーはメールを {span} を超えて保留しません。",
+    "Upload failed": "アップロードに失敗しました",
   },
   plurals: {
+    // ── Third pass ─────────────────────────────────────────────────────
+    "Move {n} messages to Trash?": { other: "{n} 通のメールをゴミ箱に移動しますか？" },
+    "{n} days": { other: "{n} 日" },
+    "{n} hours": { other: "{n} 時間" },
     "Updated {n} contacts, nothing new": { other: "{n} 件の連絡先を更新しました。新規はありません" },
     "{n} updated": { other: "{n} 件を更新" },
     "Updated {n} contacts you already had": { other: "すでにある連絡先 {n} 件を更新しました" },
