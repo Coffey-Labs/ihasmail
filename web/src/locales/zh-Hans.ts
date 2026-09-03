@@ -1241,8 +1241,33 @@ export const catalog: Catalog = {
     "{count} folders": "{count} 个文件夹",
     "{name}’s birthday": "{name} 的生日",
     "{name}’s birthday ({age})": "{name} 的生日（{age}）",
+    // ── Third pass ──────────────────────────────────────────────────────
+    // Sentences that lib/ and store/ were building in English, and the two
+    // swipe labels that reach t() through a variable and so were invisible
+    // to a scan for t("literal"). See #259.
+    "A read receipt was already sent for this message.": "已为此邮件发送过已读回执。",
+    "Add star": "添加星标",
+    "Could not attach": "无法添加附件",
+    "Delete forever?": "要永久删除吗？",
+    "Delete?": "要删除吗？",
+    "No recipients": "没有收件人",
+    "No sending identity available": "没有可用的发件身份",
+    "Pick a date and time.": "请选择日期和时间。",
+    "Pick a time at least a minute from now.": "请选择至少一分钟之后的时间。",
+    "Remove star": "取消星标",
+    "Requested, to {address}. Never sent automatically.": "已请求，发送至 {address}。绝不会自动发送。",
+    "The sender did not request a read receipt.": "发件人未请求已读回执。",
+    "This is bulk or list mail; read receipts for it only confirm the address is live.": "这是群发邮件或邮件列表；对其回复已读回执只会确认该地址仍在使用。",
+    "This message has not been received, so there is nothing to report.": "此邮件并非收到的邮件，因此无需回报。",
+    "This message was sent automatically, so no read receipt is offered.": "此邮件为自动发送，因此不提供已读回执。",
+    "This server will not hold a message longer than {span}.": "此服务器保留邮件的时间不会超过 {span}。",
+    "Upload failed": "上传失败",
   },
   plurals: {
+    // ── Third pass ─────────────────────────────────────────────────────
+    "Move {n} messages to Trash?": { other: "要将 {n} 封邮件移到已删除邮件吗？" },
+    "{n} days": { other: "{n} 天" },
+    "{n} hours": { other: "{n} 小时" },
     "Updated {n} contacts, nothing new": { other: "已更新 {n} 个联系人，无新增" },
     "{n} updated": { other: "已更新 {n} 个" },
     "Updated {n} contacts you already had": { other: "已更新您已有的 {n} 个联系人" },
