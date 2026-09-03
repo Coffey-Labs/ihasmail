@@ -557,3 +557,48 @@ export function localeOptions(): LocaleOption[] {
   optionsExtras = extras;
   return list;
 }
+
+/**
+ * Weekday names in the reader's locale, indexed by JSCalendar's two-letter day.
+ *
+ * These used to be a table of English strings with a `short` of "M", "T", "W"…
+ * which could not become catalogue entries at all: "T" is both Tuesday and
+ * Thursday and "S" is both Saturday and Sunday, so the key collides with
+ * itself. A catalogue cannot hold two translations under one key, and no
+ * amount of translating fixes that — the data was wrong, not the wiring.
+ *
+ * Intl has the names already, in every locale, in three widths, and gets the
+ * plural and capitalisation conventions right without anybody maintaining a
+ * list. 2026-06-01 is a Monday; the rest follow from it.
+ */
+export type WeekdayKey = "mo" | "tu" | "we" | "th" | "fr" | "sa" | "su";
+
+const WEEKDAY_ORDER: WeekdayKey[] = ["mo", "tu", "we", "th", "fr", "sa", "su"];
+const WEEKDAY_BASE = Date.UTC(2026, 5, 1); // a Monday
+
+export function weekdayName(day: WeekdayKey, width: "long" | "short" | "narrow" = "long"): string {
+  const i = WEEKDAY_ORDER.indexOf(day);
+  if (i < 0) return day;
+  return intl({ weekday: width, timeZone: "UTC" }).format(new Date(WEEKDAY_BASE + i * 86_400_000));
+}
+
+/** Every weekday, Monday first, for pickers that show all seven. */
+export function weekdayNames(width: "long" | "short" | "narrow" = "long"): Array<{ key: WeekdayKey; name: string }> {
+  return WEEKDAY_ORDER.map((key) => ({ key, name: weekdayName(key, width) }));
+}
+
+/**
+ * "A, B and C" — or "A, B oder C", or the comma the locale actually uses.
+ *
+ * Joining with a translated " and " does not work: Japanese does not separate
+ * list items with a word, and the last separator differs from the others in
+ * English. Intl.ListFormat knows all of that.
+ */
+export function formatList(items: string[], type: "conjunction" | "disjunction" = "conjunction"): string {
+  if (items.length < 2) return items[0] ?? "";
+  try {
+    return new Intl.ListFormat(resolvedLocale(), { style: "long", type }).format(items);
+  } catch {
+    return items.join(", ");
+  }
+}

@@ -6,6 +6,9 @@
  * Sieve below each comment is what the server actually runs.
  */
 
+import { formatList } from "./datetime";
+import { t } from "@/lib/i18n";
+
 export type HeaderOp = "contains" | "notcontains" | "is" | "notis" | "matches" | "notmatches" | "regex" | "notregex" | "exists" | "notexists";
 
 export type SieveTest =
@@ -318,49 +321,60 @@ export function reorderRules(rules: SieveRule[], fromId: string, toId: string, b
   return [...rest.slice(0, at), moved, ...rest.slice(at)];
 }
 
+/**
+ * A filter rule as a sentence, for the rule list.
+ *
+ * Rebuilt as whole sentences with placeholders. The old version concatenated
+ * fragments -- a header name, an operator, a quoted value, joined by " and "
+ * -- which no catalogue could fix: German puts the verb last, Japanese does
+ * not separate list items with a word at all, and a translator handed " and "
+ * on its own cannot move anything. Reported by a native speaker reviewing the
+ * German catalogue (#247).
+ *
+ * Intl.ListFormat does the joining, so "A, B and C" becomes "A, B und C" and,
+ * for an anyof rule, the disjunction the language actually uses.
+ */
 export function describeRule(r: SieveRule): string {
-  const tests = r.tests
-    .map((t) => {
-      switch (t.type) {
-        case "header":
-          return `${t.header} ${HEADER_OPS.find((o) => o.value === t.op)?.label ?? t.op} "${t.value}"`;
-        case "address":
-          return `${t.header} address ${HEADER_OPS.find((o) => o.value === t.op)?.label ?? t.op} "${t.value}"`;
-        case "size":
-          return `size ${t.op} ${Math.round(t.value / 1024)} KB`;
-        case "body":
-          return `body ${t.op === "contains" ? "contains" : "does not contain"} "${t.value}"`;
-        case "true":
-          return "always";
-      }
-    })
-    .join(r.join === "allof" ? " and " : " or ");
-  const actions = r.actions
-    .map((a) => {
-      switch (a.type) {
-        case "fileinto":
-          return `move to ${a.mailbox}`;
-        case "redirect":
-          return `forward to ${a.address}`;
-        case "discard":
-          return "delete";
-        case "keep":
-          return "keep";
-        case "reject":
-          return "reject";
-        case "markread":
-          return "mark read";
-        case "flag":
-          return "star";
-        case "addflag":
-        case "setflag":
-          return `add ${a.flag}`;
-        case "removeflag":
-          return `remove ${a.flag}`;
-        case "stop":
-          return "stop";
-      }
-    })
-    .join(", ");
-  return `${tests || "always"} → ${actions}`;
+  const headerLabel = (h: string): string => t(HEADER_CHOICES.find((c) => c.value === h)?.label ?? h);
+  const opLabel = (op: string): string => t(HEADER_OPS.find((o) => o.value === op)?.label ?? op);
+
+  const tests = r.tests.map((test) => {
+    switch (test.type) {
+      case "header":
+        return t('{header} {op} "{value}"', { header: headerLabel(test.header), op: opLabel(test.op), value: test.value });
+      case "address":
+        return t('{header} address {op} "{value}"', { header: headerLabel(test.header), op: opLabel(test.op), value: test.value });
+      case "size":
+        return test.op === "over"
+          ? t("size is over {n} KB", { n: Math.round(test.value / 1024) })
+          : t("size is under {n} KB", { n: Math.round(test.value / 1024) });
+      case "body":
+        return test.op === "contains"
+          ? t('body contains "{value}"', { value: test.value })
+          : t('body does not contain "{value}"', { value: test.value });
+      case "true":
+        return t("always");
+    }
+  });
+
+  const actions = r.actions.map((a) => {
+    switch (a.type) {
+      case "fileinto":   return t("move to {folder}", { folder: a.mailbox });
+      case "redirect":   return t("forward to {address}", { address: a.address });
+      case "discard":    return t("delete it");
+      case "keep":       return t("keep it");
+      case "reject":     return t("reject it");
+      case "markread":   return t("mark it read");
+      case "flag":       return t("star it");
+      case "addflag":
+      case "setflag":    return t("add {flag}", { flag: a.flag });
+      case "removeflag": return t("remove {flag}", { flag: a.flag });
+      case "stop":       return t("stop");
+    }
+  });
+
+  return t("{tests} → {actions}", {
+    tests: tests.length ? formatList(tests, r.join === "allof" ? "conjunction" : "disjunction") : t("always"),
+    actions: formatList(actions, "conjunction"),
+  });
 }
