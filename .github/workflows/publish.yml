@@ -192,3 +192,11 @@ jobs:
           docker buildx imagetools create "${tags[@]}" "${refs[@]}"
       - name: Show what landed
         run: docker buildx imagetools inspect "${IMAGE}:${{ needs.version.outputs.docker_tag }}"
+
+  # Runs only after a successful publish, because that is the only moment the
+  # package grows. See cleanup.yml for why this is not the obvious one-liner.
+  prune:
+    needs: publish
+    permissions:
+      packages: write
+    uses: ./.github/workflows/cleanup.yml
