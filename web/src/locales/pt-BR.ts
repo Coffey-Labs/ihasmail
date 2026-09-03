@@ -1237,8 +1237,33 @@ export const catalog: Catalog = {
     "{count} folders": "{count} pastas",
     "{name}’s birthday": "Aniversário de {name}",
     "{name}’s birthday ({age})": "Aniversário de {name} ({age})",
+    // ── Third pass ──────────────────────────────────────────────────────
+    // Sentences that lib/ and store/ were building in English, and the two
+    // swipe labels that reach t() through a variable and so were invisible
+    // to a scan for t("literal"). See #259.
+    "A read receipt was already sent for this message.": "Já foi enviada uma confirmação de leitura para esta mensagem.",
+    "Add star": "Favoritar",
+    "Could not attach": "Não foi possível anexar",
+    "Delete forever?": "Excluir definitivamente?",
+    "Delete?": "Excluir?",
+    "No recipients": "Sem destinatários",
+    "No sending identity available": "Nenhuma identidade de envio disponível",
+    "Pick a date and time.": "Escolha uma data e uma hora.",
+    "Pick a time at least a minute from now.": "Escolha um horário pelo menos um minuto à frente.",
+    "Remove star": "Remover dos favoritos",
+    "Requested, to {address}. Never sent automatically.": "Solicitada, para {address}. Nunca é enviada automaticamente.",
+    "The sender did not request a read receipt.": "O remetente não solicitou confirmação de leitura.",
+    "This is bulk or list mail; read receipts for it only confirm the address is live.": "Isto é correio em massa ou de lista; uma confirmação de leitura apenas confirmaria que o endereço está ativo.",
+    "This message has not been received, so there is nothing to report.": "Esta mensagem não foi recebida, então não há nada a informar.",
+    "This message was sent automatically, so no read receipt is offered.": "Esta mensagem foi enviada automaticamente, então não há confirmação de leitura a oferecer.",
+    "This server will not hold a message longer than {span}.": "Este servidor não retém uma mensagem por mais de {span}.",
+    "Upload failed": "Falha no envio",
   },
   plurals: {
+    // ── Third pass ─────────────────────────────────────────────────────
+    "Move {n} messages to Trash?": { one: "Mover {n} mensagem para a Lixeira?", other: "Mover {n} mensagens para a Lixeira?" },
+    "{n} days": { one: "{n} dia", other: "{n} dias" },
+    "{n} hours": { one: "{n} hora", other: "{n} horas" },
     "Updated {n} contacts, nothing new": { one: "{n} contato atualizado, nada novo", other: "{n} contatos atualizados, nada novo" },
     "{n} updated": { one: "{n} atualizado", other: "{n} atualizados" },
     "Updated {n} contacts you already had": { one: "Contato que você já tinha atualizado", other: "{n} contatos que você já tinha atualizados" },
