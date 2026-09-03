@@ -337,7 +337,7 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
               {e["header:List-Id:asText"] && <><dt>{translate("List")}</dt><dd>{e["header:List-Id:asText"]}</dd></>}
               <dt>{translate("Size")}</dt><dd>{formatSize(e.size)}</dd>
               {spam && <><dt>{translate("Spam filter")}</dt><dd><SpamSummary report={spam} /></dd></>}
-              {receiptRequested && <><dt>{translate("Receipt")}</dt><dd>{receipt.offer ? `Requested, to ${receipt.to!.email}. Never sent automatically.` : refusalText(receipt.refusal!)}</dd></>}
+              {receiptRequested && <><dt>{translate("Receipt")}</dt><dd>{receipt.offer ? translate("Requested, to {address}. Never sent automatically.", { address: receipt.to!.email }) : translate(refusalText(receipt.refusal!))}</dd></>}
             </dl>
           )}
           {receipt.offer && settings.readReceiptPolicy !== "never" && receiptDone !== "dismissed" && (

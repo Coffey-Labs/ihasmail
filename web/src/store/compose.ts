@@ -466,7 +466,7 @@ export const useCompose = create<ComposeState>((set, get) => ({
           onProgress: (loaded, total) => patchAtt(key, a.id, { progress: Math.round((loaded / total) * 100) }, set),
         })
         .then((res) => patchAtt(key, a.id, { blobId: res.blobId, progress: 100, type: res.type || a.type, size: res.size }, set))
-        .catch((err) => patchAtt(key, a.id, { error: (err as Error).message || "Upload failed" }, set));
+        .catch((err) => patchAtt(key, a.id, { error: (err as Error).message || translate("Upload failed") }, set));
     }
   },
 
@@ -524,7 +524,7 @@ export const useCompose = create<ComposeState>((set, get) => ({
         const up = await client.upload(accountId, blob, { type: a.type });
         patchAtt(key, a.id, { blobId: up.blobId, progress: 100, size: up.size || a.size }, set);
       } catch (err) {
-        patchAtt(key, a.id, { error: (err as Error).message || "Could not attach" }, set);
+        patchAtt(key, a.id, { error: (err as Error).message || translate("Could not attach") }, set);
       }
     }
   },
@@ -568,7 +568,7 @@ export const useCompose = create<ComposeState>((set, get) => ({
         toast.success(scheduling ? translate("Send scheduled for {when}", { when: formatScheduleTime(new Date(d.sendAt!)) }) : translate("Message sent"));
       } catch (err) {
         toast.error(translate("Send failed: {error}", { error: (err as Error).message }), {
-          action: { label: "Open draft", onClick: () => set((s) => ({ drafts: [...s.drafts, { ...d, sending: false, error: (err as Error).message }], activeKey: d.key })) },
+          action: { label: translate("Open draft"), onClick: () => set((s) => ({ drafts: [...s.drafts, { ...d, sending: false, error: (err as Error).message }], activeKey: d.key })) },
           duration: 15000,
         });
       }
@@ -580,7 +580,7 @@ export const useCompose = create<ComposeState>((set, get) => ({
       await doSend();
       return;
     }
-    const toastId = toast.show("Sending…", { duration: delay * 1000, progress: true, action: { label: "Undo", onClick: () => get().undoSend(key) } });
+    const toastId = toast.show(translate("Sending…"), { duration: delay * 1000, progress: true, action: { label: translate("Undo"), onClick: () => get().undoSend(key) } });
     const timer = window.setTimeout(() => void doSend(), delay * 1000);
     set((s) => ({ pendingSends: { ...s.pendingSends, [key]: { timer, toastId, draft: d } } }));
   },
@@ -689,7 +689,7 @@ export async function buildEmailObject(d: Draft, opts: { forSend: boolean; mailb
   const mail = useMail.getState();
   const accountId = mail.accountId!;
   const ident = mail.identities.find((i) => i.id === d.identityId) ?? mail.identities[0];
-  if (!ident) throw new Error("No sending identity available");
+  if (!ident) throw new Error(translate("No sending identity available"));
   const from: EmailAddress = { name: ident.name || null, email: ident.email };
 
   let html = d.format === "html" ? d.html : "";
@@ -869,15 +869,15 @@ async function sendInternal(d: Draft, _get: () => ComposeState): Promise<void> {
   const mail = useMail.getState();
   const accountId = mail.accountId!;
   const ident = mail.identities.find((i) => i.id === d.identityId) ?? mail.identities[0];
-  if (!ident) throw new Error("No sending identity available");
-  if (d.attachments.some((a) => !a.blobId && !a.error)) throw new Error("Attachments are still uploading");
+  if (!ident) throw new Error(translate("No sending identity available"));
+  if (d.attachments.some((a) => !a.blobId && !a.error)) throw new Error(translate("Attachments are still uploading"));
   const scheduled = d.sendAt !== null && d.sendAt > Date.now();
   const scheduledId = scheduled ? await ensureScheduledMailbox() : null;
   const email = await buildEmailObject(d, { forSend: true, mailboxId: scheduledId });
   const sentId = mail.roleId("sent");
   const draftsId = mail.roleId("drafts");
   const rcpts = uniqueAddresses([...d.to, ...d.cc, ...d.bcc]).map((a) => ({ email: a.email }));
-  if (!rcpts.length) throw new Error("No recipients");
+  if (!rcpts.length) throw new Error(translate("No recipients"));
   const sub = buildSubmission({
     identityId: ident.id,
     fromEmail: ident.email,
