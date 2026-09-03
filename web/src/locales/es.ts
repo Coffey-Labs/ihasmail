@@ -1234,8 +1234,33 @@ export const catalog: Catalog = {
     "{count} folders": "{count} carpetas",
     "{name}’s birthday": "Cumpleaños de {name}",
     "{name}’s birthday ({age})": "Cumpleaños de {name} ({age})",
+    // ── Third pass ──────────────────────────────────────────────────────
+    // Sentences that lib/ and store/ were building in English, and the two
+    // swipe labels that reach t() through a variable and so were invisible
+    // to a scan for t("literal"). See #259.
+    "A read receipt was already sent for this message.": "Ya se envió una confirmación de lectura para este mensaje.",
+    "Add star": "Destacar",
+    "Could not attach": "No se pudo adjuntar",
+    "Delete forever?": "¿Eliminar definitivamente?",
+    "Delete?": "¿Eliminar?",
+    "No recipients": "Sin destinatarios",
+    "No sending identity available": "No hay ninguna identidad de envío disponible",
+    "Pick a date and time.": "Elija una fecha y una hora.",
+    "Pick a time at least a minute from now.": "Elija una hora al menos un minuto posterior a ahora.",
+    "Remove star": "Quitar de destacados",
+    "Requested, to {address}. Never sent automatically.": "Solicitada, a {address}. Nunca se envía automáticamente.",
+    "The sender did not request a read receipt.": "El remitente no solicitó confirmación de lectura.",
+    "This is bulk or list mail; read receipts for it only confirm the address is live.": "Es correo masivo o de lista; una confirmación de lectura solo confirmaría que la dirección está activa.",
+    "This message has not been received, so there is nothing to report.": "Este mensaje no se ha recibido, así que no hay nada que informar.",
+    "This message was sent automatically, so no read receipt is offered.": "Este mensaje se envió automáticamente, así que no se ofrece confirmación de lectura.",
+    "This server will not hold a message longer than {span}.": "Este servidor no retiene un mensaje más de {span}.",
+    "Upload failed": "Error al subir",
   },
   plurals: {
+    // ── Third pass ─────────────────────────────────────────────────────
+    "Move {n} messages to Trash?": { one: "¿Mover {n} mensaje a la Papelera?", other: "¿Mover {n} mensajes a la Papelera?" },
+    "{n} days": { one: "{n} día", other: "{n} días" },
+    "{n} hours": { one: "{n} hora", other: "{n} horas" },
     "Updated {n} contacts, nothing new": { one: "{n} contacto actualizado, nada nuevo", other: "{n} contactos actualizados, nada nuevo" },
     "{n} updated": { one: "{n} actualizado", other: "{n} actualizados" },
     "Updated {n} contacts you already had": { one: "Se actualizó el contacto que ya tenías", other: "Se actualizaron {n} contactos que ya tenías" },
