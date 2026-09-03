@@ -60,7 +60,7 @@ export function CalendarSettings() {
           <div style={{ marginTop: 8 }}><ColorSwatches value={c.color} onChange={(col) => update({ eventCategories: s.eventCategories.map((x, j) => (j === i ? { ...x, color: col } : x)) })} /></div>
         </div>
       ))}
-      <button className="btn mb-16" onClick={async () => { const n = await promptDialog({ title: "New category", placeholder: "Name" }); if (n?.trim() && !s.eventCategories.some((c) => c.name.toLowerCase() === n.trim().toLowerCase())) update({ eventCategories: [...s.eventCategories, { name: n.trim(), color: CALENDAR_COLORS[s.eventCategories.length % CALENDAR_COLORS.length]! }] }); }}><Plus size={16} />  {t("New category")}</button>
+      <button className="btn mb-16" onClick={async () => { const n = await promptDialog({ title: t("New category"), placeholder: t("Name") }); if (n?.trim() && !s.eventCategories.some((c) => c.name.toLowerCase() === n.trim().toLowerCase())) update({ eventCategories: [...s.eventCategories, { name: n.trim(), color: CALENDAR_COLORS[s.eventCategories.length % CALENDAR_COLORS.length]! }] }); }}><Plus size={16} />  {t("New category")}</button>
 
       <h2>{t("Subscribed calendars")}</h2>
       <p className="hint" style={{ marginTop: -8 }}>
