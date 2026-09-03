@@ -1,0 +1,155 @@
+# Cut a release once a week, but only if there is something in it.
+#
+# Releases had drifted 184 commits behind main, which made `:latest` describe
+# a build nobody was running -- the demo, prod and anyone building from source
+# were all ahead of it. Publishing on release is the right trigger only if
+# releases actually happen, so this is the part that makes that true without
+# anyone having to remember.
+#
+# It does nothing on a quiet week. A release with no commits in it is worse
+# than no release: it moves `:latest` to an identical build, spends a version
+# number, and mails everybody watching the repository about nothing.
+name: Weekly release
+
+on:
+  schedule:
+    # Mondays, 09:00 UTC. GitHub runs scheduled jobs on a best-effort basis and
+    # can delay a run by a good while when the queue is busy, so do not read
+    # the exact minute as a promise. Note also that GitHub disables scheduled
+    # workflows in a repository with no activity for 60 days -- not a concern
+    # while this one is being worked on weekly, but it is why a silent stop is
+    # worth checking for before assuming the file is broken.
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Work out what would be released, then stop"
+        type: boolean
+        default: false
+
+# One at a time. Two overlapping runs would race to create the same tag, and
+# the loser fails noisily for a reason that has nothing to do with the code.
+concurrency:
+  group: weekly-release
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      should_release: ${{ steps.decide.outputs.should_release }}
+      tag: ${{ steps.decide.outputs.tag }}
+      title: ${{ steps.decide.outputs.title }}
+      sha: ${{ steps.decide.outputs.sha }}
+      previous: ${{ steps.decide.outputs.previous }}
+      count: ${{ steps.decide.outputs.count }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - id: decide
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # The newest published release, or empty on a repository that has
+          # never had one -- in which case everything counts as new. Drafts are
+          # excluded: an unpublished draft is not a release anybody has, so
+          # counting from it would hide commits that have never shipped.
+          previous="$(gh release list --limit 1 --exclude-drafts --json tagName --jq '.[0].tagName // ""')"
+          # A tag named by a release is normally present after a full checkout,
+          # but a release can outlive its tag. Falling back to the whole
+          # history is the safe direction to be wrong in: it over-counts, which
+          # cuts a release that was due anyway, where under-counting would skip
+          # one that was.
+          if [ -n "$previous" ] && git rev-parse -q --verify "refs/tags/${previous}" >/dev/null; then
+            count="$(git rev-list --count "${previous}..HEAD")"
+          else
+            count="$(git rev-list --count HEAD)"
+          fi
+
+          version="$(node scripts/version.mjs)"
+          # A Docker tag may not contain '+', and neither should the git tag,
+          # so the two always agree about what to call a build.
+          tag="v${version/+/-}"
+          title="v${version%%+*}"
+          sha="$(git rev-parse HEAD)"
+
+          should_release=true
+          reason=""
+          if [ "$count" -eq 0 ]; then
+            should_release=false
+            reason="no commits since ${previous}"
+          elif git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
+            # Same commit, different week: the version is derived from the
+            # commit, so nothing new means the tag already exists.
+            should_release=false
+            reason="tag ${tag} already exists"
+          fi
+
+          {
+            echo "should_release=$should_release"
+            echo "tag=$tag"
+            echo "title=$title"
+            echo "sha=$sha"
+            echo "previous=$previous"
+            echo "count=$count"
+          } >> "$GITHUB_OUTPUT"
+
+          # Written to the run summary so a skipped week reads as a decision
+          # rather than as a workflow that quietly did nothing.
+          {
+            echo "### Weekly release"
+            echo
+            if [ "$should_release" = "true" ]; then
+              echo "Releasing **${tag}** — ${count} commit(s) since ${previous:-the beginning}."
+            else
+              echo "Nothing to release: ${reason}."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  cut:
+    needs: check
+    if: needs.check.outputs.should_release == 'true' && !inputs.dry_run
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          args=(--target "${{ needs.check.outputs.sha }}"
+                --title "${{ needs.check.outputs.title }}"
+                --generate-notes)
+          # Bound the notes to what is actually new. Without a start tag the
+          # generator reaches back to whatever it decides is previous, which on
+          # a repository with older tag shapes is not always the last release.
+          if [ -n "${{ needs.check.outputs.previous }}" ]; then
+            args+=(--notes-start-tag "${{ needs.check.outputs.previous }}")
+          fi
+          gh release create "${{ needs.check.outputs.tag }}" "${args[@]}"
+
+  # Called rather than left to the `release` trigger on purpose: see the note
+  # at the top of publish.yml. A release created with GITHUB_TOKEN raises no
+  # event, so without this the tag would exist and no image would follow it.
+  publish:
+    needs: [check, cut]
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/publish.yml
+    with:
+      ref: ${{ needs.check.outputs.sha }}
+      tag_latest: true
