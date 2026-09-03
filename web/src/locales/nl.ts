@@ -1230,8 +1230,33 @@ export const catalog: Catalog = {
     "{count} folders": "{count} mappen",
     "{name}’s birthday": "Verjaardag van {name}",
     "{name}’s birthday ({age})": "Verjaardag van {name} ({age})",
+    // ── Third pass ──────────────────────────────────────────────────────
+    // Sentences that lib/ and store/ were building in English, and the two
+    // swipe labels that reach t() through a variable and so were invisible
+    // to a scan for t("literal"). See #259.
+    "A read receipt was already sent for this message.": "Voor dit bericht is al een leesbevestiging verzonden.",
+    "Add star": "Ster toevoegen",
+    "Could not attach": "Kon niet bijvoegen",
+    "Delete forever?": "Definitief verwijderen?",
+    "Delete?": "Verwijderen?",
+    "No recipients": "Geen ontvangers",
+    "No sending identity available": "Geen verzendidentiteit beschikbaar",
+    "Pick a date and time.": "Kies een datum en tijd.",
+    "Pick a time at least a minute from now.": "Kies een tijd van minstens een minuut vanaf nu.",
+    "Remove star": "Ster verwijderen",
+    "Requested, to {address}. Never sent automatically.": "Gevraagd, aan {address}. Wordt nooit automatisch verzonden.",
+    "The sender did not request a read receipt.": "De afzender heeft geen leesbevestiging gevraagd.",
+    "This is bulk or list mail; read receipts for it only confirm the address is live.": "Dit is bulk- of lijstpost; een leesbevestiging bevestigt daarvoor alleen dat het adres actief is.",
+    "This message has not been received, so there is nothing to report.": "Dit bericht is niet ontvangen, dus er valt niets te melden.",
+    "This message was sent automatically, so no read receipt is offered.": "Dit bericht is automatisch verzonden, dus er wordt geen leesbevestiging aangeboden.",
+    "This server will not hold a message longer than {span}.": "Deze server houdt een bericht niet langer dan {span} vast.",
+    "Upload failed": "Uploaden mislukt",
   },
   plurals: {
+    // ── Third pass ─────────────────────────────────────────────────────
+    "Move {n} messages to Trash?": { one: "{n} bericht naar de Prullenbak verplaatsen?", other: "{n} berichten naar de Prullenbak verplaatsen?" },
+    "{n} days": { one: "{n} dag", other: "{n} dagen" },
+    "{n} hours": { one: "{n} uur", other: "{n} uur" },
     "Updated {n} contacts, nothing new": { one: "{n} contact bijgewerkt, niets nieuws", other: "{n} contacten bijgewerkt, niets nieuws" },
     "{n} updated": { one: "{n} bijgewerkt", other: "{n} bijgewerkt" },
     "Updated {n} contacts you already had": { one: "Bestaand contact bijgewerkt", other: "{n} bestaande contacten bijgewerkt" },
