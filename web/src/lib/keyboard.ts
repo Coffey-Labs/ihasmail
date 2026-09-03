@@ -54,9 +54,7 @@ class Keyboard {
     // Let modal dialogs and popovers handle their own keys (Escape, arrows, ...).
     if (document.querySelector(".dialog-backdrop, .popover")) return;
     const target = e.target as HTMLElement | null;
-    const inInput =
-      !!target &&
-      (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable);
+    const inInput = isTextEntry(target);
     const combo = comboOf(e);
     if (!combo) return;
 
@@ -100,6 +98,38 @@ class Keyboard {
     if (this.prefixTimer) window.clearTimeout(this.prefixTimer);
     this.prefixTimer = null;
   }
+}
+
+/**
+ * Is the focused element somewhere the reader is typing?
+ *
+ * This guard exists so that pressing "a" in the search box searches for "a"
+ * rather than archiving the message behind it. The test used to be
+ * `tagName === "INPUT"`, which is true of a checkbox — and a checkbox keeps
+ * focus after you click it, so ticking "select all" silently disabled every
+ * shortcut until the reader clicked somewhere else (#260). Nothing about a
+ * checkbox swallows a keystroke: space toggles it and the browser handles
+ * that before this listener ever runs.
+ *
+ * So the question is not "is this an input" but "does this input take text".
+ * A `<select>` does, in the sense that matters here: typing a letter jumps to
+ * the option beginning with it, which a shortcut would steal.
+ */
+const TEXT_ENTRY_TYPES = new Set([
+  "text", "search", "email", "url", "tel", "password", "number",
+  "date", "datetime-local", "month", "time", "week",
+]);
+
+export function isTextEntry(el: Element | null): boolean {
+  if (!el) return false;
+  const node = el as HTMLElement;
+  if (node.isContentEditable) return true;
+  const tag = node.tagName;
+  if (tag === "TEXTAREA" || tag === "SELECT") return true;
+  if (tag !== "INPUT") return false;
+  // An <input> with no type attribute is a text field.
+  const type = (node as HTMLInputElement).type?.toLowerCase() || "text";
+  return TEXT_ENTRY_TYPES.has(type);
 }
 
 const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
