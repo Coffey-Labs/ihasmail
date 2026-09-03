@@ -1291,8 +1291,20 @@ export const catalog: Catalog = {
     "{header} {op} \"{value}\"": "{header} {op} \"{value}\"",
     "{rule}, until {date}": "{rule}, hasta el {date}",
     "{tests} → {actions}": "{tests} → {actions}",
+    // ── Third pass ──────────────────────────────────────────────────────
+    // Sentences that lib/ and store/ were building in English, and the two
+    // swipe labels that reach t() through a variable and so were invisible
+    // to a scan for t("literal"). See #259.
   },
   plurals: {
+    // ── Third pass ─────────────────────────────────────────────────────
+    "Delete {n} items": { one: "Eliminar {n} elemento", other: "Eliminar {n} elementos" },
+    "Delete {n} items?": { one: "¿Eliminar {n} elemento?", other: "¿Eliminar {n} elementos?" },
+    "Move {n} items": { one: "Mover {n} elemento", other: "Mover {n} elementos" },
+    "Move {n} items…": { one: "Mover {n} elemento…", other: "Mover {n} elementos…" },
+    "The event runs {n} days longer than this shows.": { one: "El evento dura {n} día más de lo que se muestra aquí.", other: "El evento dura {n} días más de lo que se muestra aquí." },
+    "{n} guests are not on this server, so there is no free/busy to read for them.": { one: "{n} invitado no está en este servidor, así que no hay información de libre/ocupado para él.", other: "{n} invitados no están en este servidor, así que no hay información de libre/ocupado para ellos." },
+    "{n} items selected": { one: "{n} elemento seleccionado", other: "{n} elementos seleccionados" },
     // ── Third pass ─────────────────────────────────────────────────────
     "Every {n} days": { one: "Cada día", other: "Cada {n} días" },
     "Every {n} months": { one: "Cada mes", other: "Cada {n} meses" },

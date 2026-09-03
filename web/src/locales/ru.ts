@@ -1293,8 +1293,20 @@ export const catalog: Catalog = {
     "{header} {op} \"{value}\"": "{header} {op} \"{value}\"",
     "{rule}, until {date}": "{rule}, до {date}",
     "{tests} → {actions}": "{tests} → {actions}",
+    // ── Third pass ──────────────────────────────────────────────────────
+    // Sentences that lib/ and store/ were building in English, and the two
+    // swipe labels that reach t() through a variable and so were invisible
+    // to a scan for t("literal"). See #259.
   },
   plurals: {
+    // ── Third pass ─────────────────────────────────────────────────────
+    "Delete {n} items": { one: "Удалить {n} объект", few: "Удалить {n} объекта", many: "Удалить {n} объектов", other: "Удалить {n} объекта" },
+    "Delete {n} items?": { one: "Удалить {n} объект?", few: "Удалить {n} объекта?", many: "Удалить {n} объектов?", other: "Удалить {n} объекта?" },
+    "Move {n} items": { one: "Переместить {n} объект", few: "Переместить {n} объекта", many: "Переместить {n} объектов", other: "Переместить {n} объекта" },
+    "Move {n} items…": { one: "Переместить {n} объект…", few: "Переместить {n} объекта…", many: "Переместить {n} объектов…", other: "Переместить {n} объекта…" },
+    "The event runs {n} days longer than this shows.": { one: "Событие длится на {n} день дольше, чем показано здесь.", few: "Событие длится на {n} дня дольше, чем показано здесь.", many: "Событие длится на {n} дней дольше, чем показано здесь.", other: "Событие длится на {n} дня дольше, чем показано здесь." },
+    "{n} guests are not on this server, so there is no free/busy to read for them.": { one: "{n} участник не на этом сервере, поэтому сведений о занятости для него нет.", few: "{n} участника не на этом сервере, поэтому сведений о занятости для них нет.", many: "{n} участников не на этом сервере, поэтому сведений о занятости для них нет.", other: "{n} участника не на этом сервере, поэтому сведений о занятости для них нет." },
+    "{n} items selected": { one: "Выбран {n} объект", few: "Выбрано {n} объекта", many: "Выбрано {n} объектов", other: "Выбрано {n} объекта" },
     // ── Third pass ─────────────────────────────────────────────────────
     "Every {n} days": { one: "Каждый день", few: "Каждые {n} дня", many: "Каждые {n} дней", other: "Каждые {n} дня" },
     "Every {n} months": { one: "Каждый месяц", few: "Каждые {n} месяца", many: "Каждые {n} месяцев", other: "Каждые {n} месяца" },
