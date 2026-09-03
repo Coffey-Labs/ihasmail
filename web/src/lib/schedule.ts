@@ -13,6 +13,7 @@
  */
 import { addDays, startOfDay } from "./dates";
 import { formatFullDateTime } from "./datetime";
+import { plural, t } from "@/lib/i18n";
 
 export const SUBMISSION_CAP = "urn:ietf:params:jmap:submission";
 
@@ -96,21 +97,27 @@ export function schedulePresets(now: Date, maxMs: number): SchedulePreset[] {
  * surfaces as a failed send rather than anything the user can act on.
  */
 export function scheduleError(at: Date, now: Date, maxMs: number): string | null {
-  const t = at.getTime();
-  if (Number.isNaN(t)) return "Pick a date and time.";
-  if (t < now.getTime() + MIN_LEAD_MS) return "Pick a time at least a minute from now.";
-  if (maxMs > 0 && t > now.getTime() + maxMs) {
-    return `This server will not hold a message longer than ${describeSpan(maxMs)}.`;
+  const ms = at.getTime();
+  if (Number.isNaN(ms)) return t("Pick a date and time.");
+  if (ms < now.getTime() + MIN_LEAD_MS) return t("Pick a time at least a minute from now.");
+  if (maxMs > 0 && ms > now.getTime() + maxMs) {
+    return t("This server will not hold a message longer than {span}.", { span: describeSpan(maxMs) });
   }
   return null;
 }
 
-/** "30 days", "7 days", "12 hours" -- for explaining the server's own limit. */
+/**
+ * "30 days", "7 days", "12 hours" -- for explaining the server's own limit.
+ *
+ * plural() rather than `day${n === 1 ? "" : "s"}`: that suffix trick is English
+ * grammar written into the code, and it produces "2 Tage" only by accident of
+ * the two languages agreeing. Russian needs three forms and Japanese one.
+ */
 export function describeSpan(ms: number): string {
   const days = Math.floor(ms / 86_400_000);
-  if (days >= 1) return `${days} day${days === 1 ? "" : "s"}`;
+  if (days >= 1) return plural(days, { one: "{n} day", other: "{n} days" });
   const hours = Math.max(1, Math.floor(ms / 3_600_000));
-  return `${hours} hour${hours === 1 ? "" : "s"}`;
+  return plural(hours, { one: "{n} hour", other: "{n} hours" });
 }
 
 /** How a scheduled time reads in menus, banners and toasts. */

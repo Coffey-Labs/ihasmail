@@ -18,7 +18,7 @@ export function ScheduleMenuItems({ maxMs, onPick, onCustom }: { maxMs: number; 
       <MenuSep />
       <MenuTitle>{t("Schedule send")}</MenuTitle>
       {presets.map((p) => (
-        <MenuItem key={p.id} icon={<Clock size={16} />} label={p.label} kbd={formatScheduleTime(p.at)} onClick={() => onPick(p.at)} />
+        <MenuItem key={p.id} icon={<Clock size={16} />} label={t(p.label)} kbd={formatScheduleTime(p.at)} onClick={() => onPick(p.at)} />
       ))}
       <MenuItem icon={<Clock size={16} />} label={t("Pick date and time…")} onClick={onCustom} />
     </>
