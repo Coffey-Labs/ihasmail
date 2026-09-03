@@ -1261,8 +1261,33 @@ export const catalog: Catalog = {
     "{count} folders": "{count} Ordner",
     "{name}’s birthday": "Geburtstag von {name}",
     "{name}’s birthday ({age})": "Geburtstag von {name} ({age})",
+    // ── Third pass ──────────────────────────────────────────────────────
+    // Sentences that lib/ and store/ were building in English, and the two
+    // swipe labels that reach t() through a variable and so were invisible
+    // to a scan for t("literal"). See #259.
+    "A read receipt was already sent for this message.": "Für diese Nachricht wurde bereits eine Lesebestätigung gesendet.",
+    "Add star": "Markierung hinzufügen",
+    "Could not attach": "Anhängen nicht möglich",
+    "Delete forever?": "Endgültig löschen?",
+    "Delete?": "Löschen?",
+    "No recipients": "Keine Empfänger",
+    "No sending identity available": "Keine Absenderidentität verfügbar",
+    "Pick a date and time.": "Wählen Sie Datum und Uhrzeit.",
+    "Pick a time at least a minute from now.": "Wählen Sie eine Zeit mindestens eine Minute in der Zukunft.",
+    "Remove star": "Markierung entfernen",
+    "Requested, to {address}. Never sent automatically.": "Angefordert, an {address}. Wird nie automatisch gesendet.",
+    "The sender did not request a read receipt.": "Der Absender hat keine Lesebestätigung angefordert.",
+    "This is bulk or list mail; read receipts for it only confirm the address is live.": "Dies ist Massen- oder Listenpost; eine Lesebestätigung würde nur bestätigen, dass die Adresse aktiv ist.",
+    "This message has not been received, so there is nothing to report.": "Diese Nachricht wurde nicht empfangen, es gibt also nichts zu melden.",
+    "This message was sent automatically, so no read receipt is offered.": "Diese Nachricht wurde automatisch versendet, daher wird keine Lesebestätigung angeboten.",
+    "This server will not hold a message longer than {span}.": "Dieser Server hält eine Nachricht nicht länger als {span} zurück.",
+    "Upload failed": "Hochladen fehlgeschlagen",
   },
   plurals: {
+    // ── Third pass ─────────────────────────────────────────────────────
+    "Move {n} messages to Trash?": { one: "{n} Nachricht in den Papierkorb verschieben?", other: "{n} Nachrichten in den Papierkorb verschieben?" },
+    "{n} days": { one: "{n} Tag", other: "{n} Tage" },
+    "{n} hours": { one: "{n} Stunde", other: "{n} Stunden" },
     "Updated {n} contacts, nothing new": { one: "{n} Kontakt aktualisiert, nichts Neues", other: "{n} Kontakte aktualisiert, nichts Neues" },
     "{n} updated": { one: "{n} aktualisiert", other: "{n} aktualisiert" },
     "Updated {n} contacts you already had": { one: "Vorhandenen Kontakt aktualisiert", other: "{n} vorhandene Kontakte aktualisiert" },
