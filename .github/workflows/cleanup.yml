@@ -1,0 +1,68 @@
+# Prune old image versions from GHCR.
+#
+# Releases are kept forever -- they carry no assets and their generated notes
+# are this project's only changelog, so deleting one destroys history that
+# cannot be reconstructed for nothing saved. Images are the opposite: a
+# multi-arch build a week, and the by-digest push in publish.yml leaves two
+# untagged per-architecture manifests behind each time on top of the tagged
+# index. Those accumulate and nobody wants fifty of them.
+#
+# THE FOOTGUN: the obvious tool for this -- delete-package-versions with
+# `delete-only-untagged-versions` -- will happily delete the per-architecture
+# manifests that a multi-arch tag points *at*, because they are untagged by
+# design. Nothing appears to break: the tag still exists, and pulls simply
+# start failing for one architecture. This action understands manifest lists
+# and will not orphan a retained index, and `validate` re-checks every
+# multi-arch manifest against the registry afterwards.
+#
+# Separate from publish.yml, and dispatchable on its own, so `dry_run` can show
+# exactly what would be deleted without rebuilding and re-pushing an image to
+# find out.
+name: Prune images
+
+on:
+  workflow_call:
+    inputs:
+      dry_run:
+        type: boolean
+        default: false
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "List what would be deleted, delete nothing"
+        type: boolean
+        default: true
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      # Pinned to a commit rather than a moving major tag. This action is
+      # handed `packages: write` and its whole job is deletion, so a tag
+      # repointed at something else -- by a compromise or a mistake upstream --
+      # is a bad day. v1.2.2.
+      - uses: dataaxiom/ghcr-cleanup-action@d52806a0dc70b430571a37da1fde39733ffd640f
+        with:
+          owner: Coffey-Labs
+          package: ihasmail
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # Ten weekly releases is roughly a quarter of history, which is more
+          # than enough to roll back to and far less than the year's worth that
+          # would otherwise pile up. Older *releases* stay either way; this
+          # only removes the images.
+          keep-n-tagged: 10
+          # Belt and braces on top of the action's own manifest awareness:
+          # `latest` is never a candidate for deletion under any counting.
+          exclude-tags: latest
+          delete-untagged: true
+          # Sweeps the wreckage of a half-failed run: an index whose platform
+          # images did not all land, and referrers whose parent is gone.
+          delete-partial-images: true
+          delete-orphaned-images: true
+          # Checks every remaining multi-architecture manifest still resolves
+          # in the registry. This is the step that would catch the footgun
+          # above rather than leaving a reader to discover it on `docker pull`.
+          validate: true
+          dry-run: ${{ inputs.dry_run }}
