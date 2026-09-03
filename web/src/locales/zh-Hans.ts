@@ -1298,8 +1298,20 @@ export const catalog: Catalog = {
     "{header} {op} \"{value}\"": "{header} {op} \"{value}\"",
     "{rule}, until {date}": "{rule}，直到 {date}",
     "{tests} → {actions}": "{tests} → {actions}",
+    // ── Third pass ──────────────────────────────────────────────────────
+    // Sentences that lib/ and store/ were building in English, and the two
+    // swipe labels that reach t() through a variable and so were invisible
+    // to a scan for t("literal"). See #259.
   },
   plurals: {
+    // ── Third pass ─────────────────────────────────────────────────────
+    "Delete {n} items": { other: "删除 {n} 个项目" },
+    "Delete {n} items?": { other: "要删除 {n} 个项目吗？" },
+    "Move {n} items": { other: "移动 {n} 个项目" },
+    "Move {n} items…": { other: "移动 {n} 个项目…" },
+    "The event runs {n} days longer than this shows.": { other: "此活动比这里显示的时间长 {n} 天。" },
+    "{n} guests are not on this server, so there is no free/busy to read for them.": { other: "有 {n} 位与会者不在此服务器上，因此无法读取他们的空闲/忙碌信息。" },
+    "{n} items selected": { other: "已选择 {n} 个项目" },
     // ── Third pass ─────────────────────────────────────────────────────
     "Every {n} days": { other: "每 {n} 天" },
     "Every {n} months": { other: "每 {n} 个月" },

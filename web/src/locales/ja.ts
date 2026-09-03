@@ -1299,8 +1299,20 @@ export const catalog: Catalog = {
     "{header} {op} \"{value}\"": "{header} が \"{value}\" を{op}",
     "{rule}, until {date}": "{rule}（{date} まで）",
     "{tests} → {actions}": "{tests} → {actions}",
+    // ── Third pass ──────────────────────────────────────────────────────
+    // Sentences that lib/ and store/ were building in English, and the two
+    // swipe labels that reach t() through a variable and so were invisible
+    // to a scan for t("literal"). See #259.
   },
   plurals: {
+    // ── Third pass ─────────────────────────────────────────────────────
+    "Delete {n} items": { other: "{n} 件を削除" },
+    "Delete {n} items?": { other: "{n} 件を削除しますか？" },
+    "Move {n} items": { other: "{n} 件を移動" },
+    "Move {n} items…": { other: "{n} 件を移動…" },
+    "The event runs {n} days longer than this shows.": { other: "この予定は表示よりも {n} 日長く続きます。" },
+    "{n} guests are not on this server, so there is no free/busy to read for them.": { other: "{n} 名の参加者はこのサーバーにいないため、空き情報を取得できません。" },
+    "{n} items selected": { other: "{n} 件を選択中" },
     // ── Third pass ─────────────────────────────────────────────────────
     "Every {n} days": { other: "{n} 日ごと" },
     "Every {n} months": { other: "{n} か月ごと" },

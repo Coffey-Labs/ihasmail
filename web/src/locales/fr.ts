@@ -1296,8 +1296,20 @@ export const catalog: Catalog = {
     "{header} {op} \"{value}\"": "{header} {op} \"{value}\"",
     "{rule}, until {date}": "{rule}, jusqu'au {date}",
     "{tests} → {actions}": "{tests} → {actions}",
+    // ── Third pass ──────────────────────────────────────────────────────
+    // Sentences that lib/ and store/ were building in English, and the two
+    // swipe labels that reach t() through a variable and so were invisible
+    // to a scan for t("literal"). See #259.
   },
   plurals: {
+    // ── Third pass ─────────────────────────────────────────────────────
+    "Delete {n} items": { one: "Supprimer {n} élément", other: "Supprimer {n} éléments" },
+    "Delete {n} items?": { one: "Supprimer {n} élément ?", other: "Supprimer {n} éléments ?" },
+    "Move {n} items": { one: "Déplacer {n} élément", other: "Déplacer {n} éléments" },
+    "Move {n} items…": { one: "Déplacer {n} élément…", other: "Déplacer {n} éléments…" },
+    "The event runs {n} days longer than this shows.": { one: "L'événement dure {n} jour de plus que ce qui est affiché ici.", other: "L'événement dure {n} jours de plus que ce qui est affiché ici." },
+    "{n} guests are not on this server, so there is no free/busy to read for them.": { one: "{n} invité n'est pas sur ce serveur, il n'y a donc pas de disponibilité à lire pour lui.", other: "{n} invités ne sont pas sur ce serveur, il n'y a donc pas de disponibilité à lire pour eux." },
+    "{n} items selected": { one: "{n} élément sélectionné", other: "{n} éléments sélectionnés" },
     // ── Third pass ─────────────────────────────────────────────────────
     "Every {n} days": { one: "Chaque jour", other: "Tous les {n} jours" },
     "Every {n} months": { one: "Chaque mois", other: "Tous les {n} mois" },
