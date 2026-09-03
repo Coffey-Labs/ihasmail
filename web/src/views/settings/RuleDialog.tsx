@@ -60,7 +60,7 @@ export function RuleDialog({ rule, onClose, onSave, applyMailbox, applyByDefault
               else if (v === "address") setTest(i, { type: "address", header: "from", part: "domain", op: "is", value: "" });
               else setTest(i, { type: "header", header: v === "__custom__" ? "" : v, op: "contains", value: "" });
             }}>
-              {HEADER_CHOICES.map((h) => <option key={h.value} value={h.value}>{h.label}</option>)}
+              {HEADER_CHOICES.map((h) => <option key={h.value} value={h.value}>{translate(h.label)}</option>)}
               <option value="address">{translate("Sender domain")}</option>
               <option value="size">{translate("Message size")}</option>
               <option value="body">{translate("Body text")}</option>
@@ -75,7 +75,7 @@ export function RuleDialog({ rule, onClose, onSave, applyMailbox, applyByDefault
               <select className="select" value={t.op} onChange={(e) => setTest(i, { ...t, op: e.target.value as "contains" | "notcontains" })}><option value="contains">{translate("contains")}</option><option value="notcontains">{translate("does not contain")}</option></select>
             ) : t.type === "true" ? <span /> : (
               <select className="select" value={t.op} onChange={(e) => setTest(i, { ...t, op: e.target.value as SieveTest extends { op: infer O } ? O : never })}>
-                {HEADER_OPS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                {HEADER_OPS.map((o) => <option key={o.value} value={o.value}>{translate(o.label)}</option>)}
               </select>
             )}
             {t.type === "size" ? (

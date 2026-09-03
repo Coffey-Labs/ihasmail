@@ -23,10 +23,20 @@ export interface PaletteMeta {
   name: string;
   /** Shown in Settings and in NOTICE; who to credit and under what. */
   credit?: string;
+  /**
+   * Whether the name is a word rather than a name.
+   *
+   * Five of these six are proper names -- ihasmail, Dracula, Gruvbox, Rosé
+   * Pine, Tokyo Night -- and are rendered translate="no" so a page translator
+   * leaves them alone. "Classic" is not a name, it is an adjective describing
+   * the theme, and a German reader should see "Klassisch". Reported by a
+   * native speaker reviewing the German catalogue (#247).
+   */
+  translatable?: boolean;
 }
 
 export const PALETTES: PaletteMeta[] = [
-  { id: "default", name: "Classic" },
+  { id: "default", name: "Classic", translatable: true },
   { id: "ihasmail", name: "ihasmail" },
   { id: "dracula", name: "Dracula", credit: "Dracula Theme (MIT) — dark: Dracula, light: Alucard" },
   { id: "gruvbox", name: "Gruvbox", credit: "gruvbox by morhetz (MIT)" },

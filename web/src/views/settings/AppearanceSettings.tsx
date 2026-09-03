@@ -75,7 +75,9 @@ export function AppearanceSettings() {
           return (
             <button key={p.id} className={`theme-card ${s.palette === p.id ? "active" : ""}`} onClick={() => update({ palette: p.id })}>
               <div className="preview" style={{ background: PALETTE_PREVIEW[p.id][shown] || PALETTE_PREVIEW[p.id].dark }} />
-              <span className="notranslate" translate="no">{p.name}</span>
+              {p.translatable
+                ? <span>{translate(p.name)}</span>
+                : <span className="notranslate" translate="no">{p.name}</span>}
             </button>
           );
         })}
