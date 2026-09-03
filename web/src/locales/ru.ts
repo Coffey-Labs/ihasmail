@@ -1236,8 +1236,33 @@ export const catalog: Catalog = {
     "{count} folders": "Папок: {count}",
     "{name}’s birthday": "День рождения: {name}",
     "{name}’s birthday ({age})": "День рождения: {name} ({age})",
+    // ── Third pass ──────────────────────────────────────────────────────
+    // Sentences that lib/ and store/ were building in English, and the two
+    // swipe labels that reach t() through a variable and so were invisible
+    // to a scan for t("literal"). See #259.
+    "A read receipt was already sent for this message.": "Уведомление о прочтении для этого письма уже отправлено.",
+    "Add star": "Отметить",
+    "Could not attach": "Не удалось вложить",
+    "Delete forever?": "Удалить навсегда?",
+    "Delete?": "Удалить?",
+    "No recipients": "Нет получателей",
+    "No sending identity available": "Нет доступного профиля отправителя",
+    "Pick a date and time.": "Выберите дату и время.",
+    "Pick a time at least a minute from now.": "Выберите время не меньше чем через минуту.",
+    "Remove star": "Снять отметку",
+    "Requested, to {address}. Never sent automatically.": "Запрошено, на {address}. Никогда не отправляется автоматически.",
+    "The sender did not request a read receipt.": "Отправитель не запрашивал уведомление о прочтении.",
+    "This is bulk or list mail; read receipts for it only confirm the address is live.": "Это массовая или списочная рассылка; уведомление о прочтении лишь подтвердит, что адрес действующий.",
+    "This message has not been received, so there is nothing to report.": "Это письмо не было получено, поэтому сообщать не о чем.",
+    "This message was sent automatically, so no read receipt is offered.": "Это письмо отправлено автоматически, поэтому уведомление о прочтении не предлагается.",
+    "This server will not hold a message longer than {span}.": "Этот сервер не удерживает письмо дольше чем {span}.",
+    "Upload failed": "Не удалось загрузить",
   },
   plurals: {
+    // ── Third pass ─────────────────────────────────────────────────────
+    "Move {n} messages to Trash?": { one: "Переместить {n} письмо в корзину?", few: "Переместить {n} письма в корзину?", many: "Переместить {n} писем в корзину?", other: "Переместить {n} письма в корзину?" },
+    "{n} days": { one: "{n} день", few: "{n} дня", many: "{n} дней", other: "{n} дня" },
+    "{n} hours": { one: "{n} час", few: "{n} часа", many: "{n} часов", other: "{n} часа" },
     "Updated {n} contacts, nothing new": { one: "Обновлён {n} контакт, новых нет", few: "Обновлено {n} контакта, новых нет", many: "Обновлено {n} контактов, новых нет", other: "Обновлено {n} контакта, новых нет" },
     "{n} updated": { one: "{n} обновлён", few: "{n} обновлено", many: "{n} обновлено", other: "{n} обновлено" },
     "Updated {n} contacts you already had": { one: "Обновлён контакт, который уже был", few: "Обновлено {n} контакта, которые уже были", many: "Обновлено {n} контактов, которые уже были", other: "Обновлено {n} контакта, которые уже были" },
