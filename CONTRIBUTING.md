@@ -48,6 +48,17 @@ For larger changes, please open an issue to discuss the approach **before** subm
    - Related issue number(s), if any
    - Screenshots/GIFs for UI changes
    - Any manual testing you performed
+8. **Add translations** for any new user-visible string. Nine languages ship
+   alongside English in `web/src/locales/`, and a missing key renders its
+   English source rather than failing — so an untranslated string is invisible
+   until somebody reading that language finds it. `npm run i18n:check` and
+   `node scripts/i18n-catalog-check.mjs` report where you stand; the catalogue
+   key for a plural is the `other` form. See [CLAUDE.md](CLAUDE.md).
+
+`main` is protected. A change reaches it through a pull request whose **build**
+check has passed — not afterwards — and the branch cannot be force-pushed or
+deleted. No approving review is required, so a PR of your own is not blocked
+waiting for one.
 
 ### Code Style
 
