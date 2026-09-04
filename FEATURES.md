@@ -724,6 +724,14 @@ JMAP Contacts and JSContact.
   title, nickname, web pages and the custom fields all come across. The import
   control takes either format and decides by what is in the file, not by what it
   is called.
+- **Re-importing updates rather than duplicates.** A vCard is recognised by its
+  UID; an LDIF entry, whose schema has none, by its distinguished name. The card
+  already here is merged with the file's version -- what the file carries wins,
+  what it does not mention is left alone -- so a corrected export can correct
+  what the first attempt got wrong. Matching is per address book, which is also
+  how two directories that each hold a `cn=John Smith` stay two people. An entry
+  no longer recognisable, because its `dn` moved between exports, is imported
+  again and counted: *"3 of them look like contacts you already had."*
 
 [ldif-schema]: https://wiki.mozilla.org/MailNews:Mozilla_LDAP_Address_Book_Schema
 - **Directory lookup** through `Principal/query`, so colleagues on the server

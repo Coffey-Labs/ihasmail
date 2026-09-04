@@ -9,8 +9,8 @@ import type { ContactCard, JmapSession, UploadResponse } from "@/jmap/types";
  * A vCard UID is an identity its author meant, so a card whose UID a book
  * already holds is that card and importing it again used to leave a second
  * copy. Reported on #174 by the reporter's colleague, decided on #173 for
- * events, tracked as #223. The LDIF half is deliberately absent -- Mozilla's
- * schema has no UID, so the import invents one and there is nothing to match.
+ * events, tracked as #223. The LDIF half matches on the entry's `dn` instead,
+ * since Mozilla's schema has no UID; it is tested in `ldif-dedupe.test.ts`.
  */
 
 const MAX = 500;

@@ -105,3 +105,36 @@ export function parseLdif(text: string): LdifRecord[] {
     return !change || change === "add";
   });
 }
+
+/**
+ * An identity for an entry, derived from its distinguished name.
+ *
+ * Mozilla's schema has no UID, so a re-import had nothing to be recognised by
+ * and duplicated everything (#223). The `dn` is what the file actually carries,
+ * and it does not need to be a durable identity to answer the only question
+ * being asked of it: have I imported this exact entry before? A migration is
+ * import, notice something wrong, correct the export, import again -- and the
+ * `dn` does not change in the ten minutes between two attempts, which is the
+ * interval that matters. An import is not a sync.
+ *
+ * Namespaced rather than stored raw, because it becomes the card's `uid` and
+ * must not be mistaken for a UID a vCard author meant. The one way this can be
+ * wrong: two directories that both contain `cn=John Smith`, imported into the
+ * *same* address book, are one contact afterwards. Matching is per book, so
+ * filing two directories in two books keeps them apart.
+ *
+ * Normalised for case and for the spacing exporters differ in, which costs
+ * nothing when a file is compared against itself and helps when it is compared
+ * against a differently-produced export of the same directory.
+ *
+ * Null for an entry with no usable `dn`: that entry gets an identity of its own
+ * and duplicates on re-import, as everything did before.
+ */
+export function uidFromDn(dn: string): string | null {
+  const normalised = dn
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/\s*([,=])\s*/g, "$1");
+  return normalised ? `urn:x-ihasmail:ldif:${encodeURIComponent(normalised)}` : null;
+}
