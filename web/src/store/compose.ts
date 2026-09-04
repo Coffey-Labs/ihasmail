@@ -299,26 +299,50 @@ export const useCompose = create<ComposeState>((set, get) => ({
     const full = (await mail.getEmails([email.id], true))[0] ?? email;
     const identities = mail.identities.length ? mail.identities : await mail.loadIdentities();
     const ident = defaultIdentity(identities, full);
-    const ownEmails = identities.map((i) => i.email.toLowerCase());
-    const isOwn = (a: EmailAddress) => ownEmails.includes(a.email.toLowerCase());
+    const ownEmails = identities.map((i) => i.email);
+    /* `sameAddress` rather than a lowercased `includes`, because an identity
+       address can carry whitespace and a hand-typed one does. */
+    const isOwn = (a: EmailAddress) => ownEmails.some((e) => sameAddress(e, a.email));
+    const withoutOwn = (list: EmailAddress[]) => uniqueAddresses(list).filter((a) => !isOwn(a));
     const s = settings();
+
+    /*
+     * Was this message mine?
+     *
+     * The folder answers it before the addresses do, and has to: the address
+     * test fails in exactly the cases where the mistake is least visible. A
+     * message sent from an alias or a shared mailbox that `Identity/get` does
+     * not list is not recognisably mine, and neither is anything at all if the
+     * identities have not loaded yet -- and the failure is silent, addressing
+     * the reply back to me with everyone I actually wrote to moved to Cc.
+     *
+     * A message in Sent is mine whatever address it went out as.
+     */
+    const sentId = mail.roleId("sent");
+    const sentByMe = (Boolean(full.from?.length) && (full.from ?? []).every(isOwn))
+      || Boolean(sentId && full.mailboxIds?.[sentId]);
 
     let to: EmailAddress[] = [];
     let cc: EmailAddress[] = [];
     if (mode === "reply" || mode === "replyAll") {
-      const replyTo = full.replyTo?.length ? full.replyTo : (full.from ?? []);
-      to = uniqueAddresses(replyTo);
-      if (mode === "replyAll") {
-        const others = uniqueAddresses([...(full.to ?? []), ...(full.cc ?? [])]).filter((a) => !isOwn(a) && !to.some((t) => sameAddress(t.email, a.email)));
-        cc = others;
-        // If the message was sent by me, reply to original recipients instead.
-        if (to.every(isOwn) && full.to?.length) {
-          to = uniqueAddresses(full.to);
-          cc = uniqueAddresses(full.cc ?? []).filter((a) => !isOwn(a));
+      if (sentByMe && (full.to?.length || full.cc?.length)) {
+        /*
+         * Replying to something I sent continues the conversation with the
+         * people I wrote to. Not with myself, and not with my own Reply-To
+         * either -- that address is where replies *to me* belong, and following
+         * it here would send my own reply to my own desk.
+         */
+        to = withoutOwn(full.to ?? []);
+        cc = mode === "replyAll" ? withoutOwn(full.cc ?? []) : [];
+        // Addressed only to myself, or only in Cc: there is still somebody this
+        // is a reply to, and an empty To is not it.
+        if (!to.length) { to = cc.length ? cc : withoutOwn(full.cc ?? []); cc = []; }
+        if (!to.length) to = uniqueAddresses([...(full.to ?? []), ...(full.cc ?? [])]);
+      } else {
+        to = uniqueAddresses(full.replyTo?.length ? full.replyTo : (full.from ?? []));
+        if (mode === "replyAll") {
+          cc = uniqueAddresses([...(full.to ?? []), ...(full.cc ?? [])]).filter((a) => !isOwn(a) && !to.some((t) => sameAddress(t.email, a.email)));
         }
-      } else if (to.every(isOwn) && full.to?.length) {
-        to = uniqueAddresses(full.to.filter((a) => !isOwn(a)));
-        if (!to.length) to = uniqueAddresses(full.to);
       }
     }
 
