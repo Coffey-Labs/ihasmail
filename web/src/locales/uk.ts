@@ -1291,6 +1291,15 @@ export const catalog: Catalog = {
     // Sentences that lib/ and store/ were building in English, and the two
     // swipe labels that reach t() through a variable and so were invisible
     // to a scan for t("literal"). See #259.
+    // ── Emptying an address book, and deleting a selection (#277) ──
+    "This cannot be undone.": "Цю дію не можна скасувати.",
+    "Some could not be deleted: {error}": "Деякі не вдалося видалити: {error}",
+    "It was not deleted": "Контакт не було видалено",
+    "Empty address book": "Очистити цю адресну книгу",
+    "There is nothing in it to delete": "У ній немає чого видаляти",
+    "Empty “{name}”?": "Очистити «{name}»?",
+    "Delete them": "Видалити їх",
+    "Nothing was deleted": "Нічого не видалено",
   },
   plurals: {
     // ── Third pass ─────────────────────────────────────────────────────
@@ -1348,5 +1357,10 @@ export const catalog: Catalog = {
     "Marked {n} messages as read": { one: "{n} лист позначено як прочитаний", few: "{n} листи позначено як прочитані", many: "{n} листів позначено як прочитані", other: "{n} листа позначено як прочитані" },
     "in {n} folders": { one: "у {n} теці", few: "у {n} теках", many: "у {n} теках", other: "у {n} теках" },
     "Deleted {n} messages": { one: "Видалено {n} лист", few: "Видалено {n} листи", many: "Видалено {n} листів", other: "Видалено {n} листа" },
+    // ── Emptying an address book, and deleting a selection (#277) ──
+    "Delete {n} contacts?": { one: "Видалити {n} контакт?", few: "Видалити {n} контакти?", many: "Видалити {n} контактів?", other: "Видалити {n} контакта?" },
+    "Deleted {n} contacts": { one: "Видалено {n} контакт", few: "Видалено {n} контакти", many: "Видалено {n} контактів", other: "Видалено {n} контакта" },
+    "{n} contacts will be deleted. This cannot be undone.": { one: "Буде видалено {n} контакт. Цю дію не можна скасувати.", few: "Буде видалено {n} контакти. Цю дію не можна скасувати.", many: "Буде видалено {n} контактів. Цю дію не можна скасувати.", other: "Буде видалено {n} контакта. Цю дію не можна скасувати." },
+    "{n} were also in other address books and were only removed from this one": { one: "{n} контакт також був в іншій адресній книзі й вилучений лише з цієї", few: "{n} контакти також були в інших адресних книгах і вилучені лише з цієї", many: "{n} контактів також були в інших адресних книгах і вилучені лише з цієї", other: "{n} контакта також були в інших адресних книгах і вилучені лише з цієї" },
   },
 };

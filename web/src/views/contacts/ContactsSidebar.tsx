@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { Book, BookOpen, Download, MoreVertical, Pencil, Plus, RefreshCw, Share2, Trash2, Upload, UserMinus, Users, X } from "lucide-react";
+import { Book, BookOpen, Download, Eraser, MoreVertical, Pencil, Plus, RefreshCw, Share2, Trash2, Upload, UserMinus, Users, X } from "lucide-react";
 import { useContacts } from "@/store/contacts";
+import { setErrorMessage } from "@/jmap/client";
 import { useSession } from "@/store/session";
 import { useSettings } from "@/store/settings";
 import type { AddressBook } from "@/jmap/types";
@@ -278,6 +279,51 @@ export function ContactsSidebar() {
               />
             )}
             <MenuSep />
+            {/*
+              The operation a migration actually asks for: import, notice
+              something is wrong, empty the book, correct the export, import
+              again. Offered on your own books only -- emptying somebody else's
+              is a write to their account, which this client cannot make.
+
+              Kept apart from Delete, which takes the book with it. A default
+              book cannot be deleted and can perfectly well be emptied, which
+              is most of why this is worth having as its own entry.
+            */}
+            <MenuItem
+              danger
+              icon={<Eraser size={16} />}
+              label={t("Empty address book")}
+              onClick={async () => {
+                const n = Object.values(contacts.cards).filter((c) => c.addressBookIds?.[menuBook.id]).length;
+                if (!n) { toast.error(t("There is nothing in it to delete")); return; }
+                if (!(await confirmDialog({
+                  title: t("Empty “{name}”?", { name: menuBook.name }),
+                  message: plural(n, {
+                    one: "{n} contact will be deleted. This cannot be undone.",
+                    other: "{n} contacts will be deleted. This cannot be undone.",
+                  }),
+                  confirmLabel: t("Delete them"),
+                  danger: true,
+                }))) return;
+                try {
+                  const { destroyed, unfiled, refused } = await contacts.emptyBook(menuBook.id);
+                  if (destroyed) toast.success(plural(destroyed, { one: "Deleted {n} contact", other: "Deleted {n} contacts" }));
+                  /* Said out loud, because it is the one part of emptying a
+                     book that is not a deletion and would otherwise look like
+                     contacts that refused to go. */
+                  if (unfiled) {
+                    toast.show(plural(unfiled, {
+                      one: "{n} was also in another address book and was only removed from this one",
+                      other: "{n} were also in other address books and were only removed from this one",
+                    }), { duration: 9000 });
+                  }
+                  if (refused) toast.error(t("Some could not be deleted: {error}", { error: setErrorMessage(refused) }));
+                  else if (!destroyed && !unfiled) toast.error(t("Nothing was deleted"));
+                } catch (err) {
+                  toast.error((err as Error).message);
+                }
+              }}
+            />
             <MenuItem
               danger
               icon={<Trash2 size={16} />}

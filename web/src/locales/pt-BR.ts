@@ -1298,6 +1298,15 @@ export const catalog: Catalog = {
     // Sentences that lib/ and store/ were building in English, and the two
     // swipe labels that reach t() through a variable and so were invisible
     // to a scan for t("literal"). See #259.
+    // ── Emptying an address book, and deleting a selection (#277) ──
+    "This cannot be undone.": "Isso não pode ser desfeito.",
+    "Some could not be deleted: {error}": "Alguns não puderam ser excluídos: {error}",
+    "It was not deleted": "Não foi excluído",
+    "Empty address book": "Esvaziar este catálogo de endereços",
+    "There is nothing in it to delete": "Não há nada nele para excluir",
+    "Empty “{name}”?": "Esvaziar “{name}”?",
+    "Delete them": "Excluir todos",
+    "Nothing was deleted": "Nada foi excluído",
   },
   plurals: {
     // ── Third pass ─────────────────────────────────────────────────────
@@ -1349,5 +1358,10 @@ export const catalog: Catalog = {
     "Marked {n} messages as read": { one: "{n} mensagem marcada como lida", other: "{n} mensagens marcadas como lidas" },
     "in {n} folders": { one: "em {n} pasta", other: "em {n} pastas" },
     "Deleted {n} messages": { one: "{n} mensagem excluída", other: "{n} mensagens excluídas" },
+    // ── Emptying an address book, and deleting a selection (#277) ──
+    "Delete {n} contacts?": { one: "Excluir {n} contato?", other: "Excluir {n} contatos?" },
+    "Deleted {n} contacts": { one: "{n} contato excluído", other: "{n} contatos excluídos" },
+    "{n} contacts will be deleted. This cannot be undone.": { one: "{n} contato será excluído. Isso não pode ser desfeito.", other: "{n} contatos serão excluídos. Isso não pode ser desfeito." },
+    "{n} were also in other address books and were only removed from this one": { one: "{n} contato também estava em outro catálogo de endereços e foi removido apenas deste", other: "{n} contatos também estavam em outros catálogos de endereços e foram removidos apenas deste" },
   },
 };
