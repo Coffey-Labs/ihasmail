@@ -1291,6 +1291,15 @@ export const catalog: Catalog = {
     // Sentences that lib/ and store/ were building in English, and the two
     // swipe labels that reach t() through a variable and so were invisible
     // to a scan for t("literal"). See #259.
+    // ── Emptying an address book, and deleting a selection (#277) ──
+    "This cannot be undone.": "Dit kan niet ongedaan worden gemaakt.",
+    "Some could not be deleted: {error}": "Sommige konden niet worden verwijderd: {error}",
+    "It was not deleted": "Het is niet verwijderd",
+    "Empty address book": "Dit adresboek leegmaken",
+    "There is nothing in it to delete": "Er staat niets in om te verwijderen",
+    "Empty “{name}”?": "„{name}” leegmaken?",
+    "Delete them": "Verwijderen",
+    "Nothing was deleted": "Er is niets verwijderd",
   },
   plurals: {
     // ── Third pass ─────────────────────────────────────────────────────
@@ -1342,5 +1351,10 @@ export const catalog: Catalog = {
     "Marked {n} messages as read": { one: "{n} bericht als gelezen gemarkeerd", other: "{n} berichten als gelezen gemarkeerd" },
     "in {n} folders": { one: "in {n} map", other: "in {n} mappen" },
     "Deleted {n} messages": { one: "{n} bericht verwijderd", other: "{n} berichten verwijderd" },
+    // ── Emptying an address book, and deleting a selection (#277) ──
+    "Delete {n} contacts?": { one: "{n} contact verwijderen?", other: "{n} contacten verwijderen?" },
+    "Deleted {n} contacts": { one: "{n} contact verwijderd", other: "{n} contacten verwijderd" },
+    "{n} contacts will be deleted. This cannot be undone.": { one: "{n} contact wordt verwijderd. Dit kan niet ongedaan worden gemaakt.", other: "{n} contacten worden verwijderd. Dit kan niet ongedaan worden gemaakt." },
+    "{n} were also in other address books and were only removed from this one": { one: "{n} contact stond ook in een ander adresboek en is alleen uit dit adresboek verwijderd", other: "{n} contacten stonden ook in andere adresboeken en zijn alleen uit dit adresboek verwijderd" },
   },
 };

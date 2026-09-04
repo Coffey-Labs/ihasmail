@@ -711,6 +711,12 @@ JMAP Contacts and JSContact.
   company, job title, any number of emails, phones and addresses with types,
   birthday, website and notes.
 - **Groups** as a card kind, with members picked from the book.
+- **Select and delete in bulk** — tick rows in the list, shift-click for a run,
+  and delete the lot; or **Empty address book** from the book's own menu, which
+  is the operation a migration asks for when an import needs doing again. A card
+  filed in two books is only ever removed from the one being emptied, since
+  deleting it would empty a book nobody asked about, and what is reported
+  afterwards is what the server confirmed rather than what was asked for.
 - **Letter index** down the list, with `#` for everything that does not start
   with a letter.
 - **Search** across name, address, organisation and notes, in one book or all.

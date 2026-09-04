@@ -1297,6 +1297,15 @@ export const catalog: Catalog = {
     // Sentences that lib/ and store/ were building in English, and the two
     // swipe labels that reach t() through a variable and so were invisible
     // to a scan for t("literal"). See #259.
+    // ── Emptying an address book, and deleting a selection (#277) ──
+    "This cannot be undone.": "Это действие нельзя отменить.",
+    "Some could not be deleted: {error}": "Некоторые не удалось удалить: {error}",
+    "It was not deleted": "Контакт не был удалён",
+    "Empty address book": "Очистить эту адресную книгу",
+    "There is nothing in it to delete": "В ней нечего удалять",
+    "Empty “{name}”?": "Очистить «{name}»?",
+    "Delete them": "Удалить их",
+    "Nothing was deleted": "Ничего не удалено",
   },
   plurals: {
     // ── Third pass ─────────────────────────────────────────────────────
@@ -1356,5 +1365,10 @@ export const catalog: Catalog = {
     "Marked {n} messages as read": { one: "{n} письмо отмечено как прочитанное", few: "{n} письма отмечены как прочитанные", many: "{n} писем отмечены как прочитанные", other: "{n} письма отмечены как прочитанные" },
     "in {n} folders": { one: "в {n} папке", few: "в {n} папках", many: "в {n} папках", other: "в {n} папках" },
     "Deleted {n} messages": { one: "Удалено {n} письмо", few: "Удалено {n} письма", many: "Удалено {n} писем", other: "Удалено {n} письма" },
+    // ── Emptying an address book, and deleting a selection (#277) ──
+    "Delete {n} contacts?": { one: "Удалить {n} контакт?", few: "Удалить {n} контакта?", many: "Удалить {n} контактов?", other: "Удалить {n} контакта?" },
+    "Deleted {n} contacts": { one: "Удалён {n} контакт", few: "Удалено {n} контакта", many: "Удалено {n} контактов", other: "Удалено {n} контакта" },
+    "{n} contacts will be deleted. This cannot be undone.": { one: "Будет удалён {n} контакт. Это действие нельзя отменить.", few: "Будет удалено {n} контакта. Это действие нельзя отменить.", many: "Будет удалено {n} контактов. Это действие нельзя отменить.", other: "Будет удалено {n} контакта. Это действие нельзя отменить." },
+    "{n} were also in other address books and were only removed from this one": { one: "{n} контакт также был в другой адресной книге и удалён только из этой", few: "{n} контакта также были в других адресных книгах и удалены только из этой", many: "{n} контактов также были в других адресных книгах и удалены только из этой", other: "{n} контакта также были в других адресных книгах и удалены только из этой" },
   },
 };

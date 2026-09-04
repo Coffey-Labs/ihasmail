@@ -1203,6 +1203,13 @@ select optgroup { background-color: var(--bg-elev); color: var(--fg); }
 .contact-row.active { background: var(--selected-bg); }
 .contact-row .c-name { font-weight: 550; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .contact-row .c-email { color: var(--fg-muted); font-size: .85em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.contact-row.picked { background: var(--selected-bg); }
+/* Out of the way until wanted, and never on a touchscreen, where there is no
+   hover to reveal it -- the same rule the message list's checkbox follows. */
+.contact-check { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; flex: 0 0 auto; opacity: 0; transition: opacity .1s; cursor: pointer; }
+.contact-row:hover .contact-check, .contact-row.picked .contact-check, .contacts-scroll.has-selection .contact-check { opacity: 1; }
+.contacts-selbar .contact-check { opacity: 1; }
+.contacts-selbar { gap: 12px; padding-left: 14px; }
 .contact-letter { position: sticky; top: 0; background: var(--bg-sunken); padding: 4px 14px; font-size: .78em; font-weight: 700; color: var(--fg-muted); letter-spacing: .05em; z-index: 1; }
 .contact-detail { overflow-y: auto; padding: 28px 32px 64px; }
 .contact-hero { display: flex; align-items: center; gap: 20px; margin-bottom: 20px; }
@@ -1576,6 +1583,7 @@ select optgroup { background-color: var(--bg-elev); color: var(--fg); }
 }
 @media (hover: none) {
   .msg-row .msg-check { opacity: 1; }
+  .contact-row .contact-check { opacity: 1; }
   .msg-row .msg-actions { display: none !important; }
   .msg-row:hover .msg-meta .msg-date { display: inline; }
   .nav-item .nav-more, .cal-list-item .nav-more { opacity: 1; }

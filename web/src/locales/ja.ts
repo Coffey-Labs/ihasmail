@@ -1303,6 +1303,15 @@ export const catalog: Catalog = {
     // Sentences that lib/ and store/ were building in English, and the two
     // swipe labels that reach t() through a variable and so were invisible
     // to a scan for t("literal"). See #259.
+    // ── Emptying an address book, and deleting a selection (#277) ──
+    "This cannot be undone.": "この操作は取り消せません。",
+    "Some could not be deleted: {error}": "一部を削除できませんでした: {error}",
+    "It was not deleted": "削除されませんでした",
+    "Empty address book": "このアドレス帳を空にする",
+    "There is nothing in it to delete": "削除するものがありません",
+    "Empty “{name}”?": "「{name}」を空にしますか？",
+    "Delete them": "削除する",
+    "Nothing was deleted": "何も削除されませんでした",
   },
   plurals: {
     // ── Third pass ─────────────────────────────────────────────────────
@@ -1359,5 +1368,10 @@ export const catalog: Catalog = {
     "Marked {n} messages as read": { other: "{n} 通のメールを既読にしました" },
     "in {n} folders": { other: "{n} 個のフォルダーで" },
     "Deleted {n} messages": { other: "{n} 通のメールを削除しました" },
+    // ── Emptying an address book, and deleting a selection (#277) ──
+    "Delete {n} contacts?": { other: "{n} 件の連絡先を削除しますか？" },
+    "Deleted {n} contacts": { other: "{n} 件の連絡先を削除しました" },
+    "{n} contacts will be deleted. This cannot be undone.": { other: "{n} 件の連絡先が削除されます。この操作は取り消せません。" },
+    "{n} were also in other address books and were only removed from this one": { other: "{n} 件は他のアドレス帳にもあるため、このアドレス帳から外しただけです" },
   },
 };

@@ -202,7 +202,21 @@ interface ContactsState {
   filterCards(cards: ContactCard[], text: string): ContactCard[];
   createCard(card: Partial<ContactCard>, addressBookId: Id): Promise<Id>;
   updateCard(id: Id, patch: Record<string, unknown>): Promise<void>;
-  destroyCards(ids: Id[]): Promise<void>;
+  /**
+   * Delete cards outright, reporting what the server actually destroyed rather
+   * than what was asked for. Nothing is thrown for a refusal -- a partial one
+   * has a count worth telling somebody about, and `refused` says why the rest
+   * did not go.
+   */
+  destroyCards(ids: Id[]): Promise<{ destroyed: number; refused?: SetError }>;
+  /**
+   * Empty an address book: everything filed in it, gone.
+   *
+   * `unfiled` is the part that is not a deletion. A card filed in two books is
+   * only *this* book's to remove, so it is taken out of this one and left
+   * alone in the other -- destroying it would empty a book nobody asked about.
+   */
+  emptyBook(bookId: Id): Promise<{ destroyed: number; unfiled: number; refused?: SetError }>;
   createBook(name: string): Promise<Id>;
   updateBook(id: Id, patch: Partial<AddressBook>): Promise<void>;
   destroyBook(id: Id): Promise<void>;
@@ -464,12 +478,12 @@ export const useContacts = create<ContactsState>((set, get) => ({
   async destroyCards(ids) {
     const accountId = get().accountId!;
     const gone: Id[] = [];
-    let failed: SetError | undefined;
+    let refused: SetError | undefined;
     try {
       for (const part of chunk(ids, client.maxObjectsInSet)) {
         const res = await client.call<SetResponse>("ContactCard/set", { accountId, destroy: part });
         gone.push(...(res.destroyed ?? []));
-        failed ??= Object.values(res.notDestroyed ?? {})[0];
+        refused ??= Object.values(res.notDestroyed ?? {})[0];
       }
     } finally {
       if (gone.length) {
@@ -480,7 +494,57 @@ export const useContacts = create<ContactsState>((set, get) => ({
         });
       }
     }
-    if (failed) throw new Error(setErrorMessage(failed));
+    /* Answered rather than thrown. A refusal that took half the selection with
+       it still deleted the other half, and an error that says only "it failed"
+       sends somebody looking for contacts that are already gone. */
+    return { destroyed: gone.length, refused };
+  },
+
+  async emptyBook(bookId) {
+    const accountId = get().accountId!;
+    const inBook = Object.values(get().cards).filter((c) => c.addressBookIds?.[bookId]);
+    /*
+     * Two different acts, decided per card.
+     *
+     * A card filed only here is deleted. A card filed here *and* somewhere else
+     * is removed from this book and left where it also lives -- emptying one
+     * book must not empty another, and `ContactCard/set destroy` does not know
+     * the difference: it takes the card away from every book at once.
+     */
+    const destroy: Id[] = [];
+    const update: Record<Id, unknown> = {};
+    for (const c of inBook) {
+      if (Object.keys(c.addressBookIds ?? {}).length > 1) update[c.id] = { [`addressBookIds/${bookId}`]: null };
+      else destroy.push(c.id);
+    }
+
+    const gone: Id[] = [];
+    let unfiled = 0;
+    let refused: SetError | undefined;
+    /* One budget for both, the way `writeCards` shares one: Stalwart counts
+       every object in a `/set` against `maxObjectsInSet` together. */
+    const work = [
+      ...destroy.map((id) => ["destroy", id] as const),
+      ...Object.keys(update).map((id) => ["update", id] as const),
+    ];
+    try {
+      for (const part of chunk(work, client.maxObjectsInSet)) {
+        const partDestroy = part.filter(([kind]) => kind === "destroy").map(([, id]) => id);
+        const partUpdate: Record<Id, unknown> = {};
+        for (const [kind, id] of part) if (kind === "update") partUpdate[id] = update[id];
+        const res = await client.call<SetResponse<ContactCard>>("ContactCard/set", {
+          accountId,
+          ...(partDestroy.length ? { destroy: partDestroy } : {}),
+          ...(Object.keys(partUpdate).length ? { update: partUpdate } : {}),
+        });
+        gone.push(...(res.destroyed ?? []));
+        unfiled += Object.keys(res.updated ?? {}).length;
+        refused ??= Object.values(res.notDestroyed ?? {})[0] ?? Object.values(res.notUpdated ?? {})[0];
+      }
+    } finally {
+      await get().loadAll();
+    }
+    return { destroyed: gone.length, unfiled, refused };
   },
 
   async createBook(name) {

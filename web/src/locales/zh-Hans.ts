@@ -1302,6 +1302,15 @@ export const catalog: Catalog = {
     // Sentences that lib/ and store/ were building in English, and the two
     // swipe labels that reach t() through a variable and so were invisible
     // to a scan for t("literal"). See #259.
+    // ── Emptying an address book, and deleting a selection (#277) ──
+    "This cannot be undone.": "此操作无法撤销。",
+    "Some could not be deleted: {error}": "部分无法删除：{error}",
+    "It was not deleted": "未被删除",
+    "Empty address book": "清空此通讯录",
+    "There is nothing in it to delete": "其中没有可删除的内容",
+    "Empty “{name}”?": "清空“{name}”？",
+    "Delete them": "删除",
+    "Nothing was deleted": "未删除任何内容",
   },
   plurals: {
     // ── Third pass ─────────────────────────────────────────────────────
@@ -1358,5 +1367,10 @@ export const catalog: Catalog = {
     "Marked {n} messages as read": { other: "已将 {n} 封邮件标为已读" },
     "in {n} folders": { other: "在 {n} 个文件夹中" },
     "Deleted {n} messages": { other: "已删除 {n} 封邮件" },
+    // ── Emptying an address book, and deleting a selection (#277) ──
+    "Delete {n} contacts?": { other: "删除 {n} 位联系人？" },
+    "Deleted {n} contacts": { other: "已删除 {n} 位联系人" },
+    "{n} contacts will be deleted. This cannot be undone.": { other: "将删除 {n} 位联系人。此操作无法撤销。" },
+    "{n} were also in other address books and were only removed from this one": { other: "其中 {n} 位也在其他通讯录中，仅从此通讯录移除" },
   },
 };

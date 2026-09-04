@@ -1322,6 +1322,15 @@ export const catalog: Catalog = {
     // Sentences that lib/ and store/ were building in English, and the two
     // swipe labels that reach t() through a variable and so were invisible
     // to a scan for t("literal"). See #259.
+    // ── Emptying an address book, and deleting a selection (#277) ──
+    "This cannot be undone.": "Dies kann nicht rückgängig gemacht werden.",
+    "Some could not be deleted: {error}": "Einige konnten nicht gelöscht werden: {error}",
+    "It was not deleted": "Der Kontakt wurde nicht gelöscht",
+    "Empty address book": "Dieses Adressbuch leeren",
+    "There is nothing in it to delete": "Es ist nichts darin zum Löschen",
+    "Empty “{name}”?": "„{name}“ leeren?",
+    "Delete them": "Alle löschen",
+    "Nothing was deleted": "Es wurde nichts gelöscht",
   },
   plurals: {
     // ── Third pass ─────────────────────────────────────────────────────
@@ -1373,5 +1382,10 @@ export const catalog: Catalog = {
     "Marked {n} messages as read": { one: "{n} Nachricht als gelesen markiert", other: "{n} Nachrichten als gelesen markiert" },
     "in {n} folders": { one: "in {n} Ordner", other: "in {n} Ordnern" },
     "Deleted {n} messages": { one: "{n} Nachricht gelöscht", other: "{n} Nachrichten gelöscht" },
+    // ── Emptying an address book, and deleting a selection (#277) ──
+    "Delete {n} contacts?": { one: "{n} Kontakt löschen?", other: "{n} Kontakte löschen?" },
+    "Deleted {n} contacts": { one: "{n} Kontakt gelöscht", other: "{n} Kontakte gelöscht" },
+    "{n} contacts will be deleted. This cannot be undone.": { one: "{n} Kontakt wird gelöscht. Dies kann nicht rückgängig gemacht werden.", other: "{n} Kontakte werden gelöscht. Dies kann nicht rückgängig gemacht werden." },
+    "{n} were also in other address books and were only removed from this one": { one: "{n} Kontakt war auch in einem anderen Adressbuch und wurde nur aus diesem entfernt", other: "{n} Kontakte waren auch in anderen Adressbüchern und wurden nur aus diesem entfernt" },
   },
 };
