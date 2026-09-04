@@ -153,9 +153,10 @@ export function ContactsView({ id }: { id?: string }) {
       else toast.success(imported);
       /*
        * Said separately, and after, because it is a different kind of fact.
-       * LDIF has no UID to match on, so nothing was updated and nothing was
-       * merged -- these are simply here twice now, and saying so is the whole
-       * of what can honestly be said without guessing (#223).
+       * These were not matched and are here twice now -- an LDIF entry whose
+       * `dn` moved between exports, or one imported before there was a `dn` to
+       * match on. Name-plus-email is enough to notice that and not enough to
+       * merge on, so it is reported and left alone (#223).
        */
       if (alike) {
         toast.show(plural(alike, {

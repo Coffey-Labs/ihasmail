@@ -86,15 +86,22 @@ describe("importing an LDIF address book", () => {
     expect(first.name).toMatchObject({ full: "Jane Doe" });
   });
 
-  it("gives each contact an identity of its own, not the entry's directory name", async () => {
+  it("gives each contact an identity derived from its entry, and a distinct one", async () => {
     const sets = server();
     await useContacts.getState().importLdif(TWO, "book1");
     const uids = Object.values(sets[0]!.create!).map((c) => c.uid as string);
-    expect(uids.every((u) => typeof u === "string" && u.length > 0)).toBe(true);
     expect(new Set(uids).size).toBe(2);
-    // A distinguished name says where an entry sat in somebody else's
-    // directory, and must not become the contact's identity here.
-    expect(uids.some((u) => u.includes("cn="))).toBe(false);
+    // Namespaced, so it is never mistaken for a UID a vCard author meant, and
+    // stable, so importing the same file again recognises these.
+    expect(uids.every((u) => u.startsWith("urn:x-ihasmail:ldif:"))).toBe(true);
+  });
+
+  it("gives an entry with no usable dn an identity of its own", async () => {
+    const sets = server();
+    await useContacts.getState().importLdif("dn:\ncn: Nameless Place\nmail: n@example.com\n", "book1");
+    const uid = Object.values(sets[0]!.create!)[0]!.uid as string;
+    expect(uid).not.toContain("urn:x-ihasmail:ldif:");
+    expect(uid.length).toBeGreaterThan(0);
   });
 
   it("says a file held no contacts rather than reporting none imported", async () => {

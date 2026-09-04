@@ -128,11 +128,23 @@ describe("telling somebody what an LDIF re-import duplicated", () => {
   });
 
   it("does not count the file against itself", async () => {
-    // Two of the same person in one file are two new cards, not a duplicate of
+    // Two people in one file are two new cards, neither a duplicate of
     // something that was already here. The scan is read before anything lands.
     server([]);
-    const twice = entry("Jane Doe", "jane@example.com") + "\n" + entry("Jane Doe", "jane@example.com");
-    const r = await useContacts.getState().importLdif(twice, "book1");
+    const two = entry("Jane Doe", "jane@example.com") + "\n" + entry("Alan Turing", "alan@example.org");
+    const r = await useContacts.getState().importLdif(two, "book1");
     expect(r).toEqual({ created: 2, updated: 0, alike: 0 });
+  });
+
+  it("makes one card of two entries in a file that share a dn", async () => {
+    // A directory cannot hold two entries under one name, so a file that does
+    // is malformed -- and must not produce two cards sharing an identity,
+    // which is the duplication this all exists to prevent. The later wins.
+    const sets = server([]);
+    const twice = entry("Jane Doe", "jane@example.com") + "\n" + entry("Jane Doe", "jane.doe@example.com");
+    const r = await useContacts.getState().importLdif(twice, "book1");
+    expect(r).toEqual({ created: 1, updated: 0, alike: 0 });
+    const only = Object.values(sets[0]!.create!)[0]!;
+    expect(Object.values(only.emails as Record<string, { address: string }>)[0]!.address).toBe("jane.doe@example.com");
   });
 });

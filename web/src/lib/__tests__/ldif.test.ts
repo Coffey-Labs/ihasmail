@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseLdif } from "@/lib/ldif";
+import { parseLdif, uidFromDn } from "@/lib/ldif";
 
 /** The example from issue #174, as SOGo exports it -- lowercased attribute names and all. */
 const SOGO = `dn: cn=Jane Doe
@@ -101,5 +101,47 @@ describe("parseLdif", () => {
     const [r] = parseLdif("dn: cn=X\r\ncn: X\r\nsn: Y\r\n");
     expect(r!.attrs.cn).toEqual(["X"]);
     expect(r!.attrs.sn).toEqual(["Y"]);
+  });
+});
+
+describe("an identity for an entry, from its distinguished name", () => {
+  it("gives the same dn the same identity, which is the whole point", () => {
+    expect(uidFromDn("cn=Jane Doe,ou=People")).toBe(uidFromDn("cn=Jane Doe,ou=People"));
+  });
+
+  it("gives two entries two identities", () => {
+    expect(uidFromDn("cn=Jane Doe")).not.toBe(uidFromDn("cn=Alan Turing"));
+  });
+
+  it("ignores the case and spacing two exports of one directory differ in", () => {
+    // LDAP matches attribute types without regard to case, and exporters lay
+    // a dn out differently. Neither is a different person.
+    const canonical = uidFromDn("cn=Jane Doe,ou=People");
+    expect(uidFromDn("CN=Jane Doe,OU=People")).toBe(canonical);
+    expect(uidFromDn("cn = Jane Doe , ou = People")).toBe(canonical);
+    expect(uidFromDn("  cn=Jane  Doe,ou=People  ")).toBe(canonical);
+  });
+
+  it("does not run together words inside a value", () => {
+    expect(uidFromDn("cn=Jane Doe")).not.toBe(uidFromDn("cn=JaneDoe"));
+  });
+
+  it("says so plainly that it came from an LDIF entry", () => {
+    // It becomes the card's uid, where a vCard's own UID also lives. The
+    // namespace is what keeps one from being read as the other.
+    expect(uidFromDn("cn=Jane Doe")).toMatch(/^urn:x-ihasmail:ldif:/);
+  });
+
+  it("survives a dn a URI would otherwise choke on", () => {
+    const uid = uidFromDn("cn=Ünter Straße \\+ Söhne,ou=Übersicht")!;
+    expect(uid.startsWith("urn:x-ihasmail:ldif:")).toBe(true);
+    expect(uid).not.toMatch(/[\s?#]/);
+  });
+
+  it("has nothing to offer for an entry with no dn", () => {
+    // Such an entry gets an identity of its own instead, and duplicates on
+    // re-import as everything did before there was a dn to match on.
+    expect(uidFromDn("")).toBeNull();
+    expect(uidFromDn("   ")).toBeNull();
   });
 });
