@@ -33,6 +33,19 @@ durable belongs to Stalwart; the container is disposable.
 | 🧪 **[KNOWN-ISSUES.md](KNOWN-ISSUES.md)** | What was verified live, and where Stalwart departs from a spec |
 | 🛣 **[ROADMAP.md](ROADMAP.md)** | What ihasmail does not do, and why |
 
+> **Releases are weekly, so `latest` normally lags `main`.** Automation builds
+> and publishes the GHCR image every **Monday at 09:00 UTC**, in a week that had
+> changes. Between one Monday and the next, `main` is ahead of the newest image
+> — a fix merged on Tuesday is a `docker pull` away only after the following
+> Monday. GitHub runs scheduled workflows on a best-effort basis, so treat the
+> hour as approximate.
+>
+> This is worth knowing when a closed issue says a fix is *live*: that means the
+> QA webmail server, which deploys from `main`, and not the image you have. If
+> you want a change before the next Monday, build from `main` — see
+> [Container images](#container-images). Otherwise pull after it, and the dated
+> tag tells you exactly which build you are on.
+
 This file is for people working *on* ihasmail. Everything about running it
 lives in the docs.
 
@@ -96,7 +109,9 @@ Full instructions, TLS, and every environment variable:
 
 ### Container images
 
-Published to GHCR on every release, for `linux/amd64` and `linux/arm64`:
+Published to GHCR on every release, for `linux/amd64` and `linux/arm64`.
+Releases are cut weekly — Mondays, 09:00 UTC, in a week that had changes — so
+the newest image is normally behind `main`:
 
 ```bash
 docker pull ghcr.io/coffey-labs/ihasmail:latest
