@@ -1236,6 +1236,12 @@ first two:
   checked would be a second opinion, and the one that counts would still be the
   server's — its message is shown verbatim, the way password-policy rejections
   already are.
+- **Certificates are parsed too, by their own decoder.** The registry is not
+  OpenPGP-only, though every other message it returns reads as though it were: a
+  self-signed X.509 certificate registers, reads back and removes cleanly, and a
+  malformed one is refused with *"Failed to decode X509 certificate: BER
+  decoding error…"*. So the S/MIME half of this section is real, and the server
+  is the thing checking it in both formats.
 - **A key that parses can still be refused, and says something else.** A
   sign-and-certify key with no encryption subkey — which is what
   `gpg --quick-generate-key` produces by default — comes back *"Could not find
@@ -1251,6 +1257,11 @@ first two:
 - **Creating a key answers with its id and nothing else**, so adding one
   reloads the list instead of believing what came back. Renaming and removing
   both work; removal leaves the registry genuinely empty.
+
+**`expiresAt` is the registry's field, not the key's.** A certificate valid for
+a year registers with no expiry set, and the card says so. Reading the real one
+means parsing the certificate, which is the second opinion this section exists
+not to offer.
 
 The kind badge — OpenPGP or S/MIME — is read from the armour header alone, which
 is a label rather than a parse, and the excerpt beside each key is deliberately

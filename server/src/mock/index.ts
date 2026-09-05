@@ -1012,7 +1012,7 @@ const handlers: Record<string, Handler> = {
     const destroyed: string[] = [];
     for (const [cid, obj] of Object.entries((a.create as Obj) ?? {})) {
       const o = obj as Obj;
-      const complaint = pgpComplaint(String(o.key ?? ""));
+      const complaint = keyComplaint(String(o.key ?? ""));
       if (complaint) {
         notCreated[cid] = { type: "invalidProperties", properties: ["key"], description: complaint };
         continue;
@@ -1278,23 +1278,29 @@ const handlers: Record<string, Handler> = {
  * that only ever saw "invalid key" would show something less useful than what
  * the server was already offering.
  *
- * The two are worth keeping apart, because they are different problems and the
- * second is the one a real person hits. A block that will not parse is usually
- * a bad copy and paste. A block that parses and is still refused is a key that
- * cannot encrypt -- `gpg --quick-generate-key` makes a sign-and-certify key by
- * default, and exporting that gets you "Could not find any suitable keys"
- * however carefully it was pasted.
+ * There are three, and they are worth keeping apart because they are different
+ * problems. A block that will not parse is usually a bad copy and paste. A
+ * block that parses and is still refused is a key that cannot encrypt --
+ * `gpg --quick-generate-key` makes a sign-and-certify key by default, and
+ * exporting that gets you "Could not find any suitable keys" however carefully
+ * it was pasted. And a certificate gets its own decoder and its own complaint:
+ * Stalwart parses X.509 as seriously as it parses OpenPGP, which is the thing
+ * that makes the S/MIME half of this section real rather than decorative.
  */
-function pgpComplaint(key: string): string | null {
+function keyComplaint(key: string): string | null {
   const k = key.trim();
   if (!k) return "Failed to decode OpenPGP public key: no key data.";
   const pgp = k.startsWith("-----BEGIN PGP PUBLIC KEY BLOCK-----") && k.includes("-----END PGP PUBLIC KEY BLOCK-----");
   const x509 = k.startsWith("-----BEGIN CERTIFICATE-----") && k.includes("-----END CERTIFICATE-----");
   if (!pgp && !x509) return "Failed to decode OpenPGP public key: Malformed packet: Malformed CTB: MSB of ptag not set.";
   const body = k.split(/\r?\n/).filter((l) => l && !l.startsWith("-----") && !l.startsWith("=") && !l.includes(":")).join("");
-  // Enough base64 to be a key rather than a placeholder; the real parser is
-  // stricter still, which is the point of surfacing its message and not ours.
-  if (body.length < 64) return "Failed to decode OpenPGP public key: Malformed packet: unexpected EOF.";
+  // Enough base64 to be a key rather than a placeholder; the real parsers are
+  // stricter still, which is the point of surfacing their message and not ours.
+  if (body.length < 64) {
+    return x509
+      ? "Failed to decode X509 certificate: BER decoding error: Expected Tag { class: Universal, value: 16 } tag, actual tag: Tag { class: Application, value: 14 } (Codec: BER)"
+      : "Failed to decode OpenPGP public key: Malformed packet: unexpected EOF.";
+  }
   // The mock cannot read a key, so it cannot tell whether one can encrypt.
   // A "SIGNONLY" marker anywhere in the block stands in for that, which is
   // crude but reachable: the branch has to be reachable from the UI, or
