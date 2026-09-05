@@ -1212,6 +1212,64 @@ Over Stalwart's own registry objects, so there is no administrator in the loop:
   credentials". Doing it properly means implementing OAuth; that is in
   [ROADMAP.md](ROADMAP.md).
 
+## Encryption keys
+
+Settings › Encryption keys publishes OpenPGP public keys and S/MIME certificates
+on the account, over Stalwart's `x:PublicKey` registry: list, add, rename,
+remove. Only public material — no private key is stored, requested or sent by
+any of it.
+
+Everything below was established against a live Stalwart **0.16.20** on
+2026-09-05, rather than taken from the documentation, which is wrong on the
+first two:
+
+- **An ordinary user may read *and* write their own keys.** Stalwart's
+  permissions table lists every `sysPublicKey*` permission as administrative.
+  The server granted them to a normal account: `x:PublicKey/get` and
+  `x:PublicKey/query` both answered, and a create carrying a deliberately
+  malformed key came back `invalidProperties` naming `key` — a rejection of the
+  key, not of the person. Had the documentation been right this section would
+  have been useless to everyone but an administrator.
+- **Stalwart parses the key itself** and says precisely what is wrong with it:
+  *"Failed to decode OpenPGP public key: Malformed packet: Malformed CTB: MSB of
+  ptag not set."* So ihasmail does not validate key material. Anything it
+  checked would be a second opinion, and the one that counts would still be the
+  server's — its message is shown verbatim, the way password-policy rejections
+  already are.
+- **A key that parses can still be refused, and says something else.** A
+  sign-and-certify key with no encryption subkey — which is what
+  `gpg --quick-generate-key` produces by default — comes back *"Could not find
+  any suitable keys in OpenPGP public key"*. That is the rejection somebody
+  exporting from GnuPG is most likely to meet, and it is not a paste error:
+  the fix is to add an encryption subkey, not to paste more carefully. Showing
+  the server's own two sentences distinguishes the two; showing "invalid key"
+  would not.
+- **`emailAddresses` arrives as `{}` when it is empty** — an object, where a
+  JMAP list property should be an array. ihasmail checks the shape rather than
+  trusting the type, so nothing puts an object through `join()` halfway through
+  rendering the list.
+- **Creating a key answers with its id and nothing else**, so adding one
+  reloads the list instead of believing what came back. Renaming and removing
+  both work; removal leaves the registry genuinely empty.
+
+The kind badge — OpenPGP or S/MIME — is read from the armour header alone, which
+is a label rather than a parse, and the excerpt beside each key is deliberately
+not called a fingerprint: computing a real one means parsing the key, and naming
+it a fingerprint would invite somebody to verify against it.
+
+**What this does not do.** Nothing signs, encrypts, decrypts or verifies with
+these keys. The page says so. Adding one does not by itself start encrypting
+your mail — the one thing known to consume a registered key is
+`encryptionAtRest`, a field on `x:AccountSettings` beside `description`,
+`locale` and `timeZone`. There is no `x:EncryptionAtRest` object whatever the
+documentation suggests — asking for one on 0.16.20 is an `unknownMethod` — and
+the field's value is a typed object, `{"@type": "Disabled"}`, not a bare string.
+ihasmail does not yet offer it, and it carries a caveat of its own: turning it
+off does not decrypt what is already there. Signing and decrypting need a private key in a page
+served by the same host that would handle it, which is a security model to agree
+before it is a feature to build. Verifying a signature needs only public keys
+and is tractable on its own. See [ROADMAP.md](ROADMAP.md).
+
 ## Privacy by default
 
 Remote images blocked, the proxy on, read receipts never automatic, no
