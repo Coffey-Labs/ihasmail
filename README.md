@@ -67,6 +67,7 @@ More, including the mobile layout, on [ihasmail.org](https://ihasmail.org/#scree
 - **Calendar** — JMAP Calendars / JSCalendar: month/week/day/agenda, recurrence, attendees and free-busy, colour categories
 - **Contacts** — JMAP Contacts / JSContact: address books, groups, full editor, vCard import/export
 - **Files** — JMAP FileNode: browse, upload, download, rename, move, delete
+- **Signature checking** — S/MIME signed mail is verified as you read it, and the signer is remembered: a later message from the same address signed by somebody else is called out loudly. No certificate authority is involved and none is bundled, so ihasmail never claims more than it can show — see [Checking a signature](FEATURES.md#checking-a-signature)
 - **Settings that follow the account**, not the browser — kept in a `settings.json` in the account's own JMAP Files, so ihasmail itself stays stateless
 - **Runs read-only** — one optional write path, and with it switched off the container needs no volume and no writable root. `IMMUTABLE=1` is checked at startup rather than trusted, so a half-applied switch refuses to boot instead of failing quietly. See [Running immutably](#running-immutably)
 - **Nine new interface languages** — German, Spanish, French, Dutch, Portuguese (Brazil), Russian, Ukrainian, Simplified Chinese and Japanese, alongside English and separate from the date-and-time locale. Every one is marked **Beta**: they were made by AI and no native speaker has read them yet, which Settings says plainly, with a link for reporting anything wrong

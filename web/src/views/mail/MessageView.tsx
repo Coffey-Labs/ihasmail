@@ -10,6 +10,8 @@ import { useContacts } from "@/store/contacts";
 import { useCalendar } from "@/store/calendar";
 import { startAppointment } from "@/lib/appointment";
 import { client } from "@/jmap/client";
+import { SignatureBanner } from "./SignatureBanner";
+import { useSignature } from "@/lib/smime/useSignature";
 import { emlFilename } from "@/lib/emlName";
 import { isTnef, parseTnef, type TnefAttachment } from "@/lib/tnef";
 import { internalDomains, isExternalSender, linkVerdict } from "@/lib/warnings";
@@ -47,6 +49,7 @@ interface Props {
 
 export const MessageView = memo(function MessageView({ email: e, expanded, wasUnread, onToggle, actions }: Props) {
   const accountId = useMail((s) => s.accountId)!;
+  const signature = useSignature(e, accountId);
   const settings = useSettings((s) => s.settings);
   const updateSettings = useSettings((s) => s.update);
 
@@ -387,6 +390,7 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
               </button>
             </div>
           )}
+          <SignatureBanner state={signature} />
           {externalSender && (
             <div className="remote-banner external-banner" style={{ margin: "0 16px 8px" }}>
               <ShieldAlert size={16} />

@@ -1781,6 +1781,20 @@ button.dp-open:disabled { cursor: default; opacity: .5; }
 
 /* The banner naming a sender from outside the organisation. */
 .remote-banner.external-banner { background: var(--warn-soft); border-color: var(--warn); }
+/*
+ * The signature banner's colour is the claim it is making, so the quiet tones
+ * are deliberate. "Signed by somebody new" is grey, because an unknown
+ * certificate that verifies against itself has established nothing worth a
+ * green tick; green is kept for the one case that earned it, a signer matching
+ * what was pinned the first time. Red is for a signer that changed.
+ */
+.remote-banner.signature-banner { align-items: flex-start; }
+.remote-banner.signature-banner.good { background: var(--success-soft); color: var(--success); }
+.remote-banner.signature-banner.warn { background: var(--warn-soft); color: var(--warn); }
+.remote-banner.signature-banner.danger { background: var(--danger-soft); color: var(--danger); }
+.remote-banner.signature-banner.quiet { background: var(--bg-sunken); color: var(--fg-muted); }
+.remote-banner.signature-banner .sessions-table td { padding: 2px 8px 2px 0; }
+.remote-banner.signature-banner .hint { opacity: .8; }
 
 /* The line offering the whole folder once the page is selected. */
 .list-hint.select-all-hint { background: var(--accent-soft); color: var(--accent-soft-fg); }

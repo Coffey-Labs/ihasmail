@@ -5,6 +5,7 @@
  */
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
+import { signedMessage, type SIGNED_MESSAGES } from "./signedMessages.js";
 import { expandOccurrences, occurrenceAt, occurrenceView, parseSyntheticId, slotOfOccurrence, splitOccurrencePatch, syntheticId, type Occurrence } from "./recurrence.js";
 import { parseOtpauthUrl, verifyTotp } from "../totp.js";
 import { holdUntilOf, undoStatusOf } from "./futurerelease.js";
@@ -136,6 +137,58 @@ function winmailDat(): Buffer {
   ]);
 }
 
+/**
+ * A really signed message, served as the raw blob a client verifies against.
+ *
+ * The signature is over exact bytes, so this deliberately does not go through
+ * addEmail: that builds a message out of parts and would hand back a body it
+ * had assembled rather than the one that was signed. Here the blob *is* the
+ * fixture, byte for byte, and the JMAP metadata is arranged around it.
+ *
+ * `bodyStructure` says multipart/signed because that is what the client checks
+ * before deciding to download anything -- a mock that omitted it would leave
+ * the whole path unreachable while every stored byte was still correct.
+ */
+function addSignedEmail(o: { which: keyof typeof SIGNED_MESSAGES; from: [string, string]; subject: string; daysAgo: number; mailbox: string; unread?: boolean }) {
+  const id = `e${counter++}`;
+  const raw = signedMessage(o.which);
+  const received = new Date(Date.now() - o.daysAgo * 86400_000).toISOString().replace(/\.\d{3}Z$/, "Z");
+  const body = "The Analytical Engine has no pretensions whatever to originate anything.";
+  const textBlob = putBlob(body, "text/plain");
+  const e: Obj = {
+    id,
+    blobId: putBlob(raw, "message/rfc822"),
+    threadId: `t${id}`,
+    mailboxIds: { [o.mailbox]: true },
+    keywords: o.unread ? {} : { $seen: true },
+    size: raw.length,
+    receivedAt: received,
+    sentAt: received,
+    messageId: [`${id}@mock`],
+    inReplyTo: null,
+    references: null,
+    from: [{ name: o.from[0], email: o.from[1] }],
+    to: [{ name: "Demo User", email: USER }],
+    cc: null, bcc: null, replyTo: null, sender: null,
+    subject: o.subject,
+    hasAttachment: false,
+    preview: body.slice(0, 120),
+    textBody: [{ partId: "1", blobId: textBlob, size: body.length, name: null, type: "text/plain", charset: "utf-8", disposition: null, cid: null }],
+    htmlBody: [],
+    attachments: [],
+    bodyValues: { "1": { value: body, isEncodingProblem: false, isTruncated: false } },
+    bodyStructure: {
+      partId: null, blobId: null, size: raw.length, type: "multipart/signed", name: null, charset: null, disposition: null, cid: null,
+      subParts: [
+        { partId: "1", blobId: textBlob, size: body.length, type: "text/plain", name: null, charset: "utf-8", disposition: null, cid: null },
+        { partId: "2", blobId: null, size: 0, type: "application/x-pkcs7-signature", name: "smime.p7s", charset: null, disposition: "attachment", cid: null },
+      ],
+    },
+  };
+  emails.push(e);
+  return e;
+}
+
 function addEmail(o: { from: [string, string]; to?: string; subject: string; daysAgo: number; mailbox: string; threadId?: string; unread?: boolean; flagged?: boolean; html?: boolean; attach?: boolean; winmail?: boolean; inReplyTo?: string }) {
   const id = `e${counter++}`;
   const received = new Date(Date.now() - o.daysAgo * 86400_000 - Math.random() * 3600_000 * 5).toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -192,6 +245,15 @@ for (let i = 0; i < 45; i++) {
   }
 }
 addEmail({ from: ["Demo User", USER], to: "ada@example.org", subject: "Draft: ideas for the retreat", daysAgo: 0.1, mailbox: "drafts", html: true }).keywords = { $draft: true, $seen: true };
+
+/*
+ * Three signed messages, so every branch of the signature banner can be seen
+ * without staging a certificate authority. Read "A note" first: that pins Ada's
+ * certificate, after which the other two have something to disagree with.
+ */
+addSignedEmail({ which: "good", from: ["Ada Lovelace", "ada@example.com"], subject: "A note", daysAgo: 0.2, mailbox: "inbox", unread: true });
+addSignedEmail({ which: "tampered", from: ["Ada Lovelace", "ada@example.com"], subject: "A note (altered in transit)", daysAgo: 0.25, mailbox: "inbox", unread: true });
+addSignedEmail({ which: "imposter", from: ["Ada Lovelace", "ada@example.com"], subject: "A note (signed by somebody else)", daysAgo: 0.3, mailbox: "inbox", unread: true });
 addEmail({ from: ["Spammy", "win@lottery.example"], subject: "You have WON!!!", daysAgo: 2, mailbox: "junk", unread: true });
 addEmail({ from: ["Outlook User", "sales@partner.example"], subject: "Q3 figures (sent from Outlook)", daysAgo: 1, mailbox: "inbox", unread: true, winmail: true });
 addEmail({ from: ["Finance Team", "finance@example.org"], subject: "Invoice 2201 approved", daysAgo: 1, mailbox: "work-inv", unread: true });

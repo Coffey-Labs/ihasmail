@@ -1,0 +1,41 @@
+To: you@example.com
+From: Grace Hopper <grace@example.com>
+Subject: A note
+MIME-Version: 1.0
+Content-Type: multipart/signed; protocol="application/x-pkcs7-signature"; micalg="sha-256"; boundary="----1F14F13899656314019C2DF4C8728ED3"
+
+This is an S/MIME signed message
+
+------1F14F13899656314019C2DF4C8728ED3
+Content-Type: text/plain; charset=utf-8
+
+The Analytical Engine has no pretensions whatever to originate anything.
+
+------1F14F13899656314019C2DF4C8728ED3
+Content-Type: application/x-pkcs7-signature; name="smime.p7s"
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename="smime.p7s"
+
+MIIDtQYJKoZIhvcNAQcCoIIDpjCCA6ICAQExDzANBglghkgBZQMEAgEFADALBgkq
+hkiG9w0BBwGgggHjMIIB3zCCAYagAwIBAgIUejcvY0YWeoAxAMTf4bp3jOkMCVww
+CgYIKoZIzj0EAwIwKzEVMBMGA1UEAwwMR3JhY2UgSG9wcGVyMRIwEAYDVQQKDAlD
+b21waWxlcnMwHhcNMjYwOTA1MDgyNzQ4WhcNMzYwOTAyMDgyNzQ4WjArMRUwEwYD
+VQQDDAxHcmFjZSBIb3BwZXIxEjAQBgNVBAoMCUNvbXBpbGVyczBZMBMGByqGSM49
+AgEGCCqGSM49AwEHA0IABOcBiRNb2IF0vlQJlnVKJXFr0taIz2LoU+8p0GQZ9kas
+DnlHQaCR17JtDfGA6azi7w2ZOYZg0ZjGxbcKoTWKdR6jgYcwgYQwHQYDVR0OBBYE
+FGqS/6/0hXUay/WvkZrl3DCTY1sTMB8GA1UdIwQYMBaAFGqS/6/0hXUay/WvkZrl
+3DCTY1sTMA8GA1UdEwEB/wQFMAMBAf8wHAYDVR0RBBUwE4ERZ3JhY2VAZXhhbXBs
+ZS5jb20wEwYDVR0lBAwwCgYIKwYBBQUHAwQwCgYIKoZIzj0EAwIDRwAwRAIgbJ+R
+K6iGkQ6qrzT7m7E09D2rW+O3/LYoRPlwo5EJiZkCIHAvYgUyxqeRGNr/adeVmqvv
+borP2nkAD8LjCUdtv1+NMYIBljCCAZICAQEwQzArMRUwEwYDVQQDDAxHcmFjZSBI
+b3BwZXIxEjAQBgNVBAoMCUNvbXBpbGVycwIUejcvY0YWeoAxAMTf4bp3jOkMCVww
+DQYJYIZIAWUDBAIBBQCggeQwGAYJKoZIhvcNAQkDMQsGCSqGSIb3DQEHATAcBgkq
+hkiG9w0BCQUxDxcNMjYwOTA1MDgyNzQ4WjAvBgkqhkiG9w0BCQQxIgQgD6tNEuEW
+5UlYvan88jdbR0HwFJnJxh0YtHUGA9NIyf8weQYJKoZIhvcNAQkPMWwwajALBglg
+hkgBZQMEASowCwYJYIZIAWUDBAEWMAsGCWCGSAFlAwQBAjAKBggqhkiG9w0DBzAO
+BggqhkiG9w0DAgICAIAwDQYIKoZIhvcNAwICAUAwBwYFKw4DAgcwDQYIKoZIhvcN
+AwICASgwCgYIKoZIzj0EAwIERjBEAiBR36dlKMTvZKbufvpVZNylX7yxQrra+xHP
++KnbTB8rzAIgIW0ArgkEKCYF8eF76KyjOcfAlXT1MJKjiCjYj9I13Ug=
+
+------1F14F13899656314019C2DF4C8728ED3--
+
