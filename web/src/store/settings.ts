@@ -57,6 +57,25 @@ export interface Template {
   html: string;
 }
 
+/** A signer remembered for an address. See `knownSigners`. */
+export interface SignerPin {
+  /** SHA-256 of the certificate's DER, lowercase hex. */
+  fingerprint: string;
+  /** What the certificate called its holder, so a change can be described. */
+  name: string;
+  /** When this fingerprint was first pinned, ISO 8601. */
+  firstSeen: string;
+  /**
+   * The message that established the pin.
+   *
+   * Without this, the message that *created* a pin reads as corroborated by it
+   * the next time it is opened — "the same signer as before", where before is
+   * itself. That is a claim of corroboration from evidence that does not
+   * exist, and it appears on the very first signed message somebody receives.
+   */
+  messageId?: string;
+}
+
 export interface Settings {
   /**
    * Kept, and kept correct, for a device still running a build that only knows
@@ -91,6 +110,23 @@ export interface Settings {
    * already follow the reader between devices.
    */
   addedShares: string[];
+
+  /**
+   * S/MIME signers pinned on first sight, keyed by lowercased address.
+   *
+   * This is the whole trust model for signature checking, and it is a small
+   * one: a browser has no system trust store, and the certificate that signs a
+   * message travels inside it, so "this signature verifies" on its own says
+   * only that the sender held the key they attached. What makes it worth
+   * anything is remembering — the same signer as last time is reassuring, and a
+   * different one is worth interrupting somebody over.
+   *
+   * It lives in the synced settings rather than in this browser because a pin
+   * that only one device knows about would greet the same correspondent as new
+   * on every other one, which trains people to click past exactly the warning
+   * this exists to raise.
+   */
+  knownSigners: Record<string, SignerPin>;
   imagePolicy: ImagePolicy;
   /** Let messages follow the app's light/dark theme instead of always sitting on white. */
   themeMessageBody: boolean;
@@ -268,6 +304,7 @@ export const DEFAULT_SETTINGS: Settings = {
   pageSize: 50,
   markReadDelay: 0,
   addedShares: [],
+  knownSigners: {},
   imagePolicy: "ask",
   themeMessageBody: false,
   undoSendSeconds: 8,

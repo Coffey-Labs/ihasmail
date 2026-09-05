@@ -1212,6 +1212,68 @@ Over Stalwart's own registry objects, so there is no administrator in the loop:
   credentials". Doing it properly means implementing OAuth; that is in
   [ROADMAP.md](ROADMAP.md).
 
+## Checking a signature
+
+A signed message says who signed it, and ihasmail checks whether that holds up.
+This is S/MIME only, and it stops at reading: nothing here signs, encrypts or
+decrypts anything.
+
+**What it checks.** For a `multipart/signed` message carrying a PKCS#7
+signature, the exact bytes of the signed part — headers included, canonicalised
+to CRLF — are hashed and compared against the `messageDigest` the signature
+covers, and the signature over the signed attributes is verified with WebCrypto
+against the certificate travelling inside the message. RSA (PKCS#1 v1.5) and
+ECDSA over P-256, P-384 and P-521 are supported, with SHA-256, SHA-384 or
+SHA-512.
+
+**What a check is allowed to claim, which is the whole design.** A browser has
+no system trust store, and the certificate arrives inside the message, so anyone
+can self-sign as anyone. On its own a verified signature proves only that
+whoever wrote the message held the key attached to it — which is why ihasmail
+never renders the bare word *verified*.
+
+What makes it worth anything is remembering. The first signed message from an
+address pins that certificate's fingerprint in your settings; later ones are
+compared against it. That is trust on first use, and it needs no certificate
+authority:
+
+| what happened | what you see |
+|---|---|
+| first signed message from this address | *"Signed by X, seen here for the first time"* — grey, and deliberately not congratulatory |
+| same certificate as before | *"the same signer as before"* — the only case that gets a tick |
+| **different certificate than before** | **loud**: both names, and told to check by some other route |
+| valid signature, certificate for a different address | **loud**: the signature is not for this sender |
+| body changed after signing | **loud**: the signature does not check out |
+| signed, but uncheckable | grey, and careful to say *could not check* rather than *did not check out* |
+
+The pins live in the account's settings file rather than in the browser, so the
+same correspondent is not greeted as new on every device — which is what trains
+people to click past the one warning that matters. A pin records the message
+that created it, so the message which established a signer keeps saying so
+rather than appearing to be corroborated by itself. A signer that changed, one
+whose certificate does not name the sender, or one already expired is never
+pinned: writing an anomaly into the baseline would make every later message
+agree with it.
+
+**What it will not do.**
+
+- **OpenPGP is not checked**, and says so by name rather than as an unknown
+  format. The signature does not carry the key, and ihasmail has nowhere to get
+  a correspondent's public key from — `x:PublicKey` holds the account's *own*
+  keys, and fetching from a keyserver or WKD would leak who you correspond with
+  to a third party, which is the exact thing the image proxy exists to prevent.
+- **No chain of trust.** Nothing is validated against a certificate authority,
+  no CA bundle is shipped, and revocation is not checked. "Issued by" reports
+  what the certificate says, and a self-signed certificate says it issued
+  itself.
+- **SHA-1 signatures are refused**, not reported as valid.
+- **RSA-PSS is declined** rather than attempted, because guessing the salt
+  length wrong would report a good signature as bad — a worse thing to say than
+  "cannot check".
+
+The verifier is a separate bundle chunk, loaded only when a message's structure
+says it is signed, so reading ordinary mail costs nothing for any of this.
+
 ## Privacy by default
 
 Remote images blocked, the proxy on, read receipts never automatic, no
