@@ -66,9 +66,6 @@ const nextState = () => String(state.n++);
 /** Push subscriptions, as a fresh account has none. */
 const pushSubscriptions: Obj[] = [];
 
-/** Registered public keys. Empty to start, like a fresh account. */
-const publicKeys: Obj[] = [];
-
 const mailboxes: Obj[] = [
   mb("inbox", "Inbox", "inbox"),
   mb("drafts", "Drafts", "drafts"),
@@ -978,82 +975,6 @@ const handlers: Record<string, Handler> = {
     }
     return setResp({ created, notCreated, updated, notUpdated, destroyed });
   },
-  /*
-   * Public keys, as 0.16.20 actually behaves -- established against a live
-   * server on 2026-09-05, because the documentation disagrees on the first two:
-   *
-   *   - an ordinary user may read AND write their own keys. The docs list the
-   *     sysPublicKey* permissions as administrative; the server granted them.
-   *
-   *   - the server parses the key. A malformed one comes back invalidProperties
-   *     naming `key`, with the parser's own complaint in the description --
-   *     not a bland "invalid". A mock that took any string would let a client
-   *     ship without ever handling the rejection, which is the shape of every
-   *     bug this mock has been taught to reproduce since.
-   *
-   *   - a well-formed key with nothing to encrypt to is refused just as
-   *     firmly, and says something different: "Could not find any suitable
-   *     keys in OpenPGP public key". A sign-only key parses perfectly and is
-   *     still no use to a server whose reason for holding one is encryption.
-   *     This is the rejection somebody exporting from GnuPG will actually
-   *     meet, so the mock has to be able to produce it.
-   *
-   *   - `created` carries the id and nothing else -- no createdAt. A client
-   *     that read one back out of the create response would get undefined,
-   *     which is why adding a key reloads the list.
-   */
-  "x:PublicKey/get": (a) => genericGet(publicKeys)(a),
-  "x:PublicKey/query": () => ({ accountId: ACCOUNT, queryState: String(state.n), canCalculateChanges: true, position: 0, ids: publicKeys.map((k) => k.id as string), total: publicKeys.length }),
-  "x:PublicKey/set": (a) => {
-    const created: Obj = {};
-    const notCreated: Obj = {};
-    const updated: Obj = {};
-    const notUpdated: Obj = {};
-    const destroyed: string[] = [];
-    for (const [cid, obj] of Object.entries((a.create as Obj) ?? {})) {
-      const o = obj as Obj;
-      const complaint = keyComplaint(String(o.key ?? ""));
-      if (complaint) {
-        notCreated[cid] = { type: "invalidProperties", properties: ["key"], description: complaint };
-        continue;
-      }
-      const id = `pk${randomUUID().slice(0, 6)}`;
-      publicKeys.push({
-        id,
-        key: o.key,
-        description: o.description ?? "",
-        createdAt: new Date().toISOString(),
-        expiresAt: o.expiresAt ?? null,
-        // An empty `emailAddresses` comes back from the real server as `{}` --
-        // an object where a JMAP list property should be an array. The client
-        // survives it by checking rather than trusting, and it only survives
-        // because something reproduced it: a mock answering `[]` would have
-        // let `.join(", ")` ship and throw against a real server.
-        emailAddresses: Array.isArray(o.emailAddresses) && o.emailAddresses.length ? o.emailAddresses : {},
-      });
-      // Only the id: the live server sends no createdAt here.
-      created[cid] = { id };
-      state.n++;
-    }
-    for (const [id, patch] of Object.entries((a.update as Obj) ?? {})) {
-      const k = publicKeys.find((x) => x.id === id);
-      if (!k) { notUpdated[id] = { type: "notFound" }; continue; }
-      // The live server ALLOWS this -- patching `key` on 0.16.20 answers
-      // `updated`. The mock refuses it anyway, and deliberately: ihasmail
-      // replaces a key by adding one and removing the old, which keeps
-      // createdAt meaning what it says, and a mock that permitted the patch
-      // would quietly bless a path the client is not supposed to take.
-      if ("key" in (patch as Obj)) { notUpdated[id] = { type: "invalidProperties", properties: ["key"], description: "Property cannot be changed." }; continue; }
-      Object.assign(k, patch);
-      updated[id] = null;
-      state.n++;
-    }
-    for (const id of (a.destroy as string[]) ?? []) {
-      const i = publicKeys.findIndex((x) => x.id === id);
-      if (i >= 0) { publicKeys.splice(i, 1); destroyed.push(id); state.n++; }
-    }
-    return setResp({ created, notCreated, updated, notUpdated, destroyed });
-  },
   "x:AppPassword/get": (a) => genericGet(account.appPasswords)(a),
   "x:AppPassword/set": (a) => {
     const created: Obj = {};
@@ -1271,43 +1192,6 @@ const handlers: Record<string, Handler> = {
     })(a);
   },
 };
-
-/**
- * What Stalwart says when it will not take a key. Both wordings are the
- * server's own, taken verbatim from a live 0.16.20 on 2026-09-05 -- a client
- * that only ever saw "invalid key" would show something less useful than what
- * the server was already offering.
- *
- * There are three, and they are worth keeping apart because they are different
- * problems. A block that will not parse is usually a bad copy and paste. A
- * block that parses and is still refused is a key that cannot encrypt --
- * `gpg --quick-generate-key` makes a sign-and-certify key by default, and
- * exporting that gets you "Could not find any suitable keys" however carefully
- * it was pasted. And a certificate gets its own decoder and its own complaint:
- * Stalwart parses X.509 as seriously as it parses OpenPGP, which is the thing
- * that makes the S/MIME half of this section real rather than decorative.
- */
-function keyComplaint(key: string): string | null {
-  const k = key.trim();
-  if (!k) return "Failed to decode OpenPGP public key: no key data.";
-  const pgp = k.startsWith("-----BEGIN PGP PUBLIC KEY BLOCK-----") && k.includes("-----END PGP PUBLIC KEY BLOCK-----");
-  const x509 = k.startsWith("-----BEGIN CERTIFICATE-----") && k.includes("-----END CERTIFICATE-----");
-  if (!pgp && !x509) return "Failed to decode OpenPGP public key: Malformed packet: Malformed CTB: MSB of ptag not set.";
-  const body = k.split(/\r?\n/).filter((l) => l && !l.startsWith("-----") && !l.startsWith("=") && !l.includes(":")).join("");
-  // Enough base64 to be a key rather than a placeholder; the real parsers are
-  // stricter still, which is the point of surfacing their message and not ours.
-  if (body.length < 64) {
-    return x509
-      ? "Failed to decode X509 certificate: BER decoding error: Expected Tag { class: Universal, value: 16 } tag, actual tag: Tag { class: Application, value: 14 } (Codec: BER)"
-      : "Failed to decode OpenPGP public key: Malformed packet: unexpected EOF.";
-  }
-  // The mock cannot read a key, so it cannot tell whether one can encrypt.
-  // A "SIGNONLY" marker anywhere in the block stands in for that, which is
-  // crude but reachable: the branch has to be reachable from the UI, or
-  // nobody will ever see the message it exists to return.
-  if (pgp && k.includes("SIGNONLY")) return "Could not find any suitable keys in OpenPGP public key";
-  return null;
-}
 
 /* ---------- http ---------- */
 function unauthorized(res: ServerResponse) {

@@ -1,11 +1,10 @@
 import { lazy, Suspense, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { ArrowLeft, Bell, EyeOff, Filter, Folder, Info, Keyboard, KeyRound, LayoutTemplate, Palette, PenLine, Plane, Settings as SettingsIcon, ShieldCheck, Tag, Users, Calendar } from "lucide-react";
+import { ArrowLeft, Bell, EyeOff, Filter, Folder, Info, Keyboard, LayoutTemplate, Palette, PenLine, Plane, Settings as SettingsIcon, ShieldCheck, Tag, Users, Calendar } from "lucide-react";
 import { Spinner } from "@/ui/misc";
 import { GeneralSettings } from "./GeneralSettings";
 import { AppearanceSettings } from "./AppearanceSettings";
 import { IdentitiesSettings } from "./IdentitiesSettings";
-import { KeysSettings } from "./KeysSettings";
 import { FoldersSettings } from "./FoldersSettings";
 import { LabelsSettings } from "./LabelsSettings";
 import { TemplatesSettings } from "./TemplatesSettings";
@@ -24,7 +23,6 @@ const SECTIONS: Array<{ id: string; label: string; icon: ReactNode; el: ReactNod
   { id: "general", label: "General", icon: <SettingsIcon size={18} />, el: <GeneralSettings /> },
   { id: "appearance", label: "Appearance", icon: <Palette size={18} />, el: <AppearanceSettings /> },
   { id: "identities", label: "Identities & signatures", icon: <PenLine size={18} />, el: <IdentitiesSettings /> },
-  { id: "keys", label: "Encryption keys", icon: <KeyRound size={18} />, el: <KeysSettings /> },
   { id: "filters", label: "Filters & rules", icon: <Filter size={18} />, el: <FiltersSettings /> },
   { id: "vacation", label: "Out of office", icon: <Plane size={18} />, el: <VacationSettings /> },
   { id: "folders", label: "Folders", icon: <Folder size={18} />, el: <FoldersSettings /> },
