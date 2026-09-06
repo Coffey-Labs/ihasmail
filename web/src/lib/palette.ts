@@ -13,7 +13,9 @@
  * the derivation can be checked rather than taken on trust.
  */
 
-export type PaletteId = "default" | "ihasmail" | "dracula" | "gruvbox" | "rose-pine" | "tokyo-night";
+export type PaletteId =
+  | "default" | "ihasmail" | "dracula" | "gruvbox" | "rose-pine" | "tokyo-night"
+  | "catppuccin" | "solarized" | "ayu" | "kanagawa" | "everforest" | "primer";
 export type Mode = "system" | "light" | "dark";
 /** What a mode resolves to once the system has been asked. */
 export type ResolvedMode = "light" | "dark";
@@ -26,11 +28,11 @@ export interface PaletteMeta {
   /**
    * Whether the name is a word rather than a name.
    *
-   * Five of these six are proper names -- ihasmail, Dracula, Gruvbox, Rosé
-   * Pine, Tokyo Night -- and are rendered translate="no" so a page translator
-   * leaves them alone. "Classic" is not a name, it is an adjective describing
-   * the theme, and a German reader should see "Klassisch". Reported by a
-   * native speaker reviewing the German catalogue (#247).
+   * All but one of these are proper names -- ihasmail, Dracula, Gruvbox and
+   * the rest -- and are rendered translate="no" so a page translator leaves
+   * them alone. "Classic" is not a name, it is an adjective describing the
+   * theme, and a German reader should see "Klassisch". Reported by a native
+   * speaker reviewing the German catalogue (#247).
    */
   translatable?: boolean;
 }
@@ -42,6 +44,14 @@ export const PALETTES: PaletteMeta[] = [
   { id: "gruvbox", name: "Gruvbox", credit: "gruvbox by morhetz (MIT)" },
   { id: "rose-pine", name: "Rosé Pine", credit: "Rosé Pine (MIT) — light variant is Dawn" },
   { id: "tokyo-night", name: "Tokyo Night", credit: "Tokyo Night by enkia (MIT) — light variant is Day" },
+  { id: "catppuccin", name: "Catppuccin", credit: "Catppuccin (MIT) — dark is Mocha, light is Latte" },
+  { id: "solarized", name: "Solarized", credit: "Solarized by Ethan Schoonover (MIT) — light and dark are both original" },
+  { id: "ayu", name: "Ayu", credit: "Ayu by Konstantin Pschera (MIT)" },
+  { id: "kanagawa", name: "Kanagawa", credit: "Kanagawa by rebelot (MIT) — dark is Wave, light is Lotus" },
+  { id: "everforest", name: "Everforest", credit: "Everforest by sainnhe (MIT)" },
+  // Named for the design system rather than for GitHub: the colours are MIT,
+  // the name and the logo are trademarks, and nothing here is endorsed.
+  { id: "primer", name: "Primer", credit: "GitHub's Primer primitives (MIT); not affiliated with or endorsed by GitHub" },
 ];
 
 const byId = new Map(PALETTES.map((p) => [p.id, p]));

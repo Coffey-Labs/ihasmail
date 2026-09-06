@@ -47,3 +47,104 @@ bg #e6e7ed · bg_dark #d6d8df · fg #343b59 · line numbers #9da0ab · border #c
 link #2959aa
 accents: purple #65359d · red #8c4351 · cyan #006c86 · blue #2959aa
 yellow #8f5e15 · teal #33635c · green #385f0d
+
+---
+
+Fetched 2026-09-06 from the projects' own repositories, same rule as above.
+Where a project publishes fewer background tiers than ihasmail needs, the
+missing one is derived and marked **derived** here rather than passed off as
+upstream. Body text is lifted to 7:1 by the build script for most of these —
+they target their own ~4.5:1 — and every shift is printed in the generated CSS.
+
+## Catppuccin — catppuccin/palette, MIT (palette.json)
+Cited from the palette repo rather than the hub README; it is the normative
+machine-readable source.
+
+### Mocha (dark)
+base #1e1e2e · mantle #181825 · crust #11111b · surface0 #313244 · surface1 #45475a
+text #cdd6f4 · subtext0 #a6adc8 · overlay1 #7f849c
+mauve #cba6f7 · blue #89b4fa · red #f38ba8 · peach #fab387 · green #a6e3a1
+yellow #f9e2af · pink #f5c2e7
+
+### Latte (light)
+base #eff1f5 · mantle #e6e9ef · crust #dce0e8 · surface0 #ccd0da · surface1 #bcc0cc
+text #4c4f69 · subtext0 #6c6f85
+mauve #8839ef · blue #1e66f5 · red #d20f39 · peach #fe640b · green #40a02b
+yellow #df8e1d · pink #ea76cb
+
+Latte publishes no tier lighter than `base`, so `base` is used as the elevated
+surface and `mantle` as the page behind it.
+
+## Solarized — altercation/solarized, MIT (README "The Values")
+base03 #002b36 · base02 #073642 · base01 #586e75 · base00 #657b83
+base0 #839496 · base1 #93a1a1 · base2 #eee8d5 · base3 #fdf6e3
+yellow #b58900 · orange #cb4b16 · red #dc322f · magenta #d33682
+violet #6c71c4 · blue #268bd2 · cyan #2aa198 · green #859900
+
+The accents are shared by both modes by design. Two tiers are **derived**: the
+sunken dark surface #001f28 (below base03) and the raised light surface
+#fffdf6 (above base3), neither of which Solarized publishes, plus the two
+rule colours #0d4552 and #e6dfc8.
+
+## Everforest — sainnhe/everforest, MIT (palette.md), medium contrast
+### Dark
+bg_dim #232a2e · bg0 #2d353b · bg1 #343f44 · bg3 #475258
+fg #d3c6aa · grey1 #859289
+red #e67e80 · orange #e69875 · yellow #dbbc7f · green #a7c080 · aqua #83c092
+blue #7fbbb3 · purple #d699b6
+
+### Light
+bg_dim #efebd4 · bg0 #fdf6e3 · bg3 #e6e2cc · bg5 #bdc3af
+fg #5c6a72 · grey1 #939f91
+red #f85552 · orange #f57d26 · yellow #dfa000 · green #8da101 · aqua #35a77c
+blue #3a94c5 · purple #df69ba
+
+Light uses bg_dim as the page and bg0 as the raised surface, so the card the
+reader looks at is the colour Everforest calls its background.
+
+## Kanagawa — rebelot/kanagawa.nvim, MIT (lua/kanagawa/colors.lua)
+### Wave (dark)
+sumiInk0 #16161D · sumiInk3 #1F1F28 · sumiInk4 #2A2A37 · sumiInk5 #363646
+fujiWhite #DCD7BA · fujiGray #727169
+crystalBlue #7E9CD8 · springBlue #7FB4CA · samuraiRed #E82424 · roninYellow #FF9E3B
+springGreen #98BB6C · carpYellow #E6C384 · sakuraPink #D27E99
+
+### Lotus (light)
+lotusWhite0 #d5cea3 · lotusWhite1 #dcd5ac · lotusWhite2 #e5ddb0 · lotusWhite3 #f2ecbc
+lotusInk1 #545464 · lotusGray2 #716e61
+lotusViolet4 #624c83 · lotusBlue4 #4d699b · lotusRed #c84053 · lotusOrange #cc6d00
+lotusGreen #6f894e · lotusYellow #77713f · lotusPink #b35b79
+
+## Ayu — ayu-theme/ayu-colors, MIT (themes/dark.yaml, themes/light.yaml)
+The YAMLs give the base palette and the surfaces as literals but express syntax
+roles as references (`$palette.indigo.l2`), and the resolved files are not
+committed. The two signature accents are taken from the same organisation's
+MIT-licensed ayu-theme/vscode-ayu build.
+
+### Dark
+surface base #0D1017 · lift #10141C (sunk is `base -L0.1`, **derived** here as #070a0f)
+ui line #1B1F29 · ui fg #5A6378 · editor fg #BFBDB6
+red #F07178 · orange #FF8F40 · yellow #FFB454 · green #AAD94C · teal #95E6CB
+indigo #39BAE6 · blue #59C2FF · purple #D2A6FF · accent #E6B450 (vscode-ayu)
+
+### Light
+surface sunk #EBEEF0 · base #F8F9FA · lift #FCFCFC
+ui fg #828E9F · editor fg #5C6166 · rule #dfe2e5 (**derived**)
+red #F07171 · orange #FA8532 · yellow #EBA400 · green #86B300 · teal #4CBF99
+indigo #55B4D4 · blue #22A4E6 · purple #A37ACC · accent #F29718 (vscode-ayu)
+
+## Primer — primer/primitives, MIT (src/tokens/base/color/{dark,light})
+Named "Primer" after the design system. The colour values are MIT; "GitHub"
+and the Invertocat are trademarks, and nothing here is endorsed by them.
+
+### Dark
+neutral #0D1117 #151B23 #212830 #262C36 #2A313C #2F3742 #3D444D #656C76
+        #9198A1 #B7BDC8 #D1D7E0 #F0F6FC · black #010409
+blue #79c0ff #58a6ff · green #56d364 #3fb950 · yellow #e3b341 #d29922
+red #ff7b72 · purple #d2a8ff
+
+### Light
+neutral #F6F8FA #EFF2F5 #E6EAEF #E0E6EB #DAE0E7 #D1D9E0 #C8D1DA #818B98
+        #59636E #454C54 #393F46 #25292E
+blue #0969da #0550ae · green #1a7f37 #116329 · yellow #bf8700 #9a6700
+red #cf222e · purple #8250df

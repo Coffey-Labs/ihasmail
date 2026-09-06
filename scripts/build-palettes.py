@@ -163,6 +163,90 @@ SOURCES = {
             q1="#006c86", q2="#385f0d", q3="#65359d",
         ),
     },
+    "catppuccin": {
+        "dark": dict(  # Mocha
+            bg="#1e1e2e", elev="#313244", sunken="#181825", line="#45475a",
+            fg="#cdd6f4", muted="#a6adc8", accent="#cba6f7", link="#89b4fa",
+            danger="#f38ba8", warn="#fab387", success="#a6e3a1", star="#f9e2af",
+            q1="#89b4fa", q2="#a6e3a1", q3="#f5c2e7",
+        ),
+        "light": dict(  # Latte
+            bg="#e6e9ef", elev="#eff1f5", sunken="#dce0e8", line="#ccd0da",
+            fg="#4c4f69", muted="#6c6f85", accent="#8839ef", link="#1e66f5",
+            danger="#d20f39", warn="#fe640b", success="#40a02b", star="#df8e1d",
+            q1="#1e66f5", q2="#40a02b", q3="#ea76cb",
+        ),
+    },
+    "solarized": {
+        "dark": dict(
+            bg="#002b36", elev="#073642", sunken="#001f28", line="#0d4552",
+            fg="#839496", muted="#586e75", accent="#268bd2", link="#2aa198",
+            danger="#dc322f", warn="#cb4b16", success="#859900", star="#b58900",
+            q1="#2aa198", q2="#859900", q3="#6c71c4",
+        ),
+        "light": dict(
+            bg="#fdf6e3", elev="#fffdf6", sunken="#eee8d5", line="#e6dfc8",
+            fg="#657b83", muted="#93a1a1", accent="#268bd2", link="#2aa198",
+            danger="#dc322f", warn="#cb4b16", success="#859900", star="#b58900",
+            q1="#2aa198", q2="#859900", q3="#6c71c4",
+        ),
+    },
+    "ayu": {
+        "dark": dict(
+            bg="#0d1017", elev="#10141c", sunken="#070a0f", line="#1b1f29",
+            fg="#bfbdb6", muted="#5a6378", accent="#e6b450", link="#59c2ff",
+            danger="#f07178", warn="#ff8f40", success="#aad94c", star="#ffb454",
+            q1="#39bae6", q2="#aad94c", q3="#d2a6ff",
+        ),
+        "light": dict(
+            bg="#f8f9fa", elev="#fcfcfc", sunken="#ebeef0", line="#dfe2e5",
+            fg="#5c6166", muted="#828e9f", accent="#f29718", link="#22a4e6",
+            danger="#f07171", warn="#fa8532", success="#86b300", star="#eba400",
+            q1="#55b4d4", q2="#86b300", q3="#a37acc",
+        ),
+    },
+    "kanagawa": {
+        "dark": dict(  # Wave
+            bg="#1f1f28", elev="#2a2a37", sunken="#16161d", line="#363646",
+            fg="#dcd7ba", muted="#727169", accent="#7e9cd8", link="#7fb4ca",
+            danger="#e82424", warn="#ff9e3b", success="#98bb6c", star="#e6c384",
+            q1="#7fb4ca", q2="#98bb6c", q3="#d27e99",
+        ),
+        "light": dict(  # Lotus
+            bg="#e5ddb0", elev="#f2ecbc", sunken="#dcd5ac", line="#d5cea3",
+            fg="#545464", muted="#716e61", accent="#624c83", link="#4d699b",
+            danger="#c84053", warn="#cc6d00", success="#6f894e", star="#77713f",
+            q1="#4d699b", q2="#6f894e", q3="#b35b79",
+        ),
+    },
+    "everforest": {
+        "dark": dict(  # medium
+            bg="#2d353b", elev="#343f44", sunken="#232a2e", line="#475258",
+            fg="#d3c6aa", muted="#859289", accent="#a7c080", link="#7fbbb3",
+            danger="#e67e80", warn="#e69875", success="#a7c080", star="#dbbc7f",
+            q1="#7fbbb3", q2="#a7c080", q3="#d699b6",
+        ),
+        "light": dict(  # medium
+            bg="#efebd4", elev="#fdf6e3", sunken="#e6e2cc", line="#bdc3af",
+            fg="#5c6a72", muted="#939f91", accent="#8da101", link="#3a94c5",
+            danger="#f85552", warn="#f57d26", success="#8da101", star="#dfa000",
+            q1="#3a94c5", q2="#8da101", q3="#df69ba",
+        ),
+    },
+    "primer": {
+        "dark": dict(
+            bg="#0d1117", elev="#151b23", sunken="#010409", line="#3d444d",
+            fg="#f0f6fc", muted="#9198a1", accent="#58a6ff", link="#79c0ff",
+            danger="#ff7b72", warn="#e3b341", success="#3fb950", star="#d29922",
+            q1="#79c0ff", q2="#56d364", q3="#d2a8ff",
+        ),
+        "light": dict(
+            bg="#f6f8fa", elev="#ffffff", sunken="#eff2f5", line="#d1d9e0",
+            fg="#25292e", muted="#59636e", accent="#0969da", link="#0550ae",
+            danger="#cf222e", warn="#9a6700", success="#1a7f37", star="#bf8700",
+            q1="#0550ae", q2="#116329", q3="#8250df",
+        ),
+    },
 }
 
 # What each token has to clear, and against which surface. Normal text is 4.5;
@@ -182,6 +266,15 @@ def build(pid: str, mode: str, src: dict[str, str]) -> tuple[dict[str, str], lis
         if out != colour:
             notes.append(f"{name} {colour} -> {out} ({contrast(colour, bg):.2f} -> {contrast(out, bg):.2f})")
         return out
+
+    # Body text is lifted like every other text tone rather than exempted.
+    # Most of these palettes publish a body colour around 4.5:1 -- their own
+    # target -- and ihasmail asks 7:1 of the text a reader looks at all day.
+    # Rejecting a palette over that would have cost five of the six added in
+    # 2026-09; nudging the published colour along its own hue costs nothing a
+    # reader can name, and the shift is recorded in the header of the
+    # generated block like every other one.
+    fg = lift("fg", fg, TEXT_ON_BG["fg"])
 
     muted = lift("muted", src["muted"], TEXT_ON_BG["muted"])
     # Between muted and the background, but still readable: this is timestamps

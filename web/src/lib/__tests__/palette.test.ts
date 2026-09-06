@@ -6,7 +6,10 @@ describe("the palettes themselves", () => {
     // The reason there is no "this palette is dark only" machinery: there is
     // no such palette. ihasmail's own gained a light half, and the override,
     // the toggle's memory and a greyed-out control all went with it.
-    expect(PALETTES.map((p) => p.id)).toEqual(["default", "ihasmail", "dracula", "gruvbox", "rose-pine", "tokyo-night"]);
+    expect(PALETTES.map((p) => p.id)).toEqual([
+      "default", "ihasmail", "dracula", "gruvbox", "rose-pine", "tokyo-night",
+      "catppuccin", "solarized", "ayu", "kanagawa", "everforest", "primer",
+    ]);
   });
 
   it("credits every borrowed palette and neither of ihasmail's own", () => {

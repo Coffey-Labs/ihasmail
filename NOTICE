@@ -5,7 +5,7 @@ other people that ships inside it and the terms it comes under.
 
 ## Colour palettes
 
-Four of the palettes offered in Settings › Appearance are the work of their own
+Ten of the palettes offered in Settings › Appearance are the work of their own
 projects and are used under the MIT licence. Only the published colour values
 are used — no code, and nothing from anyone else's reimplementation of them.
 The values as fetched from each project are recorded in
@@ -35,9 +35,47 @@ Licensed under the MIT licence. The light variant is "Dawn".
 Copyright (c) 2019 enkia — https://github.com/enkia/tokyo-night-vscode-theme
 Licensed under the MIT licence. The light variant is "Day".
 
+### Catppuccin
+
+Copyright (c) 2021 Catppuccin — https://github.com/catppuccin/palette
+Licensed under the MIT licence. "Mocha" is the dark variant and "Latte" the
+light one; both are published in that repository's palette.json.
+
+### Solarized
+
+Copyright (c) 2011 Ethan Schoonover — https://github.com/altercation/solarized
+Licensed under the MIT licence. Light and dark are both original to it, and
+share one set of accent values by design.
+
+### Ayu
+
+Copyright (c) Konstantin Pschera — https://github.com/ayu-theme/ayu-colors
+Licensed under the MIT licence. The two signature accent colours come from the
+same author's ayu-theme/vscode-ayu, also MIT.
+
+### Kanagawa
+
+Copyright (c) 2021 Tommaso Laurenzi — https://github.com/rebelot/kanagawa.nvim
+Licensed under the MIT licence. "Wave" is the dark variant and "Lotus" the
+light one. The theme takes its name from Hokusai's print.
+
+### Everforest
+
+Copyright (c) 2019 Sainnhe Park — https://github.com/sainnhe/everforest
+Licensed under the MIT licence. The medium-contrast variant of each mode is
+the one used here.
+
+### Primer
+
+Copyright (c) GitHub, Inc. — https://github.com/primer/primitives
+Licensed under the MIT licence, which covers the colour values. "GitHub" and
+the Invertocat logo are trademarks of GitHub, Inc.; this palette is named
+"Primer" after the design system and is neither affiliated with nor endorsed
+by GitHub.
+
 ---
 
-The MIT licence, under which all four are used:
+The MIT licence, under which all ten are used:
 
     Permission is hereby granted, free of charge, to any person obtaining a
     copy of this software and associated documentation files (the "Software"),

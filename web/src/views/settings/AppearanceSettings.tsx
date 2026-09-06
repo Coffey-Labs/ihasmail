@@ -33,6 +33,30 @@ const PALETTE_PREVIEW: Record<PaletteId, { light: string; dark: string }> = {
     light: "linear-gradient(135deg,#e6e7ed 0%,#d6d8df 55%,#2959aa 55%,#2959aa 78%,#8c4351 78%)",
     dark: "linear-gradient(135deg,#1a1b26 0%,#1f2130 55%,#7aa2f7 55%,#7aa2f7 78%,#bb9af7 78%)",
   },
+  catppuccin: {
+    light: "linear-gradient(135deg,#e6e9ef 0%,#eff1f5 55%,#8839ef 55%,#8839ef 78%,#ea76cb 78%)",
+    dark: "linear-gradient(135deg,#1e1e2e 0%,#313244 55%,#cba6f7 55%,#cba6f7 78%,#f5c2e7 78%)",
+  },
+  solarized: {
+    light: "linear-gradient(135deg,#fdf6e3 0%,#eee8d5 55%,#268bd2 55%,#268bd2 78%,#cb4b16 78%)",
+    dark: "linear-gradient(135deg,#002b36 0%,#073642 55%,#268bd2 55%,#268bd2 78%,#cb4b16 78%)",
+  },
+  ayu: {
+    light: "linear-gradient(135deg,#f8f9fa 0%,#ebeef0 55%,#f29718 55%,#f29718 78%,#55b4d4 78%)",
+    dark: "linear-gradient(135deg,#0d1017 0%,#10141c 55%,#e6b450 55%,#e6b450 78%,#39bae6 78%)",
+  },
+  kanagawa: {
+    light: "linear-gradient(135deg,#e5ddb0 0%,#f2ecbc 55%,#624c83 55%,#624c83 78%,#b35b79 78%)",
+    dark: "linear-gradient(135deg,#1f1f28 0%,#2a2a37 55%,#7e9cd8 55%,#7e9cd8 78%,#d27e99 78%)",
+  },
+  everforest: {
+    light: "linear-gradient(135deg,#efebd4 0%,#fdf6e3 55%,#8da101 55%,#8da101 78%,#df69ba 78%)",
+    dark: "linear-gradient(135deg,#2d353b 0%,#343f44 55%,#a7c080 55%,#a7c080 78%,#d699b6 78%)",
+  },
+  primer: {
+    light: "linear-gradient(135deg,#f6f8fa 0%,#ffffff 55%,#0969da 55%,#0969da 78%,#8250df 78%)",
+    dark: "linear-gradient(135deg,#0d1117 0%,#151b23 55%,#58a6ff 55%,#58a6ff 78%,#d2a8ff 78%)",
+  },
 };
 
 const MODES: Array<{ id: Mode; label: string }> = [
