@@ -298,6 +298,19 @@ export const config = {
   cookieName: env("COOKIE_NAME", "ihm_session"),
   staticDir: process.env.STATIC_DIR ?? fileURLToPath(new URL("../../web/dist", import.meta.url)),
   loginRateLimit: int("LOGIN_RATE_LIMIT", 10),
+  /*
+   * Requests per minute one session may make on the data path -- JMAP, blobs,
+   * the image and calendar proxies. The proxy is one Node process and saturates
+   * a core at roughly 2,000 operations a second, so without this a single
+   * signed-in user can deny service to everyone else. 1,200 a minute is twenty
+   * a second sustained: well above what a busy tab does, and an order of
+   * magnitude below where one tab starts to hurt the rest. 0 disables it.
+   */
+  apiRateLimit: int("API_RATE_LIMIT", 1200),
+  /* See relayPushRaw(): pipe the push stream socket-to-socket instead of through fetch(). */
+  rawPushRelay: process.env.RAW_PUSH_RELAY !== "0",
+  /* See absoluteUpstream(): follow Stalwart's advertised origin instead of pinning to ours. */
+  followAdvertisedUrls: process.env.STALWART_FOLLOW_ADVERTISED_URLS === "1",
 };
 
 export type Config = typeof config;

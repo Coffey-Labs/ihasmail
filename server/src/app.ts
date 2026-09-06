@@ -2,6 +2,9 @@ import { Hono } from "hono";
 import type { Context, MiddlewareHandler } from "hono";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import { compress } from "hono/compress";
+import { request as httpRequest } from "node:http";
+import { request as httpsRequest } from "node:https";
+import { RESPONSE_ALREADY_SENT } from "@hono/node-server/utils/response";
 import { getConnInfo } from "@hono/node-server/conninfo";
 import { config } from "./config.js";
 import { SessionStore, type SessionBackend, type LiveSession } from "./sessions.js";
@@ -60,6 +63,19 @@ const loginFloodLimiter = new RateLimiter(config.loginRateLimit * 20, 15 * 60_00
  * cannot get the whole deployment banned.
  */
 const accountLimiter = new RateLimiter(10, 15 * 60_000);
+const apiLimiter = new RateLimiter(config.apiRateLimit, 60_000);
+
+/** Per-session budget on the data path. See config.apiRateLimit. */
+const apiRateLimited: MiddlewareHandler<Env> = async (c, next) => {
+  if (config.apiRateLimit > 0) {
+    const session = c.get("session");
+    if (session && !apiLimiter.check(session.id)) {
+      c.header("Retry-After", String(apiLimiter.retryAfterSeconds(session.id)));
+      return c.json({ error: "rate_limited" }, 429);
+    }
+  }
+  await next();
+};
 
 const HOP_BY_HOP = new Set([
   "connection",
@@ -580,7 +596,7 @@ export function createApp(basePath = config.basePath): Hono<Env> {
   });
 
   // ---------- JMAP API proxy ----------
-  api.post("/jmap", requireSession, async (c) => {
+  api.post("/jmap", requireSession, apiRateLimited, async (c) => {
     const session = c.get("session");
     const ct = c.req.header("content-type") ?? "";
     if (!ct.toLowerCase().startsWith("application/json")) {
@@ -641,7 +657,7 @@ export function createApp(basePath = config.basePath): Hono<Env> {
   });
 
   // ---------- Blob download ----------
-  api.get("/blob/:accountId/:blobId/:name", requireSession, async (c) => {
+  api.get("/blob/:accountId/:blobId/:name", requireSession, apiRateLimited, async (c) => {
     const session = c.get("session");
     const { accountId, blobId, name } = c.req.param();
     const accept = c.req.query("accept") ?? "application/octet-stream";
@@ -700,6 +716,7 @@ export function createApp(basePath = config.basePath): Hono<Env> {
     try {
       const upstream = await getUpstreamSession(session.id, session.authorization, upstreamFor(session.username));
       const url = absoluteUpstream(expandTemplate(upstream.eventSourceUrl, { types, closeafter, ping }), upstream.baseUrl);
+      if (config.rawPushRelay) return relayPushRaw(c, url, session.authorization);
       const controller = new AbortController();
       c.req.raw.signal.addEventListener("abort", () => controller.abort());
       const res = await fetch(url, {
@@ -720,10 +737,10 @@ export function createApp(basePath = config.basePath): Hono<Env> {
   });
 
   // ---------- Remote image privacy proxy ----------
-  api.get("/image", requireSession, imageProxyHandler);
+  api.get("/image", requireSession, apiRateLimited, imageProxyHandler);
 // Behind the session for the same reason the image proxy is: an open fetcher
 // on someone else's server is a gift to whoever finds it.
-api.get("/ics", requireSession, icsProxyHandler);
+api.get("/ics", requireSession, apiRateLimited, icsProxyHandler);
 
   api.notFound((c) => c.json({ error: "not_found" }, 404));
   api.onError((err, c) => {
@@ -789,6 +806,61 @@ function sessionExtras(session: LiveSession, info: AccountInfo = { locale: null,
  * grants — would be landing on *our* origin, where it means something else.
  */
 const PASSTHROUGH_HEADERS = new Set(["content-type", "content-disposition", "content-language", "etag", "last-modified", "retry-after"]);
+
+/**
+ * Hold a push stream open with the least machinery that will do it.
+ *
+ * The fetch() version above builds an undici Response, a web ReadableStream,
+ * a reader, and Hono's stream-to-Node bridge for every tab, and keeps all of
+ * it alive for as long as the tab is open. Measured against a real Stalwart
+ * that is about 44 KiB of JavaScript heap per tab -- twelve times what the
+ * session itself costs -- and a signed-in tab is otherwise nothing but this
+ * one held connection. Here the upstream socket is piped straight into the
+ * Node response, so what stays resident per tab is two sockets and their
+ * small IncomingMessage/ServerResponse pair.
+ *
+ * Returns a Response Hono treats as already sent: the raw bindings are
+ * written to directly, and the returned value is never serialised.
+ */
+function relayPushRaw(c: Context<Env>, url: string, authorization: string): Response {
+  const out = (c.env as { outgoing: import("node:http").ServerResponse }).outgoing;
+  const target = new URL(url);
+  const req = (target.protocol === "https:" ? httpsRequest : httpRequest)(target, {
+    method: "GET",
+    headers: { authorization, accept: "text/event-stream" },
+  });
+  const abort = () => req.destroy();
+  c.req.raw.signal.addEventListener("abort", abort);
+  out.on("close", abort);
+  req.on("response", (res) => {
+    if (res.statusCode !== 200) {
+      res.resume();
+      out.writeHead(502, { "content-type": "application/json", "cache-control": "no-store" });
+      out.end(JSON.stringify({ error: "upstream_error" }));
+      return;
+    }
+    out.writeHead(200, {
+      "content-type": "text/event-stream",
+      "cache-control": "no-cache, no-transform",
+      connection: "keep-alive",
+      "x-accel-buffering": "no",
+    });
+    out.flushHeaders();
+    res.pipe(out);
+  });
+  req.on("error", () => {
+    if (!out.headersSent) {
+      out.writeHead(502, { "content-type": "application/json", "cache-control": "no-store" });
+      out.end(JSON.stringify({ error: "upstream_error" }));
+    } else {
+      out.end();
+    }
+  });
+  req.end();
+  // Tells @hono/node-server the raw ServerResponse has been written to and
+  // must be left alone.
+  return RESPONSE_ALREADY_SENT;
+}
 
 function passthrough(res: Response): Response {
   const headers = new Headers();

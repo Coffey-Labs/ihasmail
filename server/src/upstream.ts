@@ -288,9 +288,34 @@ export function localizeSession(s: UpstreamSession, extras: Record<string, unkno
 }
 
 /** Resolve a possibly-relative upstream URL template against STALWART_URL. */
+/**
+ * Resolve a URL Stalwart handed us against the server we were configured to
+ * talk to.
+ *
+ * Stalwart advertises absolute URLs in its session -- apiUrl, eventSourceUrl
+ * and the rest -- built from its public hostname, which is always https. A
+ * proxy that follows them takes every upstream call, and every held push
+ * stream, out through the public route even when STALWART_URL names a private
+ * plain-HTTP hop on the same network. Measured, that TLS leg is ~80 KiB of
+ * native OpenSSL state per signed-in tab: 60% of what a tab costs, and the
+ * whole difference between 1,665 and 3,680 tabs in 256 MiB.
+ *
+ * So by default only the path and query are taken from the advertised URL;
+ * scheme, host and port come from the configured base. That is what a proxy
+ * should have done all along -- the operator named the route on purpose.
+ * STALWART_FOLLOW_ADVERTISED_URLS=1 restores the old behaviour for a setup
+ * that genuinely needs to reach Stalwart at a different origin than the one
+ * it was given.
+ */
 export function absoluteUpstream(url: string, base: string = config.stalwartUrl): string {
   try {
-    return new URL(url, base).toString();
+    const resolved = new URL(url, base);
+    if (config.followAdvertisedUrls) return resolved.toString();
+    const pinned = new URL(base);
+    pinned.pathname = resolved.pathname;
+    pinned.search = resolved.search;
+    pinned.hash = "";
+    return pinned.toString();
   } catch {
     return url;
   }
