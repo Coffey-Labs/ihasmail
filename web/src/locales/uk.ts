@@ -1107,7 +1107,7 @@ export const catalog: Catalog = {
     "Date received": "Дата отримання",
     "Date sent": "Дата надсилання",
     "Day view": "День",
-    "Dracula, Gruvbox, Rosé Pine and Tokyo Night are the work of their own projects and are used under the MIT licence; the shades between their published colours are derived, and every one of them is checked for contrast. The accent colour below still applies over any of them.": "Dracula, Gruvbox, Rosé Pine і Tokyo Night створені власними проєктами й використовуються за ліцензією MIT; відтінки між опублікованими кольорами виведені з них, і кожен перевірено на контраст. Акцентний колір нижче й далі застосовується поверх будь-якої з тем.",
+    "Palettes named after another project are that project's work, used under its own licence; the shades between their published colours are derived, and every one is checked for contrast. The accent colour below still applies over any of them.": "Палітри, названі на честь іншого проєкту, є роботою цього проєкту й використовуються за його власною ліцензією; відтінки між опублікованими кольорами обчислюються, і кожен із них перевіряється на контраст. Акцентний колір нижче й надалі застосовується поверх будь-якої з них.",
     "Earlier": "Раніше",
     "Every folder": "Усі теки",
     "Everyone addressed will receive this.": "Це отримають усі зазначені адресати.",

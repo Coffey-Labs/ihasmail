@@ -1155,7 +1155,7 @@ export const catalog: Catalog = {
     "Counts people rather than headers, so one address in To and nine in Cc is a message to ten. Catches a reply-all onto a long thread.": "Zählt Personen statt Kopfzeilen: eine Adresse in An und neun in Cc ergeben eine Nachricht an zehn. Erfasst ein Allen-Antworten auf einen langen Thread.",
     "Date received": "Empfangsdatum",
     "Date sent": "Sendedatum",
-    "Dracula, Gruvbox, Rosé Pine and Tokyo Night are the work of their own projects and are used under the MIT licence; the shades between their published colours are derived, and every one of them is checked for contrast. The accent colour below still applies over any of them.": "Dracula, Gruvbox, Rosé Pine und Tokyo Night sind das Werk ihrer eigenen Projekte und werden unter der MIT-Lizenz verwendet; die Abstufungen zwischen ihren veröffentlichten Farben sind davon abgeleitet, und jede einzelne wird auf Kontrast geprüft. Die Akzentfarbe unten gilt weiterhin über jeder von ihnen.",
+    "Palettes named after another project are that project's work, used under its own licence; the shades between their published colours are derived, and every one is checked for contrast. The accent colour below still applies over any of them.": "Paletten, die nach einem anderen Projekt benannt sind, stammen von diesem Projekt und werden unter dessen eigener Lizenz verwendet; die Abstufungen zwischen den veröffentlichten Farben sind abgeleitet, und jede davon wird auf Kontrast geprüft. Die Akzentfarbe unten gilt weiterhin über jeder von ihnen.",
     "Earlier": "Früher",
     "Every folder": "Jeder Ordner",
     "Everyone addressed will receive this.": "Alle Adressierten erhalten dies.",
