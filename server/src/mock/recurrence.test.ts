@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { expandOccurrences, occurrenceAt, occurrenceView, parseSyntheticId, slotOfOccurrence, splitOccurrencePatch, syntheticId } from "./recurrence.js";
+import { expandOccurrences, occurrenceAt, occurrenceView, parseSyntheticId, splitOccurrencePatch, syntheticId } from "./recurrence.js";
 
 /**
  * The mock expands recurrences so that per-occurrence editing can be developed
@@ -68,9 +68,9 @@ describe("expandOccurrences", () => {
 describe("occurrenceView", () => {
   it("strips the rule, sets recurrenceId, and points baseEventId at the master", () => {
     const base = series();
-    const occ = occurrenceAt(base, 1)!;
+    const occ = occurrenceAt(base, "2026-09-08T09:00:00")!;
     const view = occurrenceView(base, occ);
-    assert.equal(view.id, syntheticId("ev1", 1));
+    assert.equal(view.id, syntheticId("ev1", "2026-09-08T09:00:00"));
     assert.equal(view.baseEventId, "ev1");
     assert.equal(view.recurrenceId, "2026-09-08T09:00:00");
     assert.equal(view.recurrenceRule, undefined);
@@ -81,8 +81,8 @@ describe("occurrenceView", () => {
     // Both halves matter. The id is why `baseEventId` proves nothing about a
     // series; the absent `recurrenceId` is why a one-off does not read as one.
     const base = oneOff();
-    const view = occurrenceView(base, occurrenceAt(base, 0)!);
-    assert.equal(view.id, "ev2-o0");
+    const view = occurrenceView(base, occurrenceAt(base, "2026-09-08T12:00:00")!);
+    assert.equal(view.id, "ev2-r20260908T120000");
     assert.equal(view.baseEventId, "ev2");
     assert.notEqual(view.id, view.baseEventId);
     assert.equal(view.recurrenceId, undefined);
@@ -90,9 +90,9 @@ describe("occurrenceView", () => {
 
   it("lets an override win over the series", () => {
     const base = { ...series(), recurrenceOverrides: { "2026-09-08T09:00:00": { title: "Moved" } } };
-    // Slot 2, not 1: one override has already shifted the numbering. Reaching
-    // for the id this occurrence had *before* the write is the bug below.
-    const view = occurrenceView(base, occurrenceAt(base, 2)!);
+    // The same recurrence id as before the override was written, because that
+    // is now the whole point: the write does not move any other occurrence.
+    const view = occurrenceView(base, occurrenceAt(base, "2026-09-08T09:00:00")!);
     assert.equal(view.start, "2026-09-08T09:00:00");
     assert.equal(view.title, "Moved");
   });
@@ -100,10 +100,14 @@ describe("occurrenceView", () => {
 
 describe("parseSyntheticId", () => {
   it("round-trips", () => {
-    assert.deepEqual(parseSyntheticId(syntheticId("ev1", 12)), { baseId: "ev1", slot: 12 });
+    assert.deepEqual(parseSyntheticId(syntheticId("ev1", "2026-09-08T09:00:00")),
+      { baseId: "ev1", recurrenceId: "2026-09-08T09:00:00" });
   });
   it("does not claim a stored id", () => {
     assert.equal(parseSyntheticId("ev1"), null);
+  });
+  it("does not claim an id that merely ends in digits", () => {
+    assert.equal(parseSyntheticId("ev1-r2026"), null);
   });
 });
 
@@ -135,35 +139,47 @@ describe("splitOccurrencePatch", () => {
 });
 
 
-describe("synthetic ids are only true until the next write", () => {
+describe("synthetic ids survive a write", () => {
   /*
-   * Confirmed live on 0.16.20 (2026-08-31): writing one `recurrenceOverrides`
-   * entry renumbered a five-week series so that the *same* ids addressed
-   * different dates. Nothing was rejected. The mock reproduces the shape of
-   * that rather than the exact permutation, because the property that bites is
-   * not which date an id moves to but that it moves at all, silently.
+   * This used to assert the opposite, and the reversal is the point.
+   *
+   * Up to 0.16.20 a synthetic id encoded a position, so writing one override
+   * renumbered the series and a held id silently began naming a different
+   * date — confirmed live on 2026-08-31, and reproduced here on purpose so a
+   * client could not be written against a comfort the server did not offer.
+   *
+   * 0.16.21 identifies an occurrence by its recurrence id instead.
+   * **Confirmed live on 0.16.21 (2026-09-06):** a five-week series was
+   * expanded, its third occurrence retitled through the synthetic id, and all
+   * five original ids re-read. Every one resolved, and every one still named
+   * its own date. So the hazard is gone, and the mock stops teaching it.
    */
-  it("makes a cached id address a different date after an override is written", () => {
+  it("keeps a cached id on the same date after an override is written", () => {
     const before = series();
-    const held = syntheticId("ev1", slotOfOccurrence(before, occurrenceAt(before, 3)!));
-    const dateBefore = occurrenceAt(before, parseSyntheticId(held)!.slot)!.start;
+    const held = syntheticId("ev1", occurrenceAt(before, "2026-09-10T09:00:00")!.recurrenceId);
+    const dateBefore = occurrenceAt(before, parseSyntheticId(held)!.recurrenceId)!.start;
 
     const after = { ...before, recurrenceOverrides: { "2026-09-07T09:00:00": { title: "changed" } } };
-    const dateAfter = occurrenceAt(after, parseSyntheticId(held)!.slot)!.start;
+    const dateAfter = occurrenceAt(after, parseSyntheticId(held)!.recurrenceId)!.start;
 
-    assert.notEqual(dateAfter, dateBefore);
-    // And crucially it still resolves — a stale id is wrong, not invalid, so a
-    // client that trusts it gets a confident answer about the wrong day.
-    assert.ok(dateAfter);
+    assert.equal(dateAfter, dateBefore);
   });
 
-  it("keeps recurrenceId meaning the same date across a write, which is why it is the handle", () => {
+  it("resolves every id of a series after one of them is overridden", () => {
     const before = series();
-    const occ = occurrenceAt(before, 3)!;
-    const after = { ...before, recurrenceOverrides: { "2026-09-07T09:00:00": { title: "changed" } } };
-    const same = expandOccurrences(after, new Date("2026-09-01T00:00:00"), new Date("2026-10-01T00:00:00"))
-      .find((o) => o.recurrenceId === occ.recurrenceId);
-    assert.equal(same!.start, occ.start);
+    const held = expandOccurrences(before, new Date("2026-09-07T00:00:00"), new Date("2026-09-12T00:00:00"))
+      .map((o) => syntheticId("ev1", o.recurrenceId));
+    const after = { ...before, recurrenceOverrides: { "2026-09-09T09:00:00": { title: "changed" } } };
+    for (const id of held) {
+      const occ = occurrenceAt(after, parseSyntheticId(id)!.recurrenceId);
+      assert.ok(occ, `${id} should still resolve`);
+      assert.equal(syntheticId("ev1", occ.recurrenceId), id);
+    }
+  });
+
+  it("still refuses an id whose date the rule no longer generates", () => {
+    const base = { ...series(), recurrenceOverrides: { "2026-09-09T09:00:00": { excluded: true } } };
+    assert.equal(occurrenceAt(base, "2026-09-09T09:00:00"), null);
   });
 });
 
