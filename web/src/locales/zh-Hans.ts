@@ -1118,7 +1118,7 @@ export const catalog: Catalog = {
     "Date received": "接收日期",
     "Date sent": "发送日期",
     "Day view": "日视图",
-    "Dracula, Gruvbox, Rosé Pine and Tokyo Night are the work of their own projects and are used under the MIT licence; the shades between their published colours are derived, and every one of them is checked for contrast. The accent colour below still applies over any of them.": "Dracula、Gruvbox、Rosé Pine 和 Tokyo Night 均由各自的项目创作，依 MIT 许可证使用；其公布配色之间的过渡色为衍生所得，且每一种都经过对比度检查。下方的强调色仍会应用于其中任意一种之上。",
+    "Palettes named after another project are that project's work, used under its own licence; the shades between their published colours are derived, and every one is checked for contrast. The accent colour below still applies over any of them.": "以其他项目命名的配色方案是该项目的作品，按其自身的许可证使用；已发布颜色之间的过渡色是推导得出的，并且每一种都经过对比度检查。下方的强调色仍会应用于其中任何一种配色方案。",
     "Earlier": "更早",
     "Every folder": "所有文件夹",
     "Everyone addressed will receive this.": "所有收件人都会收到此邮件。",
