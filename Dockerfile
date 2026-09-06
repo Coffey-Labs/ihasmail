@@ -37,16 +37,28 @@ ENV NODE_ENV=production \
     IHASMAIL_VERSION=$IHASMAIL_VERSION \
     BASE_PATH=$BASE_PATH
 WORKDIR /app
-COPY package.json ./
+COPY package.json package-lock.json* ./
 COPY server/package.json server/
 # config.ts reads the version through this at startup. With IHASMAIL_VERSION
 # set it never looks further; without it, it falls back to package.json rather
 # than failing, since there is no git in here to ask.
 COPY scripts/ ./scripts/
-COPY --from=build /app/node_modules ./node_modules
+# Only what the server loads at runtime: hono and its Node adapter, about 4 MB.
+# The build stage's tree is 132 MB of vite, TypeScript, esbuild and React that
+# never executes here but shipped anyway -- and showed up in every CVE scan.
+RUN npm ci --ignore-scripts --omit=dev --workspace server \
+    && rm -rf /root/.npm /tmp/*
 COPY --from=build /app/server/dist ./server/dist
 COPY --from=build /app/web/dist ./web/dist
-RUN mkdir -p /data && chown -R node:node /data /app
+# /data is the only path the process may write. /app stays root-owned and
+# read-only to the runtime user on purpose; the previous `chown -R /app`
+# re-wrote every file and, on overlayfs, duplicated the whole tree into a
+# second 173 MB layer.
+RUN mkdir -p /data && chown node:node /data \
+    # The base image ships a package manager the server never calls. Anyone who
+    # gets code execution should not find one waiting for them.
+    && rm -rf /usr/local/lib/node_modules /usr/local/bin/npm /usr/local/bin/npx \
+              /usr/local/bin/corepack /opt/yarn* /usr/local/bin/yarn /usr/local/bin/yarnpkg
 USER node
 # No `VOLUME ["/data"]`. It reads like documentation for where the session file
 # goes, but Docker acts on it: a container started without `-v` gets an
