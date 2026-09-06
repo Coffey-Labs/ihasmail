@@ -74,3 +74,11 @@ test("the liveness probe is not compressed, since gzip would make it bigger", as
   assert.equal(res.status, 200);
   assert.equal(res.headers.get("content-encoding"), null);
 });
+
+test("advertised upstream URLs are pinned to the configured origin", async () => {
+  const { absoluteUpstream } = await import("./upstream.js");
+  const pinned = absoluteUpstream("https://mail.public.example/jmap/eventsource/?types=*", "http://stalwart:8080");
+  assert.equal(pinned, "http://stalwart:8080/jmap/eventsource/?types=*");
+  // A relative URL still resolves against the base, as before.
+  assert.equal(absoluteUpstream("/jmap/", "http://stalwart:8080/"), "http://stalwart:8080/jmap/");
+});

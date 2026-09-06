@@ -298,6 +298,10 @@ export const config = {
   cookieName: env("COOKIE_NAME", "ihm_session"),
   staticDir: process.env.STATIC_DIR ?? fileURLToPath(new URL("../../web/dist", import.meta.url)),
   loginRateLimit: int("LOGIN_RATE_LIMIT", 10),
+  /* See relayPushRaw(): pipe the push stream socket-to-socket instead of through fetch(). */
+  rawPushRelay: process.env.RAW_PUSH_RELAY !== "0",
+  /* See absoluteUpstream(): follow Stalwart's advertised origin instead of pinning to ours. */
+  followAdvertisedUrls: process.env.STALWART_FOLLOW_ADVERTISED_URLS === "1",
 };
 
 export type Config = typeof config;
