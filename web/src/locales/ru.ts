@@ -521,6 +521,8 @@ export const catalog: Catalog = {
     "Show labels in the sidebar": "Показывать ярлыки на боковой панели",
     "Collapse sidebar to icons": "Свернуть боковую панель до значков",
     "Apply the theme to messages too": "Применять тему и к письмам",
+    "Apply it even to mail that styles itself": "Применять даже к письмам с собственным оформлением",
+    "Most marketing and receipt mail sets a colour somewhere, so the setting above leaves nearly all of it on a white card. With this on, the theme is forced over the sender's own colours: backgrounds they laid the message on are dropped, while buttons and coloured banners are kept so their text stays readable. Some mail will not survive it intact, which is why it is separate.": "Почти в каждом рекламном письме и чеке где-нибудь задан цвет, поэтому настройка выше оставляет почти все такие письма на белой карточке. С этой настройкой тема накладывается поверх цветов отправителя: фон, на котором свёрстано письмо, убирается, а кнопки и цветные плашки сохраняются, чтобы текст на них оставался читаемым. Некоторые письма это не переживут без потерь — поэтому настройка отдельная.",
     "Swiping": "Жесты смахивания",
     "Swipe left": "Смахнуть влево",
     "Swipe right": "Смахнуть вправо",

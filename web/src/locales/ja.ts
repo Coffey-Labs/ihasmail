@@ -518,6 +518,8 @@ export const catalog: Catalog = {
     "Show labels in the sidebar": "サイドバーにラベルを表示する",
     "Collapse sidebar to icons": "サイドバーをアイコンだけにする",
     "Apply the theme to messages too": "メールにもテーマを適用する",
+    "Apply it even to mail that styles itself": "自分で配色を持つメールにも適用する",
+    "Most marketing and receipt mail sets a colour somewhere, so the setting above leaves nearly all of it on a white card. With this on, the theme is forced over the sender's own colours: backgrounds they laid the message on are dropped, while buttons and coloured banners are kept so their text stays readable. Some mail will not survive it intact, which is why it is separate.": "宣伝メールや領収メールはほとんどがどこかで色を指定しているため、上の設定では大半が白いカードのままになります。これを有効にすると、送信者の配色の上からテーマを適用します。メッセージが載っている背景は取り除き、ボタンや色付きのバナーは文字が読めるようにそのまま残します。一部のメールは元の見た目を保てないため、別の設定として分けています。",
     "Swiping": "スワイプ操作",
     "Swipe left": "左へスワイプ",
     "Swipe right": "右へスワイプ",

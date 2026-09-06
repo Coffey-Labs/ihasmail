@@ -518,6 +518,8 @@ export const catalog: Catalog = {
     "Show labels in the sidebar": "Labels in der Seitenleiste anzeigen",
     "Collapse sidebar to icons": "Seitenleiste auf Symbole verkleinern",
     "Apply the theme to messages too": "Design auch auf Nachrichten anwenden",
+    "Apply it even to mail that styles itself": "Auch auf Mails anwenden, die sich selbst gestalten",
+    "Most marketing and receipt mail sets a colour somewhere, so the setting above leaves nearly all of it on a white card. With this on, the theme is forced over the sender's own colours: backgrounds they laid the message on are dropped, while buttons and coloured banners are kept so their text stays readable. Some mail will not survive it intact, which is why it is separate.": "Fast jede Werbe- oder Beleg-Mail setzt irgendwo eine Farbe, deshalb lässt die Einstellung darüber nahezu alle davon auf einer weißen Karte. Mit dieser Option wird das Design über die Farben des Absenders gelegt: Hintergründe, auf denen die Nachricht liegt, entfallen, während Schaltflächen und farbige Banner erhalten bleiben, damit ihr Text lesbar bleibt. Manche Mail übersteht das nicht unbeschadet – deshalb ist es eine eigene Einstellung.",
     "Swiping": "Wischgesten",
     "Swipe left": "Nach links wischen",
     "Swipe right": "Nach rechts wischen",

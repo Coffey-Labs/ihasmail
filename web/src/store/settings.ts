@@ -130,6 +130,15 @@ export interface Settings {
   imagePolicy: ImagePolicy;
   /** Let messages follow the app's light/dark theme instead of always sitting on white. */
   themeMessageBody: boolean;
+  /**
+   * Extend that to mail which brings colours of its own.
+   *
+   * Only meaningful with `themeMessageBody` on. Off by default because it
+   * cannot be done perfectly: see `markKeptSurfaces` in lib/html.ts for the
+   * bargain it makes, and #290 for why the conservative default alone left
+   * essentially all HTML mail on a white card.
+   */
+  themeStyledMessages: boolean;
   undoSendSeconds: number;
   composeFormat: ComposeFormat;
   replyAllDefault: boolean;
@@ -307,6 +316,7 @@ export const DEFAULT_SETTINGS: Settings = {
   knownSigners: {},
   imagePolicy: "ask",
   themeMessageBody: false,
+  themeStyledMessages: false,
   undoSendSeconds: 8,
   composeFormat: "html",
   replyAllDefault: false,

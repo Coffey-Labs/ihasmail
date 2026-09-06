@@ -515,6 +515,8 @@ export const catalog: Catalog = {
     "Show labels in the sidebar": "Показувати мітки на бічній панелі",
     "Collapse sidebar to icons": "Згорнути бічну панель до значків",
     "Apply the theme to messages too": "Застосовувати тему й до листів",
+    "Apply it even to mail that styles itself": "Застосовувати навіть до листів із власним оформленням",
+    "Most marketing and receipt mail sets a colour somewhere, so the setting above leaves nearly all of it on a white card. With this on, the theme is forced over the sender's own colours: backgrounds they laid the message on are dropped, while buttons and coloured banners are kept so their text stays readable. Some mail will not survive it intact, which is why it is separate.": "Майже в кожному рекламному листі та чеку десь задано колір, тому налаштування вище залишає майже всі такі листи на білій картці. Із цим налаштуванням тема накладається поверх кольорів відправника: тло, на якому зверстано лист, прибирається, а кнопки та кольорові плашки зберігаються, щоб текст на них залишався читабельним. Деякі листи цього не переживуть без втрат — тому це окреме налаштування.",
     "Swiping": "Жести проведення",
     "Swipe left": "Провести ліворуч",
     "Swipe right": "Провести праворуч",

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { htmlDeclaresColors, sanitizeEditorHtml, sanitizeEmailHtml } from "../html";
+import { LIGHT_SURFACE_LUMINANCE, htmlDeclaresColors, markKeptSurfaces, relativeLuminance, sanitizeEditorHtml, sanitizeEmailHtml } from "../html";
 
 describe("sanitizeEmailHtml", () => {
   it("removes scripts and event handlers", () => {
@@ -48,6 +48,84 @@ describe("htmlDeclaresColors", () => {
     expect(htmlDeclaresColors('<div style="background-color:#fff">x</div>')).toBe(true);
     expect(htmlDeclaresColors("<style>p { color: red }</style><p>x</p>")).toBe(true);
     expect(htmlDeclaresColors("<p>plain</p>", "background:#eee")).toBe(true);
+  });
+});
+
+/**
+ * Forcing the theme onto mail that styles itself — issue #290.
+ *
+ * The switch above it leaves nearly all HTML mail alone, because one colour
+ * anywhere opts a message out. What this half has to get right is telling a
+ * sheet the design sits on from a surface painted on top of it: neutralise the
+ * first and the white card goes away, keep the second and a button keeps a
+ * label you can still read.
+ */
+describe("relativeLuminance", () => {
+  it("reads the forms mail actually uses", () => {
+    expect(relativeLuminance("#ffffff")).toBeCloseTo(1, 5);
+    expect(relativeLuminance("#FFF")).toBeCloseTo(1, 5);
+    expect(relativeLuminance("#000000")).toBeCloseTo(0, 5);
+    expect(relativeLuminance("white")).toBeCloseTo(1, 5);
+    expect(relativeLuminance("rgb(255, 255, 255)")).toBeCloseTo(1, 5);
+    expect(relativeLuminance("rgba(255,255,255,0.5)")).toBeCloseTo(1, 5);
+  });
+
+  it("has nothing to say about a colour it cannot read", () => {
+    // Not a failure: the caller treats null as "no deliberate surface", which
+    // is the safe way round — an unreadable colour must not keep a white sheet.
+    expect(relativeLuminance("color-mix(in srgb, red, blue)")).toBeNull();
+    expect(relativeLuminance("var(--brand)")).toBeNull();
+    expect(relativeLuminance("")).toBeNull();
+  });
+
+  it("treats a fully transparent colour as painting nothing", () => {
+    expect(relativeLuminance("rgba(0,0,0,0)")).toBeNull();
+    expect(relativeLuminance("transparent")).toBeNull();
+  });
+
+  it("puts a white wrapper above the threshold and a call to action below it", () => {
+    expect(relativeLuminance("#ffffff")!).toBeGreaterThanOrEqual(LIGHT_SURFACE_LUMINANCE);
+    expect(relativeLuminance("#1155CC")!).toBeLessThan(LIGHT_SURFACE_LUMINANCE);
+  });
+});
+
+describe("markKeptSurfaces", () => {
+  const frag = (html: string) => {
+    const d = document.createElement("div");
+    d.innerHTML = html;
+    return d;
+  };
+
+  it("keeps a coloured button and drops the white sheet around it", () => {
+    // The shape reported in #290: a Shopify/Klaviyo template whose outer 600px
+    // wrapper carries bgcolor="#ffffff" and whose CTA carries bgcolor="#1155CC".
+    const d = frag('<table bgcolor="#ffffff"><tr><td bgcolor="#1155CC"><a style="color:#FFFFFF">Buy</a></td></tr></table>');
+    expect(markKeptSurfaces(d)).toBe(1);
+    expect(d.querySelector("table")!.hasAttribute("data-ihm-keep")).toBe(false);
+    expect(d.querySelector("td")!.hasAttribute("data-ihm-keep")).toBe(true);
+    // The label is not marked itself; the CSS keeps it because it is inside
+    // something that is, which is what stops white-on-blue turning unreadable.
+    expect(d.querySelector("a")!.hasAttribute("data-ihm-keep")).toBe(false);
+  });
+
+  it("reads an inline background as well as the attribute", () => {
+    const d = frag('<div style="background-color:#111827">dark</div><div style="background:#f8f8ff">sheet</div>');
+    expect(markKeptSurfaces(d)).toBe(1);
+    expect(d.querySelectorAll("[data-ihm-keep]").length).toBe(1);
+    expect((d.querySelector("[data-ihm-keep]") as HTMLElement).textContent).toBe("dark");
+  });
+
+  it("marks nothing in mail that paints no backgrounds", () => {
+    const d = frag('<p style="color:#333">text</p><a href="https://x.io">link</a>');
+    expect(markKeptSurfaces(d)).toBe(0);
+  });
+
+  it("leaves the sender's own markup alone, so the switch is reversible", () => {
+    const d = frag('<table><tr><td bgcolor="#1155CC" style="color:#fff">Buy</td></tr></table>');
+    markKeptSurfaces(d);
+    const td = d.querySelector("td")!;
+    expect(td.getAttribute("bgcolor")).toBe("#1155CC");
+    expect(td.style.color).toBe("rgb(255, 255, 255)");
   });
 });
 

@@ -518,6 +518,8 @@ export const catalog: Catalog = {
     "Show labels in the sidebar": "Mostrar las etiquetas en la barra lateral",
     "Collapse sidebar to icons": "Reducir la barra lateral a iconos",
     "Apply the theme to messages too": "Aplicar el tema también a los mensajes",
+    "Apply it even to mail that styles itself": "Aplicarlo incluso al correo que se da estilo propio",
+    "Most marketing and receipt mail sets a colour somewhere, so the setting above leaves nearly all of it on a white card. With this on, the theme is forced over the sender's own colours: backgrounds they laid the message on are dropped, while buttons and coloured banners are kept so their text stays readable. Some mail will not survive it intact, which is why it is separate.": "Casi todo el correo publicitario y de recibos define algún color, así que el ajuste anterior deja casi todo sobre una tarjeta blanca. Con esto activado, el tema se impone sobre los colores del remitente: se descartan los fondos sobre los que apoyó el mensaje, mientras que los botones y los banners de color se conservan para que su texto siga siendo legible. Algunos mensajes no sobrevivirán intactos, y por eso es un ajuste aparte.",
     "Swiping": "Deslizamiento",
     "Swipe left": "Deslizar a la izquierda",
     "Swipe right": "Deslizar a la derecha",

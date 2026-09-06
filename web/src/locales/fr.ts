@@ -524,6 +524,8 @@ export const catalog: Catalog = {
     "Show labels in the sidebar": "Afficher les libellés dans la barre latérale",
     "Collapse sidebar to icons": "Réduire la barre latérale en icônes",
     "Apply the theme to messages too": "Appliquer le thème aux messages",
+    "Apply it even to mail that styles itself": "L'appliquer même aux messages qui se mettent en forme",
+    "Most marketing and receipt mail sets a colour somewhere, so the setting above leaves nearly all of it on a white card. With this on, the theme is forced over the sender's own colours: backgrounds they laid the message on are dropped, while buttons and coloured banners are kept so their text stays readable. Some mail will not survive it intact, which is why it is separate.": "Presque tous les courriers publicitaires et les reçus définissent une couleur quelque part, si bien que le réglage ci-dessus en laisse la quasi-totalité sur une carte blanche. Avec cette option, le thème est imposé par-dessus les couleurs de l'expéditeur : les fonds sur lesquels le message repose sont supprimés, tandis que les boutons et les bandeaux colorés sont conservés pour que leur texte reste lisible. Certains messages n'y survivront pas intacts, d'où un réglage distinct.",
     "Swiping": "Balayage",
     "Swipe left": "Balayer vers la gauche",
     "Swipe right": "Balayer vers la droite",

@@ -18,7 +18,7 @@ import { internalDomains, isExternalSender, linkVerdict } from "@/lib/warnings";
 import { spamReport, type SpamReport } from "@/lib/spamScore";
 import { formatFullDate, formatListDate, formatSize } from "@/lib/format";
 import { displayName, domainOf, formatAddress } from "@/lib/address";
-import { EMAIL_BASE_CSS, TEXT_EMAIL_CSS, htmlDeclaresColors, sanitizeEmailHtml } from "@/lib/html";
+import { EMAIL_BASE_CSS, TEXT_EMAIL_CSS, htmlDeclaresColors, markKeptSurfaces, sanitizeEmailHtml } from "@/lib/html";
 import { openableInTab, previewKind } from "@/lib/preview";
 import { FilePreviewDialog } from "@/ui/filepreview";
 import { findQuoteStart, textToHtml } from "@/lib/text";
@@ -138,6 +138,7 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
   const textRaw = textPart?.partId ? e.bodyValues?.[textPart.partId]?.value : undefined;
   const showHtml = Boolean(htmlRaw);
   const themeMessageBody = settings.themeMessageBody;
+  const themeStyledMessages = settings.themeStyledMessages;
 
   // Inline images map
   const cidMap = useMemo(() => {
@@ -158,12 +159,20 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
     return null;
   }, [expanded, showHtml, htmlRaw, cidMap, remoteAllowed, imageProxy]);
 
-  // Mail that paints itself keeps the light card it was designed for; the rest
-  // can follow the app theme when the user has asked for that.
-  const themed = useMemo(
-    () => themeMessageBody && Boolean(rendered) && !htmlDeclaresColors(rendered!.html, rendered!.bodyStyle),
-    [themeMessageBody, rendered],
+  /*
+   * Mail that paints itself keeps the light card it was designed for, unless
+   * the reader has asked for the theme over that too.
+   *
+   * `forced` is the second switch and is narrower than `themed`: it only turns
+   * on for mail that actually declares colours, so plain mail is themed the
+   * gentle way and never pays for the override rules.
+   */
+  const declaresColors = useMemo(
+    () => Boolean(rendered) && htmlDeclaresColors(rendered!.html, rendered!.bodyStyle),
+    [rendered],
   );
+  const themed = themeMessageBody && Boolean(rendered) && (!declaresColors || themeStyledMessages);
+  const forced = themed && declaresColors;
 
   const attachments = useMemo(() => (e.attachments ?? []).filter((a) => !(a.cid && a.disposition === "inline" && a.type.startsWith("image/") && htmlRaw?.includes(`cid:${a.cid}`))), [e.attachments, htmlRaw]);
   const icsPart = useMemo(() => findPart(e.bodyStructure, (p) => p.type === "text/calendar" || (p.name ?? "").toLowerCase().endsWith(".ics")), [e.bodyStructure]);
@@ -412,7 +421,7 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
           {icsPart && <InviteCard email={e} part={icsPart} />}
           {vcfParts.map((p) => <VCardCard key={p.blobId ?? p.partId ?? ""} part={p} accountId={accountId} />)}
           <div className="message-body">
-            {showHtml && rendered ? <HtmlBody html={rendered.html} bodyStyle={rendered.bodyStyle} themed={themed} onShowImages={showImages} onFollowLink={linkGuard} /> : <TextBody text={textRaw ?? ""} onFollowLink={linkGuard} />}
+            {showHtml && rendered ? <HtmlBody html={rendered.html} bodyStyle={rendered.bodyStyle} themed={themed} forced={forced} onShowImages={showImages} onFollowLink={linkGuard} /> : <TextBody text={textRaw ?? ""} onFollowLink={linkGuard} />}
           </div>
           {attachments.length > 0 && <AttachmentList attachments={attachments} accountId={accountId} email={e} />}
           {unsubscribe && (
@@ -490,7 +499,7 @@ function findPart(p: EmailBodyPart | undefined, pred: (p: EmailBodyPart) => bool
 
 const QUOTE_SELECTORS = [".gmail_quote", "blockquote[type=cite]", ".moz-cite-prefix", "#divRplyFwdMsg", ".yahoo_quoted", "div[id^=appendonsend]", ".ms-outlook-mobile-reference-message", "#OLK_SRC_BODY_SECTION", ".protonmail_quote", ".ihm-quote"];
 
-function HtmlBody({ html, bodyStyle, themed, onShowImages, onFollowLink }: { html: string; bodyStyle: string; themed: boolean; onFollowLink: ((href: string, text: string | null) => void) | null; onShowImages: () => void }) {
+function HtmlBody({ html, bodyStyle, themed, forced, onShowImages, onFollowLink }: { html: string; bodyStyle: string; themed: boolean; forced: boolean; onFollowLink: ((href: string, text: string | null) => void) | null; onShowImages: () => void }) {
   const hostRef = useRef<HTMLDivElement>(null);
   const [hasQuote, setHasQuote] = useState(false);
   const [quoteOpen, setQuoteOpen] = useState(false);
@@ -530,9 +539,12 @@ function HtmlBody({ html, bodyStyle, themed, onShowImages, onFollowLink }: { htm
     if (!host) return;
     const root = host.shadowRoot ?? host.attachShadow({ mode: "open" });
     host.classList.toggle("themed", themed);
-    root.innerHTML = `<style>${EMAIL_BASE_CSS}</style><div class="ihm-email-root${themed ? " themed" : ""}" style="${bodyStyle.replace(/"/g, "'")}">${html}</div>`;
+    root.innerHTML = `<style>${EMAIL_BASE_CSS}</style><div class="ihm-email-root${themed ? " themed" : ""}${forced ? " forced" : ""}" style="${bodyStyle.replace(/"/g, "'")}">${html}</div>`;
     // Collapse quoted content
     const container = root.querySelector(".ihm-email-root") as HTMLElement | null;
+    // Tell the sender's painted surfaces apart from the sheets they sit on,
+    // before anything below reshapes the tree.
+    if (forced && container) markKeptSurfaces(container);
     let found = false;
     if (container) {
       let q: Element | null = null;
@@ -592,7 +604,7 @@ function HtmlBody({ html, bodyStyle, themed, onShowImages, onFollowLink }: { htm
      * so a changing handler now costs a listener swap and nothing else.
      */
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [html, bodyStyle, themed]);
+  }, [html, bodyStyle, themed, forced]);
 
   useEffect(() => {
     const root = hostRef.current?.shadowRoot;
