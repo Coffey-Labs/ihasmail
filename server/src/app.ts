@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { Context, MiddlewareHandler } from "hono";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
+import { compress } from "hono/compress";
 import { getConnInfo } from "@hono/node-server/conninfo";
 import { config } from "./config.js";
 import { SessionStore, type SessionBackend, type LiveSession } from "./sessions.js";
@@ -109,6 +110,62 @@ const securityHeaders: MiddlewareHandler = async (c, next) => {
 };
 
 /** CSRF: require our custom header on all API calls; reject cross-site fetches. */
+/**
+ * Routes that forward somebody else's bytes rather than producing our own.
+ *
+ * Compression is right for the app shell, the bundle and our JSON; it is not
+ * worth the risk on the proxy paths. Those carry a content-length copied from
+ * upstream under the rules in `forwardedContentLength`, and issue #76 was a
+ * silent truncation caused by exactly that header disagreeing with the body.
+ * Re-encoding them would be safe in principle -- the length is dropped and the
+ * response goes out chunked -- but the payloads are attachments, images and
+ * calendar data that are already compressed or too small to matter, so there
+ * is nothing to win and a scar to respect.
+ *
+ * `/api/events` needs no entry here: Hono skips `text/event-stream` by content
+ * type. It is listed anyway, because a future change to that route's type
+ * should not quietly start buffering the push stream.
+ */
+const UNCOMPRESSED_ROUTES = [
+  "/api/blob/",
+  "/api/image",
+  "/api/ics",
+  "/api/upload/",
+  "/api/events",
+  /*
+   * The liveness probe, which is small enough that gzip makes it bigger: 53
+   * bytes becomes 73. Hono's size threshold cannot catch this on its own,
+   * because it only applies when the response carries a content-length and
+   * `c.json()` does not set one. Every other JSON route is left compressed --
+   * a JMAP response can run to hundreds of kilobytes and its length is just as
+   * unknown -- so this is the one place worth naming.
+   */
+  "/api/health",
+];
+
+/**
+ * gzip for what we generate.
+ *
+ * The bundle ships uncompressed otherwise: 915 KB on the wire where 307 KB
+ * would do, on every first load. `Caddyfile.example` and
+ * `nginx.example.conf` both compress at the proxy, but that only helps the
+ * deployments that use them, and the default should not depend on reading the
+ * examples.
+ *
+ * Hono's middleware declines anything already carrying `Content-Encoding` or
+ * `Transfer-Encoding`, so a proxy compressing in front of us wins and we do
+ * not double-encode.
+ */
+function compressResponses(basePath: string): MiddlewareHandler {
+  const inner = compress({ threshold: 1024 });
+  const skip = UNCOMPRESSED_ROUTES.map((r) => `${basePath}${r}`);
+  return async (c, next) => {
+    const path = new URL(c.req.url).pathname;
+    if (skip.some((prefix) => path.startsWith(prefix))) return next();
+    return inner(c, next);
+  };
+}
+
 const csrfGuard: MiddlewareHandler = async (c, next) => {
   const site = c.req.header("sec-fetch-site");
   if (site && site !== "same-origin" && site !== "none") {
@@ -178,6 +235,7 @@ function upstreamFailure(c: Context, err: unknown) {
 export function createApp(basePath = config.basePath): Hono<Env> {
   const app = new Hono<Env>();
   app.use("*", securityHeaders);
+  app.use("*", compressResponses(basePath));
 
   const api = new Hono<Env>();
   api.use("*", csrfGuard);
