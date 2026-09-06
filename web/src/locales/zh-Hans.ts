@@ -517,6 +517,8 @@ export const catalog: Catalog = {
     "Show labels in the sidebar": "在侧边栏中显示标签",
     "Collapse sidebar to icons": "将侧边栏收起为图标",
     "Apply the theme to messages too": "邮件也应用主题",
+    "Apply it even to mail that styles itself": "即使邮件自带配色也套用",
+    "Most marketing and receipt mail sets a colour somewhere, so the setting above leaves nearly all of it on a white card. With this on, the theme is forced over the sender's own colours: backgrounds they laid the message on are dropped, while buttons and coloured banners are kept so their text stays readable. Some mail will not survive it intact, which is why it is separate.": "几乎所有营销邮件和收据邮件都会在某处设置颜色，因此上面的设置会让它们几乎全部停留在白色卡片上。启用此项后，主题会覆盖发件人的配色：邮件所依托的背景会被去掉，而按钮和彩色横幅会保留下来，使其文字仍然清晰可读。有些邮件无法完好呈现，因此这是一项单独的设置。",
     "Swiping": "滑动手势",
     "Swipe left": "向左滑动",
     "Swipe right": "向右滑动",

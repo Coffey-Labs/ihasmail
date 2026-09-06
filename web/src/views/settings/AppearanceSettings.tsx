@@ -91,6 +91,13 @@ export function AppearanceSettings() {
         label={translate("Apply the theme to messages too")}
         hint={translate("Plain-text mail already follows the theme. With this on, HTML mail that brings no colours of its own does as well, instead of sitting on a white card. Messages that style themselves are left exactly as the sender designed them.")}
       />
+      <Switch
+        checked={s.themeStyledMessages}
+        disabled={!s.themeMessageBody}
+        onChange={(v) => update({ themeStyledMessages: v })}
+        label={translate("Apply it even to mail that styles itself")}
+        hint={translate("Most marketing and receipt mail sets a colour somewhere, so the setting above leaves nearly all of it on a white card. With this on, the theme is forced over the sender's own colours: backgrounds they laid the message on are dropped, while buttons and coloured banners are kept so their text stays readable. Some mail will not survive it intact, which is why it is separate.")}
+      />
 
       <h2>{translate("Accent color")}</h2>
       <div className="swatches">
