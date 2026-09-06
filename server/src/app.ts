@@ -5,6 +5,7 @@ import { compress } from "hono/compress";
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { RESPONSE_ALREADY_SENT } from "@hono/node-server/utils/response";
+import { attach as pushAttach, attachRelay as pushAttachRelay, prepare as pushPrepare, receive as pushReceive, pushStatus } from "./push.js";
 import { getConnInfo } from "@hono/node-server/conninfo";
 import { config } from "./config.js";
 import { SessionStore, type SessionBackend, type LiveSession } from "./sessions.js";
@@ -175,7 +176,17 @@ const UNCOMPRESSED_ROUTES = [
 function compressResponses(basePath: string): MiddlewareHandler {
   const inner = compress({ threshold: 1024 });
   const skip = UNCOMPRESSED_ROUTES.map((r) => `${basePath}${r}`);
+  if (!config.compressJmap) skip.push(`${basePath}/api/jmap`);
+  const offersEncoding = /\b(gzip|deflate)\b/i;
   return async (c, next) => {
+    /*
+     * A client that did not ask for an encoding must not pay for one. Hono's
+     * middleware still inspects and re-labels every compressible response it
+     * declines -- setting Vary forces a streamed passthrough to be rebuilt off
+     * its fast path -- and that was measured at 1.2 ms per JMAP call, on a
+     * 1.9 ms operation, for a request that never sent Accept-Encoding.
+     */
+    if (!offersEncoding.test(c.req.header("accept-encoding") ?? "")) return next();
     const path = new URL(c.req.url).pathname;
     if (skip.some((prefix) => path.startsWith(prefix))) return next();
     return inner(c, next);
@@ -256,7 +267,23 @@ export function createApp(basePath = config.basePath): Hono<Env> {
   const api = new Hono<Env>();
   api.use("*", csrfGuard);
 
-  api.get("/health", (c) => c.json({ ok: true, name: config.appName, version: config.version }));
+  api.get("/health", (c) => c.json({ ok: true, name: config.appName, version: config.version, push: pushStatus() }));
+
+  /*
+   * Stalwart's push delivery. Authenticated by the token in the path -- 32
+   * random bytes, one per account, known only to us and to Stalwart -- and by
+   * nothing else, since Stalwart carries no credential when it POSTs. An
+   * unknown token is a 404 that looks like any other. See push.ts.
+   */
+  app.post(`${basePath}/api/push/:token`, async (c) => {
+    if (!(c.req.header("content-type") ?? "").toLowerCase().startsWith("application/json")) return c.body(null, 415);
+    const len = Number(c.req.header("content-length") ?? "0");
+    if (!len || len > 64 * 1024) return c.body(null, 413);
+    let body: unknown;
+    try { body = await c.req.json(); } catch { return c.body(null, 400); }
+    return c.body(null, (await pushReceive(c.req.param("token"), body)) as 200 | 400 | 404 | 500);
+  });
+
 
   api.get("/config", (c) =>
     c.json({
@@ -340,6 +367,10 @@ export function createApp(basePath = config.basePath): Hono<Env> {
         ip,
       });
       setSessionCookie(c, cookie, session.remember);
+      // Start the account's push subscription now, so it is usually verified
+      // by the time the browser opens its stream. See push.ts.
+      const mailAccount = upstream.primaryAccounts?.["urn:ietf:params:jmap:mail"];
+      if (mailAccount) pushPrepare(session.username, mailAccount, session.authorization);
       const info = await getAccountInfo(session.id, session.authorization, upstream);
       return c.json(localizeSession(upstream, sessionExtras(session, info)));
     } catch (err) {
@@ -716,7 +747,18 @@ export function createApp(basePath = config.basePath): Hono<Env> {
     try {
       const upstream = await getUpstreamSession(session.id, session.authorization, upstreamFor(session.username));
       const url = absoluteUpstream(expandTemplate(upstream.eventSourceUrl, { types, closeafter, ping }), upstream.baseUrl);
-      if (config.rawPushRelay) return relayPushRaw(c, url, session.authorization);
+      // Subscribe mode: if this account's subscription is verified, the tab is
+      // served by fan-out and holds nothing upstream. Otherwise it gets its own
+      // relay, and is moved to fan-out the moment the account verifies.
+      const accountId = upstream.primaryAccounts?.["urn:ietf:params:jmap:mail"];
+      const out = (c.env as { outgoing: import("node:http").ServerResponse }).outgoing;
+      if (accountId && pushAttach(session.username, accountId, session.authorization, out)) {
+        out.writeHead(200, SSE_HEADERS);
+        out.flushHeaders();
+        out.write(": subscribed\n\n");
+        return RESPONSE_ALREADY_SENT;
+      }
+      if (config.rawPushRelay) return relayPushRaw(c, url, session.authorization, session.username);
       const controller = new AbortController();
       c.req.raw.signal.addEventListener("abort", () => controller.abort());
       const res = await fetch(url, {
@@ -822,40 +864,62 @@ const PASSTHROUGH_HEADERS = new Set(["content-type", "content-disposition", "con
  * Returns a Response Hono treats as already sent: the raw bindings are
  * written to directly, and the returned value is never serialised.
  */
-function relayPushRaw(c: Context<Env>, url: string, authorization: string): Response {
+const SSE_HEADERS = {
+  "content-type": "text/event-stream",
+  "cache-control": "no-cache, no-transform",
+  connection: "keep-alive",
+  "x-accel-buffering": "no",
+} as const;
+
+function relayPushRaw(c: Context<Env>, url: string, authorization: string, username?: string): Response {
   const out = (c.env as { outgoing: import("node:http").ServerResponse }).outgoing;
   const target = new URL(url);
   const req = (target.protocol === "https:" ? httpsRequest : httpRequest)(target, {
     method: "GET",
     headers: { authorization, accept: "text/event-stream" },
   });
+  const signal = c.req.raw.signal;
   const abort = () => req.destroy();
-  c.req.raw.signal.addEventListener("abort", abort);
+  signal.addEventListener("abort", abort);
   out.on("close", abort);
-  req.on("response", (res) => {
-    if (res.statusCode !== 200) {
-      res.resume();
-      out.writeHead(502, { "content-type": "application/json", "cache-control": "no-store" });
-      out.end(JSON.stringify({ error: "upstream_error" }));
-      return;
-    }
-    out.writeHead(200, {
-      "content-type": "text/event-stream",
-      "cache-control": "no-cache, no-transform",
-      connection: "keep-alive",
-      "x-accel-buffering": "no",
-    });
-    out.flushHeaders();
-    res.pipe(out);
-  });
-  req.on("error", () => {
+  const fail = () => {
     if (!out.headersSent) {
       out.writeHead(502, { "content-type": "application/json", "cache-control": "no-store" });
       out.end(JSON.stringify({ error: "upstream_error" }));
     } else {
       out.end();
     }
+  };
+  /*
+   * Once this account's subscription verifies, the upstream request goes and
+   * the browser stream below is served by fan-out instead. Three things have
+   * to be true for that to be seamless: the browser must already have its
+   * headers (verification can beat the upstream response); nothing may treat
+   * the torn-down upstream as an error; and nothing may keep a reference to
+   * it -- the request, its response and this handler's context are exactly
+   * the per-tab weight the subscription exists to shed.
+   */
+  let migrated = false;
+  const migrate = () => {
+    migrated = true;
+    if (!out.headersSent) { out.writeHead(200, SSE_HEADERS); out.flushHeaders(); }
+    signal.removeEventListener("abort", abort);
+    out.removeListener("close", abort);
+    req.removeAllListeners();
+    req.on("error", () => {});
+    req.destroy();
+  };
+  if (username) pushAttachRelay(username, out, migrate);
+  req.on("response", (res) => {
+    if (migrated) { res.destroy(); return; }
+    if (res.statusCode !== 200) { res.resume(); fail(); return; }
+    if (!out.headersSent) { out.writeHead(200, SSE_HEADERS); out.flushHeaders(); }
+    // end: false -- the browser stream outlives the upstream if we migrate.
+    res.pipe(out, { end: false });
+    res.on("end", () => { if (!migrated) out.end(); });
+    res.on("error", () => { if (!migrated) out.end(); });
   });
+  req.on("error", () => { if (!migrated) fail(); });
   req.end();
   // Tells @hono/node-server the raw ServerResponse has been written to and
   // must be left alone.
