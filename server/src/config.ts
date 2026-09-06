@@ -307,6 +307,8 @@ export const config = {
    * magnitude below where one tab starts to hurt the rest. 0 disables it.
    */
   apiRateLimit: int("API_RATE_LIMIT", 1200),
+  /* Whether JMAP responses are gzipped. Measured: see the bake-off rerun. */
+  compressJmap: process.env.COMPRESS_JMAP !== "0",
   /* See relayPushRaw(): pipe the push stream socket-to-socket instead of through fetch(). */
   rawPushRelay: process.env.RAW_PUSH_RELAY !== "0",
   /* See absoluteUpstream(): follow Stalwart's advertised origin instead of pinning to ours. */

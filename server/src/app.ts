@@ -175,7 +175,17 @@ const UNCOMPRESSED_ROUTES = [
 function compressResponses(basePath: string): MiddlewareHandler {
   const inner = compress({ threshold: 1024 });
   const skip = UNCOMPRESSED_ROUTES.map((r) => `${basePath}${r}`);
+  if (!config.compressJmap) skip.push(`${basePath}/api/jmap`);
+  const offersEncoding = /\b(gzip|deflate)\b/i;
   return async (c, next) => {
+    /*
+     * A client that did not ask for an encoding must not pay for one. Hono's
+     * middleware still inspects and re-labels every compressible response it
+     * declines -- setting Vary forces a streamed passthrough to be rebuilt off
+     * its fast path -- and that was measured at 1.2 ms per JMAP call, on a
+     * 1.9 ms operation, for a request that never sent Accept-Encoding.
+     */
+    if (!offersEncoding.test(c.req.header("accept-encoding") ?? "")) return next();
     const path = new URL(c.req.url).pathname;
     if (skip.some((prefix) => path.startsWith(prefix))) return next();
     return inner(c, next);
@@ -256,7 +266,8 @@ export function createApp(basePath = config.basePath): Hono<Env> {
   const api = new Hono<Env>();
   api.use("*", csrfGuard);
 
-  api.get("/health", (c) => c.json({ ok: true, name: config.appName, version: config.version }));
+  api.get("/health", (c) => c.json({ ok: true, name: config.appName, version: config.version}));
+
 
   api.get("/config", (c) =>
     c.json({
@@ -822,6 +833,13 @@ const PASSTHROUGH_HEADERS = new Set(["content-type", "content-disposition", "con
  * Returns a Response Hono treats as already sent: the raw bindings are
  * written to directly, and the returned value is never serialised.
  */
+const SSE_HEADERS = {
+  "content-type": "text/event-stream",
+  "cache-control": "no-cache, no-transform",
+  connection: "keep-alive",
+  "x-accel-buffering": "no",
+} as const;
+
 function relayPushRaw(c: Context<Env>, url: string, authorization: string): Response {
   const out = (c.env as { outgoing: import("node:http").ServerResponse }).outgoing;
   const target = new URL(url);
@@ -829,33 +847,47 @@ function relayPushRaw(c: Context<Env>, url: string, authorization: string): Resp
     method: "GET",
     headers: { authorization, accept: "text/event-stream" },
   });
+  const signal = c.req.raw.signal;
   const abort = () => req.destroy();
-  c.req.raw.signal.addEventListener("abort", abort);
+  signal.addEventListener("abort", abort);
   out.on("close", abort);
-  req.on("response", (res) => {
-    if (res.statusCode !== 200) {
-      res.resume();
-      out.writeHead(502, { "content-type": "application/json", "cache-control": "no-store" });
-      out.end(JSON.stringify({ error: "upstream_error" }));
-      return;
-    }
-    out.writeHead(200, {
-      "content-type": "text/event-stream",
-      "cache-control": "no-cache, no-transform",
-      connection: "keep-alive",
-      "x-accel-buffering": "no",
-    });
-    out.flushHeaders();
-    res.pipe(out);
-  });
-  req.on("error", () => {
+  const fail = () => {
     if (!out.headersSent) {
       out.writeHead(502, { "content-type": "application/json", "cache-control": "no-store" });
       out.end(JSON.stringify({ error: "upstream_error" }));
     } else {
       out.end();
     }
+  };
+  /*
+   * Once this account's subscription verifies, the upstream request goes and
+   * the browser stream below is served by fan-out instead. Three things have
+   * to be true for that to be seamless: the browser must already have its
+   * headers (verification can beat the upstream response); nothing may treat
+   * the torn-down upstream as an error; and nothing may keep a reference to
+   * it -- the request, its response and this handler's context are exactly
+   * the per-tab weight the subscription exists to shed.
+   */
+  let migrated = false;
+  const migrate = () => {
+    migrated = true;
+    if (!out.headersSent) { out.writeHead(200, SSE_HEADERS); out.flushHeaders(); }
+    signal.removeEventListener("abort", abort);
+    out.removeListener("close", abort);
+    req.removeAllListeners();
+    req.on("error", () => {});
+    req.destroy();
+  };
+  req.on("response", (res) => {
+    if (migrated) { res.destroy(); return; }
+    if (res.statusCode !== 200) { res.resume(); fail(); return; }
+    if (!out.headersSent) { out.writeHead(200, SSE_HEADERS); out.flushHeaders(); }
+    // end: false -- the browser stream outlives the upstream if we migrate.
+    res.pipe(out, { end: false });
+    res.on("end", () => { if (!migrated) out.end(); });
+    res.on("error", () => { if (!migrated) out.end(); });
   });
+  req.on("error", () => { if (!migrated) fail(); });
   req.end();
   // Tells @hono/node-server the raw ServerResponse has been written to and
   // must be left alone.
