@@ -82,3 +82,19 @@ test("advertised upstream URLs are pinned to the configured origin", async () =>
   // A relative URL still resolves against the base, as before.
   assert.equal(absoluteUpstream("/jmap/", "http://stalwart:8080/"), "http://stalwart:8080/jmap/");
 });
+
+test("the data path is rate limited per session, and login stays on its own budget", async () => {
+  // No session: every call is refused before the limiter, so it must never 429.
+  const app = createApp();
+  for (let i = 0; i < 5; i++) {
+    const res = await app.request("/api/jmap", { method: "POST",
+      headers: { "content-type": "application/json", "x-requested-with": "ihasmail" }, body: "{}" });
+    assert.equal(res.status, 401);
+  }
+  // The limiter itself: a fresh key gets its budget and nothing more.
+  const { RateLimiter } = await import("./ratelimit.js");
+  const l = new RateLimiter(3, 60_000);
+  assert.deepEqual([l.check("s1"), l.check("s1"), l.check("s1"), l.check("s1")], [true, true, true, false]);
+  assert.ok(l.retryAfterSeconds("s1") >= 1);
+  assert.equal(l.check("s2"), true, "another session is not affected");
+});

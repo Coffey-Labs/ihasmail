@@ -63,6 +63,19 @@ const loginFloodLimiter = new RateLimiter(config.loginRateLimit * 20, 15 * 60_00
  * cannot get the whole deployment banned.
  */
 const accountLimiter = new RateLimiter(10, 15 * 60_000);
+const apiLimiter = new RateLimiter(config.apiRateLimit, 60_000);
+
+/** Per-session budget on the data path. See config.apiRateLimit. */
+const apiRateLimited: MiddlewareHandler<Env> = async (c, next) => {
+  if (config.apiRateLimit > 0) {
+    const session = c.get("session");
+    if (session && !apiLimiter.check(session.id)) {
+      c.header("Retry-After", String(apiLimiter.retryAfterSeconds(session.id)));
+      return c.json({ error: "rate_limited" }, 429);
+    }
+  }
+  await next();
+};
 
 const HOP_BY_HOP = new Set([
   "connection",
@@ -583,7 +596,7 @@ export function createApp(basePath = config.basePath): Hono<Env> {
   });
 
   // ---------- JMAP API proxy ----------
-  api.post("/jmap", requireSession, async (c) => {
+  api.post("/jmap", requireSession, apiRateLimited, async (c) => {
     const session = c.get("session");
     const ct = c.req.header("content-type") ?? "";
     if (!ct.toLowerCase().startsWith("application/json")) {
@@ -644,7 +657,7 @@ export function createApp(basePath = config.basePath): Hono<Env> {
   });
 
   // ---------- Blob download ----------
-  api.get("/blob/:accountId/:blobId/:name", requireSession, async (c) => {
+  api.get("/blob/:accountId/:blobId/:name", requireSession, apiRateLimited, async (c) => {
     const session = c.get("session");
     const { accountId, blobId, name } = c.req.param();
     const accept = c.req.query("accept") ?? "application/octet-stream";
@@ -724,10 +737,10 @@ export function createApp(basePath = config.basePath): Hono<Env> {
   });
 
   // ---------- Remote image privacy proxy ----------
-  api.get("/image", requireSession, imageProxyHandler);
+  api.get("/image", requireSession, apiRateLimited, imageProxyHandler);
 // Behind the session for the same reason the image proxy is: an open fetcher
 // on someone else's server is a gift to whoever finds it.
-api.get("/ics", requireSession, icsProxyHandler);
+api.get("/ics", requireSession, apiRateLimited, icsProxyHandler);
 
   api.notFound((c) => c.json({ error: "not_found" }, 404));
   api.onError((err, c) => {
