@@ -309,6 +309,16 @@ export const config = {
   apiRateLimit: int("API_RATE_LIMIT", 1200),
   /* Whether JMAP responses are gzipped. Measured: see the bake-off rerun. */
   compressJmap: process.env.COMPRESS_JMAP !== "0",
+  /*
+   * How push reaches the browser. "relay" holds one upstream stream per tab
+   * (today's behaviour). "subscribe" registers one JMAP PushSubscription per
+   * account and fans Stalwart's POSTs out to that account's tabs, holding no
+   * upstream connection at all -- see push.ts. It needs PUSH_URL: the https
+   * origin Stalwart can reach ihasmail at, with a certificate it trusts.
+   * An account that cannot be verified stays on the relay.
+   */
+  pushMode: (process.env.PUSH_MODE === "relay" ? "relay" : "subscribe") as "relay" | "subscribe",
+  pushUrl: process.env.PUSH_URL || "",
   /* See relayPushRaw(): pipe the push stream socket-to-socket instead of through fetch(). */
   rawPushRelay: process.env.RAW_PUSH_RELAY !== "0",
   /* See absoluteUpstream(): follow Stalwart's advertised origin instead of pinning to ours. */

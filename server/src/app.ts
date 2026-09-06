@@ -5,6 +5,7 @@ import { compress } from "hono/compress";
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { RESPONSE_ALREADY_SENT } from "@hono/node-server/utils/response";
+import { attach as pushAttach, attachRelay as pushAttachRelay, prepare as pushPrepare, receive as pushReceive, pushStatus } from "./push.js";
 import { getConnInfo } from "@hono/node-server/conninfo";
 import { config } from "./config.js";
 import { SessionStore, type SessionBackend, type LiveSession } from "./sessions.js";
@@ -266,7 +267,22 @@ export function createApp(basePath = config.basePath): Hono<Env> {
   const api = new Hono<Env>();
   api.use("*", csrfGuard);
 
-  api.get("/health", (c) => c.json({ ok: true, name: config.appName, version: config.version}));
+  api.get("/health", (c) => c.json({ ok: true, name: config.appName, version: config.version, push: pushStatus() }));
+
+  /*
+   * Stalwart's push delivery. Authenticated by the token in the path -- 32
+   * random bytes, one per account, known only to us and to Stalwart -- and by
+   * nothing else, since Stalwart carries no credential when it POSTs. An
+   * unknown token is a 404 that looks like any other. See push.ts.
+   */
+  app.post(`${basePath}/api/push/:token`, async (c) => {
+    if (!(c.req.header("content-type") ?? "").toLowerCase().startsWith("application/json")) return c.body(null, 415);
+    const len = Number(c.req.header("content-length") ?? "0");
+    if (!len || len > 64 * 1024) return c.body(null, 413);
+    let body: unknown;
+    try { body = await c.req.json(); } catch { return c.body(null, 400); }
+    return c.body(null, (await pushReceive(c.req.param("token"), body)) as 200 | 400 | 404 | 500);
+  });
 
 
   api.get("/config", (c) =>
@@ -351,6 +367,10 @@ export function createApp(basePath = config.basePath): Hono<Env> {
         ip,
       });
       setSessionCookie(c, cookie, session.remember);
+      // Start the account's push subscription now, so it is usually verified
+      // by the time the browser opens its stream. See push.ts.
+      const mailAccount = upstream.primaryAccounts?.["urn:ietf:params:jmap:mail"];
+      if (mailAccount) pushPrepare(session.username, mailAccount, session.authorization);
       const info = await getAccountInfo(session.id, session.authorization, upstream);
       return c.json(localizeSession(upstream, sessionExtras(session, info)));
     } catch (err) {
@@ -727,7 +747,18 @@ export function createApp(basePath = config.basePath): Hono<Env> {
     try {
       const upstream = await getUpstreamSession(session.id, session.authorization, upstreamFor(session.username));
       const url = absoluteUpstream(expandTemplate(upstream.eventSourceUrl, { types, closeafter, ping }), upstream.baseUrl);
-      if (config.rawPushRelay) return relayPushRaw(c, url, session.authorization);
+      // Subscribe mode: if this account's subscription is verified, the tab is
+      // served by fan-out and holds nothing upstream. Otherwise it gets its own
+      // relay, and is moved to fan-out the moment the account verifies.
+      const accountId = upstream.primaryAccounts?.["urn:ietf:params:jmap:mail"];
+      const out = (c.env as { outgoing: import("node:http").ServerResponse }).outgoing;
+      if (accountId && pushAttach(session.username, accountId, session.authorization, out)) {
+        out.writeHead(200, SSE_HEADERS);
+        out.flushHeaders();
+        out.write(": subscribed\n\n");
+        return RESPONSE_ALREADY_SENT;
+      }
+      if (config.rawPushRelay) return relayPushRaw(c, url, session.authorization, session.username);
       const controller = new AbortController();
       c.req.raw.signal.addEventListener("abort", () => controller.abort());
       const res = await fetch(url, {
@@ -840,7 +871,7 @@ const SSE_HEADERS = {
   "x-accel-buffering": "no",
 } as const;
 
-function relayPushRaw(c: Context<Env>, url: string, authorization: string): Response {
+function relayPushRaw(c: Context<Env>, url: string, authorization: string, username?: string): Response {
   const out = (c.env as { outgoing: import("node:http").ServerResponse }).outgoing;
   const target = new URL(url);
   const req = (target.protocol === "https:" ? httpsRequest : httpRequest)(target, {
@@ -878,6 +909,7 @@ function relayPushRaw(c: Context<Env>, url: string, authorization: string): Resp
     req.on("error", () => {});
     req.destroy();
   };
+  if (username) pushAttachRelay(username, out, migrate);
   req.on("response", (res) => {
     if (migrated) { res.destroy(); return; }
     if (res.statusCode !== 200) { res.resume(); fail(); return; }
