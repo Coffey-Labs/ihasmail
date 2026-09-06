@@ -1,5 +1,5 @@
 /**
- * Enough recurrence expansion for the mock to behave like Stalwart 0.16.20.
+ * Enough recurrence expansion for the mock to behave like Stalwart 0.16.21.
  *
  * The mock used to hand a recurring event back once, as its stored self. Three
  * things that only a live server showed were therefore impossible to develop
@@ -8,8 +8,8 @@
  * - an expanded query gives *everything* a synthetic id over a `baseEventId`,
  *   a one-off included, so `baseEventId` is no evidence of a series;
  * - an occurrence carries a `recurrenceId` and no rule of its own;
- * - 0.16.20 takes a write aimed at a synthetic id and turns it into a
- *   `recurrenceOverrides` entry rather than touching the series.
+ * - a write aimed at a synthetic id becomes a `recurrenceOverrides` entry
+ *   rather than touching the series.
  *
  * A mock that agrees with the client rather than with the server is how #26 and
  * #30 reached a live instance, so the refusals matter as much as the successes:
@@ -25,41 +25,41 @@ const MAX_ITERATIONS = 750;
 const DAYS = ["su", "mo", "tu", "we", "th", "fr", "sa"];
 
 /**
- * The id an occurrence is addressed by, which is only true until the next write.
+ * The id an occurrence is addressed by: its `recurrenceId`, not its position.
  *
  * Stalwart's are opaque; the mock's are parseable because it has to resolve
  * them, and nothing in ihasmail may read either.
  *
- * They are also deliberately **unstable**, because the real ones are.
- * **Confirmed live on 0.16.20 (2026-08-31):** a synthetic id encodes a position
- * in the expanded series, and writing a `recurrenceOverrides` entry adds a
- * component that renumbers it. A five-week series held `e i m q u` over
- * 03-01…03-29; after one override was written to 03-08 the same ids addressed
- * 03-01, 03-15, 03-29, 03-08, 03-22. Nothing was rejected — they just meant
- * different dates.
+ * **They are stable, and that is a change.** Up to 0.16.20 a synthetic id
+ * encoded a *position* in the expanded series, so writing one override
+ * renumbered the rest and a held id silently began addressing a different
+ * date — a hazard this file used to reproduce on purpose. 0.16.21 fixed it:
+ * an occurrence is now identified by its recurrence id.
  *
- * That is the hazard worth reproducing, and note which way round it goes: a
- * stale id is not *invalid*, it is *wrong*. A mock that expired them instead
- * would hand back a loud `notFound` and let a client that caches ids look
- * careful. So the numbering is shifted by the number of overrides — an
- * arbitrary stand-in for Stalwart's renumbering, with the one property that
- * matters: hold an id across a write and it silently addresses another date.
+ * **Confirmed live on 0.16.21 (2026-09-06):** a five-week weekly series was
+ * expanded, the third occurrence retitled through its synthetic id, and all
+ * five original ids re-read afterwards. Every one still resolved, and every
+ * one still named its own date; nothing was renumbered and nothing was
+ * `notFound`. Only the *order* of the ids from an expanded query changed —
+ * the overridden occurrence moved to the end of the list — which is why a
+ * client sorts by `start` rather than trusting query order.
+ *
+ * The real ids look nothing like these (`h1fo9uaaaaab` for the first of that
+ * series); what has to match is that holding one across a write stays correct.
  */
-export const syntheticId = (baseId: string, slot: number): string => `${baseId}-o${slot}`;
+const compact = (recurrenceId: string): string => recurrenceId.replace(/[-:]/g, "");
 
-export function parseSyntheticId(id: string): { baseId: string; slot: number } | null {
-  const m = /^(.+)-o(\d+)$/.exec(id);
-  return m ? { baseId: m[1]!, slot: Number(m[2]) } : null;
-}
+export const syntheticId = (baseId: string, recurrenceId: string): string =>
+  `${baseId}-r${compact(recurrenceId)}`;
 
-/** How far the id numbering has been rotated away from the series order. */
-function rotation(base: Obj): number {
-  return Object.keys((base.recurrenceOverrides as Record<string, Obj> | undefined) ?? {}).length;
-}
-
-/** The id slot this occurrence currently answers to. */
-export function slotOfOccurrence(base: Obj, occ: Occurrence): number {
-  return occ.index + rotation(base);
+export function parseSyntheticId(id: string): { baseId: string; recurrenceId: string } | null {
+  const m = /^(.+)-r(\d{8}T\d{6})$/.exec(id);
+  if (!m) return null;
+  const c = m[2]!;
+  const recurrenceId =
+    `${c.slice(0, 4)}-${c.slice(4, 6)}-${c.slice(6, 8)}` +
+    `T${c.slice(9, 11)}:${c.slice(11, 13)}:${c.slice(13, 15)}`;
+  return { baseId: m[1]!, recurrenceId };
 }
 
 /** `2026-08-31T09:00:00` — the naive local form the mock stores `start` in. */
@@ -104,8 +104,8 @@ export function expandOccurrences(base: Obj, from: Date, to: Date): Occurrence[]
   const emit = (index: number, at: Date): boolean => {
     const recurrenceId = localDateTime(at);
     const override = overrides[recurrenceId];
-    // An excluded date is simply gone from the expansion. Its slot is not
-    // reserved -- see `syntheticId` for why nothing here pretends otherwise.
+    // An excluded date is simply gone from the expansion. Nothing is
+    // reserved in its place, and no other occurrence's id moves because of it.
     if (override?.excluded === true) return true;
     /*
      * An override may move the occurrence, and then `start` and `recurrenceId`
@@ -115,9 +115,9 @@ export function expandOccurrences(base: Obj, from: Date, to: Date): Occurrence[]
      * came back `start: 2027-06-14T14:00:00` with `recurrenceId` still
      * `2027-06-14T09:00:00`.
      *
-     * Which is exactly why `recurrenceId` is what a client holds on to. It is
-     * the one name for this instance that neither a renumbering nor a move
-     * changes.
+     * Which is exactly why `recurrenceId` is what a client holds on to, and
+     * since 0.16.21 what the id is built from: the one name for this instance
+     * that a move does not change.
      */
     const start = (typeof override?.start === "string" ? override.start : null) ?? recurrenceId;
     const shown = parseLocal(start);
@@ -178,7 +178,7 @@ export function occurrenceView(base: Obj, occ: Occurrence): Obj {
   const view: Obj = { ...base };
   for (const k of SERIES_ONLY) delete view[k];
   Object.assign(view, occ.override ?? {});
-  view.id = syntheticId(base.id as string, slotOfOccurrence(base, occ));
+  view.id = syntheticId(base.id as string, occ.recurrenceId);
   view.baseEventId = base.id;
   view.start = occ.start;
   // Only a genuine instance of a series carries one. A one-off expanded into
@@ -229,10 +229,13 @@ export function splitOccurrencePatch(patch: Obj): { rejected?: string; applied: 
   return { applied };
 }
 
-/** The occurrence a slot currently addresses — which is not a fixed thing. */
-export function occurrenceAt(base: Obj, slot: number): Occurrence | null {
-  const index = slot - rotation(base);
-  if (index < 0) return null;
+/**
+ * The occurrence a recurrence id addresses, which no later write moves.
+ *
+ * An id whose date the rule no longer generates — excluded, or past a `count`
+ * — resolves to nothing, and the caller turns that into `notFound`.
+ */
+export function occurrenceAt(base: Obj, recurrenceId: string): Occurrence | null {
   const all = expandOccurrences(base, new Date(-8640000000000), new Date(8640000000000));
-  return all.find((o) => o.index === index) ?? null;
+  return all.find((o) => o.recurrenceId === recurrenceId) ?? null;
 }

@@ -6,7 +6,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
 import { signedMessage, type SIGNED_MESSAGES } from "./signedMessages.js";
-import { expandOccurrences, occurrenceAt, occurrenceView, parseSyntheticId, slotOfOccurrence, splitOccurrencePatch, syntheticId, type Occurrence } from "./recurrence.js";
+import { expandOccurrences, occurrenceAt, occurrenceView, parseSyntheticId, splitOccurrencePatch, syntheticId, type Occurrence } from "./recurrence.js";
 import { parseOtpauthUrl, verifyTotp } from "../totp.js";
 import { holdUntilOf, undoStatusOf } from "./futurerelease.js";
 
@@ -358,6 +358,24 @@ function compareBy(x: Obj, y: Obj, property: string, keyword?: string): number {
 /** A server that does not implement sorting on keywords, so the fallback can be developed against. */
 const NO_KEYWORD_SORT = process.env.MOCK_NO_KEYWORD_SORT === "1";
 
+/** The floor Stalwart puts under a requested EventSource ping interval. */
+const PING_FLOOR_SECONDS = 30;
+
+/*
+ * An account that may not send calendar invitations.
+ *
+ * 0.16.21 rejects a `CalendarEvent/set` that asks for scheduling messages when
+ * the account lacks the `calendarSchedulingSend` permission, rather than
+ * accepting the write and quietly sending nothing. **Confirmed live on 0.16.21
+ * (2026-09-06)** against an account holding a role with that permission
+ * disabled: `sendSchedulingMessages: true` came back `notCreated` with
+ * `forbidden` and the text below, while the identical request with the flag
+ * false was created normally. Set MOCK_NO_SCHEDULING_SEND=1 to develop against
+ * that account.
+ */
+const NO_SCHEDULING_SEND = process.env.MOCK_NO_SCHEDULING_SEND === "1";
+const SCHEDULING_FORBIDDEN = "This account is not allowed to send calendar scheduling messages.";
+
 const booksFor = (accountId: unknown): Obj[] => (accountId === SHARED_ACCOUNT ? sharedAddressBooks : addressBooks);
 /** One per contact, by index; a gap means that card has no birthday. */
 const BIRTHDAYS: Array<{ year?: number; month: number; day: number } | null> = [
@@ -542,12 +560,19 @@ function enforceLimits(name: string, args: Obj): void {
 const setResp = (extra: Obj = {}): Obj => ({ accountId: ACCOUNT, oldState: "1", newState: nextState(), created: {}, updated: {}, destroyed: [], ...extra });
 
 /*
- * Stalwart does not return `shareWith` unless a client asks for it by name: a
- * `/get` with no `properties` comes back without the field at all. Confirmed on
- * 0.16.19 (2026-08-27) against a calendar and an address book that really were
- * shared. The mock handing it over unasked meant a client that never asked
- * still saw every share, and the one place that did not -- the real server --
- * showed nothing shared at all.
+ * `Mailbox/get` does not return `shareWith` unless a client asks for it by
+ * name: a `/get` with no `properties` comes back without the field at all.
+ * Confirmed on 0.16.19 (2026-08-27) against a mailbox that really was shared.
+ * The mock handing it over unasked meant a client that never asked still saw
+ * every share, and the one place that did not -- the real server -- showed
+ * nothing shared at all.
+ *
+ * Calendars and address books used to behave the same way and no longer do.
+ * 0.16.21 fixed `Calendar/get` and `AddressBook/get` to return every property
+ * when `properties` is omitted or null, `shareWith` included. **Confirmed live
+ * on 0.16.21 (2026-09-06):** both come back with the full set, while
+ * `Mailbox/get` on the same server still omits it — so this stays, and it
+ * stays applied to mailboxes alone.
  */
 function hideShareWithUnlessAsked(a: Obj, res: { list: Obj[] }): { list: Obj[] } {
   if (a.properties) return res;
@@ -564,9 +589,9 @@ function genericGet(list: Obj[]) {
 /**
  * An id, as either a stored event or one occurrence of one.
  *
- * A synthetic id whose base is gone, or whose index falls outside the series
- * (deleted, or past a `count`), resolves to nothing — `notFound`, the way the
- * server answers for an occurrence that is not there any more.
+ * A synthetic id whose base is gone, or whose date the rule no longer
+ * generates (excluded, or past a `count`), resolves to nothing — `notFound`,
+ * the way the server answers for an occurrence that is not there any more.
  */
 function resolveEvent(list: Obj[], id: string): { base: Obj; occ?: Occurrence } | null {
   const direct = list.find((x) => x.id === id);
@@ -575,7 +600,7 @@ function resolveEvent(list: Obj[], id: string): { base: Obj; occ?: Occurrence } 
   if (!parsed) return null;
   const base = list.find((x) => x.id === parsed.baseId);
   if (!base) return null;
-  const occ = occurrenceAt(base, parsed.slot);
+  const occ = occurrenceAt(base, parsed.recurrenceId);
   return occ ? { base, occ } : null;
 }
 
@@ -696,6 +721,27 @@ function calendarEventSet(a: Obj) {
   const notCreated: Obj = {};
   const notUpdated: Obj = {};
   const notDestroyed: Obj = {};
+
+  /*
+   * An account that may not send invitations refuses the whole request the
+   * moment it asks for them, and refuses it per object rather than as a method
+   * error. Confirmed live on 0.16.21 for all three of create, update and
+   * destroy; the same requests with the flag absent or false went through.
+   * The flag alone decides it — the server does not first check whether the
+   * event has anyone to notify.
+   */
+  if (NO_SCHEDULING_SEND && a.sendSchedulingMessages === true) {
+    const denied = () => new SetError("forbidden", SCHEDULING_FORBIDDEN).toJSON();
+    for (const cid of Object.keys((a.create as Obj) ?? {})) notCreated[cid] = denied();
+    for (const id of Object.keys((a.update as Obj) ?? {})) notUpdated[id] = denied();
+    for (const id of ((a.destroy as string[]) ?? [])) notDestroyed[id] = denied();
+    return setResp({
+      created, updated, destroyed,
+      ...(Object.keys(notCreated).length ? { notCreated } : {}),
+      ...(Object.keys(notUpdated).length ? { notUpdated } : {}),
+      ...(Object.keys(notDestroyed).length ? { notDestroyed } : {}),
+    });
+  }
 
   for (const [cid, obj] of Object.entries((a.create as Obj) ?? {})) {
     const o: Obj = { ...(obj as Obj), id: `ev${randomUUID().slice(0, 6)}` };
@@ -1154,7 +1200,7 @@ const handlers: Record<string, Handler> = {
   "SieveScript/get": genericGet(sieveScripts),
   "SieveScript/set": (a) => { const r = genericSet(sieveScripts, "sv", (o) => Object.assign(o, { isActive: false, ...o }))(a); const act = (a.onSuccessActivateScript as string | undefined); if (act) { const id = act.startsWith("#") ? ((r.created as Obj)[act.slice(1)] as Obj)?.id : act; for (const s of sieveScripts) s.isActive = s.id === id; } if (a.onSuccessDeactivateScript) for (const s of sieveScripts) s.isActive = false; return r; },
   "SieveScript/validate": () => ({ accountId: ACCOUNT, error: null }),
-  "Calendar/get": (a) => hideShareWithUnlessAsked(a, genericGet(calendarsFor(a.accountId))(a) as { list: Obj[] }) as never,
+  "Calendar/get": (a) => genericGet(calendarsFor(a.accountId))(a),
   "Calendar/set": (a) => genericSet(calendarsFor(a.accountId), "c", (o) => Object.assign(o, { color: "#0f766e", isSubscribed: true, isVisible: true, isDefault: false, includeInAvailability: "all", timeZone: null, shareWith: null, myRights: rightsCal(), description: null, sortOrder: 0, ...o }))(a),
   /*
    * With `expandRecurrences` every id that comes back is synthetic — a one-off
@@ -1173,7 +1219,7 @@ const handlers: Record<string, Handler> = {
     const from = filter.after ? new Date(filter.after as string) : new Date(-8640000000000);
     const to = filter.before ? new Date(filter.before as string) : new Date(8640000000000);
     const ids: string[] = [];
-    for (const e of matching) for (const occ of expandOccurrences(e, from, to)) ids.push(syntheticId(e.id as string, slotOfOccurrence(e, occ)));
+    for (const e of matching) for (const occ of expandOccurrences(e, from, to)) ids.push(syntheticId(e.id as string, occ.recurrenceId));
     return { accountId: a.accountId ?? ACCOUNT, queryState: "1", canCalculateChanges: false, position: 0, ids, total: ids.length };
   },
   "CalendarEvent/get": (a) => {
@@ -1211,7 +1257,7 @@ const handlers: Record<string, Handler> = {
     }
     return { accountId: ACCOUNT, list };
   },
-  "AddressBook/get": (a) => hideShareWithUnlessAsked(a, genericGet(booksFor(a.accountId))(a) as { list: Obj[] }) as never,
+  "AddressBook/get": (a) => genericGet(booksFor(a.accountId))(a),
   "AddressBook/set": (a) => {
     /* Stalwart refuses any update to a book shared read-only, `isSubscribed`
        included -- "You are not allowed to modify this address book", confirmed
@@ -1393,13 +1439,37 @@ export const server = createServer(async (req, res) => {
     res.writeHead(200, { "content-type": url.searchParams.get("accept") ?? b.type, "content-length": b.data.length });
     return res.end(b.data);
   }
+  /*
+   * The `ping` query parameter, and what comes back for it.
+   *
+   * **Confirmed live on 0.16.21 (2026-09-06):** the interval is in **seconds**
+   * — `data: {"interval": 30}` — where up to 0.16.20 the same field carried
+   * milliseconds. The server floors it at 30 s (asking for 1, 2 or 5 all
+   * answered 30 and pinged every 30 s) and honours anything above (45 pinged
+   * at 45 s and said 45, 60 at 60 and said 60). `ping=0` disables pings
+   * altogether; a value that is not a number at all — `abc`, or empty — is a
+   * 400 before the stream opens.
+   *
+   * The first ping arrives one whole interval in, not on connect, so nothing
+   * is written here: `flushHeaders` opens the stream on its own. A mock that
+   * pinged immediately would let a client treat the first ping as an
+   * connection-established signal and hang forever against the real thing.
+   */
   if (url.pathname.startsWith("/jmap/eventsource")) {
+    const raw = url.searchParams.get("ping");
+    const asked = Number(raw);
+    if (raw === null || raw === "" || !Number.isInteger(asked) || asked < 0) {
+      res.writeHead(400, { "content-type": "application/json" });
+      return res.end(JSON.stringify({ type: "urn:ietf:params:jmap:error:notRequest", status: 400 }));
+    }
     res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache" });
-    res.write(`event: ping\ndata: {}\n\n`);
+    res.flushHeaders();
     sseClients.add(res);
-    const t = setInterval(() => res.write(`event: ping\ndata: {}\n\n`), 25000);
-    req.on("close", () => { clearInterval(t); sseClients.delete(res); });
-    // Simulate a new message every 90s
+    const interval = asked === 0 ? 0 : Math.max(asked, PING_FLOOR_SECONDS);
+    const t = interval
+      ? setInterval(() => res.write(`event: ping\ndata: {"interval": ${interval}}\n\n`), interval * 1000)
+      : null;
+    req.on("close", () => { if (t) clearInterval(t); sseClients.delete(res); });
     return;
   }
   res.writeHead(404, { "content-type": "application/json" });
