@@ -4,15 +4,19 @@ What was checked, against which server, and when. For a failure you are hitting
 right now, start with [Troubleshooting](https://docs.ihasmail.org/troubleshooting/);
 for what is not built yet, see [ROADMAP.md](ROADMAP.md).
 
-The live instance runs **0.16.20**, upgraded from 0.16.19 on 2026-08-31 with
-eight seconds of downtime, and as of **2026-08-26 there is nothing left
-pending**. Every entry below was exercised against 0.16.19 on the date it
-names, and the dates still say so: the upgrade was read against the
-0.16.19→0.16.20 diff rather than re-run, and nothing in it touches the session
+The live instance runs **0.16.21**, and as of **2026-08-26 there is nothing
+left pending**. Most entries below were exercised against 0.16.19 on the date
+they name, and the dates still say so: each upgrade since was read against the
+diff rather than re-run, and nothing in those diffs touches the session
 capabilities, blob, quota, submission or registry paths these entries describe.
-The calendar entries below carrying a 2026-08-31 date are the exception: those
-were exercised against the live 0.16.20 directly, as are the public-key entries
-dated 2026-09-05.
+The calendar entries carrying a 2026-08-31 date were exercised against a live
+0.16.20 directly, as were the public-key entries dated 2026-09-05.
+
+**0.16.21 was different and was re-run rather than read.** It changed four
+things a client can see, one of which resolved an entry below outright. The app
+was run against a real 0.16.21 with mail, calendar and contacts exercised by
+hand, including editing one occurrence of a recurring series through the
+interface and confirming the rest of the series stayed where it was.
 What remains here is not a list of unknowns but of things worth knowing — where
 Stalwart departs from a spec, where a setting has to be turned on for a feature
 to work, and what ihasmail deliberately does not do.
@@ -63,7 +67,7 @@ works the same way — and dropped where 0.15 was the whole subject. Support for
 
 - **An override can move an occurrence, and then `start` and `recurrenceId` mean two different times.** The slot stays where the rule put it and only the clock time moves. **Confirmed live on 0.16.20 (2026-08-31)**: one occurrence of a weekly 09:00 series moved to 14:00 came back `start: 2027-06-14T14:00:00` with `recurrenceId` still `2027-06-14T09:00:00`. This is the right behaviour and it is the reason `recurrenceId` is the handle ihasmail holds: it is the one name for an instance that survives *both* a renumbering and a move, so a mutation can always be re-resolved from it. Worth recording because the mock got it wrong in the other direction — it overwrote an override's `start` with the slot time, so a moved occurrence did not move, and per-occurrence *time* editing looked broken against the mock and correct against the server. Found by asking a real server rather than by reading the mock, which is the only way this kind of disagreement ever surfaces.
 
-- **A synthetic id is only true until the next write, and a stale one is wrong rather than invalid.** Stalwart's expanded-occurrence ids encode a position in the series, and writing a `recurrenceOverrides` entry adds a component that renumbers it. **Confirmed live on 0.16.20 (2026-08-31)**: a five-week series came back as `e i m q u` over 03-01 … 03-29; one override written to 03-08 left the *same five ids* addressing 03-01, 03-15, 03-29, 03-08 and 03-22. Nothing was rejected and nothing reported a change — `i` simply meant a week later than it had a moment earlier. So an id cached across a write silently points at another date, and a delete meant for one occurrence removes a different one. This is the second time the same shape of problem has cost a live debugging session, and it is worth saying plainly why it is dangerous: the failure is not a `notFound` a client would notice, it is a confident answer about the wrong day. ihasmail therefore never mutates an occurrence by an id it is holding. `recurrenceId` is the stable name for a slot in a series — it is the date — so `updateEvent` and `destroyEvent` look the current id up by it immediately before they act, and refuse outright if the date is no longer in the series rather than falling back to the id in hand. The mock renumbers too, by a different permutation to the real server's but with the property that matters, since a mock that kept ids stable would agree with precisely the belief that is wrong.
+- **A synthetic id was only true until the next write, through 0.16.20. Fixed in 0.16.21.** Stalwart's expanded-occurrence ids used to encode a position in the series, so writing a `recurrenceOverrides` entry renumbered them. **Confirmed live on 0.16.20 (2026-08-31)**: a five-week series came back as `e i m q u` over 03-01 … 03-29; one override written to 03-08 left the *same five ids* addressing 03-01, 03-15, 03-29, 03-08 and 03-22. Nothing was rejected and nothing reported a change — `i` simply meant a week later than it had a moment earlier, so an id cached across a write silently pointed at another date and a delete meant for one occurrence removed a different one. The failure was never a `notFound` a client would notice; it was a confident answer about the wrong day. **0.16.21 identifies an occurrence by its recurrence id, and confirming that was the point of re-running rather than reading the diff. Confirmed live on 0.16.21 (2026-09-06)**: the same shape of test — five weekly occurrences expanded, the third retitled through its own synthetic id, all five original ids re-read — left every id on its own date, with none renumbered and none `notFound`. A second override written through the interface behaved the same way. The defence stays regardless: ihasmail still never mutates an occurrence by an id it is holding, and `updateEvent` and `destroyEvent` still re-resolve by `recurrenceId` immediately before acting, because a date can still leave a series and because the client supports 0.16 as a whole rather than only its newest release. The mock follows the new behaviour, and the test that pinned the old renumbering now pins the stability instead — rewritten rather than deleted, so the reversal stays on the record.
 
 - **A per-occurrence patch made only of inherited properties creates an override that loses the title.** The twelve properties 0.16.20 drops from a per-occurrence patch are dropped *after* it has decided to write an override, so a patch consisting only of them still writes one — and that override carries the `start` and `duration` the server fills in and nothing else. **Confirmed live on 0.16.20 (2026-08-31)**: `{"privacy": "private"}` aimed at one occurrence answered `updated`, left `privacy` untouched on the series, and left that date with no title at all. A successful response, a silently discarded change, and real data loss on a third property nobody mentioned. ihasmail narrows a per-occurrence patch before sending it and sends nothing when narrowing empties it, which was written as a point of principle — a request whose response could only be a meaningless "updated" is worse than no request — and turns out to prevent this. Worth remembering as the argument for the principle.
 

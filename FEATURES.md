@@ -12,8 +12,10 @@ questions:
 | [KNOWN-ISSUES.md](KNOWN-ISSUES.md) | What was verified live, and where Stalwart departs from a spec |
 | [docs.ihasmail.org](https://docs.ihasmail.org) | How to install, configure and drive each of these |
 
-Written against the tree at Stalwart **0.16.20**, which is the version the live
-instance runs and the one every behaviour below was checked against. ihasmail
+Written against the tree at Stalwart **0.16.21**, which is the version the live
+instance runs. Behaviours carrying an older version below were checked against
+that one and have not changed since; where 0.16.21 changed something, the entry
+says so and names both. ihasmail
 requires 0.16 or newer and refuses older servers at sign-in, by name.
 
 ## The shape of it
@@ -670,13 +672,18 @@ work:
   success; the rest are applied. ihasmail checks the patch before sending it, so
   a rejected property is an error you can see and an inherited one is reported
   as something it could not do for one date, rather than claimed as saved.
-- **Occurrence ids are not stable across a write.** Stalwart's synthetic ids
-  encode a position in the expanded series, and writing an override renumbers
-  them — confirmed live on 0.16.20: after one override, the same five ids
-  addressed a different five dates. So an occurrence is re-resolved from its
-  `recurrenceId` (the date itself) immediately before it is touched, and a
-  vanished date says so rather than acting on an id that now means something
-  else.
+- **Occurrence ids became stable in 0.16.21, and were not before it.** Through
+  0.16.20 Stalwart's synthetic ids encoded a *position* in the expanded series,
+  so writing one override renumbered the rest and the same five ids addressed a
+  different five dates. 0.16.21 identifies an occurrence by its recurrence id
+  instead — confirmed live on 0.16.21 (2026-09-06): a five-week series was
+  expanded, its third occurrence retitled through its own synthetic id, and all
+  five original ids re-read afterwards still named their own dates. ihasmail
+  re-resolves an occurrence from its `recurrenceId` immediately before touching
+  it anyway. That is no longer load-bearing on the current server, and it stays
+  because it costs one lookup, because a vanished date still has to say so
+  rather than be acted on, and because the client supports 0.16 as a whole
+  rather than only its newest release.
 
 *This and future* is not offered: the server refuses an occurrence that belongs
 to such a change, and where it does, ihasmail says so and offers the series.
