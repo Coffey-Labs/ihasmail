@@ -1,7 +1,12 @@
 # Notes for Claude
 
-Things that are true of this repository and cost somebody a round trip to
-find out. Not a style guide — `CONTRIBUTING.md` is that.
+**Scope: translations and verifying UI work. Nothing else.**
+
+This file covers exactly two things — the nine translation catalogues, and
+what it takes to confirm a visible change actually works. Do not add sections
+for anything else: no build, deploy, architecture, style or workflow notes,
+however useful they seem. `CONTRIBUTING.md` is the style guide, and everything
+else belongs in the code, the docs, or a commit message.
 
 ## Translations
 
