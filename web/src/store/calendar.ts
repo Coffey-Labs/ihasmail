@@ -296,8 +296,8 @@ interface CalendarState {
   findByUid(uid: string): Promise<CalendarEvent | null>;
   parseIcs(blobId: Id): Promise<CalendarEvent[]>;
   importEvent(event: Partial<CalendarEvent>, calendarId: Id): Promise<Id>;
-  /** Import a whole .ics file. Says how many it created, and how many were already here. */
-  importIcs(text: string, calendarId: Id): Promise<{ created: number; skipped: number }>;
+  /** Import a whole .ics file. Says how many it created and how many it updated. */
+  importIcs(text: string, calendarId: Id): Promise<{ created: number; updated: number }>;
   /** The whole calendar as one .ics document, and how many events went into it. */
   exportIcs(calendarId: Id): Promise<{ text: string; count: number }>;
   applyChanges(types: Set<string>): void;
@@ -333,7 +333,7 @@ function forImport(event: Partial<CalendarEvent>): Partial<CalendarEvent> {
 }
 
 /**
- * The UIDs a calendar already holds.
+ * The events a calendar already holds, for recognising a re-import.
  *
  * A UID is what makes an event the same event across calendars, and the import
  * already keeps the file's own wherever there is one -- so the thing needed to
@@ -367,10 +367,21 @@ async function eventsInCalendar(accountId: Id, calendarId: Id, properties: strin
   return found;
 }
 
-/** Just the UIDs, for deciding what a re-import would duplicate. */
-async function uidsInCalendar(accountId: Id, calendarId: Id): Promise<Set<string>> {
+/**
+ * uid -> the id of the event carrying it, for deciding what a re-import updates.
+ *
+ * The id and not just the UID, because an event already here is now updated
+ * rather than skipped and updating needs something to address -- the same
+ * arrangement, and for the same reason, as contacts' `scanBook`. A UID the
+ * calendar somehow holds twice keeps the first: two events with one UID is
+ * already a state nothing here can make sense of, and addressing one of them
+ * is better than writing the file over both.
+ */
+async function eventIdsByUid(accountId: Id, calendarId: Id): Promise<Map<string, Id>> {
   const events = await eventsInCalendar(accountId, calendarId, ["uid", "calendarIds"]);
-  return new Set(events.map((e) => e.uid).filter(Boolean));
+  const byUid = new Map<string, Id>();
+  for (const e of events) if (e.uid && !byUid.has(e.uid)) byUid.set(e.uid, e.id);
+  return byUid;
 }
 
 export const useCalendar = create<CalendarState>((set, get) => ({
@@ -862,17 +873,24 @@ export const useCalendar = create<CalendarState>((set, get) => ({
    * year of events one at a time would refetch the calendar a few hundred
    * times. One invalidate here, after the last batch.
    *
-   * No scheduling messages. Importing a file is filing something you already
-   * have, and mailing its participants would be a surprise to everyone.
+   * No scheduling messages, on a create or an update. Importing a file is
+   * filing something you already have, and mailing its participants would be a
+   * surprise to everyone. That is plainly right for a create and it is a real
+   * cost on an update -- moving an event without telling anyone leaves every
+   * attendee's own copy saying the old time, with nothing anywhere reporting
+   * the disagreement. Weighed on #279 and kept: an import is not the place to
+   * start sending mail on somebody's behalf, and the alternative is a file
+   * dropped into a calendar mailing a room full of people who never asked for
+   * it. Whoever is organising can send the update from the event itself.
    */
   async importIcs(text, calendarId) {
     const accountId = get().accountId!;
     const up = await client.upload(accountId, new Blob([text], { type: "text/calendar" }), { type: "text/calendar" });
     const events = await get().parseIcs(up.blobId);
     if (!events.length) throw new Error("it has no events in it");
-    const already = await uidsInCalendar(accountId, calendarId);
+    const already = await eventIdsByUid(accountId, calendarId);
     const create: Record<string, unknown> = {};
-    let skipped = 0;
+    const update: Record<Id, unknown> = {};
     events.forEach((e, i) => {
       const rest = forImport(e);
       /*
@@ -883,39 +901,78 @@ export const useCalendar = create<CalendarState>((set, get) => ({
        * about. Re-importing an export used to leave second copies of
        * everything; asked for on #173, decided there.
        */
-      if (rest.uid && already.has(rest.uid)) {
-        skipped++;
+      const existing = rest.uid ? already.get(rest.uid) : undefined;
+      if (existing) {
+        /*
+         * An event this calendar already holds is updated from the file, the
+         * way a re-imported contact is (#242, #274): the reason to import a
+         * file a second time is usually that the first one was not right, and
+         * skipping meant a corrected export corrected nothing.
+         *
+         * Two properties are held back, decided on #279. `participants` carries
+         * every attendee's accepted/declined and `recurrenceOverrides` holds
+         * every "just this Wednesday" edit made here -- both are answers and
+         * decisions that happened after the file was written, and a file that
+         * mentions them at all describes them as they were at export. Writing
+         * either one over would destroy work nobody asked to lose, silently,
+         * with no error returned anywhere. So a corrected export fixes the
+         * time, the title and the location and leaves who said yes alone.
+         *
+         * The cost runs the other way: an attendee added at the source since
+         * the last import does not arrive, and nothing here can tell that apart
+         * from an RSVP given in ihasmail. Losing an answer somebody gave is
+         * worse than not gaining an attendee somebody can still be told about.
+         *
+         * `uid` is held back too -- it is what the two were matched on, so it
+         * is already equal, and it is the event's identity rather than a field
+         * of it worth re-asserting.
+         */
+        const { uid: _u, participants: _p, recurrenceOverrides: _r, ...patch } = rest;
+        update[existing] = patch;
         return;
       }
       create[`e${i}`] = { "@type": "Event", ...rest, uid: rest.uid || crypto.randomUUID(), calendarIds: { [calendarId]: true } };
     });
-    // Everything in the file was already here. Nothing to send, and nothing
-    // wrong either -- say so rather than reporting an import of no events.
-    if (!Object.keys(create).length) return { created: 0, skipped };
-    const keys = Object.keys(create);
+    /*
+     * Creates and updates share one budget. Stalwart counts every object in a
+     * `/set` against `maxObjectsInSet` together, so batching the two separately
+     * would send a file of 300 new events and 300 changed ones as two calls of
+     * 300 and be refused for a ceiling of 500 that neither half crosses.
+     * Contacts' `writeCards` splits the same way for the same reason.
+     */
+    const keys = [
+      ...Object.keys(create).map((k) => ["create", k] as const),
+      ...Object.keys(update).map((k) => ["update", k] as const),
+    ];
     let created = 0;
+    let updated = 0;
     let refused: SetError | undefined;
     try {
       for (const part of chunk(keys, client.maxObjectsInSet)) {
-        const sub: Record<string, unknown> = {};
-        for (const k of part) sub[k] = create[k];
-        const res = await client.call<SetResponse<CalendarEvent>>("CalendarEvent/set", { accountId, create: sub, sendSchedulingMessages: false });
+        const subCreate: Record<string, unknown> = {};
+        const subUpdate: Record<string, unknown> = {};
+        for (const [kind, k] of part) {
+          if (kind === "create") subCreate[k] = create[k];
+          else subUpdate[k] = update[k];
+        }
+        const res = await client.call<SetResponse<CalendarEvent>>("CalendarEvent/set", { accountId, create: subCreate, update: subUpdate, sendSchedulingMessages: false });
         created += Object.keys(res.created ?? {}).length;
-        refused ??= Object.values(res.notCreated ?? {})[0];
+        updated += Object.keys(res.updated ?? {}).length;
+        refused ??= Object.values(res.notCreated ?? {})[0] ?? Object.values(res.notUpdated ?? {})[0];
       }
     } catch (err) {
-      // A batch that failed with earlier ones already filed: those events are
+      // A batch that failed with earlier ones already written: those events are
       // in the calendar, and an error saying only that the import failed sends
       // someone looking for events that are already there.
-      if (!created) throw err;
-      throw new Error(`${created} of ${keys.length} events were imported before this happened: ${(err as Error).message}`);
+      if (!created && !updated) throw err;
+      throw new Error(`${created + updated} of ${keys.length} events were imported before this happened: ${(err as Error).message}`);
     } finally {
-      if (created) get().invalidate();
+      if (created || updated) get().invalidate();
     }
     // Nothing at all got in: say why rather than report importing zero events
     // as though the file had been empty.
-    if (!created) throw new Error(refused ? setErrorMessage(refused) : "the server did not accept any of its events");
-    return { created, skipped };
+    if (!created && !updated) throw new Error(refused ? setErrorMessage(refused) : "the server did not accept any of its events");
+    return { created, updated };
   },
 
   /*

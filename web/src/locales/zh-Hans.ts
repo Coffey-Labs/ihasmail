@@ -1387,8 +1387,7 @@ export const catalog: Catalog = {
     "Your administrator changed {n} settings": { other: "管理员更改了 {n} 项设置" },
     "Exported {n} events": { other: "已导出 {n} 个日程" },
     "Imported {n} events": { other: "已导入 {n} 个日程" },
-    "Already here: {n} events, nothing imported": { other: "已存在 {n} 个，未导入" },
-    "{n} were already here": { other: "{n} 个已存在" },
+    "Updated {n} events, nothing new": { other: "已更新 {n} 个日程，无新增" },
     /*
      * One form each, because Chinese has one. Intl.PluralRules returns `other`
      * for every number, so `one`, `few` and `many` would never be selected —

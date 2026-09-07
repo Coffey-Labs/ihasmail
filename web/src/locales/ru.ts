@@ -1382,8 +1382,7 @@ export const catalog: Catalog = {
     "Your administrator changed {n} settings": { one: "Администратор изменил {n} настройку", few: "Администратор изменил {n} настройки", many: "Администратор изменил {n} настроек", other: "Администратор изменил {n} настройки" },
     "Exported {n} events": { one: "Экспортировано {n} событие", few: "Экспортировано {n} события", many: "Экспортировано {n} событий", other: "Экспортировано {n} события" },
     "Imported {n} events": { one: "Импортировано {n} событие", few: "Импортировано {n} события", many: "Импортировано {n} событий", other: "Импортировано {n} события" },
-    "Already here: {n} events, nothing imported": { one: "Уже есть: {n} событие, ничего не импортировано", few: "Уже есть: {n} события, ничего не импортировано", many: "Уже есть: {n} событий, ничего не импортировано", other: "Уже есть: {n} события, ничего не импортировано" },
-    "{n} were already here": { one: "{n} уже было здесь", few: "{n} уже были здесь", many: "{n} уже были здесь", other: "{n} уже были здесь" },
+    "Updated {n} events, nothing new": { one: "Обновлено {n} событие, новых нет", few: "Обновлено {n} события, новых нет", many: "Обновлено {n} событий, новых нет", other: "Обновлено {n} события, новых нет" },
     /*
      * Three forms, which is the whole reason plural() takes a map rather than
      * (one, other). Intl.PluralRules picks: 1 is `one`, 2-4 are `few`, 5-20

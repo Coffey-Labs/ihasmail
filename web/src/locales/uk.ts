@@ -1376,8 +1376,7 @@ export const catalog: Catalog = {
     "Your administrator changed {n} settings": { one: "Адміністратор змінив {n} налаштування", few: "Адміністратор змінив {n} налаштування", many: "Адміністратор змінив {n} налаштувань", other: "Адміністратор змінив {n} налаштування" },
     "Exported {n} events": { one: "Експортовано {n} подію", few: "Експортовано {n} події", many: "Експортовано {n} подій", other: "Експортовано {n} події" },
     "Imported {n} events": { one: "Імпортовано {n} подію", few: "Імпортовано {n} події", many: "Імпортовано {n} подій", other: "Імпортовано {n} події" },
-    "Already here: {n} events, nothing imported": { one: "Уже є: {n} подія, нічого не імпортовано", few: "Уже є: {n} події, нічого не імпортовано", many: "Уже є: {n} подій, нічого не імпортовано", other: "Уже є: {n} події, нічого не імпортовано" },
-    "{n} were already here": { one: "{n} уже була тут", few: "{n} уже були тут", many: "{n} уже були тут", other: "{n} уже були тут" },
+    "Updated {n} events, nothing new": { one: "Оновлено {n} подію, нових немає", few: "Оновлено {n} події, нових немає", many: "Оновлено {n} подій, нових немає", other: "Оновлено {n} події, нових немає" },
     /*
      * Ukrainian takes the same three forms as Russian and the same rule, but
      * not the same words. Sharing a plural structure is not sharing a
