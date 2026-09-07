@@ -28,17 +28,18 @@ const PARSED = [
   },
 ];
 
-interface SetArgs { create?: Record<string, Record<string, unknown>>; sendSchedulingMessages?: boolean }
+interface SetArgs { create?: Record<string, Record<string, unknown>>; update?: Record<string, Record<string, unknown>>; sendSchedulingMessages?: boolean }
 
 /**
  * @param parsed what `CalendarEvent/parse` answers with; a bare object rather
  *        than an array is the single-event shape, which Stalwart also returns.
  * @param notCreated refusals to hand back instead of creations.
+ * @param notUpdated refusals to hand back instead of updates.
  * @param max the ceiling on objects in one call, refused the way Stalwart
  *        refuses it: the whole call, creating nothing.
  * @param failOn which `/set` call (0-based) answers with an error instead.
  */
-function server(parsed: unknown, opts: { notCreated?: Record<string, unknown>; max?: number; failOn?: number; existing?: Array<{ id: string; uid: string; calendarIds: Record<string, boolean> }> } = {}) {
+function server(parsed: unknown, opts: { notCreated?: Record<string, unknown>; notUpdated?: Record<string, unknown>; max?: number; failOn?: number; existing?: Array<{ id: string; uid: string; calendarIds: Record<string, boolean> }> } = {}) {
   const sets: SetArgs[] = [];
   const existing = opts.existing ?? [];
   const fetchMock = vi.fn(async (_url: string, init: RequestInit) => {
@@ -50,18 +51,28 @@ function server(parsed: unknown, opts: { notCreated?: Record<string, unknown>; m
       }
       if (name === "CalendarEvent/set") {
         const nth = sets.length;
-        sets.push({ create: args.create as Record<string, Record<string, unknown>>, sendSchedulingMessages: args.sendSchedulingMessages as boolean });
+        sets.push({
+          create: args.create as Record<string, Record<string, unknown>>,
+          update: args.update as Record<string, Record<string, unknown>>,
+          sendSchedulingMessages: args.sendSchedulingMessages as boolean,
+        });
         const keys = Object.keys((args.create ?? {}) as object);
-        // Whole-call refusals, both of them: nothing in this call is created.
-        if (opts.max != null && keys.length > opts.max) {
+        const patched = Object.keys((args.update ?? {}) as object);
+        /* Whole-call refusals, both of them: nothing in this call gets written.
+           Creates and updates count against the ceiling together, which is why
+           the store batches them together. */
+        if (opts.max != null && keys.length + patched.length > opts.max) {
           return ["error", { type: "requestTooLarge", description: "The number of ids requested by the client exceeds the maximum number the server is willing to process in a single method call." }, id];
         }
         if (opts.failOn === nth) return ["error", { type: "serverFail", description: "the roof fell in" }, id];
         const notCreated = opts.notCreated ?? {};
+        const notUpdated = opts.notUpdated ?? {};
         return [name, {
           accountId: "a1", oldState: "1", newState: "2",
           created: Object.fromEntries(keys.filter((k) => !(k in notCreated)).map((k) => [k, { id: `new-${k}` }])),
           notCreated,
+          updated: Object.fromEntries(patched.filter((k) => !(k in notUpdated)).map((k) => [k, null])),
+          notUpdated,
         }, id];
       }
       // The scan for UIDs already in the calendar: a query for the account's
@@ -122,7 +133,7 @@ describe("importing an .ics file", () => {
   it("creates every event in one call when the file fits in one, not one call each", async () => {
     const sets = server(PARSED);
     const n = await useCalendar.getState().importIcs("x", "cal1");
-    expect(n).toEqual({ created: 2, skipped: 0 });
+    expect(n).toEqual({ created: 2, updated: 0 });
     expect(sets).toHaveLength(1);
     expect(Object.keys(sets[0]!.create!)).toEqual(["e0", "e1"]);
   });
@@ -163,7 +174,7 @@ describe("importing an .ics file", () => {
   it("takes a single event, which is what a one-event file parses to", async () => {
     const sets = server(PARSED[0]);
     const n = await useCalendar.getState().importIcs("x", "cal1");
-    expect(n).toEqual({ created: 1, skipped: 0 });
+    expect(n).toEqual({ created: 1, updated: 0 });
     expect(Object.keys(sets[0]!.create!)).toEqual(["e0"]);
   });
 
@@ -179,7 +190,7 @@ describe("importing an .ics file", () => {
 
   it("counts what got in when only some of it did", async () => {
     server(PARSED, { notCreated: { e1: { type: "invalidProperties" } } });
-    await expect(useCalendar.getState().importIcs("x", "cal1")).resolves.toEqual({ created: 1, skipped: 0 });
+    await expect(useCalendar.getState().importIcs("x", "cal1")).resolves.toEqual({ created: 1, updated: 0 });
   });
 });
 
@@ -202,14 +213,14 @@ describe("importing a file bigger than the server will take at once", () => {
 
   it("splits it into calls the server will accept, and files all of it", async () => {
     const sets = server(many(1200), { max: MAX });
-    await expect(useCalendar.getState().importIcs("x", "cal1")).resolves.toEqual({ created: 1200, skipped: 0 });
+    await expect(useCalendar.getState().importIcs("x", "cal1")).resolves.toEqual({ created: 1200, updated: 0 });
     expect(sets.map((s) => Object.keys(s.create!).length)).toEqual([500, 500, 200]);
   });
 
   it("splits by what the session advertises, not by a number of its own", async () => {
     client.session!.capabilities[CAP.core] = { maxObjectsInGet: 40, maxObjectsInSet: 40 };
     const sets = server(many(100), { max: 40 });
-    await expect(useCalendar.getState().importIcs("x", "cal1")).resolves.toEqual({ created: 100, skipped: 0 });
+    await expect(useCalendar.getState().importIcs("x", "cal1")).resolves.toEqual({ created: 100, updated: 0 });
     expect(sets.map((s) => Object.keys(s.create!).length)).toEqual([40, 40, 20]);
   });
 
@@ -256,23 +267,59 @@ describe("importing a file bigger than the server will take at once", () => {
  * whole of what is needed to recognise an event that is already here -- and
  * nothing looked. Importing an export twice left second copies of everything,
  * which the reporter's colleague hit during testing (#173, decided there:
- * "duplicate checks on UIDs if UID present in event"). Issue #222.
+ * "duplicate checks on UIDs if UID present in event"). Issue #222 made that a
+ * skip; #279 made it an update, because the reason to import a file a second
+ * time is usually that the first one was not right.
  */
 describe("re-importing events the calendar already has", () => {
   const here = (uid: string, calendarId = "cal1") => ({ id: `srv-${uid}`, uid, calendarIds: { [calendarId]: true } });
 
-  it("skips an event whose uid is already in this calendar", async () => {
+  it("updates an event whose uid is already in this calendar", async () => {
     const sets = server(PARSED, { existing: [here("uid-one@example.org")] });
-    await expect(useCalendar.getState().importIcs("x", "cal1")).resolves.toEqual({ created: 1, skipped: 1 });
-    // Only the second event, which has no uid of its own, was sent.
+    await expect(useCalendar.getState().importIcs("x", "cal1")).resolves.toEqual({ created: 1, updated: 1 });
+    // Only the second event, which has no uid of its own, is new.
     expect(Object.values(sets[0]!.create!).map((e) => e.title)).toEqual(["Retro (no uid)"]);
+    // The update is addressed to the event that is here, not to the file's id.
+    expect(Object.keys(sets[0]!.update!)).toEqual(["srv-uid-one@example.org"]);
+    expect(sets[0]!.update!["srv-uid-one@example.org"]!.title).toBe("Kickoff");
+  });
+
+  it("holds back the answers and the per-occurrence edits, which live on the event", async () => {
+    /*
+     * The one thing #279 turned on. `participants` carries who accepted and
+     * `recurrenceOverrides` carries every "just this Wednesday" change made
+     * here; a file describes both as they were at export, so writing either one
+     * over throws away work with no error anywhere. Everything else in the file
+     * wins, which is the point of importing it again.
+     */
+    const withPeople = [{
+      ...PARSED[0],
+      title: "Kickoff (moved)",
+      participants: { "someone@example.org": { "@type": "Participant", participationStatus: "needs-action" } },
+      recurrenceOverrides: { "2026-09-09T09:00:00": { title: "Skip" } },
+    }];
+    const sets = server(withPeople, { existing: [here("uid-one@example.org")] });
+    await expect(useCalendar.getState().importIcs("x", "cal1")).resolves.toEqual({ created: 0, updated: 1 });
+    const patch = sets[0]!.update!["srv-uid-one@example.org"]!;
+    expect(patch.title).toBe("Kickoff (moved)");
+    expect(patch).not.toHaveProperty("participants");
+    expect(patch).not.toHaveProperty("recurrenceOverrides");
+    // The identity the two were matched on is not re-asserted as a field.
+    expect(patch).not.toHaveProperty("uid");
+  });
+
+  it("does not mail anyone about an event it updated", async () => {
+    // Filing a file is not scheduling, on an update as much as on a create.
+    const sets = server(PARSED, { existing: [here("uid-one@example.org")] });
+    await useCalendar.getState().importIcs("x", "cal1");
+    expect(sets[0]!.sendSchedulingMessages).toBe(false);
   });
 
   it("imports an event whose uid is in a different calendar", async () => {
     // A UID is what makes an event the same event *across* calendars, so the
     // same event legitimately being in two of them is not a duplicate.
     const sets = server(PARSED, { existing: [here("uid-one@example.org", "cal2")] });
-    await expect(useCalendar.getState().importIcs("x", "cal1")).resolves.toEqual({ created: 2, skipped: 0 });
+    await expect(useCalendar.getState().importIcs("x", "cal1")).resolves.toEqual({ created: 2, updated: 0 });
     expect(Object.keys(sets[0]!.create!)).toHaveLength(2);
   });
 
@@ -282,12 +329,44 @@ describe("re-importing events the calendar already has", () => {
     expect(Object.values(sets[0]!.create!)[0]!.uid).toEqual(expect.any(String));
   });
 
-  it("sends nothing at all when the whole file is already here", async () => {
-    // A file whose every event carries a uid the calendar holds: there is
-    // nothing to create, and nothing wrong either.
+  it("updates the lot when the whole file is already here, creating nothing", async () => {
     const both = [PARSED[0], { ...PARSED[1], uid: "uid-two@example.org" }];
     const sets = server(both, { existing: [here("uid-one@example.org"), here("uid-two@example.org")] });
-    await expect(useCalendar.getState().importIcs("x", "cal1")).resolves.toEqual({ created: 0, skipped: 2 });
-    expect(sets).toHaveLength(0);
+    await expect(useCalendar.getState().importIcs("x", "cal1")).resolves.toEqual({ created: 0, updated: 2 });
+    expect(sets).toHaveLength(1);
+    expect(Object.keys(sets[0]!.create!)).toHaveLength(0);
+    expect(Object.keys(sets[0]!.update!)).toHaveLength(2);
+  });
+
+  it("reports a refusal to update, rather than reporting nothing imported", async () => {
+    // Everything in the file is already here, so an update is the whole of the
+    // import -- and a refusal of it is the only thing there is to say.
+    const both = [PARSED[0], { ...PARSED[1], uid: "uid-two@example.org" }];
+    server(both, {
+      existing: [here("uid-one@example.org"), here("uid-two@example.org")],
+      notUpdated: {
+        "srv-uid-one@example.org": { type: "forbidden", description: "the calendar is read-only" },
+        "srv-uid-two@example.org": { type: "forbidden" },
+      },
+    });
+    await expect(useCalendar.getState().importIcs("x", "cal1")).rejects.toThrow(/read-only/);
+  });
+
+  it("splits creates and updates against one ceiling, not one each", async () => {
+    /*
+     * Stalwart counts every object in a `/set` against `maxObjectsInSet`
+     * together and refuses the whole call over it. 300 new and 300 changed
+     * batched separately would be two calls of 300 -- neither over 500, both
+     * refused.
+     */
+    const MAX = 500;
+    const file = Array.from({ length: 600 }, (_, i) => ({
+      "@type": "Event", uid: `uid-${i}@example.org`, title: `Event ${i}`,
+      start: "2026-09-02T09:00:00", duration: "PT1H", timeZone: "Etc/UTC",
+    }));
+    const existing = Array.from({ length: 300 }, (_, i) => here(`uid-${i}@example.org`));
+    const sets = server(file, { max: MAX, existing });
+    await expect(useCalendar.getState().importIcs("x", "cal1")).resolves.toEqual({ created: 300, updated: 300 });
+    expect(sets.map((s) => Object.keys(s.create ?? {}).length + Object.keys(s.update ?? {}).length)).toEqual([500, 100]);
   });
 });

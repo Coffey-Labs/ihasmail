@@ -546,6 +546,24 @@ nothing for anybody else.
 - **iCal import** through `CalendarEvent/parse` (a file of any number of
   events), from the calendar's own menu, into that calendar. The events are
   filed rather than scheduled: no invitations go out to anyone named in them.
+- **Re-importing updates rather than duplicates**, as a contacts import does.
+  An event is recognised by its UID, per calendar, and what the file carries
+  wins -- so a corrected export corrects what the first attempt got wrong.
+
+  Two things are deliberately left alone: **who accepted**, and **edits to a
+  single occurrence**. Both are answers and decisions taken here after the file
+  was written, and a file that mentions them at all describes them as they were
+  at export, so writing either one over would throw away work silently and
+  return no error anywhere. A corrected export therefore fixes the time, the
+  title and the location, and leaves the RSVPs and the "just this Wednesday"
+  changes where they are.
+
+  The cost runs both ways and is worth knowing. An attendee added at the source
+  since the last import does not arrive, because nothing here can tell that
+  apart from an answer given in ihasmail. And an import still sends no
+  scheduling messages, so an event a re-import moves is moved *here* --
+  everybody else's copy still says the old time until whoever is organising
+  sends the update from the event itself.
 - **Subscribed calendars** by URL — a timetable, a rota, a public holiday list.
   Added in Settings › Calendar & contacts, read-only, and shown beside your own
   with their own colour.
