@@ -151,8 +151,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             Putting a close where the hamburger was means the second press
             lands on the control that undoes the first, which is where the hand
             is already going. It cannot be done by raising the top bar over the
-            drawer instead: it would then also sit over a full-screen composer,
-            which is stacked lower still.
+            drawer instead: the top bar sits under everything that takes the
+            screen -- see the stack by `.dialog-backdrop` -- and lifting it
+            past the drawer would put it in among the composer and the
+            dialogs, which it has no business covering.
           */}
           {isMobile && (
             <div className="drawer-head">
