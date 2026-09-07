@@ -365,7 +365,15 @@ same query string — so what it builds can be read, edited and learned from.
   these headers shows nothing.
 - **Message body theming** is off by default — sender HTML is left exactly as it
   was designed, on a light card. One setting lets mail that brings no colours of
-  its own follow the app's theme instead.
+  its own follow the app's theme instead. That is a low bar in practice: one
+  `color:#FFFFFF` on one button label opts a whole message out, so for mail
+  built from a template it changed nothing. A second setting, off unless the
+  first is on, forces the theme over the sender's own colours. It tells a
+  *sheet* the design sits on, like a white wrapper table, from a *painted
+  surface* like a button or a banner, by relative luminance: the first is
+  neutralised so the bright card goes away, the second is kept whole so its
+  label stays readable on it. Nothing the sender wrote is removed, so the
+  switch is reversible, and print is unaffected either way.
 
 ### Conversations
 
@@ -1019,11 +1027,17 @@ at two.
 | **Gruvbox** | |
 | **Rosé Pine** | Dawn as its light half |
 | **Tokyo Night** | Day as its light half |
+| **Catppuccin** | Mocha and Latte |
+| **Solarized** | Light and dark are both original to it, and share one set of accents |
+| **Ayu** | |
+| **Kanagawa** | Wave, with Lotus as its light half |
+| **Everforest** | The medium-contrast variant of each side |
+| **Primer** | The colours behind GitHub's design system. Named for the system, not for GitHub, which has not endorsed anything here |
 
 Every one has both halves, so the top-bar toggle only ever changes the side and
 never the colours. Accent colours still sit on top of any of them.
 
-The four borrowed palettes are the work of their own projects and are used
+The ten borrowed palettes are the work of their own projects and are used
 under the MIT licence — see [NOTICE](NOTICE). Only the published colour values
 are used, taken from each project's own repository; the values as fetched are
 recorded in `.palette-sources/palettes-upstream.md`.
@@ -1037,11 +1051,20 @@ anything that falls short, towards white on a dark ground and towards black on
 a light one so the hue survives. The script refuses to write a palette that
 would not pass.
 
-That check is not a formality. **Every one of the nine palette halves needed at
-least one lift**, because these palettes are designed for code editors rather
-than for prose at this size: Dracula's comment grey is 3.03:1 on its own
-background, and Rosé Pine's gold is 2.7:1 on Dawn. Shipping them as published
-would have quietly ended the WCAG AA claim two sections down.
+That check is not a formality. **Twenty-one of the twenty-two palette halves
+needed at least one lift**, because these palettes are designed for code
+editors rather than for prose at this size: Dracula's comment grey is 3.03:1 on
+its own background, and Rosé Pine's gold is 2.7:1 on Dawn. Shipping them as
+published would have quietly ended the WCAG AA claim two sections down.
+
+Body text is lifted the same way, which it was not at first. It used to be
+checked and then either accepted or rejected, and that rule would have turned
+away five of the six palettes added in September 2026: most of them target
+around 4.5:1 for body text, their own goal, where ihasmail asks 7:1 of the text
+a reader looks at all day. Rejecting a palette over a bar its designers never
+aimed at is the wrong answer when the same arithmetic already adjusts muted
+text, links and accents. Solarized Light moves 4.13 to 7.07 that way; Primer
+needed nothing in either half.
 
 ---
 
