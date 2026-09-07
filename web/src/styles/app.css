@@ -1113,7 +1113,30 @@ a.menu-item:hover { color: var(--fg); }
 :root[data-theme="dark"] .tooltip { background: #e5e9f0; color: #0b1220; }
 
 /* Dialogs ---------------------------------------------------------------- */
-.dialog-backdrop { position: fixed; inset: 0; z-index: 900; background: rgba(2, 6, 23, 0.45); display: flex; align-items: center; justify-content: center; padding: 16px; animation: fade .15s var(--ease); backdrop-filter: blur(2px); }
+/*
+  The stacking order everything below is a point on, low to high:
+
+    700  mobile tab bar, FAB
+    940  drawer backdrop
+    950  mobile navigation drawer
+    955  composer dock
+    960  dialog backdrop
+    1000 popover
+    2000 tooltip
+    3000 toast
+    5000 drag ghost
+
+  The drawer is where a phone reaches everything, so it is also where a phone
+  starts a folder, an event, a contact and a message -- and each of those
+  answers with a dialog or a full-screen composer that the drawer then covered,
+  because both were stacked below it. A modal has to outrank the navigation
+  that opened it, or the drawer sits on top of the thing it just asked for and
+  the only way out is a press on the dimmed strip beside it.
+
+  Above the composer, not level with it: a dialog raised from inside a composer
+  -- the discard guard, the attachment picker -- has to clear the composer too.
+*/
+.dialog-backdrop { position: fixed; inset: 0; z-index: 960; background: rgba(2, 6, 23, 0.45); display: flex; align-items: center; justify-content: center; padding: 16px; animation: fade .15s var(--ease); backdrop-filter: blur(2px); }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 .dialog { background: var(--bg-elev); border-radius: var(--radius-lg); box-shadow: var(--shadow-3); width: 100%; max-width: 520px; max-height: calc(100vh - 32px); display: flex; flex-direction: column; animation: rise .18s var(--ease); border: 1px solid var(--border); }
 @keyframes rise { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: none; } }
@@ -1520,7 +1543,8 @@ a.menu-item:hover { color: var(--fg); }
 /* ==========================================================================
    Composer
    ========================================================================== */
-.composer-dock { position: fixed; right: 16px; bottom: 0; display: flex; align-items: flex-end; gap: 12px; z-index: 800; pointer-events: none; }
+/* Above the mobile drawer, below a dialog -- see the stack by `.dialog-backdrop`. */
+.composer-dock { position: fixed; right: 16px; bottom: 0; display: flex; align-items: flex-end; gap: 12px; z-index: 955; pointer-events: none; }
 .composer { pointer-events: auto; width: 580px; max-width: calc(100vw - 32px); height: 600px; max-height: calc(100vh - 24px); display: flex; flex-direction: column; background: var(--bg-elev); border-radius: var(--radius-lg) var(--radius-lg) 0 0; box-shadow: var(--shadow-3); border: 1px solid var(--border); border-bottom: 0; overflow: hidden; animation: rise .2s var(--ease); }
 .composer.minimized { height: 44px; width: 280px; }
 .composer.maximized { position: fixed; inset: 24px; width: auto; height: auto; max-width: none; max-height: none; border-radius: var(--radius-lg); border-bottom: 1px solid var(--border); }
