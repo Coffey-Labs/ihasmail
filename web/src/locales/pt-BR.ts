@@ -868,6 +868,8 @@ export const catalog: Catalog = {
 
     // ── Composer status, calendar title ────────────────────────────────
     "New message": "Nova mensagem",
+    "New mail": "Novo e-mail",
+    "Could not do that — open ihasmail and try again": "Não foi possível fazer isso — abra o ihasmail e tente novamente",
     "Sending…": "Enviando…",
     "Saving…": "Salvando…",
     "Error": "Erro",

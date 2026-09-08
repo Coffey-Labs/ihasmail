@@ -873,6 +873,8 @@ export const catalog: Catalog = {
 
     // ── Composer status, calendar title ────────────────────────────────
     "New message": "新規メール",
+    "New mail": "新着メール",
+    "Could not do that — open ihasmail and try again": "実行できませんでした - ihasmail を開いてやり直してください",
     "Sending…": "送信中…",
     "Saving…": "保存中…",
     "Error": "エラー",

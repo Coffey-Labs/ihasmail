@@ -17,6 +17,7 @@ import { AppShell } from "@/views/AppShell";
 import { MailView } from "@/views/mail/MailView";
 import { ComposerDock } from "@/views/compose/ComposerDock";
 import { setUnreadBadge } from "@/lib/notify";
+import { publishWorkerFacts } from "@/lib/swFacts";
 import { PAINTED_FROM_CACHE, useSettings, syncedPart } from "@/store/settings";
 import { armSettingsSync, loadRemoteSettings, queueSettingsPush, settingsAlreadyLoadedFor, settingsSyncAvailable } from "@/lib/settingsSync";
 import { loadSettingsPolicy } from "@/lib/settingsPolicy";
@@ -262,6 +263,21 @@ function AuthedApp() {
       setUnreadBadge(inboxUnread);
     });
   }, [inboxUnread, appName]);
+
+  /*
+   * Leave the service worker its briefing.
+   *
+   * Written from here rather than once at startup because everything in it can
+   * change while the app is open -- the language from Settings, the archive
+   * folder from the mailbox list arriving -- and what is written is what the
+   * worker will still be reading a week from now, with no tab to correct it.
+   * See lib/swFacts.ts.
+   */
+  const archiveId = useMail((s) => s.roleId("archive"));
+  const languageVersion = useLanguageVersion();
+  useEffect(() => {
+    void publishWorkerFacts(accountId, archiveId);
+  }, [accountId, archiveId, languageVersion]);
 
   // Request notification permission lazily when enabled
   const notif = useSettings((s) => s.settings.desktopNotifications);
