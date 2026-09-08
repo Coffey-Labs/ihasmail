@@ -5,6 +5,35 @@ import { Readable } from "node:stream";
 import type { Context, Handler } from "hono";
 import { stripBasePath } from "../../scripts/basePath.mjs";
 
+/*
+ * Files that must not be served from anybody's cache, the way index.html is
+ * not.
+ *
+ * They went out with `max-age=3600` because they are neither hashed assets nor
+ * HTML, and an hour looks harmless. It is not, for two of them, and a CDN in
+ * front makes it worse: on a deploy the origin had the new build while
+ * Cloudflare went on handing out the previous `sw.js` for hours, with
+ * `cf-cache-status: HIT` and an edge TTL of its own that was longer than what
+ * we asked for. Caught on the 2026-09-08 deploy, where the new worker was live
+ * at the origin and the old one was still being installed by every browser
+ * that asked.
+ *
+ * What that costs is specific rather than general. The service worker is the
+ * app's whole update mechanism: a stale one keeps serving the shell it knows
+ * and never learns there is a newer build, so the deploy simply does not
+ * arrive. And a manifest and a worker that disagree is worse than either being
+ * old -- a fresh manifest advertising a share target to the operating system,
+ * answered by a worker that has never heard of one, sends the share to the
+ * server for a 405.
+ *
+ * `no-cache` does not mean "do not store": the browser and the CDN may both
+ * keep it and revalidate, which is a 304 and costs nothing. It means neither
+ * gets to serve it without asking first, which is the whole requirement.
+ */
+function isNeverStale(rel: string, ext: string): boolean {
+  return ext === ".webmanifest" || rel === "/sw.js" || rel === "sw.js";
+}
+
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
@@ -116,7 +145,7 @@ export function staticHandler(root: string, basePath = ""): Handler {
       c.header("Content-Length", String(st.size));
       if (rel.startsWith("/assets/") || rel.startsWith("assets/")) {
         c.header("Cache-Control", "public, max-age=31536000, immutable");
-      } else if (ext === ".html") {
+      } else if (ext === ".html" || isNeverStale(rel, ext)) {
         c.header("Cache-Control", "no-cache");
         c.header("Content-Security-Policy", APP_CSP);
       } else {
