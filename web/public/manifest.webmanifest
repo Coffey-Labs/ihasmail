@@ -3,8 +3,14 @@
   "short_name": "ihasmail",
   "description": "Fast, friendly JMAP webmail for Stalwart",
   "_comment": "JSON has no comments, so: every URL below is relative on purpose. Manifest members resolve against the manifest's own address, so these follow BASE_PATH with nothing substituted into them at build time. Root-absolute values pinned the installed app, its scope and its shortcuts to the domain root whatever the mount was.",
+  "_comment_id": "There is deliberately no `id`. It is the one member NOT resolved against this file's address -- the spec resolves it against the origin of start_url, so `./`, `mail` and `/mail` all mean the same thing at the domain root and none of them can name a subpath mount. Adding one would therefore break the same thing the note above describes. Worse, the default id IS start_url, which is already mount-correct: writing an id now would give every installed copy a new identity and orphan it as a second app rather than updating it. If one is ever wanted it has to be substituted at build time from BASE_PATH, and the changeover costs everybody their install.",
   "start_url": "mail",
   "scope": "./",
+  "categories": ["productivity", "utilities"],
+  "_comment_launch": "One window, not one per launch. A `mailto:` link, a manifest shortcut or a notification tapped while ihasmail is already open should arrive in the copy that is running rather than beside it -- two windows on the same inbox disagree about what has been read. `navigate-existing` rather than `focus-existing` because the latter only focuses and leaves the app to handle the target URL through launchQueue, which nothing here consumes: it would swallow the mailto entirely. The navigation goes through the same beforeunload guard as a reload, so an unsent draft still stops it and asks.",
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
   "protocol_handlers": [
     {
       "protocol": "mailto",

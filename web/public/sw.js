@@ -120,6 +120,18 @@ self.addEventListener("push", (event) => {
 
   const emails = (data && data["@type"] === "EmailPush" && Array.isArray(data.emails)) ? data.emails : [];
   event.waitUntil((async () => {
+    /*
+     * Mark the app icon, without claiming a number.
+     *
+     * `setAppBadge()` with no count shows a dot rather than a figure, which is
+     * the only honest thing to show from here: this worker has no session, so
+     * it cannot ask how many messages are unread, and a push carries the new
+     * mail rather than a total. Counting the payload would badge "2" over an
+     * inbox holding forty. The next time a tab opens, `setUnreadBadge` writes
+     * the real count over the dot.
+     */
+    if ("setAppBadge" in self.navigator) await self.navigator.setAppBadge().catch(() => {});
+
     if (!emails.length) {
       // A StateChange, or a payload too large to carry the message. Say
       // something true rather than inventing a sender.
