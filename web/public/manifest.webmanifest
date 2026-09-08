@@ -11,6 +11,34 @@
   "launch_handler": {
     "client_mode": "navigate-existing"
   },
+  "_comment_share_target": "Being in the operating system's share sheet, which is the other half of the Share this app now offers. `action` is relative like everything else here, so it follows the mount; it has to sit inside `scope`, and `./` covers it. POST with multipart because a share can carry files, and a POST to a page is not something the app can answer -- the service worker intercepts it, puts the payload where a tab can collect it, and redirects. `accept` names wildcard families AND explicit types and extensions on purpose: a mail client attaches anything, but wildcard support is not in the specification and operating systems differ over which form they match on, so the explicit list is what holds if the families are ignored. Android and Chromium only -- iOS does not implement share targets at all.",
+  "share_target": {
+    "action": "share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [
+        {
+          "name": "files",
+          "accept": [
+            "image/*", "video/*", "audio/*", "text/*",
+            "application/pdf", "application/zip", "application/json",
+            "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "application/vnd.ms-powerpoint", "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            "application/vnd.oasis.opendocument.text", "application/vnd.oasis.opendocument.spreadsheet",
+            "message/rfc822", "text/calendar", "text/vcard",
+            ".pdf", ".zip", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+            ".odt", ".ods", ".csv", ".txt", ".md", ".eml", ".ics", ".vcf",
+            ".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic", ".mp4", ".mp3"
+          ]
+        }
+      ]
+    }
+  },
   "protocol_handlers": [
     {
       "protocol": "mailto",

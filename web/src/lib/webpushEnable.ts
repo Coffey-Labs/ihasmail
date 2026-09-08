@@ -7,6 +7,7 @@
  */
 import { CAP } from "@/jmap/client";
 import { withBase } from "./basePath";
+import { SW_CACHE_NAME } from "./swCache";
 import { isDeviceTrusted } from "@/lib/storage";
 import { useSession } from "@/store/session";
 import { useMail } from "@/store/mail";
@@ -48,7 +49,7 @@ export function listenForVerification(): void {
 /** Pick up a code that arrived while no tab was open. */
 async function collectStoredVerification(): Promise<void> {
   try {
-    const cache = await caches.open("ihasmail-v2");
+    const cache = await caches.open(SW_CACHE_NAME);
     // The same absolute key the worker writes. Relative would be resolved
     // against this document's URL, which is a different place on every route.
     const key = withBase("/ihasmail-push-verification");
