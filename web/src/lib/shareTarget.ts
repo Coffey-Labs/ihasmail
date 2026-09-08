@@ -70,7 +70,19 @@ export async function collectShare(): Promise<SharedContent | null> {
       const res = await cache.match(f.key);
       await cache.delete(f.key);
       if (!res) continue;
-      files.push(new File([await res.blob()], f.name, { type: f.type }));
+      /*
+       * The bytes, rather than the Blob holding them.
+       *
+       * `new File([blob], …)` is correct and works in a browser, but a Blob
+       * only counts as a part where the File constructor recognises it as one
+       * -- and where it does not, it is stringified instead, producing a file
+       * containing the thirteen characters "[object Blob]" and no error
+       * anywhere. That is exactly what CI caught on Node 22 while it passed
+       * here on 26. An ArrayBuffer is a part on any implementation, and this
+       * has the whole file in memory a moment later regardless: it is about to
+       * be uploaded as an attachment.
+       */
+      files.push(new File([await res.arrayBuffer()], f.name, { type: f.type }));
     }
 
     if (typeof meta.at === "number" && Date.now() - meta.at > SHARE_MAX_AGE_MS) return null;
