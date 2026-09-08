@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Code2, Download, Eye, Pencil, Printer, Save, X } from "lucide-react";
+import { Code2, Download, Eye, Pencil, Printer, Save, Share2, X } from "lucide-react";
 import { confirmDialog, Dialog } from "./dialog";
 import { formatSize } from "@/lib/format";
 import { previewKind, TEXT_PREVIEW_CHARS, TEXT_PREVIEW_MAX } from "@/lib/preview";
 import { isMarkdown, renderMarkdown } from "@/lib/markdown";
-import { t } from "@/lib/i18n";
+import { canShareFiles, shareFile } from "@/lib/share";
+import { t, tc } from "@/lib/i18n";
 
 /**
  * One blob, described the way both callers can describe it. The URLs are built
@@ -145,6 +146,43 @@ export function FilePreviewDialog({
   };
 
   /*
+   * Hand the file to another app rather than to the filesystem.
+   *
+   * This is the surface where it matters most on a phone: opening an
+   * attachment lands here, and until now the only way onward was Download,
+   * which on Android and iOS means "put it somewhere and go and find it".
+   *
+   * The bytes have to be fetched rather than the URL passed along, because the
+   * share sheet takes a File. `same-origin` credentials because both URLs are
+   * ihasmail's own blob proxy and it is the session cookie that authorises the
+   * read -- which is also why this does not break the rule about `ui/` not
+   * reaching for the JMAP client: it is a plain fetch of a URL the caller
+   * already handed over.
+   *
+   * Anything that goes wrong, including a share the browser turned out not to
+   * support, falls through to the download. That is the button that was here
+   * before, so the worst case costs a tap rather than the file.
+   */
+  const shareIt = useCallback(async () => {
+    if (!file) return;
+    const download = () => {
+      const l = document.createElement("a");
+      l.href = file.url;
+      l.download = file.name;
+      l.click();
+    };
+    try {
+      const res = await fetch(file.url, { credentials: "same-origin" });
+      if (!res.ok) throw new Error(String(res.status));
+      const blob = await res.blob();
+      const out = await shareFile(new File([blob], file.name, { type: file.type || blob.type || "application/octet-stream" }));
+      if (out === "unsupported") download();
+    } catch {
+      download();
+    }
+  }, [file]);
+
+  /*
    * Print what is on screen, not the mail or the file list behind it.
    *
    * A PDF is its own document inside an iframe, and the page around it cannot
@@ -209,6 +247,7 @@ export function FilePreviewDialog({
                   </div>
                 )}
                 {editable && <button className="btn" onClick={startEditing}><Pencil size={16} />  {t("Edit")}</button>}
+                {canShareFiles() && <button className="btn" onClick={() => void shareIt()}><Share2 size={16} />  {tc("share sheet", "Share")}</button>}
                 {kind && !tooBig && <button className="btn" onClick={print}><Printer size={16} />  {t("Print")}</button>}
                 <a className="btn" href={file.url} download={file.name}><Download size={16} />  {t("Download")}</a>
               </>

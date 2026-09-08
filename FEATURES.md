@@ -1141,6 +1141,32 @@ needed nothing in either half.
   installability and fast loads, API requests never are, and navigations are
   network-first with the shell as fallback.
 - **Manifest shortcuts** for Compose, Calendar and Contacts.
+- **One window, not one per launch.** A `mailto:` link, a shortcut or a
+  notification opened while ihasmail is already running arrives in the copy
+  that is running. Two windows on the same inbox disagree about what has been
+  read, and only one of them is where the half-written reply is.
+- **The unread count on the installed app's icon.** The tab title and the
+  painted favicon are the same idea for a browser tab, and an installed app has
+  neither -- in `display: standalone` there is no tab strip and no favicon on
+  screen, so a home-screen ihasmail showed nothing at all. Web Push marks the
+  icon while the app is closed, with a dot rather than a figure: the service
+  worker has no session to ask how many messages are unread, and a push carries
+  the new mail rather than a total, so counting the payload would badge "2" over
+  an inbox holding forty. The next tab to open writes the real count over it.
+  Unsupported browsers show nothing, as does iOS until notification permission
+  has been granted, which is that platform's condition for a badge.
+- **Share** — a message, or one attachment, handed to the operating system's
+  share sheet instead of to the filesystem. On a phone a download is close to a
+  dead end: the file lands in Downloads and whoever wanted to send it somewhere
+  goes hunting for it in a file manager. The sheet is on the message menu, on
+  each attachment row, and in the file viewer, which is where an attachment is
+  already open. A message shares as text rather than as the `.eml` beside it,
+  because a share sheet is aimed at everything that is not a mail client and an
+  `.eml` in a chat app is an attachment nobody can open. Every one of those
+  controls is drawn only where the browser has Web Share -- absent on desktop
+  Linux and in Firefox -- and sharing a file is asked about separately from
+  sharing at all. Where the share cannot be made, the download it sits beside
+  happens instead, so the worst case costs a tap rather than the file.
 - **`mailto:` handler** — registered from Settings › General for the browser
   (needs HTTPS; Safari does not support it), and declared in the manifest so an
   installed ihasmail is offered by the operating system wherever something asks

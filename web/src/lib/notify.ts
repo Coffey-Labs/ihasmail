@@ -8,9 +8,33 @@ export function setBaseTitle(t: string) {
   baseTitle = t;
 }
 
-/** Update document title and favicon badge with unread count. */
+/*
+ * The unread count on the installed app's icon.
+ *
+ * The title and the favicon below are the same idea for a tab, and an
+ * installed app has neither: in `display: standalone` there is no tab strip
+ * and no favicon anywhere on screen, so everything this file did for the
+ * unread count vanished at exactly the moment somebody put ihasmail on a home
+ * screen. The Badging API is where the count goes instead, and it is the one
+ * thing every phone user expects a mail icon to do.
+ *
+ * Silently nothing where it is unsupported, and silently nothing on iOS until
+ * notification permission has been granted, which is that platform's condition
+ * for showing a badge at all. Neither is worth reporting: a count that does not
+ * appear is not a failure anybody can act on.
+ */
+function setIconBadge(count: number): void {
+  if (!("setAppBadge" in navigator)) return;
+  const done = count > 0 ? navigator.setAppBadge(count) : navigator.clearAppBadge();
+  void done.catch(() => {
+    /* unsupported, or not permitted on this platform */
+  });
+}
+
+/** Update document title, favicon and app icon badge with unread count. */
 export function setUnreadBadge(count: number): void {
   document.title = count > 0 ? `(${count > 999 ? "999+" : count}) ${baseTitle}` : baseTitle;
+  setIconBadge(count);
   try {
     const link = document.querySelector<HTMLLinkElement>('link[rel="icon"][type="image/png"]');
     if (!link) return;
