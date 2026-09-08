@@ -18,6 +18,7 @@ import { CalendarSidebar } from "./calendar/CalendarSidebar";
 import { ShortcutsDialog, useGlobalShortcuts } from "./Shortcuts";
 import { MailboxPicker } from "./mail/MailboxPicker";
 import { formatSize } from "@/lib/format";
+import { collectShare } from "@/lib/shareTarget";
 import { TranslateBoundary } from "@/ui/TranslateBoundary";
 import { t } from "@/lib/i18n";
 
@@ -35,6 +36,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [drawer, setDrawer] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const openCompose = useCompose((s) => s.open);
+  const openShare = useCompose((s) => s.openFromShare);
   const pushState = useSession((s) => s.pushState);
   const session = useSession((s) => s.session);
   const logout = useSession((s) => s.logout);
@@ -72,6 +74,28 @@ export function AppShell({ children }: { children: ReactNode }) {
       navigate("/mail", { replace: true });
     }
   }, [openCompose, navigate]);
+
+  /*
+   * A share from the operating system, collected rather than read off the URL.
+   *
+   * The other deep links above arrive as a query the app can read on the spot.
+   * A share cannot: it is a POST, the service worker answered it, and what it
+   * left behind has to survive the redirect -- and, when nobody was signed in,
+   * a trip through the sign-in page as well. So this asks on every start
+   * instead of only when `?share=1` says so, and finds nothing almost every
+   * time. The `at` stamp is what stops an abandoned one turning up days later.
+   *
+   * It runs here rather than in `main.tsx` because attaching needs an account:
+   * `addFiles` uploads as it goes, and there is nothing to upload to until the
+   * session is in place. AppShell only exists once there is one.
+   */
+  useEffect(() => {
+    void collectShare().then((share) => {
+      if (!share) return;
+      openShare(share);
+      if (new URLSearchParams(window.location.search).has("share")) navigate("/mail", { replace: true });
+    });
+  }, [openShare, navigate]);
 
   /*
    * There is no account switcher any more.

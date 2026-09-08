@@ -1155,6 +1155,20 @@ needed nothing in either half.
   an inbox holding forty. The next tab to open writes the real count over it.
   Unsupported browsers show nothing, as does iOS until notification permission
   has been granted, which is that platform's condition for a badge.
+- **In the share sheet** — share a photo, a link or a file from any other app
+  and ihasmail is one of the places it can go, opening a draft that holds it.
+  The subject comes from the shared title, the text and the link become the
+  body above your signature, and files are attached and start uploading. It
+  addresses nothing: a share says what to send, never who to.
+
+  A share is a POST, which is not something a client-side router can answer, so
+  the service worker takes the body, leaves it where a tab can collect it and
+  redirects to the app. That indirection is also what lets a share to a
+  signed-out ihasmail work — it waits through the sign-in page and opens after,
+  which the query string could not have survived. One nobody comes back for
+  expires after ten minutes rather than opening a composer full of a forgotten
+  photo the next time you look. Android and Chromium only; iOS does not
+  implement share targets.
 - **Share** — a message, or one attachment, handed to the operating system's
   share sheet instead of to the filesystem. On a phone a download is close to a
   dead end: the file lands in Downloads and whoever wanted to send it somewhere

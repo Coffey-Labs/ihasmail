@@ -30,8 +30,74 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+/*
+ * Where a share from the operating system is left for a tab to collect.
+ *
+ * Absolute and anchored to the mount, for the same reason the verification key
+ * below is: a relative key is resolved against the URL of whoever asks, and the
+ * worker and a tab deep in `/mail/inbox/…` are not at the same place.
+ *
+ * The files go in one entry each and the rest in a JSON index beside them,
+ * because the Cache API stores Responses and a File is already one body.
+ */
+const SHARE_KEY = `${BASE}/ihasmail-share`;
+const SHARE_MAX_FILES = 20;
+
+/*
+ * Take delivery of a share.
+ *
+ * This is a POST that navigates: the operating system submits a form at the
+ * app and expects a page back. Nothing in ihasmail can answer it directly --
+ * the app is a client-side router with no endpoint at that address, and the
+ * server behind it would have to grow one that understood the composer. So the
+ * worker takes the body, puts it where a tab can find it, and redirects to the
+ * app, which then opens a draft holding it.
+ *
+ * The redirect happens whatever went wrong. A share that fails to stash costs
+ * whatever was being shared, which is bad; a share that fails to *respond*
+ * costs that and leaves the reader looking at a browser error page where they
+ * expected their mail, which is worse.
+ *
+ * There is one case this cannot cover, and the server is deliberately not
+ * taught to: an app still installed whose worker has been cleared away. The
+ * POST then reaches the server, which answers 405, and the share is lost
+ * either way -- the payload only ever existed in that request body. A server
+ * route would trade a plain error for a silent nothing, and a share that
+ * vanishes without saying so is the harder of the two to notice.
+ */
+async function stashShare(request) {
+  try {
+    const form = await request.formData();
+    const cache = await caches.open(VERSION);
+    const meta = {
+      at: Date.now(),
+      title: String(form.get("title") ?? ""),
+      text: String(form.get("text") ?? ""),
+      url: String(form.get("url") ?? ""),
+      files: [],
+    };
+    const files = form.getAll("files").filter((f) => f && typeof f === "object" && "name" in f && f.size > 0);
+    for (const [i, f] of files.slice(0, SHARE_MAX_FILES).entries()) {
+      const key = `${SHARE_KEY}/${i}`;
+      await cache.put(key, new Response(f, { headers: { "content-type": f.type || "application/octet-stream" } }));
+      meta.files.push({ key, name: f.name || `file-${i + 1}`, type: f.type || "application/octet-stream" });
+    }
+    await cache.put(SHARE_KEY, new Response(JSON.stringify(meta), { headers: { "content-type": "application/json" } }));
+  } catch {
+    /* nothing to hand on: the app opens on an empty inbox rather than an error */
+  }
+  // Absolute, because `Response.redirect` rejects a bare path outright rather
+  // than resolving it -- so `${BASE}/mail` would throw here and the share
+  // would end at a browser error page instead of the inbox.
+  return Response.redirect(new URL(`${BASE}/mail?share=1`, self.location.origin).href, 303);
+}
+
 self.addEventListener("fetch", (event) => {
   const req = event.request;
+  if (req.method === "POST" && new URL(req.url).pathname === `${BASE}/share`) {
+    event.respondWith(stashShare(req));
+    return;
+  }
   if (req.method !== "GET") return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return;
