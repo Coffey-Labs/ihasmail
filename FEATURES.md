@@ -1119,9 +1119,14 @@ needed nothing in either half.
   when the open page happened to be the root.
 - **The subscription is renewed on every app start**, because a JMAP push
   subscription expires — seven days is the ceiling — and re-registering before
-  it lapses is the client's job. Renewal can only happen with a page open:
-  registering is a JMAP call and the service worker has no session to make one
-  with. So the guarantee is that background notifications keep working as long
+  it lapses is the client's job. Renewal happens with a page open, and the
+  reason is *when* the service worker runs rather than what it is allowed to
+  do: it only wakes for an event, and the event that would wake it is a push
+  that stops arriving the moment the subscription lapses. A renewal that can
+  only run while renewal is still unnecessary is no schedule at all. (This
+  page previously said the worker had no session to register with. That was
+  wrong — see **Acting on a notification** below.) So the guarantee is that
+  background notifications keep working as long
   as ihasmail is opened now and again, and the two-day renewal window means
   once a week is enough. A browser that dropped or rotated its subscription on
   its own is re-subscribed at the same moment, rather than left with a switch
@@ -1150,9 +1155,11 @@ needed nothing in either half.
   neither -- in `display: standalone` there is no tab strip and no favicon on
   screen, so a home-screen ihasmail showed nothing at all. Web Push marks the
   icon while the app is closed, with a dot rather than a figure: the service
-  worker has no session to ask how many messages are unread, and a push carries
-  the new mail rather than a total, so counting the payload would badge "2" over
-  an inbox holding forty. The next tab to open writes the real count over it.
+  worker is not told how many messages are unread — a push carries the new mail
+  rather than a total, so counting the payload would badge "2" over an inbox
+  holding forty. The next tab to open writes the real count over it. It could
+  now ask, which is a change since this was written; whether a badge is worth a
+  request on every push is a separate question and has not been answered yet.
   Unsupported browsers show nothing, as does iOS until notification permission
   has been granted, which is that platform's condition for a badge.
 - **In the share sheet** — share a photo, a link or a file from any other app
@@ -1169,6 +1176,34 @@ needed nothing in either half.
   expires after ten minutes rather than opening a composer full of a forgotten
   photo the next time you look. Android and Chromium only; iOS does not
   implement share targets.
+- **Acting on a notification.** Archive and Mark as read sit on the
+  notification itself, and both happen where you are — the phone stays in your
+  hand, or in your pocket. They are the two a phone shows: `maxActions` is two
+  on Android, and anything past it is dropped silently, so these are the two
+  worth having rather than the two that came first. Reply is deliberately not
+  among them, because it would have to open the app, and tapping the
+  notification already does that.
+
+  This was described here as impossible, and it is worth saying why it was not.
+  ihasmail's session is an httpOnly cookie against its own origin, and the only
+  other thing the API asks for is a fixed header that is not a secret. A
+  same-origin request from the service worker carries the cookie like any
+  other, so `Email/set` from a notification is an ordinary call. What the
+  worker genuinely cannot reach is anything a *tab* holds in memory — and the
+  API asks for none of it.
+
+  What it cannot reach is a catalogue. The worker is plain JavaScript outside
+  the bundle, with no i18n and no idea which mailbox is the archive, so the app
+  writes both down for it whenever the language, the account or the folder list
+  changes. Where there is no such note — between installing a new worker and
+  next opening ihasmail — the notification appears with no action buttons at
+  all rather than English ones over a guessed mailbox.
+
+  A session can still be gone by the time a button is pressed: expired, signed
+  out, or a cookie that did not outlive the browser. That comes back as a
+  refusal, and the notification says so rather than disappearing as though it
+  had worked. It does not open the app to recover — being interrupted is the
+  thing the button existed to avoid.
 - **Share** — a message, or one attachment, handed to the operating system's
   share sheet instead of to the filesystem. On a phone a download is close to a
   dead end: the file lands in Downloads and whoever wanted to send it somewhere
