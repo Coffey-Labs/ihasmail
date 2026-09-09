@@ -194,13 +194,14 @@ export const EMAIL_BASE_CSS = `
 
 /* "Even mail that styles itself" — the second, opt-in switch, applied on top of
    .themed. Everything the sender coloured is neutralised except the surfaces
-   marked by markKeptSurfaces() and their contents, so a white wrapper table
+   marked by markKeptSurfaces() and what it marked as sitting on them, so a
+   white wrapper table
    stops being a bright card while a blue button keeps its white label. The
    sender's markup is untouched; this is all cascade, so the switch is
    reversible and print still pins the tokens to ink on white. */
 .ihm-email-root.forced { color: var(--fg, #1f2937) !important; background: var(--bg-elev, #fff) !important; }
-.ihm-email-root.forced *:not([data-ihm-keep]):not([data-ihm-keep] *) { color: inherit !important; background-color: transparent !important; }
-.ihm-email-root.forced a:not([data-ihm-keep]):not([data-ihm-keep] *) { color: var(--link, #0f766e) !important; }
+.ihm-email-root.forced *:not([data-ihm-keep]):not([data-ihm-in-keep]) { color: inherit !important; background-color: transparent !important; }
+.ihm-email-root.forced a:not([data-ihm-keep]):not([data-ihm-in-keep]) { color: var(--link, #0f766e) !important; }
 `;
 
 /**
@@ -275,6 +276,13 @@ export function relativeLuminance(color: string): number | null {
  */
 export const LIGHT_SURFACE_LUMINANCE = 0.5;
 
+/** The background an element declares itself, or null if it declares none we can read. */
+function declaredLuminance(el: HTMLElement): number | null {
+  const declared = el.getAttribute("bgcolor") ?? el.style?.backgroundColor ?? "";
+  if (!declared) return null;
+  return relativeLuminance(declared);
+}
+
 /**
  * Mark the surfaces that must survive being themed, and count them.
  *
@@ -285,23 +293,60 @@ export const LIGHT_SURFACE_LUMINANCE = 0.5;
  * a **painted surface** — a button, a banner — which is kept whole so its
  * label stays legible on it.
  *
- * Only the second is marked, with `data-ihm-keep`, and one CSS rule in
- * EMAIL_BASE_CSS neutralises everything that is not marked or inside something
- * marked. Nothing the sender wrote is removed, so turning the switch off puts
- * the message back exactly as it was — and a colour that arrived from a
- * `<style>` block rather than an attribute is covered too, which is most of
- * them in modern templates.
+ * Two attributes come out of this. `data-ihm-keep` is a painted surface, which
+ * keeps its own colours. `data-ihm-in-keep` is an element sitting on one with
+ * no background of its own, whose colour is left alone so a white label on a
+ * blue button stays readable. One rule in EMAIL_BASE_CSS neutralises
+ * everything else.
+ *
+ * The distinction that matters is that being *inside* a painted surface is not
+ * inherited past a sheet. A light table nested in a dark 600px card is still a
+ * sheet and is still neutralised — that is issue #310, where a dark campaign
+ * rendered with beige cards inside it because the exemption used to be
+ * `[data-ihm-keep] *` in CSS and could not see the difference. Paint resumes
+ * below it: a dark button inside that nested table is kept as usual.
+ *
+ * Nothing the sender wrote is removed, so turning the switch off puts the
+ * message back exactly as it was — and a colour that arrived from a `<style>`
+ * block rather than an attribute is covered too, which is most of them in
+ * modern templates.
  */
 export function markKeptSurfaces(root: ParentNode): number {
   let kept = 0;
-  for (const el of Array.from(root.querySelectorAll<HTMLElement>("*"))) {
-    const declared = el.getAttribute("bgcolor") ?? el.style?.backgroundColor ?? "";
-    if (!declared) continue;
-    const lum = relativeLuminance(declared);
-    if (lum === null || lum >= LIGHT_SURFACE_LUMINANCE) continue;
-    el.setAttribute("data-ihm-keep", "");
-    kept++;
+
+  // An explicit stack rather than recursion: this walks untrusted mail, and
+  // deeply nested tables are exactly what old newsletter HTML is made of.
+  const stack: Array<{ el: HTMLElement; onPaint: boolean }> = [];
+  const push = (parent: ParentNode, onPaint: boolean) => {
+    for (const child of Array.from(parent.children)) {
+      stack.push({ el: child as HTMLElement, onPaint });
+    }
+  };
+
+  push(root, false);
+
+  while (stack.length) {
+    const { el, onPaint } = stack.pop()!;
+    const lum = declaredLuminance(el);
+    let childrenOnPaint = onPaint;
+
+    if (lum !== null && lum < LIGHT_SURFACE_LUMINANCE) {
+      // Painted: keep it whole, and anything on it inherits that protection.
+      el.setAttribute("data-ihm-keep", "");
+      kept++;
+      childrenOnPaint = true;
+    } else if (lum !== null) {
+      // A sheet, wherever it sits. Left unmarked so it neutralises, and it
+      // ends the protection rather than passing it on.
+      childrenOnPaint = false;
+    } else if (onPaint) {
+      // No background of its own, sitting on paint: leave its colour alone.
+      el.setAttribute("data-ihm-in-keep", "");
+    }
+
+    push(el, childrenOnPaint);
   }
+
   return kept;
 }
 
