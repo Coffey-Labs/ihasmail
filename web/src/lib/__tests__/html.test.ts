@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LIGHT_SURFACE_LUMINANCE, htmlDeclaresColors, markKeptSurfaces, relativeLuminance, sanitizeEditorHtml, sanitizeEmailHtml } from "../html";
+import { EMAIL_BASE_CSS, LIGHT_SURFACE_LUMINANCE, htmlDeclaresColors, markKeptSurfaces, relativeLuminance, sanitizeEditorHtml, sanitizeEmailHtml } from "../html";
 
 describe("sanitizeEmailHtml", () => {
   it("removes scripts and event handlers", () => {
@@ -96,6 +96,24 @@ describe("markKeptSurfaces", () => {
     return d;
   };
 
+  /*
+   * Marking is only half of it — the other half is the rule in EMAIL_BASE_CSS
+   * that reads the marks, and #310 was a bug in that half rather than in the
+   * marking. So these assert what the reader actually sees: does the
+   * neutraliser hit this element? The selector is lifted out of the stylesheet
+   * rather than copied, so a test cannot quietly drift from the rule it checks.
+   */
+  const NEUTRALISER = (() => {
+    const m = EMAIL_BASE_CSS.match(
+      /\.ihm-email-root\.forced\s+(\*:not\([^{]*?)\s*\{\s*color: inherit/,
+    );
+    if (!m) throw new Error("could not find the neutraliser rule in EMAIL_BASE_CSS");
+    return m[1]!.trim();
+  })();
+
+  /** True when the theme is forced onto this element rather than leaving it alone. */
+  const neutralised = (el: Element) => el.matches(NEUTRALISER);
+
   it("keeps a coloured button and drops the white sheet around it", () => {
     // The shape reported in #290: a Shopify/Klaviyo template whose outer 600px
     // wrapper carries bgcolor="#ffffff" and whose CTA carries bgcolor="#1155CC".
@@ -103,9 +121,87 @@ describe("markKeptSurfaces", () => {
     expect(markKeptSurfaces(d)).toBe(1);
     expect(d.querySelector("table")!.hasAttribute("data-ihm-keep")).toBe(false);
     expect(d.querySelector("td")!.hasAttribute("data-ihm-keep")).toBe(true);
-    // The label is not marked itself; the CSS keeps it because it is inside
-    // something that is, which is what stops white-on-blue turning unreadable.
+    // The label is not a painted surface itself. It is marked as sitting on
+    // one, which is what stops white-on-blue turning unreadable.
     expect(d.querySelector("a")!.hasAttribute("data-ihm-keep")).toBe(false);
+    expect(d.querySelector("a")!.hasAttribute("data-ihm-in-keep")).toBe(true);
+  });
+
+  it("neutralises a light panel nested inside a dark painted card", () => {
+    // The shape reported in #310: a dark Klaviyo campaign whose 600px cards
+    // are dark enough to be marked, with light content tables inside them.
+    // Those tables used to inherit the card's exemption and render as beige
+    // sheets in an otherwise themed message.
+    const d = frag(
+      '<div style="background-color:#e7e5e2">' +
+        '<div style="background-color:#2b2b2b">' +
+          '<table style="background-color:#e7e5e2"><tr><td>copy</td></tr></table>' +
+        '</div>' +
+      '</div>',
+    );
+    expect(markKeptSurfaces(d)).toBe(1);
+
+    const divs = Array.from(d.querySelectorAll("div"));
+    const surround = divs[0]!;
+    const card = divs[1]!;
+    const nested = d.querySelector("table")!;
+
+    // The page surround is a sheet and always was.
+    expect(surround.hasAttribute("data-ihm-keep")).toBe(false);
+    // The card is paint and stays paint.
+    expect(card.hasAttribute("data-ihm-keep")).toBe(true);
+    // The fix, stated the way the reader experiences it: the nested sheet is
+    // themed, and so is the copy inside it. Before #310 both were exempt for
+    // being descendants of the card.
+    expect(neutralised(nested)).toBe(true);
+    expect(neutralised(d.querySelector("td")!)).toBe(true);
+    // The card itself is still left alone, and the page surround still goes.
+    expect(neutralised(card)).toBe(false);
+    expect(neutralised(surround)).toBe(true);
+  });
+
+  it("still keeps a button that sits inside a nested light panel", () => {
+    // Paint resumes below a sheet, however deep it is: the fix must not cost
+    // a call to action its label just because a sheet came between it and the
+    // card it is on.
+    const d = frag(
+      '<div style="background-color:#2b2b2b">' +
+        '<table style="background-color:#ffffff"><tr>' +
+          '<td bgcolor="#1155CC"><a style="color:#FFFFFF">Buy</a></td>' +
+        '</tr></table>' +
+      '</div>',
+    );
+    expect(markKeptSurfaces(d)).toBe(2);
+    expect(neutralised(d.querySelector("table")!)).toBe(true);
+    expect(neutralised(d.querySelector("td")!)).toBe(false);
+    // The label keeps its white, which is the thing #294 bought and this must
+    // not spend.
+    expect(neutralised(d.querySelector("a")!)).toBe(false);
+  });
+
+  it("leaves no light panel exempt across the whole reported specimen", () => {
+    // #310 as reported: a dark campaign with no bgcolor attributes, 21 light
+    // panels, 14 of them nested inside dark 600px cards. Those fourteen were
+    // the ones rendering as beige sheets.
+    let cards = "";
+    for (let i = 0; i < 7; i++) {
+      cards +=
+        '<div style="background-color:#2b2b2b">' +
+        '<table style="background-color:#e7e5e2"><tr><td>copy</td></tr></table>' +
+        '<table style="background-color:#e7e5e2"><tr><td>more</td></tr></table>' +
+        "</div>";
+    }
+    let loose = "";
+    for (let i = 0; i < 7; i++) {
+      loose += '<table style="background-color:#e7e5e2"><tr><td>loose</td></tr></table>';
+    }
+    const d = frag('<div style="background-color:#e7e5e2">' + cards + loose + "</div>");
+
+    const panels = Array.from(d.querySelectorAll<HTMLElement>("table"));
+    expect(panels.length).toBe(21);
+
+    expect(markKeptSurfaces(d)).toBe(7);
+    expect(panels.filter((p) => !neutralised(p))).toHaveLength(0);
   });
 
   it("reads an inline background as well as the attribute", () => {
