@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useCompose } from "@/store/compose";
 import { useMail } from "@/store/mail";
 import { client } from "@/jmap/client";
@@ -32,6 +32,13 @@ beforeEach(() => {
   // addFiles uploads as it goes; nothing here is testing the upload, and a
   // real one would reach for the network.
   vi.spyOn(client, "upload").mockResolvedValue({ blobId: "b1", type: "image/png", size: 6 } as never);
+});
+
+// Without this the spy installed above is the same one every test, so its call
+// count is cumulative and "uploaded twice" quietly means "twice, plus whatever
+// the test before it uploaded".
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 const draftFor = (key: string) => useCompose.getState().drafts.find((d) => d.key === key)!;
