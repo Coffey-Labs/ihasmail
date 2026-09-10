@@ -18,7 +18,21 @@
  * string that is neither -- one no catalogue has a key for, which therefore
  * cannot be translated at all, however many languages ship.
  */
-import ts from "typescript";
+/*
+ * The parser, not the compiler.
+ *
+ * TypeScript 7 is the native port: its package ships a `tsc` shim over a Go
+ * binary and nothing else, so `typescript` now exports `version` and
+ * `versionMajorMinor` and no compiler API at all. Every `ts.createSourceFile`
+ * in this directory started throwing "Cannot read properties of undefined
+ * (reading 'Latest')" the day the bump landed, and nothing noticed, because no
+ * workflow runs these.
+ *
+ * `typescript-ast` is an npm alias for the last TypeScript that carries the JS
+ * API (see package.json). It parses; `typescript` still type-checks and builds.
+ * Two entries, two jobs -- not a version someone forgot to remove.
+ */
+import ts from "typescript-ast";
 import { readFileSync, globSync } from "node:fs";
 
 /* Where a string literal in this position is shown to somebody. */
