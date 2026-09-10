@@ -1,5 +1,5 @@
 # ---- build stage ----
-FROM node:22-alpine AS build
+FROM node:26-alpine AS build
 # What this build calls itself: 2.16.<PR>, worked out by whoever runs the
 # build. It cannot be worked out in here -- .dockerignore keeps .git out of the
 # context on purpose, and git is not installed either. `node scripts/version.mjs`
@@ -25,7 +25,7 @@ COPY . .
 RUN npm run build
 
 # ---- runtime stage ----
-FROM node:22-alpine AS runtime
+FROM node:26-alpine AS runtime
 # Re-declared: an ARG does not cross stages.
 ARG IHASMAIL_VERSION=""
 ARG BASE_PATH=""
