@@ -10,7 +10,7 @@
     "web"
   ],
   "engines": {
-    "node": ">=20.10"
+    "node": ">=20.19"
   },
   "scripts": {
     "dev": "concurrently -n server,web -c blue,magenta \"npm run dev -w server\" \"npm run dev -w web\"",
