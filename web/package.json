@@ -13,18 +13,18 @@
   },
   "dependencies": {
     "@tanstack/react-virtual": "^3.13.2",
-    "dompurify": "^3.2.4",
+    "dompurify": "^3.4.15",
     "lucide-react": "^0.477.0",
     "marked": "^18.0.11",
     "qrcode-generator": "^2.0.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "wouter": "^3.6.0",
+    "wouter": "^3.11.0",
     "zustand": "^5.0.3"
   },
   "devDependencies": {
     "@types/react": "^19.0.10",
-    "@types/react-dom": "^19.0.4",
+    "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^4.3.4",
     "jsdom": "^26.0.0",
     "typescript": "^5.7.3",
