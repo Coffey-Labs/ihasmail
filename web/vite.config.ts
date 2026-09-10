@@ -44,11 +44,23 @@ export default defineConfig({
   build: {
     target: "es2022",
     sourcemap: false,
-    rollupOptions: {
+    rolldownOptions: {
       output: {
-        manualChunks: {
-          vendor: ["wouter", "zustand", "dompurify", "@tanstack/react-virtual"],
-          icons: ["lucide-react"],
+        /*
+         * Rolldown, which vite 8 bundles with, dropped the object form of
+         * `manualChunks` -- naming a chunk and listing the packages in it --
+         * and takes groups matched against module paths instead. Same two
+         * chunks out the other end; `icons` is listed first because groups are
+         * tried in order and the first match wins.
+         */
+        codeSplitting: {
+          groups: [
+            { name: "icons", test: /node_modules[\\/]lucide-react[\\/]/ },
+            {
+              name: "vendor",
+              test: /node_modules[\\/](wouter|zustand|dompurify|@tanstack[\\/]react-virtual)[\\/]/,
+            },
+          ],
         },
       },
     },
