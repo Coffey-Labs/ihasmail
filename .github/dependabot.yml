@@ -1,0 +1,44 @@
+version: 2
+updates:
+  # The npm entry sits at the root because that is where the single lockfile
+  # is: root, server and web are one npm workspace, so one entry covers all
+  # three. Pointing entries at server/ or web/ would find package.json files
+  # with no lockfile beside them and update nothing.
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: tuesday
+      time: "09:00"
+      timezone: Etc/UTC
+    open-pull-requests-limit: 5
+    groups:
+      # Everything routine arrives as one PR a week, so the dashboard is not
+      # the only place these get noticed. Majors are deliberately left out of
+      # the group: they are migrations, not bumps -- vitest 3 to 4 is one --
+      # and each deserves its own PR and its own CI run.
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: tuesday
+      time: "09:00"
+      timezone: Etc/UTC
+    groups:
+      actions:
+        patterns:
+          - "*"
+  # The runtime and build stages both pin node:22-alpine, so this is what
+  # keeps the published container images off a stale base between the weekly
+  # releases.
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: tuesday
+      time: "09:00"
+      timezone: Etc/UTC
