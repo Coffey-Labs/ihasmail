@@ -36,6 +36,7 @@ function session(caps: Record<string, unknown>): JmapSession {
 afterEach(() => {
   client.session = null;
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("the VAPID key", () => {
