@@ -327,7 +327,6 @@ export const catalog: Catalog = {
     "Busy": "Gebucht",
     "Free/busy": "Frei/Gebucht",
     "Show as": "Anzeigen als",
-    "Availability on {date}": "Verfügbarkeit am {date}",
     "Count all events as busy": "Alle Termine als gebucht zählen",
     "Only events I'm attending": "Nur Termine, an denen ich teilnehme",
     "Don't include in availability": "Nicht in die Verfügbarkeit einbeziehen",
@@ -366,7 +365,6 @@ export const catalog: Catalog = {
     "New address book": "Neues Adressbuch",
     "No address books yet.": "Noch keine Adressbücher.",
     "Choose from address books": "Aus Adressbüchern wählen",
-    "Import vCard": "vCard importieren",
     "Export all contacts": "Alle Kontakte exportieren",
     "Export address book": "Dieses Adressbuch exportieren",
     "Import contacts…": "Kontakte importieren…",
@@ -437,7 +435,6 @@ export const catalog: Catalog = {
     "Make ihasmail yours.": "Machen Sie ihasmail zu Ihrem.",
     "Reading": "Lesen",
     "Reading pane": "Lesebereich",
-    "Reading, sending and list behaviour. Settings are stored in this browser.": "Verhalten beim Lesen, Senden und in der Liste. Die Einstellungen werden in diesem Browser gespeichert.",
     "Right of the list": "Rechts von der Liste",
     "Below the list": "Unter der Liste",
     "Hidden (open full width)": "Ausgeblendet (in voller Breite öffnen)",
@@ -714,8 +711,6 @@ export const catalog: Catalog = {
     "Manage labels": "Labels verwalten",
     "Create “{name}”": "„{name}“ erstellen",
     "Type a name to create your first label.": "Geben Sie einen Namen ein, um Ihr erstes Label zu erstellen.",
-    "Labels are IMAP keywords stored on your messages, so they sync to other clients. Names and colours are kept in this browser.": "Labels sind IMAP-Schlüsselwörter, die in Ihren Nachrichten gespeichert werden und daher mit anderen Clients synchronisiert werden. Namen und Farben bleiben in diesem Browser.",
-    "PDF": "PDF",
     "Large attachments may be rejected by some servers": "Große Anhänge werden von manchen Servern abgelehnt",
     "Images are stored in your Files (folder “ihasmail”) and embedded when you send.": "Bilder werden in Ihren Dateien (Ordner „ihasmail“) gespeichert und beim Senden eingebettet.",
     "Thanks for your message. I'm away until … and will reply when I'm back.": "Vielen Dank für Ihre Nachricht. Ich bin bis … abwesend und melde mich nach meiner Rückkehr.",
@@ -839,16 +834,11 @@ export const catalog: Catalog = {
     "Drop here for the top level": "Hierher ziehen für die oberste Ebene",
 
     // ── Remaining prose ────────────────────────────────────────────────
-    "{name} is the palette from {site}, and what a new account starts on. It is a dark theme, so it counts as dark wherever that matters, and the accent colour below still applies on top of it.": "{name} ist die Farbpalette von {site} und das, womit ein neues Konto startet. Es ist ein dunkles Design und zählt daher überall dort als dunkel, wo das eine Rolle spielt; die Akzentfarbe unten wirkt weiterhin darauf.",
     "ihasmail's own version is the date of the commit it was built from, followed by where that commit came from: {example} was built from a commit dated the 30th of August 2026 that arrived through pull request 129. A commit that did not come through one carries its short SHA instead — {sha}. The version deliberately says nothing about Stalwart; what this build needs from the server is the line above.": "Die Version von ihasmail ist das Datum des Commits, aus dem es gebaut wurde, gefolgt davon, woher dieser Commit stammt: {example} wurde aus einem Commit vom 30. August 2026 gebaut, der über Pull Request 129 kam. Ein Commit, der nicht über einen solchen kam, trägt stattdessen seinen kurzen SHA — {sha}. Die Version sagt bewusst nichts über Stalwart aus; was dieser Build vom Server benötigt, steht in der Zeile darüber.",
 
     // ── Weekdays, schedule presets, rule operators ─────────────────────
     // Header names (List-Id, X-Spam-Status) stay English: they are the actual
     // field names in the message, not words.
-    "Tuesday": "Dienstag",
-    "Wednesday": "Mittwoch",
-    "Thursday": "Donnerstag",
-    "Friday": "Freitag",
     "Later today": "Später heute",
     "Tomorrow morning": "Morgen früh",
     "Tomorrow afternoon": "Morgen Nachmittag",
