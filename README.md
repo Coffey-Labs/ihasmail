@@ -347,7 +347,7 @@ missing.
 
 ## Development
 
-Requirements: Node ≥ 20.19 (22 recommended), npm ≥ 10.
+Requirements: Node ≥ 20.19 (26 recommended), npm ≥ 10.
 
 ```bash
 npm install
