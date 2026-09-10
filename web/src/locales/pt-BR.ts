@@ -814,6 +814,7 @@ export const catalog: Catalog = {
     "Rename folder": "Renomear a pasta",
     "Search: {query}": "Pesquisa: {query}",
     "No conversation selected": "Nenhuma conversa selecionada",
+    "No message selected": "Nenhuma mensagem selecionada",
     "Drop here for the top level": "Solte aqui para o nível superior",
 
     // ── Longer prose ───────────────────────────────────────────────────
@@ -822,6 +823,7 @@ export const catalog: Catalog = {
     "Open the Mail view to see all shortcuts.": "Abra a visualização de E-mail para ver todos os atalhos.",
     "Gmail-style shortcuts are always on. Press {key} anywhere to see this list.": "Os atalhos no estilo do Gmail estão sempre ativos. Pressione {key} em qualquer lugar para ver esta lista.",
     "Select a conversation to read it here · Press {key} for shortcuts": "Selecione uma conversa para lê-la aqui · {key} para os atalhos",
+    "Select a message to read it here · Press {key} for shortcuts": "Selecione uma mensagem para lê-la aqui · {key} para os atalhos",
     "Tip: press {key} on a conversation to apply labels. Search with {operator}.": "Dica: pressione {key} em uma conversa para aplicar marcadores. Pesquise com {operator}.",
     "A fast, friendly, open-source webmail for {server}, built on JMAP.": "Um webmail livre, rápido e agradável para {server}, feito sobre JMAP.",
     "Defaults for the calendar views and new events.": "Padrões das visualizações da agenda e dos eventos novos.",

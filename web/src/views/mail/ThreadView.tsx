@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertOctagon, Archive, ArrowLeft, ChevronDown, ChevronUp, FolderInput, Forward, Mail, MailOpen, MailPlus, MoreVertical, Printer, Reply, ReplyAll, ShieldCheck, Star, Tag, Trash2, Download , Paperclip} from "lucide-react";
 import { useMail } from "@/store/mail";
+import { visibleMessages } from "@/lib/openMessage";
 import { useSettings } from "@/store/settings";
 import { useCompose } from "@/store/compose";
 import type { Email, Id } from "@/jmap/types";
@@ -25,9 +26,15 @@ interface Props {
   onNavigate: (delta: number) => void;
   hasPrev: boolean;
   hasNext: boolean;
+  /**
+   * With conversation view off, the single message to show. The thread is still
+   * what loads -- one request, and the reply/forward paths keep the context
+   * they need -- but only this message is rendered.
+   */
+  messageId?: Id | null;
 }
 
-export function ThreadView({ threadId, mailboxId, onBack, actions, onNavigate, hasPrev, hasNext }: Props) {
+export function ThreadView({ threadId, mailboxId, onBack, actions, onNavigate, hasPrev, hasNext, messageId = null }: Props) {
   const loadThread = useMail((s) => s.loadThread);
   const thread = useMail((s) => s.threads[threadId]);
   const emails = useMail((s) => s.emails);
@@ -82,8 +89,9 @@ export function ThreadView({ threadId, mailboxId, onBack, actions, onNavigate, h
       if (junk && e.mailboxIds[junk]) return false;
       return true;
     });
-    return (filtered.length ? filtered : all).sort((a, b) => a.receivedAt.localeCompare(b.receivedAt));
-  }, [thread, emails, fullIds, mailboxId]);
+    const shown = filtered.length ? filtered : all;
+    return visibleMessages(shown, messageId).sort((a, b) => a.receivedAt.localeCompare(b.receivedAt));
+  }, [thread, emails, fullIds, mailboxId, messageId]);
 
   /*
    * Which messages were unread when this conversation was opened.

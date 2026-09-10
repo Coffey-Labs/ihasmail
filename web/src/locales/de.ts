@@ -756,6 +756,7 @@ export const catalog: Catalog = {
     "Open the Mail view to see all shortcuts.": "Öffnen Sie die E-Mail-Ansicht, um alle Tastenkürzel zu sehen.",
     "Gmail-style shortcuts are always on. Press {key} anywhere to see this list.": "Tastenkürzel im Gmail-Stil sind immer aktiv. Drücken Sie überall {key}, um diese Liste zu sehen.",
     "Select a conversation to read it here · Press {key} for shortcuts": "Wählen Sie eine Konversation, um sie hier zu lesen · {key} für Tastenkürzel",
+    "Select a message to read it here · Press {key} for shortcuts": "Wählen Sie eine Nachricht, um sie hier zu lesen · {key} für Tastenkürzel",
     "Tip: press {key} on a conversation to apply labels. Search with {operator}.": "Tipp: Drücken Sie {key} auf einer Konversation, um Labels zu vergeben. Suchen Sie mit {operator}.",
     "A fast, friendly, open-source webmail for {server}, built on JMAP.": "Eine schnelle, freundliche Open-Source-Webmail für {server}, auf JMAP aufgebaut.",
     "Defaults for the calendar views and new events.": "Vorgaben für die Kalenderansichten und neue Termine.",
@@ -834,6 +835,7 @@ export const catalog: Catalog = {
     "Nothing": "Nichts",
 
     "No conversation selected": "Keine Konversation ausgewählt",
+    "No message selected": "Keine Nachricht ausgewählt",
     "Drop here for the top level": "Hierher ziehen für die oberste Ebene",
 
     // ── Remaining prose ────────────────────────────────────────────────

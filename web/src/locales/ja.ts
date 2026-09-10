@@ -747,6 +747,7 @@ export const catalog: Catalog = {
     "Open the Mail view to see all shortcuts.": "すべてのショートカットはメール画面で確認できます。",
     "Gmail-style shortcuts are always on. Press {key} anywhere to see this list.": "Gmail 形式のショートカットは常に有効です。どこでも {key} を押すとこの一覧を表示します。",
     "Select a conversation to read it here · Press {key} for shortcuts": "スレッドを選ぶとここに表示されます · {key} でショートカット一覧",
+    "Select a message to read it here · Press {key} for shortcuts": "メールを選ぶとここに表示されます · {key} でショートカット一覧",
     "Tip: press {key} on a conversation to apply labels. Search with {operator}.": "ヒント: スレッド上で {key} を押すとラベルを付けられます。検索には {operator} が使えます。",
     "A fast, friendly, open-source webmail for {server}, built on JMAP.": "{server} のための、軽快で使いやすいオープンソースのウェブメール。JMAP で動作します。",
 
@@ -843,6 +844,7 @@ export const catalog: Catalog = {
     "Not spam": "迷惑メールではない",
     "Nothing": "何もしない",
     "No conversation selected": "スレッドが選択されていません",
+    "No message selected": "メールが選択されていません",
     "Drop here for the top level": "ここにドロップすると最上位へ移動します",
     "Later today": "今日のうちに",
     "Tomorrow morning": "明日の朝",

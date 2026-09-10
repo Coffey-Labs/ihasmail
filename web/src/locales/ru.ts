@@ -813,6 +813,7 @@ export const catalog: Catalog = {
     "Rename folder": "Переименовать папку",
     "Search: {query}": "Поиск: {query}",
     "No conversation selected": "Цепочка не выбрана",
+    "No message selected": "Письмо не выбрано",
     "Drop here for the top level": "Перетащите сюда, чтобы вынести на верхний уровень",
 
     // ── Longer prose ───────────────────────────────────────────────────
@@ -821,6 +822,7 @@ export const catalog: Catalog = {
     "Open the Mail view to see all shortcuts.": "Откройте раздел «Почта», чтобы увидеть все сочетания клавиш.",
     "Gmail-style shortcuts are always on. Press {key} anywhere to see this list.": "Сочетания клавиш в стиле Gmail всегда включены. Нажмите {key} в любом месте, чтобы увидеть этот список.",
     "Select a conversation to read it here · Press {key} for shortcuts": "Выберите цепочку, чтобы прочитать её здесь · {key} — сочетания клавиш",
+    "Select a message to read it here · Press {key} for shortcuts": "Выберите письмо, чтобы прочитать его здесь · {key} — сочетания клавиш",
     "Tip: press {key} on a conversation to apply labels. Search with {operator}.": "Совет: нажмите {key} на цепочке, чтобы присвоить ярлыки. Ищите через {operator}.",
     "A fast, friendly, open-source webmail for {server}, built on JMAP.": "Быстрая и удобная веб-почта с открытым кодом для {server}, построенная на JMAP.",
     "Defaults for the calendar views and new events.": "Значения по умолчанию для видов календаря и новых событий.",

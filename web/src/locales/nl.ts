@@ -807,6 +807,7 @@ export const catalog: Catalog = {
     "Rename folder": "Map hernoemen",
     "Search: {query}": "Zoeken: {query}",
     "No conversation selected": "Geen gesprek geselecteerd",
+    "No message selected": "Geen bericht geselecteerd",
     "Drop here for the top level": "Hier neerzetten voor het hoogste niveau",
 
     // ── Longer prose ───────────────────────────────────────────────────
@@ -815,6 +816,7 @@ export const catalog: Catalog = {
     "Open the Mail view to see all shortcuts.": "Open de E-mailweergave om alle sneltoetsen te zien.",
     "Gmail-style shortcuts are always on. Press {key} anywhere to see this list.": "Sneltoetsen in Gmail-stijl staan altijd aan. Druk overal op {key} om deze lijst te zien.",
     "Select a conversation to read it here · Press {key} for shortcuts": "Selecteer een gesprek om het hier te lezen · {key} voor sneltoetsen",
+    "Select a message to read it here · Press {key} for shortcuts": "Selecteer een bericht om het hier te lezen · {key} voor sneltoetsen",
     "Tip: press {key} on a conversation to apply labels. Search with {operator}.": "Tip: druk op {key} bij een gesprek om labels toe te wijzen. Zoek met {operator}.",
     "A fast, friendly, open-source webmail for {server}, built on JMAP.": "Een snelle, prettige, opensource webmail voor {server}, gebouwd op JMAP.",
     "Defaults for the calendar views and new events.": "Standaardwaarden voor de agendaweergaven en nieuwe afspraken.",

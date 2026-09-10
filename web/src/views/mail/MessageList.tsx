@@ -9,6 +9,7 @@ import { formatListDate } from "@/lib/format";
 import { mailboxDisplayName } from "@/lib/mailboxName";
 import { groupByArchivePath, archivePath, type ArchiveGranularity } from "@/lib/archiveDate";
 import { canEmpty, confirmAndEmpty, emptyLabel } from "@/lib/emptyFolder";
+import { rowIsOpen } from "@/lib/openMessage";
 import { displayName, shortName } from "@/lib/address";
 import { Avatar, Empty, useIsMobile, useIsTouch } from "@/ui/misc";
 import { rowClick } from "@/lib/listSelection";
@@ -53,6 +54,12 @@ interface Props {
   title: string;
   list: ListState | null;
   openThreadId: Id | null;
+  /**
+   * With conversation view off, the one message the reading pane is showing.
+   * The row highlight follows this instead of the thread, or every message in
+   * a thread lights up when one of them is opened.
+   */
+  openMessageId: Id | null;
   focusId: Id | null;
   setFocusId: (id: Id | null) => void;
   onOpen: (rowId: Id) => void;
@@ -61,7 +68,7 @@ interface Props {
   isSearch: boolean;
 }
 
-export function MessageList({ title, list, openThreadId, focusId, setFocusId, onOpen, actions, mailboxId, isSearch }: Props) {
+export function MessageList({ title, list, openThreadId, openMessageId, focusId, setFocusId, onOpen, actions, mailboxId, isSearch }: Props) {
   const [, navigate] = useLocation();
   const emails = useMail((s) => s.emails);
   const threads = useMail((s) => s.threads);
@@ -485,7 +492,7 @@ export function MessageList({ title, list, openThreadId, focusId, setFocusId, on
                       height={vi.size}
                       selected={Boolean(selected[id])}
                       focused={focusId === id}
-                      open={openThreadId === e.threadId}
+                      open={rowIsOpen(id, e.threadId, openMessageId, openThreadId)}
                       twoLine={twoLine}
                       showAvatar={settings.showAvatars}
                       showPreview={settings.showPreview}

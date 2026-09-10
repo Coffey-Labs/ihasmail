@@ -746,6 +746,7 @@ export const catalog: Catalog = {
     "Open the Mail view to see all shortcuts.": "打开邮件视图以查看全部快捷键。",
     "Gmail-style shortcuts are always on. Press {key} anywhere to see this list.": "Gmail 风格的快捷键始终启用。在任意位置按 {key} 即可查看此列表。",
     "Select a conversation to read it here · Press {key} for shortcuts": "选择一个会话即可在此阅读 · 按 {key} 查看快捷键",
+    "Select a message to read it here · Press {key} for shortcuts": "选择一封邮件即可在此阅读 · 按 {key} 查看快捷键",
     "Tip: press {key} on a conversation to apply labels. Search with {operator}.": "提示：在会话上按 {key} 可添加标签。使用 {operator} 搜索。",
     "A fast, friendly, open-source webmail for {server}, built on JMAP.": "一款面向 {server} 的快速、友好的开源网页邮箱，基于 JMAP 构建。",
 
@@ -842,6 +843,7 @@ export const catalog: Catalog = {
     "Not spam": "不是垃圾邮件",
     "Nothing": "不执行任何操作",
     "No conversation selected": "未选择会话",
+    "No message selected": "未选择邮件",
     "Drop here for the top level": "拖放到此处可移至顶层",
     "Later today": "今天晚些时候",
     "Tomorrow morning": "明天上午",
