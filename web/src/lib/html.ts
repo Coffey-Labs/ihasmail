@@ -350,6 +350,26 @@ export function markKeptSurfaces(root: ParentNode): number {
   return kept;
 }
 
+/**
+ * Whether a message really has an HTML alternative to render.
+ *
+ * `htmlBody` is a *derived* list, not a filter: RFC 8621 §4.1.4 says a message
+ * with no HTML alternative still gets one, and it holds the text/plain part.
+ * Confirmed live against Stalwart 0.16.21 (2026-09-10) -- a plain-text mail
+ * comes back with `htmlBody` and `textBody` naming the same part, typed
+ * `text/plain`, while a real multipart/alternative names two different parts.
+ *
+ * So "is there a body value under htmlBody" is not the question; the part's own
+ * type is. Answering the first one sent every plain-text message down the HTML
+ * path, where the body is placed in `.ihm-email-root` under
+ * `white-space: normal` and every line break collapses -- hard-wrapped mail
+ * arrived as a single paragraph with the signature and the quoted reply run
+ * into the prose.
+ */
+export function hasHtmlAlternative(part: { type?: string } | undefined, value: string | undefined): boolean {
+  return /^text\/html\b/i.test(part?.type ?? "") && Boolean(value);
+}
+
 export const TEXT_EMAIL_CSS = `
 :host { display:block; }
 .ihm-text-root { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 13.5px; line-height:1.55; white-space: pre-wrap; overflow-wrap: anywhere; color: inherit; }
