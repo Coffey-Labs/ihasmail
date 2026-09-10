@@ -18,7 +18,7 @@ import { internalDomains, isExternalSender, linkVerdict } from "@/lib/warnings";
 import { spamReport, type SpamReport } from "@/lib/spamScore";
 import { formatFullDate, formatListDate, formatSize } from "@/lib/format";
 import { displayName, domainOf, formatAddress } from "@/lib/address";
-import { EMAIL_BASE_CSS, TEXT_EMAIL_CSS, htmlDeclaresColors, markKeptSurfaces, sanitizeEmailHtml } from "@/lib/html";
+import { EMAIL_BASE_CSS, TEXT_EMAIL_CSS, hasHtmlAlternative, htmlDeclaresColors, markKeptSurfaces, sanitizeEmailHtml } from "@/lib/html";
 import { openableInTab, previewKind } from "@/lib/preview";
 import { FilePreviewDialog } from "@/ui/filepreview";
 import { findQuoteStart, htmlToText, textToHtml } from "@/lib/text";
@@ -137,7 +137,9 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
   const textPart = e.textBody?.[0];
   const htmlRaw = htmlPart?.partId ? e.bodyValues?.[htmlPart.partId]?.value : undefined;
   const textRaw = textPart?.partId ? e.bodyValues?.[textPart.partId]?.value : undefined;
-  const showHtml = Boolean(htmlRaw);
+  // Not `Boolean(htmlRaw)`: `htmlBody` carries the text part when there is no
+  // HTML alternative. See hasHtmlAlternative().
+  const showHtml = hasHtmlAlternative(htmlPart, htmlRaw);
   const themeMessageBody = settings.themeMessageBody;
   const themeStyledMessages = settings.themeStyledMessages;
 
