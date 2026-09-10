@@ -29,17 +29,49 @@
 import ts from "typescript-ast";
 import { readFileSync, globSync } from "node:fs";
 
+/*
+ * Two sets, because there are two questions and they need different nets.
+ *
+ * `wanted` is what a catalogue *owes*: the strings that actually reach t(),
+ * tc() or plural(). Coverage is measured against it, so it has to stay strict
+ * -- widening it would count every CSS class and JMAP method name as an
+ * untranslated string.
+ *
+ * `seen` is every string literal in the source, and answers only "is this
+ * catalogue key still written down anywhere". Stale detection needs the wide
+ * net: a key reaches t() as a variable often enough that a strict set reports
+ * mostly false alarms.
+ */
 const wanted = new Set();
+const seen = new Set();
 for (const file of globSync("web/src/**/*.{ts,tsx}").filter((f) => !f.includes("__tests__") && !f.includes("/locales/"))) {
   const src = ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const visit = (n) => {
     /*
-     * Labels held in a constant and translated where they render -- t(s.label)
-     * -- reach t() as a variable, so there is no literal for this to find and
-     * every one of them looked "stale". They are collected from the constants
-     * instead: a `label:` property, or a value in an object of them. Without
-     * this the stale check cried wolf 33 times and would have been switched
-     * off, which is the only outcome worse than not having it.
+     * Anything held in a constant and translated where it renders -- t(s.label),
+     * t(b.description), t(group) -- reaches t() as a variable, so there is no
+     * literal at the call site and every one of them looked "stale".
+     *
+     * This used to chase the shapes one at a time: a `label:` property, then an
+     * object named *_LABELS. It still cried wolf, because the shapes kept
+     * coming -- `description:` and `group:` on keyboard bindings, the calendar's
+     * view names, the read-receipt refusals, the palette names. 41 reported,
+     * 10 of them real. A report that is three-quarters false is one nobody acts
+     * on, which is how these sat unread long enough to be worth a commit of
+     * their own.
+     *
+     * So: any string literal anywhere in the source counts as a use. That
+     * under-reports -- a literal that exists but is never passed to t() will not
+     * be flagged -- and that is the right way round. A missed stale key costs a
+     * line of dead translation; a false one costs the credibility of the whole
+     * check, and then every real finding with it.
+     */
+    if (ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n)) seen.add(n.text);
+    if (ts.isJsxText(n)) { const text = n.text.trim(); if (text) seen.add(text); }
+    /*
+     * A `label:` in a constant is still a string somebody has to translate --
+     * it reaches t() one render later -- so it stays part of what a catalogue
+     * owes, and out of coverage it would flatter the number.
      */
     if (ts.isPropertyAssignment(n) && n.name.getText(src) === "label" && ts.isStringLiteral(n.initializer)) wanted.add(n.initializer.text);
     if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && /_LABELS?$/.test(n.name.text)) {
@@ -58,6 +90,7 @@ for (const file of globSync("web/src/**/*.{ts,tsx}").filter((f) => !f.includes("
         // fallback, not a second obligation -- asking for both would report
         // work that does not exist.
         wanted.add(`${a0.text}\u0004${n.arguments[1].text}`);
+        seen.add(`${a0.text}\u0004${n.arguments[1].text}`);
       }
       if (fn === "plural" && n.arguments[1] && ts.isObjectLiteralExpression(n.arguments[1])) {
         for (const p of n.arguments[1].properties) {
@@ -105,15 +138,14 @@ for (const file of globSync("web/src/locales/*.ts")) {
     ts.forEachChild(n, visit);
   };
   visit(src);
-  const stale = [...have].filter((k) => !wanted.has(k) && !["one", "other", "few", "many", "zero", "two"].includes(k));
+  const stale = [...have].filter((k) => !seen.has(k) && !["one", "other", "few", "many", "zero", "two"].includes(k));
   const missing = [...wanted].filter((k) => !have.has(k));
   const pct = Math.round(((wanted.size - missing.length) / wanted.size) * 100);
   console.log(`${tag}: ${wanted.size - missing.length}/${wanted.size} translated (${pct}%), ${missing.length} falling back to English`);
   if (stale.length) {
     failed = true;
     console.log(`\n  ${stale.length} STALE key(s) — translated but never looked up, so they do nothing:`);
-    for (const k of stale.slice(0, 25)) console.log(`    ${JSON.stringify(k)}`);
-    if (stale.length > 25) console.log(`    …and ${stale.length - 25} more`);
+    for (const k of stale) console.log(`    ${JSON.stringify(k)}`);
   }
   if (process.argv.includes("--missing")) {
     console.log(`\n  missing:`);
