@@ -1547,7 +1547,13 @@ a.menu-item:hover { color: var(--fg); }
 .composer-dock { position: fixed; right: 16px; bottom: 0; display: flex; align-items: flex-end; gap: 12px; z-index: 955; pointer-events: none; }
 .composer { pointer-events: auto; width: 580px; max-width: calc(100vw - 32px); height: 600px; max-height: calc(100vh - 24px); display: flex; flex-direction: column; background: var(--bg-elev); border-radius: var(--radius-lg) var(--radius-lg) 0 0; box-shadow: var(--shadow-3); border: 1px solid var(--border); border-bottom: 0; overflow: hidden; animation: rise .2s var(--ease); }
 .composer.minimized { height: 44px; width: 280px; }
-.composer.maximized { position: fixed; inset: 24px; width: auto; height: auto; max-width: none; max-height: none; border-radius: var(--radius-lg); border-bottom: 1px solid var(--border); }
+/* Full screen is still a child of the dock, so without a layer of its own the
+   positioned parts of any composer after it in the DOM (its recipients row,
+   its editor) would paint straight over it. The others are hidden while one
+   is full screen: they cannot be reached anyway, and the strip left under the
+   24px inset would otherwise show their footers. */
+.composer.maximized { position: fixed; inset: 24px; z-index: 1; width: auto; height: auto; max-width: none; max-height: none; border-radius: var(--radius-lg); border-bottom: 1px solid var(--border); }
+.composer-dock.has-maximized > .composer:not(.maximized) { display: none; }
 .composer-head { display: flex; align-items: center; gap: 4px; height: 44px; padding: 0 6px 0 14px; background: var(--bg-sunken); border-bottom: 1px solid var(--border); flex: 0 0 auto; cursor: default; }
 .composer-head .title { flex: 1; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .composer-head .status { color: var(--fg-faint); font-size: .8em; margin-right: 6px; white-space: nowrap; }
