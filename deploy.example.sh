@@ -214,7 +214,23 @@ prune_old_images() {
   printf '%s\n' "$stale" | xargs -r docker rmi >/dev/null 2>&1 || true
 }
 
-VERSION="$(node scripts/version.mjs)"
+# The version is the same sum scripts/version.mjs does -- the commit's own
+# date, plus the pull request it arrived through or its short SHA -- done here
+# in shell because a host that only runs containers has git and docker and no
+# node. Given IHASMAIL_VERSION, use it as given, as the script would.
+version_from_git() {
+  local date subject sha y m d
+  date="$(git show -s --format=%cs HEAD)"
+  subject="$(git show -s --format=%s HEAD)"
+  sha="$(git rev-parse --short HEAD)"
+  IFS=- read -r y m d <<<"$date"
+  if [[ "$subject" =~ ^Merge\ pull\ request\ \#([0-9]+) ]]; then
+    printf '%d.%d.%d+pr%s\n' "$((10#$y))" "$((10#$m))" "$((10#$d))" "${BASH_REMATCH[1]}"
+  else
+    printf '%d.%d.%d+g%s\n' "$((10#$y))" "$((10#$m))" "$((10#$d))" "$sha"
+  fi
+}
+VERSION="${IHASMAIL_VERSION:-$(version_from_git)}"
 # A Docker tag may not contain "+", and every version has one now:
 # 2026.8.30+pr129, or +g1fa6578 for a commit that did not come through a pull
 # request. The image is tagged with the "+" turned into "-"; what the build is
