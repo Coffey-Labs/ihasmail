@@ -19,6 +19,9 @@ export const CAP = {
   websocket: "urn:ietf:params:jmap:websocket",
 } as const;
 
+/** Stalwart's own capability, which carries its `x:` registry methods. */
+export const STALWART_CAP = "urn:stalwart:jmap";
+
 export class JmapMethodError extends Error {
   constructor(
     public readonly method: string,
@@ -349,6 +352,9 @@ export class JmapClient {
 /** Map method name prefix → required capability URNs. */
 function usingFor(method: string): string[] {
   const type = method.split("/")[0] ?? "";
+  // Stalwart's registry: accounts, domains, credentials. Advertised per
+  // account rather than in the session, which supportedUsing() allows for.
+  if (type.startsWith("x:")) return [STALWART_CAP];
   switch (type) {
     case "Mailbox":
     case "Thread":

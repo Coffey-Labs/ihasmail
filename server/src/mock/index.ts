@@ -9,6 +9,7 @@ import { signedMessage, type SIGNED_MESSAGES } from "./signedMessages.js";
 import { expandOccurrences, occurrenceAt, occurrenceView, parseSyntheticId, splitOccurrencePatch, syntheticId, type Occurrence } from "./recurrence.js";
 import { parseOtpauthUrl, verifyTotp } from "../totp.js";
 import { holdUntilOf, undoStatusOf } from "./futurerelease.js";
+import { createDirectory, mockRole } from "./directory.js";
 
 const PORT = Number(process.env.MOCK_PORT ?? 8788);
 /**
@@ -885,6 +886,15 @@ function matchSubmissionFilter(sub: Obj, f: Obj | undefined): boolean {
   return true;
 }
 
+/** Who the demo user is, for administration. See mock/directory.ts. */
+const directory = createDirectory({
+  accountId: ACCOUNT,
+  user: USER,
+  locale: MOCK_LOCALE,
+  role: mockRole(process.env.MOCK_ROLE),
+  fail: (type, description) => new MethodError(type, description),
+});
+
 const handlers: Record<string, Handler> = {
   // 0.16 exposes the account locale here, under a permission ordinary users
   // actually have (unlike x:Account below, which needs sysAccountGet).
@@ -893,12 +903,10 @@ const handlers: Record<string, Handler> = {
     const list = ids.filter((id) => id === "singleton").map((id) => ({ id, locale: MOCK_LOCALE, timeZone: null, description: null }));
     return { accountId: ACCOUNT, state: String(state.n), list: list.map((x) => pick(x, a.properties as string[] | null)), notFound: ids.filter((id) => id !== "singleton") };
   },
-  // Stalwart's directory extension - the client reads the account locale from here.
-  "x:Account/get": (a) => {
-    const ids = (a.ids as string[] | null) ?? [ACCOUNT];
-    const list = ids.filter((id) => id === ACCOUNT).map((id) => ({ id, name: USER, locale: MOCK_LOCALE, timeZone: null }));
-    return { accountId: ACCOUNT, state: String(state.n), list, notFound: ids.filter((id) => id !== ACCOUNT) };
-  },
+  // Stalwart's directory registry: accounts, domains and roles, behind the
+  // same permissions as the real thing. The locale fallback reads x:Account
+  // too, and is refused here exactly when a real server would refuse it.
+  ...directory.handlers,
   "Mailbox/get": (a) => hideShareWithUnlessAsked(a, genericGet(mailboxes)(a) as { list: Obj[] }) as never,
   "Mailbox/set": (a) => { const r = genericSet(mailboxes, "m", (o) => Object.assign(o, { ...mb(o.id as string, o.name as string, null, (o.parentId as string) ?? null), ...o }))(a); recount(); return r; },
   "Mailbox/changes": () => ({ accountId: ACCOUNT, oldState: "1", newState: String(state.n), hasMoreChanges: false, created: [], updated: [], destroyed: [] }),
@@ -1413,7 +1421,7 @@ export const server = createServer(async (req, res) => {
   // The account info endpoint; the only place a server reports its edition.
   if (url.pathname === "/api/account" && req.method === "GET") {
     res.writeHead(200, { "content-type": "application/json" });
-    return res.end(JSON.stringify({ permissions: ["jmapEmailGet", "sysAccountSettingsGet"], edition: "oss", locale: MOCK_LOCALE }));
+    return res.end(JSON.stringify({ permissions: directory.permissions, edition: "oss", locale: MOCK_LOCALE }));
   }
   if (url.pathname === "/jmap/" && req.method === "POST") {
     const body = JSON.parse((await readBody(req)).toString()) as { methodCalls: [string, Obj, string][]; using?: string[] };

@@ -1674,6 +1674,62 @@ select optgroup { background-color: var(--bg-elev); color: var(--fg); }
 .sessions-table th { color: var(--fg-muted); font-weight: 600; font-size: .85em; }
 
 /* ==========================================================================
+   Administration
+   Settings' layout, with a table for the list and a panel beside it for the
+   one that is open. The panel is positioned against the layout rather than the
+   scrolling content, so it stays put while the list scrolls under it.
+   ========================================================================== */
+.admin-layout { position: relative; }
+.admin-content { max-width: 960px; }
+.admin-head { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.admin-head .grow { min-width: 220px; }
+.admin-toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+.admin-search { position: relative; flex: 1; max-width: 360px; }
+.admin-search svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--fg-faint); pointer-events: none; }
+.admin-search .input { width: 100%; padding-left: 34px; }
+.admin-table-wrap { border: 1px solid var(--border); border-radius: var(--radius); overflow-x: auto; }
+.admin-table { width: 100%; border-collapse: collapse; font-size: .93em; }
+.admin-table th { text-align: left; padding: 9px 12px; font-size: .78em; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--fg-faint); background: var(--bg-sunken); border-bottom: 1px solid var(--border); white-space: nowrap; }
+.admin-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.admin-table tbody tr:last-child td { border-bottom: 0; }
+.admin-table tbody tr { cursor: pointer; }
+.admin-table tbody tr:hover { background: var(--bg-hover); }
+.admin-table tbody tr.selected { background: var(--bg-active); }
+.admin-table tbody tr:focus-visible { outline: none; box-shadow: inset var(--focus-ring); }
+.admin-who { display: flex; align-items: center; gap: 10px; min-width: 200px; }
+.admin-who-name { font-weight: 550; display: flex; align-items: center; gap: 6px; }
+.admin-groups { display: block; max-width: 180px; }
+.admin-role { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 999px; font-size: .85em; font-weight: 550; white-space: nowrap; background: var(--bg-sunken); color: var(--fg-muted); }
+.admin-role.admin { background: var(--accent-soft); color: var(--accent-soft-fg); }
+.admin-role.custom { background: transparent; border: 1px solid var(--border-strong); }
+.admin-meter { min-width: 120px; }
+.admin-meter .quota-bar { margin: 0 0 4px; }
+.admin-pager { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: 8px; }
+.admin-pager .hint { margin-right: 8px; font-variant-numeric: tabular-nums; }
+.admin-count { margin-top: 8px; }
+.admin-notice { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--bg-sunken); color: var(--fg-muted); font-size: .92em; margin: 8px 0; }
+.admin-notice svg { flex: none; margin-top: 2px; }
+.admin-notice.warn { background: var(--warn-soft); color: var(--fg); }
+.admin-notice.warn svg { color: var(--warn); }
+.admin-notice.error { background: var(--danger-soft); color: var(--fg); }
+.admin-sheet { position: absolute; top: 0; right: 0; bottom: 0; width: min(460px, 100%); z-index: 20; display: flex; flex-direction: column; background: var(--bg-elev); border-left: 1px solid var(--border); box-shadow: var(--shadow-3); animation: admin-sheet-in .18s var(--ease); }
+@keyframes admin-sheet-in { from { transform: translateX(24px); opacity: 0; } }
+.admin-sheet-head { display: flex; align-items: center; gap: 12px; padding: 14px 12px 12px 20px; border-bottom: 1px solid var(--border); }
+.admin-sheet-head h2 { margin: 0; padding: 0; border: 0; font-size: 1.1em; font-weight: 650; }
+.admin-sheet-body { flex: 1; overflow-y: auto; padding: 4px 20px 24px; }
+.admin-sheet-body h3 { margin: 22px 0 10px; font-size: .78em; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--fg-faint); }
+.admin-sheet-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--border); }
+.admin-address .input:first-child { flex: 0 1 160px; min-width: 0; }
+.admin-address select.input { flex: 1; min-width: 0; }
+.admin-wide { width: 100%; }
+.admin-narrow { max-width: 140px; }
+.admin-danger { border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent); border-radius: var(--radius); padding: 12px 14px; }
+.admin-danger p { margin: 0 0 10px; color: var(--fg-muted); font-size: .92em; }
+.admin-danger-btn { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
+.admin-danger-btn:hover:not(:disabled) { background: var(--danger-soft); }
+@media (prefers-reduced-motion: reduce) { .admin-sheet { animation: none; } }
+
+/* ==========================================================================
    Contacts
    ========================================================================== */
 .contacts-layout { display: grid; grid-template-columns: 220px minmax(280px, 360px) 1fr; height: 100%; min-height: 0; flex: 1; }
@@ -1956,6 +2012,8 @@ select optgroup { background-color: var(--bg-elev); color: var(--fg); }
   .settings-layout.root .settings-nav { display: block; border-right: 0; }
   .settings-layout.root .settings-content { display: none; }
   .settings-content { --pad-b: 80px; padding: 16px 16px var(--pad-b); }
+  .admin-table .hide-mobile { display: none; }
+  .admin-sheet { width: 100%; border-left: 0; box-shadow: none; }
   .contacts-layout { grid-template-columns: 1fr; }
   .contacts-books { display: none; }
   .contacts-layout.detail .contacts-list { display: none; }
