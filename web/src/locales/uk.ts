@@ -101,6 +101,7 @@ export const catalog: Catalog = {
     "also {names}": "також {names}",
     "The server did not say whether the domain was created.": "Сервер не повідомив, чи створено домен.",
     // ── Administration: accounts ───────────────────────────────────
+    "Only on a device you've marked as your own. Sign in again with \u201cThis is my own device\u201d ticked.": "Лише на пристрої, позначеному як ваш. Увійдіть знову, позначивши «Це мій власний пристрій».",
     "Change your own password in {settings}.": "Власний пароль можна змінити в розділі {settings}.",
     "Administration": "Адміністрування",
     "Directory": "Каталог",

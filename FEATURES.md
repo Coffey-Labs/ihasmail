@@ -1166,6 +1166,20 @@ For a role that can read domains (`sysDomainQuery`, `sysDomainGet`):
 Switching DNS, DKIM or certificate management between automatic and manual,
 and choosing a DNS or ACME provider, stay in Stalwart's own interface for now.
 
+## Only on your own device
+
+Administration is available only to a session signed in with **"This is my own
+device"** ticked. A borrowed laptop or a shared machine is exactly where nobody
+should be able to reset a password or remove a domain, and that tickbox is the
+one question the sign-in page already asks about where it is being used.
+
+It is enforced the same way as the switch below: an untrusted session is sent
+no permissions, and the JMAP proxy refuses registry methods beyond the account's
+own. The menu still shows **Administration** to an administrator in that
+session, greyed out, with the reason and what to do about it — signing in again
+with the box ticked — rather than losing the entry without a word. All the
+server tells that session is that the account administers, never what it may do.
+
 ## An operator can turn it off
 
 `ADMINISTRATION=0` at launch removes it for everyone, and not only from the
@@ -1373,6 +1387,7 @@ costs something to get wrong is the one that assumes the machine is yours.
 | Idle sign-out | after 5 minutes | none |
 | Kept on the computer | nothing | settings cache, recent addresses, username |
 | Background notifications | refused | available |
+| Administration | unavailable | available, if the role allows it |
 
 Local storage is gated on that answer for **reads** as well as writes — a
 machine trusted once still has residue, and honouring it would let a previous
