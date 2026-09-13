@@ -104,6 +104,7 @@ export const catalog: Catalog = {
     "also {names}": "別名: {names}",
     "The server did not say whether the domain was created.": "ドメインが作成されたかどうか、サーバーから応答がありませんでした。",
     // ── Administration: accounts ───────────────────────────────────
+    "Only on a device you've marked as your own. Sign in again with \u201cThis is my own device\u201d ticked.": "自分のデバイスとして指定した端末でのみ使えます。「これは自分のデバイスです」にチェックを入れて、もう一度サインインしてください。",
     "Change your own password in {settings}.": "ご自身のパスワードは{settings}で変更してください。",
     "Administration": "管理",
     "Directory": "ディレクトリ",

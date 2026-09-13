@@ -8,7 +8,7 @@ import { RESPONSE_ALREADY_SENT } from "@hono/node-server/utils/response";
 import { attach as pushAttach, attachRelay as pushAttachRelay, prepare as pushPrepare, receive as pushReceive, pushStatus } from "./push.js";
 import { getConnInfo } from "@hono/node-server/conninfo";
 import { config } from "./config.js";
-import { gateAdministration } from "./adminGate.js";
+import { administrationAllowed, gateAdministration, grantsAdministration } from "./adminGate.js";
 import { SessionStore, type SessionBackend, type LiveSession } from "./sessions.js";
 import { RateLimiter } from "./ratelimit.js";
 import { resolveClientIp } from "./clientip.js";
@@ -639,12 +639,13 @@ export function createApp(basePath = config.basePath): Hono<Env> {
       return c.json({ error: "unsupported_media_type" }, 415);
     }
     /*
-     * With administration switched off the body is read and checked before it
-     * goes anywhere; with it on, it streams straight through as it always has,
-     * so an installation that allows administration pays nothing for this.
+     * For a session that may not administer -- administration switched off, or
+     * a device not marked as the person's own -- the body is read and checked
+     * before it goes anywhere. A session that may streams straight through as
+     * it always has, and pays nothing for this.
      */
     let body: ReadableStream<Uint8Array> | string | null = c.req.raw.body;
-    if (!config.administration) {
+    if (!administrationAllowed(config.administration, session.remember)) {
       let raw: string;
       try {
         // Counted as it arrives: a chunked body carries no length to refuse up front.
@@ -654,9 +655,10 @@ export function createApp(basePath = config.basePath): Hono<Env> {
       }
       const gate = gateAdministration(raw);
       if (!gate.ok) {
-        return gate.method
-          ? c.json({ error: "administration_disabled", message: `Administration is turned off on this installation (${gate.method}).` }, 403)
-          : c.json({ error: "bad_request", message: "Not a JMAP request." }, 400);
+        if (!gate.method) return c.json({ error: "bad_request", message: "Not a JMAP request." }, 400);
+        return config.administration
+          ? c.json({ error: "administration_needs_own_device", message: `Administration is only available when signed in on a device marked as your own (${gate.method}).` }, 403)
+          : c.json({ error: "administration_disabled", message: `Administration is turned off on this installation (${gate.method}).` }, 403);
       }
       body = gate.body;
     }
@@ -865,14 +867,24 @@ function sessionExtras(session: LiveSession, info: AccountInfo = { locale: null,
       userLocale: info.locale,
       /** What the upstream server would tell us about itself. */
       server: { edition: info.edition },
-      /** Whether this installation offers administration at all (ADMINISTRATION). */
-      administration: config.administration,
+      /**
+       * Whether this session may administer: the installation offers it
+       * (ADMINISTRATION) and the person signed in on a device marked as their own.
+       */
+      administration: administrationAllowed(config.administration, session.remember),
+      /**
+       * An administrator signed in on a device not marked as their own, so the
+       * menu can say why Administration is unavailable rather than lose it
+       * without a word. Says only that the account administers, never what it
+       * may do.
+       */
+      administrationNeedsOwnDevice: config.administration && !session.remember && grantsAdministration(info.permissions),
       /**
        * The account's permissions on that server, so the client can offer
        * administration to those who have it. Stalwart still decides every call.
-       * Withheld when administration is off: nothing in the browser needs them.
+       * Withheld from a session that may not administer: nothing in it needs them.
        */
-      permissions: config.administration ? info.permissions : [],
+      permissions: administrationAllowed(config.administration, session.remember) ? info.permissions : [],
     },
   };
 }

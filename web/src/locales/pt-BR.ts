@@ -108,6 +108,7 @@ export const catalog: Catalog = {
     "also {names}": "também {names}",
     "The server did not say whether the domain was created.": "O servidor não informou se o domínio foi criado.",
     // ── Administration: accounts ───────────────────────────────────
+    "Only on a device you've marked as your own. Sign in again with \u201cThis is my own device\u201d ticked.": "Só em um dispositivo que você marcou como seu. Entre novamente com “Este dispositivo é meu” marcado.",
     "Change your own password in {settings}.": "Altere sua própria senha em {settings}.",
     "Administration": "Administração",
     "Directory": "Diretório",

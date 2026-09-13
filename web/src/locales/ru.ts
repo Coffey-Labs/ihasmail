@@ -107,6 +107,7 @@ export const catalog: Catalog = {
     "also {names}": "также {names}",
     "The server did not say whether the domain was created.": "Сервер не сообщил, создан ли домен.",
     // ── Administration: accounts ───────────────────────────────────
+    "Only on a device you've marked as your own. Sign in again with \u201cThis is my own device\u201d ticked.": "Только на устройстве, отмеченном как ваше. Войдите снова, отметив «Это моё личное устройство».",
     "Change your own password in {settings}.": "Свой пароль можно изменить в разделе {settings}.",
     "Administration": "Администрирование",
     "Directory": "Каталог",

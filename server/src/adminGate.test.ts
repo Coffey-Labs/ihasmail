@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { gateAdministration } from "./adminGate.js";
+import { administrationAllowed, gateAdministration, grantsAdministration, mayNameRegistryMethod } from "./adminGate.js";
 
 const req = (...methods: string[]) => JSON.stringify({ using: ["urn:ietf:params:jmap:core"], methodCalls: methods.map((m, i) => [m, {}, `c${i}`]) });
 
@@ -24,10 +24,41 @@ test("directory and server objects are refused, and named", () => {
   }
 });
 
-test("a body that cannot be read is refused rather than forwarded unchecked", () => {
-  assert.deepEqual(gateAdministration("{not json"), { ok: false, method: null });
+test("a body that could name a registry method and cannot be read is refused rather than forwarded", () => {
+  assert.deepEqual(gateAdministration('{"methodCalls": [["x:Account/get"'), { ok: false, method: null });
   assert.deepEqual(gateAdministration(JSON.stringify({ methodCalls: "x:Account/get" })), { ok: false, method: null });
-  assert.deepEqual(gateAdministration(JSON.stringify({ methodCalls: [[{}, {}, "c"]] })), { ok: false, method: null });
+  assert.deepEqual(gateAdministration(JSON.stringify({ methodCalls: [[{}, {}, "c"]], note: "x:" })), { ok: false, method: null });
+});
+
+test("a body that cannot name a registry method is forwarded exactly as it came", () => {
+  // Most traffic from a session that may not administer: no parse, no rewrite.
+  const raw = '{"using":["urn:ietf:params:jmap:core"],"methodCalls":[["Email/get",{"ids":["a"]},"c"]]}';
+  assert.equal(mayNameRegistryMethod(raw), false);
+  assert.deepEqual(gateAdministration(raw), { ok: true, body: raw });
+});
+
+test("a method name hidden behind a unicode escape is still found", () => {
+  // JSON.parse and the server both read \u0078 as "x"; a substring check alone would not.
+  const raw = '{"methodCalls":[["\\u0078:Account/get",{},"c"]]}';
+  assert.equal(mayNameRegistryMethod(raw), true);
+  assert.deepEqual(gateAdministration(raw), { ok: false, method: "x:Account/get" });
+});
+
+/**
+ * The operator's rule: administration only from a session signed in with
+ * "This is my own device" ticked, and never when the installation turned it off.
+ */
+test("administration needs both the installation and a device marked as the person's own", () => {
+  assert.equal(administrationAllowed(true, true), true);
+  assert.equal(administrationAllowed(true, false), false);
+  assert.equal(administrationAllowed(false, true), false);
+});
+
+test("an account counts as an administrator by the same test the menu makes", () => {
+  assert.equal(grantsAdministration(["sysAccountQuery", "sysAccountGet"]), true);
+  assert.equal(grantsAdministration(["sysDomainQuery", "sysDomainGet"]), true);
+  assert.equal(grantsAdministration(["sysAccountQuery", "sysDomainGet"]), false);
+  assert.equal(grantsAdministration(["jmapEmailGet", "sysAccountSettingsGet"]), false);
 });
 
 test("what is forwarded is what was checked", () => {

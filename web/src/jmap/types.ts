@@ -39,8 +39,13 @@ export interface JmapSession {
       /** "oss" | "community" | "enterprise". Stalwart publishes no version. */
       edition?: string | null;
     };
-    /** False when the operator has turned in-app administration off. */
+    /**
+     * False when this session may not administer: the operator turned it off,
+     * or the session was signed in without "This is my own device".
+     */
     administration?: boolean;
+    /** An administrator on a device not marked as their own; the menu says so. */
+    administrationNeedsOwnDevice?: boolean;
     /**
      * The account's effective permissions on that server, as Stalwart reports
      * them. What the client offers is shaped by these; what is allowed is

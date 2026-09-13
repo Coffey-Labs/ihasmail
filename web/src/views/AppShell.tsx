@@ -46,6 +46,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const appName = useSession((s) => s.session?.ihasmail?.appName) || DEFAULT_APP_NAME;
   const acctMenu = useMenu();
   const administers = hasAdministration(usePermissions());
+  const needsOwnDevice = useSession((s) => Boolean(s.session?.ihasmail?.administrationNeedsOwnDevice));
   /*
    * "Go to folder" (#233), hosted here rather than in the mail view because
    * the `g` shortcuts are global: pressing it from the calendar should still
@@ -163,6 +164,21 @@ export function AppShell({ children }: { children: ReactNode }) {
             {/* Only for an account whose Stalwart role manages other accounts.
                 Nobody else is shown an entry that would open onto refusals. */}
             {administers && <MenuItem icon={<ShieldCheck size={16} />} label={t("Administration")} active={section === "admin"} onClick={() => navigate("/admin")} />}
+            {/* An administrator who signed in without "This is my own device". The
+                server withholds administration from that session, so the entry is
+                shown dead with the reason, rather than gone without one. */}
+            {!administers && needsOwnDevice && (
+              <MenuItem
+                icon={<ShieldCheck size={16} />}
+                disabled
+                label={
+                  <>
+                    <span style={{ display: "block" }}>{t("Administration")}</span>
+                    <span className="hint" style={{ display: "block", whiteSpace: "normal" }}>{t("Only on a device you've marked as your own. Sign in again with “This is my own device” ticked.")}</span>
+                  </>
+                }
+              />
+            )}
             <MenuItem icon={<RefreshCw size={16} />} label={t("Refresh")} onClick={() => window.location.reload()} />
             <MenuItem icon={<LogOut size={16} />} label={t("Sign out")} onClick={() => void logout()} />
           </Popover>

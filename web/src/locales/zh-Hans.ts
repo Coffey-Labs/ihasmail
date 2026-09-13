@@ -103,6 +103,7 @@ export const catalog: Catalog = {
     "also {names}": "别名：{names}",
     "The server did not say whether the domain was created.": "服务器没有说明域名是否已创建。",
     // ── Administration: accounts ───────────────────────────────────
+    "Only on a device you've marked as your own. Sign in again with \u201cThis is my own device\u201d ticked.": "仅限在您标记为自己设备的设备上使用。请勾选「这是我自己的设备」后重新登录。",
     "Change your own password in {settings}.": "请在{settings}中更改您自己的密码。",
     "Administration": "管理",
     "Directory": "目录",

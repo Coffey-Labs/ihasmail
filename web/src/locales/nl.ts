@@ -101,6 +101,7 @@ export const catalog: Catalog = {
     "also {names}": "ook {names}",
     "The server did not say whether the domain was created.": "De server heeft niet gemeld of het domein is aangemaakt.",
     // ── Administration: accounts ───────────────────────────────────
+    "Only on a device you've marked as your own. Sign in again with \u201cThis is my own device\u201d ticked.": "Alleen op een apparaat dat u als uw eigen apparaat hebt aangemerkt. Log opnieuw in met ‘Dit is mijn eigen apparaat’ aangevinkt.",
     "Change your own password in {settings}.": "Wijzig uw eigen wachtwoord bij {settings}.",
     "Administration": "Beheer",
     "Directory": "Adreslijst",
