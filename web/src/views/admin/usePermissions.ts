@@ -11,6 +11,7 @@ import { permissionSet, type Permissions } from "@/lib/adminAccess";
  * everything that depends on it, whose requests could bring another refresh.
  */
 export function usePermissions(): Permissions {
-  const key = useSession((s) => (s.session?.ihasmail?.permissions ?? []).join(","));
+  // An installation with administration off sends none; this is belt and braces.
+  const key = useSession((s) => (s.session?.ihasmail?.administration === false ? "" : (s.session?.ihasmail?.permissions ?? []).join(",")));
   return useMemo(() => permissionSet(key ? key.split(",") : []), [key]);
 }

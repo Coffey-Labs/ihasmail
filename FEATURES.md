@@ -1140,6 +1140,16 @@ in as it. ihasmail shows any account that outranks the viewer read-only, and
 counts a role it cannot read as outranking rather than not. Nobody can change
 their own role or delete the account they are signed in with.
 
+## An operator can turn it off
+
+`ADMINISTRATION=0` at launch removes it for everyone, and not only from the
+menu. The permissions are no longer sent to the browser, and the JMAP proxy
+refuses Stalwart registry methods except the ones about the signed-in account
+itself — its password, app passwords, API keys, public keys, masked addresses
+and account settings. Without that, hiding the menu would leave an
+administrator's browser console able to make every call the menu made.
+Stalwart's own interface is unaffected; this decides what ihasmail offers.
+
 ## Stateless, as everything else
 
 Nothing new is stored anywhere. There is no admin route on ihasmail's server,
@@ -1521,6 +1531,7 @@ wizard, because either would be state.
 | `UPSTREAM_TIMEOUT` | `30000` | Milliseconds |
 | `MAX_UPLOAD_BYTES` | `52428800` | 50 MB |
 | `IMAGE_PROXY` | `1` | Privacy proxy for remote images |
+| `ADMINISTRATION` | `1` | Offer in-app administration to accounts whose Stalwart role allows it; `0` turns it off, in the proxy as well as the menu |
 | `LOGIN_RATE_LIMIT` | `10` | Attempts per window |
 | `COOKIE_NAME` | `ihm_session` | |
 | `APP_NAME` | `ihasmail` | Branding |

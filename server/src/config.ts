@@ -295,6 +295,13 @@ export const config = {
   upstreamTimeout: int("UPSTREAM_TIMEOUT", 30_000),
   maxUploadBytes: int("MAX_UPLOAD_BYTES", 50 * 1024 * 1024),
   imageProxy: bool("IMAGE_PROXY", true),
+  /*
+   * Whether ihasmail offers administration to accounts whose Stalwart role
+   * allows it. Off means off: no menu, no permissions sent to the browser, and
+   * the JMAP proxy refuses registry methods beyond the account's own -- see
+   * adminGate.ts. Stalwart's own interface is unaffected either way.
+   */
+  administration: bool("ADMINISTRATION", true),
   cookieName: env("COOKIE_NAME", "ihm_session"),
   staticDir: process.env.STATIC_DIR ?? fileURLToPath(new URL("../../web/dist", import.meta.url)),
   loginRateLimit: int("LOGIN_RATE_LIMIT", 10),

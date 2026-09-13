@@ -8,6 +8,7 @@ import { RESPONSE_ALREADY_SENT } from "@hono/node-server/utils/response";
 import { attach as pushAttach, attachRelay as pushAttachRelay, prepare as pushPrepare, receive as pushReceive, pushStatus } from "./push.js";
 import { getConnInfo } from "@hono/node-server/conninfo";
 import { config } from "./config.js";
+import { gateAdministration } from "./adminGate.js";
 import { SessionStore, type SessionBackend, type LiveSession } from "./sessions.js";
 import { RateLimiter } from "./ratelimit.js";
 import { resolveClientIp } from "./clientip.js";
@@ -633,6 +634,28 @@ export function createApp(basePath = config.basePath): Hono<Env> {
     if (!ct.toLowerCase().startsWith("application/json")) {
       return c.json({ error: "unsupported_media_type" }, 415);
     }
+    /*
+     * With administration switched off the body is read and checked before it
+     * goes anywhere; with it on, it streams straight through as it always has,
+     * so an installation that allows administration pays nothing for this.
+     */
+    let body: ReadableStream<Uint8Array> | string | null = c.req.raw.body;
+    if (!config.administration) {
+      let raw: string;
+      try {
+        // Counted as it arrives: a chunked body carries no length to refuse up front.
+        raw = c.req.raw.body ? await new Response(c.req.raw.body.pipeThrough(byteCap(MAX_GATED_REQUEST))).text() : "";
+      } catch {
+        return c.json({ error: "too_large" }, 413);
+      }
+      const gate = gateAdministration(raw);
+      if (!gate.ok) {
+        return gate.method
+          ? c.json({ error: "administration_disabled", message: `Administration is turned off on this installation (${gate.method}).` }, 403)
+          : c.json({ error: "bad_request", message: "Not a JMAP request." }, 400);
+      }
+      body = gate.body;
+    }
     try {
       const upstream = await getUpstreamSession(session.id, session.authorization, upstreamFor(session.username));
       const res = await fetch(absoluteUpstream(upstream.apiUrl, upstream.baseUrl), {
@@ -642,7 +665,7 @@ export function createApp(basePath = config.basePath): Hono<Env> {
           "content-type": "application/json",
           accept: "application/json",
         },
-        body: c.req.raw.body,
+        body,
         duplex: "half",
         signal: AbortSignal.timeout(config.upstreamTimeout),
       });
@@ -838,11 +861,14 @@ function sessionExtras(session: LiveSession, info: AccountInfo = { locale: null,
       userLocale: info.locale,
       /** What the upstream server would tell us about itself. */
       server: { edition: info.edition },
+      /** Whether this installation offers administration at all (ADMINISTRATION). */
+      administration: config.administration,
       /**
        * The account's permissions on that server, so the client can offer
        * administration to those who have it. Stalwart still decides every call.
+       * Withheld when administration is off: nothing in the browser needs them.
        */
-      permissions: info.permissions,
+      permissions: config.administration ? info.permissions : [],
     },
   };
 }
@@ -852,6 +878,12 @@ function sessionExtras(session: LiveSession, info: AccountInfo = { locale: null,
  * denylist: everything else it might set — cookies, auth challenges, CORS
  * grants — would be landing on *our* origin, where it means something else.
  */
+/**
+ * The largest JMAP request read into memory for the administration check.
+ * Stalwart's own default `maxSizeRequest` is 10 MB; uploads never come this way.
+ */
+const MAX_GATED_REQUEST = 16 * 1024 * 1024;
+
 const PASSTHROUGH_HEADERS = new Set(["content-type", "content-disposition", "content-language", "etag", "last-modified", "retry-after"]);
 
 /**
