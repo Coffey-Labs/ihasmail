@@ -1679,8 +1679,11 @@ select optgroup { background-color: var(--bg-elev); color: var(--fg); }
    one that is open. The panel is positioned against the layout rather than the
    scrolling content, so it stays put while the list scrolls under it.
    ========================================================================== */
-.admin-layout { position: relative; }
-.admin-content { max-width: 960px; }
+/* One column: the section list is in the folder pane (AdminNav), so the
+   table gets the width a second column would take. The height and scrolling
+   are what .settings-layout gave it. */
+.admin-layout { position: relative; height: 100%; min-height: 0; flex: 1; display: flex; flex-direction: column; }
+.admin-content { max-width: 1120px; flex: 1; min-height: 0; }
 .admin-head { display: flex; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
 .admin-head .grow { min-width: 220px; }
 .admin-toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }

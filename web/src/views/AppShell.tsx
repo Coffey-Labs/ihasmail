@@ -23,6 +23,7 @@ import { TranslateBoundary } from "@/ui/TranslateBoundary";
 import { t } from "@/lib/i18n";
 import { hasAdministration } from "@/lib/adminAccess";
 import { usePermissions } from "./admin/usePermissions";
+import { AdminNav } from "./admin/AdminNav";
 
 const PUSH_LABEL = {
   connected: "Live updates connected",
@@ -213,7 +214,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             {section === "contacts" && <ContactsSidebar />}
             {section === "files" && <FilesTree />}
             {section === "settings" && <div className="nav-section"><span>{t("Settings")}</span></div>}
-            {section === "admin" && <div className="nav-section"><span>{t("Administration")}</span></div>}
+            {section === "admin" && <AdminNav />}
           </div>
           {(section === "mail" || section === "search") && <QuotaBar />}
           <nav className="module-bar" aria-label={t("Go to")}>
