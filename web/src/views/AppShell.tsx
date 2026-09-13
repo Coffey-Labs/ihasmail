@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { BookOpen, Calendar, ChevronsUpDown, FolderOpen, Globe, HelpCircle, LogOut, Mail, Menu as MenuIcon, Moon, PenSquare, Plus, RefreshCw, Settings, Sun, Upload, Users, X } from "lucide-react";
+import { BookOpen, Calendar, ChevronsUpDown, FolderOpen, Globe, HelpCircle, LogOut, Mail, Menu as MenuIcon, Moon, PenSquare, Plus, RefreshCw, Settings, ShieldCheck, Sun, Upload, Users, X } from "lucide-react";
 import { useSession } from "@/store/session";
 import { withBase } from "@/lib/basePath";
 import { DEFAULT_APP_NAME } from "@/lib/brand";
@@ -21,6 +21,8 @@ import { formatSize } from "@/lib/format";
 import { collectShare } from "@/lib/shareTarget";
 import { TranslateBoundary } from "@/ui/TranslateBoundary";
 import { t } from "@/lib/i18n";
+import { hasAdministration } from "@/lib/adminAccess";
+import { usePermissions } from "./admin/usePermissions";
 
 const PUSH_LABEL = {
   connected: "Live updates connected",
@@ -42,6 +44,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const logout = useSession((s) => s.logout);
   const appName = useSession((s) => s.session?.ihasmail?.appName) || DEFAULT_APP_NAME;
   const acctMenu = useMenu();
+  const administers = hasAdministration(usePermissions());
   /*
    * "Go to folder" (#233), hosted here rather than in the mail view because
    * the `g` shortcuts are global: pressing it from the calendar should still
@@ -156,6 +159,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                 app there was no way back to it. */}
             <MenuItem icon={<Globe size={16} />} label={t("About ihasmail")} href="https://ihasmail.org" external />
             <MenuItem icon={<Settings size={16} />} label={t("Settings")} onClick={() => navigate("/settings")} />
+            {/* Only for an account whose Stalwart role manages other accounts.
+                Nobody else is shown an entry that would open onto refusals. */}
+            {administers && <MenuItem icon={<ShieldCheck size={16} />} label={t("Administration")} active={section === "admin"} onClick={() => navigate("/admin")} />}
             <MenuItem icon={<RefreshCw size={16} />} label={t("Refresh")} onClick={() => window.location.reload()} />
             <MenuItem icon={<LogOut size={16} />} label={t("Sign out")} onClick={() => void logout()} />
           </Popover>
@@ -207,6 +213,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             {section === "contacts" && <ContactsSidebar />}
             {section === "files" && <FilesTree />}
             {section === "settings" && <div className="nav-section"><span>{t("Settings")}</span></div>}
+            {section === "admin" && <div className="nav-section"><span>{t("Administration")}</span></div>}
           </div>
           {(section === "mail" || section === "search") && <QuotaBar />}
           <nav className="module-bar" aria-label={t("Go to")}>

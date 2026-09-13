@@ -33,8 +33,8 @@ test("an account with no locale set yields none, rather than a guess", () => {
 });
 
 test("neither answering leaves the locale unknown", () => {
-  assert.deepEqual(interpretAccountInfo([failed("s", "forbidden"), failed("a", "forbidden")]), { locale: null, edition: null });
-  assert.deepEqual(interpretAccountInfo([]), { locale: null, edition: null });
+  assert.deepEqual(interpretAccountInfo([failed("s", "forbidden"), failed("a", "forbidden")]), { locale: null, edition: null, permissions: [] });
+  assert.deepEqual(interpretAccountInfo([]), { locale: null, edition: null, permissions: [] });
 });
 
 test("locales that carry no language are dropped, not passed through", () => {
@@ -48,7 +48,7 @@ test("a server without the registry is not asked for anything", async () => {
   // fails the whole request rather than the one call.
   const session = { capabilities: { "urn:ietf:params:jmap:core": {}, "urn:ietf:params:jmap:mail": {} }, accounts: {}, primaryAccounts: {} };
   const info = await getAccountInfo("session-unsupported", "Basic x", session as never);
-  assert.deepEqual(info, { locale: null, edition: null });
+  assert.deepEqual(info, { locale: null, edition: null, permissions: [] });
 });
 
 test("no capabilities at all is treated the same way", async () => {

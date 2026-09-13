@@ -31,6 +31,8 @@ const ContactsView = lazy(() => import("@/views/contacts/ContactsView").then((m)
 const CalendarView = lazy(() => import("@/views/calendar/CalendarView").then((m) => ({ default: m.CalendarView })));
 const FilesView = lazy(() => import("@/views/files/FilesView").then((m) => ({ default: m.FilesView })));
 const SettingsView = lazy(() => import("@/views/settings/SettingsView").then((m) => ({ default: m.SettingsView })));
+// Only ever opened by the few who administer, so nobody else downloads it.
+const AdminView = lazy(() => import("@/views/admin/AdminView").then((m) => ({ default: m.AdminView })));
 
 export function App() {
   const status = useSession((s) => s.status);
@@ -305,6 +307,7 @@ function AuthedApp() {
           <Route path="/calendar/:view?/:date?">{(p) => <CalendarView view={p.view} date={p.date} />}</Route>
           <Route path="/files/:nodeId?">{(p) => <FilesView nodeId={p.nodeId} />}</Route>
           <Route path="/settings/:section?">{(p) => <SettingsView section={p.section} />}</Route>
+          <Route path="/admin/:section?/:id?">{(p) => <AdminView section={p.section} id={p.id} />}</Route>
           <Route path="/login">
             <Redirect to="/mail" />
           </Route>

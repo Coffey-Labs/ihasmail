@@ -132,11 +132,21 @@ export interface AccountInfo {
   locale: string | null;
   /** "oss" | "community" | "enterprise", where the server reports it. */
   edition: string | null;
+  /**
+   * The account's effective permissions, as Stalwart reports them for the
+   * credential in use. Empty when the server would not say.
+   *
+   * Carried to the browser so it can offer only what the account may do --
+   * administration above all. It is never a grant: Stalwart checks every call
+   * it is sent, and a list that is stale or wrong costs a refused request, not
+   * access.
+   */
+  permissions: string[];
 }
 
 const infoCache = new Map<string, { info: AccountInfo; fetchedAt: number }>();
 const INFO_CACHE_MS = 30 * 60_000;
-const EMPTY_INFO: AccountInfo = { locale: null, edition: null };
+const EMPTY_INFO: AccountInfo = { locale: null, edition: null, permissions: [] };
 
 /**
  * glibc modifiers that name a script rather than a dialect or a currency:
@@ -226,7 +236,7 @@ async function fetchAccountInfo(authorization: string, session: UpstreamSession)
 export function interpretAccountInfo(responses: [string, Record<string, unknown>, string][]): AccountInfo {
   const settings = responses.find((r) => r[2] === "s");
   const account = responses.find((r) => r[2] === "a");
-  return { locale: localeOf(settings) ?? localeOf(account), edition: null };
+  return { locale: localeOf(settings) ?? localeOf(account), edition: null, permissions: [] };
 }
 
 function localeOf(call: [string, Record<string, unknown>, string] | undefined): string | null {
@@ -237,21 +247,42 @@ function localeOf(call: [string, Record<string, unknown>, string] | undefined): 
 }
 
 /**
- * Which edition the server is running. Stalwart deliberately does not publish
- * its version number to clients, but 0.16 does report its edition here.
+ * Permission names in the form the source serialises them.
+ *
+ * Stalwart 0.16 builds `/api/account`'s list from the same enum as everything
+ * else, which serialises as camelCase (`sysAccountGet`). Its documentation and
+ * OpenAPI example show kebab-case (`sys-account-get`) instead. Until a live
+ * server settles which is true, both are read as the one form, so a check
+ * written against `sysAccountGet` holds either way.
  */
-async function fetchEdition(authorization: string, base: string): Promise<string | null> {
+export function normalizePermission(name: string): string {
+  return name.includes("-") ? name.replace(/-([a-z0-9])/g, (_m, c: string) => c.toUpperCase()) : name;
+}
+
+/**
+ * What the server says about the signed-in account: its edition and its
+ * effective permissions. Stalwart deliberately does not publish its version
+ * number to clients, but 0.16 reports both of these here.
+ */
+async function fetchServerAccount(authorization: string, base: string): Promise<Pick<AccountInfo, "edition" | "permissions">> {
   try {
     const res = await fetch(`${base}/api/account`, {
       headers: { authorization, accept: "application/json" },
       signal: AbortSignal.timeout(config.upstreamTimeout),
     });
-    if (!res.ok) return null;
-    const body = (await res.json()) as { edition?: unknown };
-    return typeof body.edition === "string" ? body.edition : null;
+    if (!res.ok) return { edition: null, permissions: [] };
+    return interpretServerAccount(await res.json());
   } catch {
-    return null;
+    return { edition: null, permissions: [] };
   }
+}
+
+export function interpretServerAccount(body: unknown): Pick<AccountInfo, "edition" | "permissions"> {
+  const b = (body ?? {}) as { edition?: unknown; permissions?: unknown };
+  const permissions = Array.isArray(b.permissions)
+    ? [...new Set(b.permissions.filter((p): p is string => typeof p === "string").map(normalizePermission))]
+    : [];
+  return { edition: typeof b.edition === "string" ? b.edition : null, permissions };
 }
 
 export async function getAccountInfo(sessionId: string, authorization: string, session: UpstreamSession): Promise<AccountInfo> {
@@ -260,7 +291,7 @@ export async function getAccountInfo(sessionId: string, authorization: string, s
   let info = EMPTY_INFO;
   try {
     info = await fetchAccountInfo(authorization, session);
-    info = { ...info, edition: await fetchEdition(authorization, session.baseUrl) };
+    info = { ...info, ...(await fetchServerAccount(authorization, session.baseUrl)) };
   } catch {
     /* all of this is a nicety - never fail the session over it */
   }

@@ -1093,6 +1093,68 @@ needed nothing in either half.
 
 ---
 
+# Administration
+
+An account whose Stalwart role manages other accounts finds **Administration**
+in the account menu, top right. Nobody else sees the entry, and the page
+redirects them to their mail if they type its address in.
+
+## What it offers is what the role allows
+
+At sign-in the server already asks Stalwart's `GET /api/account` for the
+edition; it now keeps the account's **permissions** from the same answer and
+hands them to the browser with the session. The menu appears for an account
+that can both query and read accounts (`sysAccountQuery`, `sysAccountGet`),
+and each control inside is there only when the matching permission is:
+**New account** with `sysAccountCreate`, editing with `sysAccountUpdate`,
+**Delete** with `sysAccountDestroy`. A system administrator, a tenant
+administrator and a custom helpdesk role each see the same screen shaped to
+what they can do.
+
+None of that is the security boundary. Every read and write is a JMAP `x:`
+call through the ordinary `/api/jmap` proxy, authenticated as the signed-in
+account, and Stalwart decides each one — scoping a tenant administrator's
+queries to their own tenant and refusing anything the role does not allow.
+The client's gating only avoids offering what would fail.
+
+## Accounts
+
+- **List and search** by name or address, fifty to a page, newest first — the
+  server's own order. Role, storage used against the limit, and groups at a
+  glance.
+- **Create** an account on any domain the role can see: display name, address,
+  a generated password to copy and pass on, role, and storage limit.
+- **Edit** the display name, other addresses (aliases), role and storage limit.
+  One save sends only what changed.
+- **Set a new password.** It goes into the account's existing password
+  credential, and signs the person out of every app and device using the old
+  one, because Stalwart ties every token to the password.
+- **Delete**, after typing the address to confirm. Stalwart removes the
+  mailbox's data in the background, and says so.
+
+Roles are offered only when the viewer holds every permission they carry,
+which is the check Stalwart makes on a grant. It does **not** make that check
+when only a password changes, or on a delete, so an account allowed to edit
+accounts could otherwise reset the password of one that can do more and sign
+in as it. ihasmail shows any account that outranks the viewer read-only, and
+counts a role it cannot read as outranking rather than not. Nobody can change
+their own role or delete the account they are signed in with.
+
+## Stateless, as everything else
+
+Nothing new is stored anywhere. There is no admin route on ihasmail's server,
+no database and no cache beyond the permissions list that rides along with the
+session information already kept for thirty minutes — so a role granted or
+taken away shows in the menu at the next sign-in or within half an hour, and in
+the meantime Stalwart refuses what is no longer allowed.
+
+Accounts is the first section. Groups, mailing lists, roles, domains (with
+their DNS records and DKIM keys) and tenants are Stalwart capabilities the same
+screen is laid out to take; reporting, queues, logs and server settings are
+deliberately out of scope.
+
+---
+
 # Live updates and notifications
 
 - **JMAP push over EventSource**, proxied by ihasmail's server so the browser
@@ -1543,6 +1605,12 @@ moves an occurrence renumbering the ids around it. Two switches:
 `MOCK_NO_FUTURE_RELEASE=1` advertises FUTURERELEASE and then drops every hold;
 `MOCK_NO_REGISTRY=1` omits the Stalwart capability so the sign-in refusal can be
 tested.
+
+Administration works against it too, with a directory of about thirty accounts
+behind the same permission names Stalwart uses. `MOCK_ROLE` decides who the
+demo user is: `admin` (the default), `tenant-admin`, `helpdesk` — a custom role
+that may view and edit accounts but not create or delete them — or `user`, who
+is not offered the menu at all.
 
 ---
 

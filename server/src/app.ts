@@ -824,7 +824,7 @@ function appPasswordName(c: Context): string {
   return `${config.appName} (${browser})`;
 }
 
-function sessionExtras(session: LiveSession, info: AccountInfo = { locale: null, edition: null }) {
+function sessionExtras(session: LiveSession, info: AccountInfo = { locale: null, edition: null, permissions: [] }) {
   return {
     ihasmail: {
       appName: config.appName,
@@ -838,6 +838,11 @@ function sessionExtras(session: LiveSession, info: AccountInfo = { locale: null,
       userLocale: info.locale,
       /** What the upstream server would tell us about itself. */
       server: { edition: info.edition },
+      /**
+       * The account's permissions on that server, so the client can offer
+       * administration to those who have it. Stalwart still decides every call.
+       */
+      permissions: info.permissions,
     },
   };
 }
