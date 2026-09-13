@@ -65,3 +65,31 @@ test("an administrator can delete an account, and a group with members is kept",
   assert.deepEqual((set({ destroy: ["u101"] }) as { destroyed: string[] }).destroyed, ["u101"]);
   assert.equal((set({ destroy: ["g1"] }) as { notDestroyed?: Record<string, { type: string }> }).notDestroyed?.g1?.type, "objectIsLinked");
 });
+
+test("a domain in use is kept, and names what uses it", () => {
+  const dir = make("admin");
+  const set = dir.handlers["x:Domain/set"]!;
+  const res = set({ destroy: ["d1"] }) as { notDestroyed?: Record<string, { type: string; linkedObjects: Array<{ object: string }> }> };
+  assert.equal(res.notDestroyed?.d1?.type, "objectIsLinked");
+  const kinds = new Set(res.notDestroyed?.d1?.linkedObjects.map((o) => o.object));
+  assert.deepEqual([...kinds].sort(), ["Account", "DkimSignature"]);
+});
+
+test("an unused domain goes once its keys do", () => {
+  const dir = make("admin");
+  const created = dir.handlers["x:Domain/set"]!({ create: { n: { name: "fresh.example" } } }) as { created: Record<string, { id: string }> };
+  const id = created.created.n!.id;
+  const keys = dir.handlers["x:DkimSignature/query"]!({ filter: { domainId: id } }) as { ids: string[] };
+  assert.equal(keys.ids.length, 1, "automatic DKIM makes a key straight away");
+  assert.equal((dir.handlers["x:Domain/set"]!({ destroy: [id] }) as { notDestroyed?: object }).notDestroyed !== undefined, true);
+  dir.handlers["x:DkimSignature/set"]!({ destroy: keys.ids });
+  assert.deepEqual((dir.handlers["x:Domain/set"]!({ destroy: [id] }) as { destroyed: string[] }).destroyed, [id]);
+});
+
+test("a domain's zone file is computed on read, with long keys split as the server splits them", () => {
+  const dir = make("admin");
+  const got = dir.handlers["x:Domain/get"]!({ ids: ["d1"], properties: ["name", "dnsZoneFile"] }) as { list: Array<{ dnsZoneFile: string }> };
+  const zone = got.list[0]!.dnsZoneFile;
+  assert.match(zone, /IN MX 10 /);
+  assert.match(zone, /_domainkey\.example\.com\. IN TXT \(\n {4}"/);
+});

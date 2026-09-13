@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ADMIN_BASELINE, can, canGrantRole, generatePassword, hasAdministration, outranks, permissionSet, resolveRoles, type RoleDef } from "@/lib/adminAccess";
+import { ADMIN_BASELINE, adminSections, can, canGrantRole, generatePassword, hasAdministration, outranks, permissionSet, resolveRoles, type RoleDef } from "@/lib/adminAccess";
 
 const set = (...p: string[]) => permissionSet(p);
 const everything = set(...ADMIN_BASELINE, "sysTenantGet", "jmapEmailGet", "impersonate");
@@ -17,6 +17,12 @@ describe("who is offered administration", () => {
     expect(hasAdministration(set("sysAccountQuery"))).toBe(false);
     expect(hasAdministration(set("sysAccountGet"))).toBe(false);
     expect(hasAdministration(permissionSet(undefined))).toBe(false);
+  });
+
+  it("offers each section only with both halves of reading it", () => {
+    expect(adminSections(set("sysDomainQuery", "sysDomainGet"))).toEqual(["domains"]);
+    expect(hasAdministration(set("sysDomainQuery", "sysDomainGet"))).toBe(true);
+    expect(adminSections(set("sysAccountQuery", "sysAccountGet", "sysDomainQuery"))).toEqual(["accounts"]);
   });
 
   it("reads one permission per object and operation", () => {

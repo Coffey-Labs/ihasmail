@@ -1104,8 +1104,8 @@ redirects them to their mail if they type its address in.
 At sign-in the server already asks Stalwart's `GET /api/account` for the
 edition; it now keeps the account's **permissions** from the same answer and
 hands them to the browser with the session. The menu appears for an account
-that can both query and read accounts (`sysAccountQuery`, `sysAccountGet`),
-and each control inside is there only when the matching permission is:
+that can query and read accounts (`sysAccountQuery`, `sysAccountGet`) or
+domains (`sysDomainQuery`, `sysDomainGet`), and each control inside is there only when the matching permission is:
 **New account** with `sysAccountCreate`, editing with `sysAccountUpdate`,
 **Delete** with `sysAccountDestroy`. A system administrator, a tenant
 administrator and a custom helpdesk role each see the same screen shaped to
@@ -1140,6 +1140,32 @@ in as it. ihasmail shows any account that outranks the viewer read-only, and
 counts a role it cannot read as outranking rather than not. Nobody can change
 their own role or delete the account they are signed in with.
 
+## Domains
+
+For a role that can read domains (`sysDomainQuery`, `sysDomainGet`):
+
+- **List and search**, with how many accounts use each domain and whether its
+  DNS records, DKIM keys and certificate are managed automatically or by hand.
+- **Add** a domain. Stalwart gives a new one automatic DKIM, so it has keys
+  straight away.
+- **Edit** the description, other names for the domain, the catch-all address,
+  and plus addressing (`name+anything@`). A plus-addressing rule set on the
+  server is shown and left alone.
+- **DNS records**, one per row with a copy button each, and the lot as a zone
+  file. Stalwart computes them per domain — MX, SPF, DKIM, DMARC, the service
+  records, MTA-STS, TLS reporting, CAA — and ihasmail joins a long DKIM record
+  back into the single value a DNS provider's form wants.
+- **DKIM keys** with their stage — signing, published and waiting, retiring —
+  read-only, because the server creates and rotates them itself when DKIM is
+  automatic, and a key added by hand needs its private key.
+- **Remove** a domain once nothing uses it. While accounts do, removal says how
+  many and stays unavailable. The domain's own DKIM keys go with it, since the
+  server will not remove a domain its keys still name — which also means a role
+  that cannot delete keys cannot remove a domain that has any.
+
+Switching DNS, DKIM or certificate management between automatic and manual,
+and choosing a DNS or ACME provider, stay in Stalwart's own interface for now.
+
 ## An operator can turn it off
 
 `ADMINISTRATION=0` at launch removes it for everyone, and not only from the
@@ -1158,10 +1184,9 @@ session information already kept for thirty minutes — so a role granted or
 taken away shows in the menu at the next sign-in or within half an hour, and in
 the meantime Stalwart refuses what is no longer allowed.
 
-Accounts is the first section. Groups, mailing lists, roles, domains (with
-their DNS records and DKIM keys) and tenants are Stalwart capabilities the same
-screen is laid out to take; reporting, queues, logs and server settings are
-deliberately out of scope.
+Accounts and domains are the first two sections. Groups, mailing lists, roles
+and tenants are Stalwart capabilities the same screen is laid out to take;
+reporting, queues, logs and server settings are deliberately out of scope.
 
 ---
 
@@ -1617,8 +1642,9 @@ moves an occurrence renumbering the ids around it. Two switches:
 `MOCK_NO_REGISTRY=1` omits the Stalwart capability so the sign-in refusal can be
 tested.
 
-Administration works against it too, with a directory of about thirty accounts
-behind the same permission names Stalwart uses. `MOCK_ROLE` decides who the
+Administration works against it too, with a directory of about thirty accounts,
+three domains with their DKIM keys and zone files, behind the same permission
+names Stalwart uses. `MOCK_ROLE` decides who the
 demo user is: `admin` (the default), `tenant-admin`, `helpdesk` — a custom role
 that may view and edit accounts but not create or delete them — or `user`, who
 is not offered the menu at all.

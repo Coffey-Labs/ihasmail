@@ -68,10 +68,55 @@ export function createDirectory(opts: Options) {
   const [userLocal, userDomain] = splitAddress(opts.user);
   let counter = 100;
 
+  const managed = (dns: boolean, dkim: boolean, certs: boolean) => ({
+    dnsManagement: dns ? { "@type": "Automatic", dnsServerId: "ns1", origin: null, publishRecords: {} } : { "@type": "Manual" },
+    dkimManagement: dkim ? { "@type": "Automatic", algorithms: { Dkim1Ed25519Sha256: true, Dkim1RsaSha256: true }, selectorTemplate: "v{version}-{algorithm}-{date-%Y%m%d}" } : { "@type": "Manual" },
+    certificateManagement: certs ? { "@type": "Automatic", acmeProviderId: "acme1", subjectAlternativeNames: {} } : { "@type": "Manual" },
+  });
+  const domain = (id: string, name: string, extra: Obj = {}): Obj => ({
+    id, name, aliases: {}, isEnabled: true, createdAt: "2026-06-01T09:00:00Z", description: null, logo: null,
+    ...managed(false, true, false), memberTenantId: null, directoryId: null, catchAllAddress: null,
+    subAddressing: { "@type": "Enabled" }, allowRelaying: false, reportAddressUri: "mailto:postmaster", allowScimProvisioning: false, ...extra,
+  });
   const domains: Obj[] = [
-    { id: "d1", name: userDomain, aliases: {}, description: null },
-    { id: "d2", name: userDomain === "example.org" ? "example.net" : "example.org", aliases: {}, description: null },
+    domain("d1", userDomain, { ...managed(true, true, true), aliases: { [`mail.${userDomain}`]: true }, description: "Main domain" }),
+    domain("d2", userDomain === "example.org" ? "example.net" : "example.org", { catchAllAddress: `postmaster@${userDomain}` }),
+    domain("d3", "old-brand.example", { ...managed(false, false, false), description: "No longer used", subAddressing: { "@type": "Custom", customRule: "..." } }),
   ];
+  const dkimKeys: Obj[] = [
+    { id: "k1", "@type": "Dkim1Ed25519Sha256", domainId: "d1", selector: "v1-ed25519-20260601", stage: "active", createdAt: "2026-06-01T09:00:00Z", nextTransitionAt: "2026-08-30T09:00:00Z", memberTenantId: null },
+    { id: "k2", "@type": "Dkim1RsaSha256", domainId: "d1", selector: "v1-rsa-20260601", stage: "active", createdAt: "2026-06-01T09:00:00Z", nextTransitionAt: "2026-08-30T09:00:00Z", memberTenantId: null },
+    { id: "k3", "@type": "Dkim1Ed25519Sha256", domainId: "d2", selector: "v1-ed25519-20260710", stage: "active", createdAt: "2026-07-10T09:00:00Z", nextTransitionAt: null, memberTenantId: null },
+  ];
+  /** What Stalwart's BIND serialiser writes, including a TXT long enough to be split. */
+  const zoneFile = (d: Obj): string => {
+    const n = String(d.name);
+    const lines = [
+      `${n}. IN MX 10 mail.${userDomain}.`,
+      `${n}. IN TXT "v=spf1 mx ra=postmaster -all"`,
+    ];
+    for (const k of dkimKeys.filter((k) => k.domainId === d.id && k.stage !== "retired")) {
+      if (String(k["@type"]).includes("Rsa")) {
+        const p = "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA" + "x".repeat(300) + "IDAQAB";
+        const txt = `v=DKIM1; k=rsa; h=sha256; p=${p}`;
+        lines.push(`${k.selector}._domainkey.${n}. IN TXT (`, ...(txt.match(/.{1,255}/g) ?? []).map((c) => `    "${c}"`), ")");
+      } else {
+        lines.push(`${k.selector}._domainkey.${n}. IN TXT "v=DKIM1; k=ed25519; h=sha256; p=11qYAYKxCrfVS/7TyWQHOg7hcvPapiMlrwIaaPcHURo="`);
+      }
+    }
+    lines.push(
+      `_dmarc.${n}. IN TXT "v=DMARC1; p=reject; rua=mailto:postmaster@${n}; ruf=mailto:postmaster@${n}"`,
+      `_jmap._tcp.${n}. IN SRV 0 1 443 mail.${userDomain}.`,
+      `_submissions._tcp.${n}. IN SRV 0 1 465 mail.${userDomain}.`,
+      `_imaps._tcp.${n}. IN SRV 0 1 993 mail.${userDomain}.`,
+      `mta-sts.${n}. IN CNAME mail.${userDomain}.`,
+      `_mta-sts.${n}. IN TXT "v=STSv1; id=16837364213434767412"`,
+      `_smtp._tls.${n}. IN TXT "v=TLSRPTv1; rua=mailto:postmaster@${n}"`,
+      `autoconfig.${n}. IN CNAME mail.${userDomain}.`,
+      `${n}. IN CAA 0 issue "letsencrypt.org"`,
+    );
+    return lines.join("\n") + "\n";
+  };
 
   const roles: Obj[] = [
     { id: "r1", description: "User", enabledPermissions: flags(USER_PERMISSIONS), disabledPermissions: {}, roleIds: {} },
@@ -133,7 +178,9 @@ export function createDirectory(opts: Options) {
     accounts.some((a) => a.id !== except && (addressOf(a) === address || Object.values((a.aliases as Obj) ?? {}).some((al) => `${(al as Obj).name}@${domainName((al as Obj).domainId)}` === address)));
 
   const view = (o: Obj, properties: unknown): Obj => {
-    const full: Obj = { ...o, emailAddress: addressOf(o) };
+    const full: Obj = { ...o };
+    if (accounts.includes(o)) full.emailAddress = addressOf(o);
+    if (domains.includes(o)) full.dnsZoneFile = zoneFile(o);
     if (full.credentials) {
       full.credentials = Object.fromEntries(Object.entries(full.credentials as Obj).map(([k, c]) => [k, { ...(c as Obj), secret: MASKED }]));
     }
@@ -273,6 +320,67 @@ export function createDirectory(opts: Options) {
     },
     "x:Domain/get": get(domains, "sysDomainGet"),
     "x:Domain/query": query(() => domains, "sysDomainQuery", (o, f) => matchText(o, f.text) && matchText(o, f.name)),
+    "x:Domain/set": (a) => {
+      const created: Obj = {};
+      const notCreated: Obj = {};
+      const updated: Obj = {};
+      const notUpdated: Obj = {};
+      const destroyed: string[] = [];
+      const notDestroyed: Obj = {};
+      const taken = (name: string, except?: string) => domains.some((d) => d.id !== except && (d.name === name || Object.keys((d.aliases as Obj) ?? {}).includes(name)));
+      for (const [cid, raw] of Object.entries((a.create as Obj) ?? {})) {
+        demand("sysDomainCreate");
+        const o = raw as Obj;
+        const name = String(o.name ?? "");
+        if (!/^([a-z0-9-]+\.)+[a-z0-9-]{2,}$/.test(name)) { notCreated[cid] = setError("invalidProperties", "Invalid domain name.", ["name"]); continue; }
+        if (taken(name)) { notCreated[cid] = setError("primaryKeyViolation", "A domain with this name already exists.", ["name"]); continue; }
+        const id = `d${counter++}`;
+        domains.push(domain(id, name, { ...o, id, createdAt: new Date().toISOString().replace(/\.\d{3}Z$/, "Z") }));
+        // Automatic DKIM, the default, makes its keys straight away.
+        dkimKeys.push({ id: `k${counter++}`, "@type": "Dkim1Ed25519Sha256", domainId: id, selector: "v1-ed25519-20260913", stage: "active", createdAt: new Date().toISOString(), nextTransitionAt: null, memberTenantId: null });
+        created[cid] = { id };
+      }
+      for (const [id, raw] of Object.entries((a.update as Obj) ?? {})) {
+        demand("sysDomainUpdate");
+        const target = domains.find((d) => d.id === id);
+        if (!target) { notUpdated[id] = setError("notFound", "Domain not found."); continue; }
+        const next = structuredClone(target);
+        for (const [path, value] of Object.entries(raw as Obj)) setPointer(next, path, value);
+        const clash = Object.keys((next.aliases as Obj) ?? {}).find((alias) => alias === next.name || taken(alias, id));
+        if (clash) { notUpdated[id] = setError("primaryKeyViolation", `The name ${clash} is already in use.`, ["aliases"]); continue; }
+        Object.assign(target, next);
+        updated[id] = null;
+      }
+      for (const id of (a.destroy as string[]) ?? []) {
+        demand("sysDomainDestroy");
+        const i = domains.findIndex((d) => d.id === id);
+        if (i < 0) { notDestroyed[id] = setError("notFound", "Domain not found."); continue; }
+        const linked = [
+          ...accounts.filter((x) => x.domainId === id || Object.values((x.aliases as Obj) ?? {}).some((al) => (al as Obj).domainId === id)).map((x) => ({ object: "Account", id: x.id })),
+          ...dkimKeys.filter((k) => k.domainId === id).map((k) => ({ object: "DkimSignature", id: k.id })),
+        ];
+        if (linked.length) { notDestroyed[id] = { ...setError("objectIsLinked", "Object is linked to other objects."), linkedObjects: linked }; continue; }
+        domains.splice(i, 1);
+        destroyed.push(id);
+      }
+      return { accountId: opts.accountId, oldState: "1", newState: "2", created, updated, destroyed, ...(Object.keys(notCreated).length ? { notCreated } : {}), ...(Object.keys(notUpdated).length ? { notUpdated } : {}), ...(Object.keys(notDestroyed).length ? { notDestroyed } : {}) };
+    },
+    "x:DkimSignature/get": get(dkimKeys, "sysDkimSignatureGet"),
+    "x:DkimSignature/query": query(() => dkimKeys, "sysDkimSignatureQuery", (o, f) => f.domainId === undefined || o.domainId === f.domainId),
+    "x:DkimSignature/set": (a) => {
+      const destroyed: string[] = [];
+      for (const id of (a.destroy as string[]) ?? []) {
+        demand("sysDkimSignatureDestroy");
+        const i = dkimKeys.findIndex((k) => k.id === id);
+        if (i >= 0) { dkimKeys.splice(i, 1); destroyed.push(id); }
+      }
+      if (a.create) throw opts.fail("forbidden", "The mock does not generate DKIM keys; automatic management does that.");
+      return { accountId: opts.accountId, oldState: "1", newState: "2", created: {}, updated: {}, destroyed };
+    },
+    "x:DnsServer/get": (a) => {
+      demand("sysDnsServerGet");
+      return { accountId: opts.accountId, state: "1", list: ((a.ids as string[]) ?? ["ns1"]).filter((id) => id === "ns1").map((id) => ({ id, "@type": "Cloudflare", description: "Cloudflare (main zone)" })), notFound: [] };
+    },
     "x:Role/get": get(roles, "sysRoleGet"),
     "x:Role/query": query(() => roles, "sysRoleQuery", (o, f) => matchText(o, f.description)),
   };
