@@ -110,3 +110,32 @@ test("a shared account carrying the capability is enough to recognise the server
     true,
   );
 });
+
+/**
+ * With a domain mapped to its own Stalwart (#238), everything asked about the
+ * account has to go to that server. The locale lookup resolved Stalwart's
+ * `apiUrl` against the default server instead, so a mapped account's locale
+ * was requested from a server that had never heard of it.
+ */
+test("account info is asked of the server that issued the session", async () => {
+  const seen: string[] = [];
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: string | URL | Request) => {
+    seen.push(String(input instanceof Request ? input.url : input));
+    return new Response(JSON.stringify({ methodResponses: [], edition: "oss" }), { status: 200, headers: { "content-type": "application/json" } });
+  }) as typeof fetch;
+  try {
+    const session = {
+      capabilities: baseCaps,
+      accounts: { a1: { accountCapabilities: { [STALWART]: {} } } },
+      primaryAccounts: { [STALWART]: "a1" },
+      apiUrl: "https://mail.mapped.test/jmap/",
+      baseUrl: "https://mail.mapped.test",
+    };
+    await getAccountInfo("session-mapped-domain", "Basic x", session as never);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+  assert.ok(seen.length >= 2, "asks for both the locale and the edition");
+  for (const url of seen) assert.ok(url.startsWith("https://mail.mapped.test/"), `${url} went to the wrong server`);
+});

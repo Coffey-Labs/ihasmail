@@ -459,7 +459,11 @@ export function createApp(basePath = config.basePath): Hono<Env> {
    */
   const accountCtx = async (c: Context<Env>) => {
     const session = c.get("session");
-    const upstream = await getUpstreamSession(session.id, session.authorization);
+    // The account's own server. Without it, the first fetch after the cached
+    // session expires goes to STALWART_URL -- which, for a domain mapped
+    // elsewhere, either refuses the password or knows a different account by
+    // the same name (#238).
+    const upstream = await getUpstreamSession(session.id, session.authorization, upstreamFor(session.username));
     return { authorization: session.authorization, session: upstream, username: session.username };
   };
 
