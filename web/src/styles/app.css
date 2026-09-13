@@ -1727,6 +1727,15 @@ select optgroup { background-color: var(--bg-elev); color: var(--fg); }
 .admin-danger p { margin: 0 0 10px; color: var(--fg-muted); font-size: .92em; }
 .admin-danger-btn { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
 .admin-danger-btn:hover:not(:disabled) { background: var(--danger-soft); }
+.admin-dns { border: 1px solid var(--border); border-radius: var(--radius); }
+.admin-dns-row { display: flex; gap: 10px; align-items: flex-start; padding: 8px 8px 8px 10px; border-bottom: 1px solid var(--border); }
+.admin-dns-row:last-child { border-bottom: 0; }
+.admin-dns-type { flex: 0 0 48px; font-family: var(--font-mono); font-size: .78em; font-weight: 700; color: var(--accent-soft-fg); padding-top: 2px; }
+.admin-dns-name { font-size: .88em; font-weight: 550; word-break: break-all; }
+.admin-dns-value { display: block; font-family: var(--font-mono); font-size: .8em; color: var(--fg-muted); word-break: break-all; margin-top: 2px; max-height: 4.8em; overflow: hidden; }
+.admin-kv { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; align-items: center; margin: 0; font-size: .92em; }
+.admin-kv dt { color: var(--fg-muted); }
+.admin-kv dd { margin: 0; }
 @media (prefers-reduced-motion: reduce) { .admin-sheet { animation: none; } }
 
 /* ==========================================================================

@@ -27,14 +27,24 @@ export function can(perms: Permissions, object: AdminObject, op: AdminOp): boole
   return perms.has(`sys${object}${op}`);
 }
 
+export type AdminSection = "accounts" | "domains";
+
 /**
- * Whether to offer Administration at all.
+ * The sections an account may open, in the order they are listed.
  *
- * Accounts are the only section so far, and a list that cannot be opened is
- * not worth a menu entry, so it takes both halves of reading one.
+ * A list that cannot be read is not worth an entry, so each takes both halves
+ * of reading one: the query that finds the objects and the get that shows them.
  */
+export function adminSections(perms: Permissions): AdminSection[] {
+  const out: AdminSection[] = [];
+  if (can(perms, "Account", "Query") && can(perms, "Account", "Get")) out.push("accounts");
+  if (can(perms, "Domain", "Query") && can(perms, "Domain", "Get")) out.push("domains");
+  return out;
+}
+
+/** Whether to offer Administration at all: when there is a section to open. */
 export function hasAdministration(perms: Permissions): boolean {
-  return can(perms, "Account", "Query") && can(perms, "Account", "Get");
+  return adminSections(perms).length > 0;
 }
 
 /**
