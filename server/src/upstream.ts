@@ -198,7 +198,9 @@ async function fetchAccountInfo(authorization: string, session: UpstreamSession)
     session.primaryAccounts?.["urn:ietf:params:jmap:mail"] ??
     Object.keys(session.accounts ?? {})[0];
   if (!accountId) return EMPTY_INFO;
-  const res = await fetch(absoluteUpstream(session.apiUrl), {
+  // Against the server that issued this session, not the default: with a
+  // domain mapped elsewhere, the default has never heard of the account.
+  const res = await fetch(absoluteUpstream(session.apiUrl, session.baseUrl), {
     method: "POST",
     headers: { authorization, "content-type": "application/json", accept: "application/json" },
     body: JSON.stringify({
