@@ -197,10 +197,19 @@ export function createDirectory(opts: Options) {
     return { accountId: opts.accountId, state: "1", list: found.map((x) => view(x, a.properties)), notFound: ids ? ids.filter((id) => !list.some((x) => x.id === id)) : [] };
   };
 
-  const query = (list: () => Obj[], perm: string, match: (o: Obj, filter: Obj) => boolean) => (a: Obj) => {
+  /**
+   * A query, filtered only on what the real server indexes for that object.
+   * Any other name is refused the way Stalwart refuses it -- `unsupportedFilter`
+   * with the name as the whole description -- because a mock that took
+   * `{"type": "User"}` let exactly that ship, and the live server answers it
+   * with "unsupportedFilter - type".
+   */
+  const query = (list: () => Obj[], perm: string, filterable: string[], match: (o: Obj, filter: Obj) => boolean) => (a: Obj) => {
     demand(perm);
     const filter = (a.filter as Obj | undefined) ?? {};
     if ("operator" in filter) throw opts.fail("unsupportedFilter", "Only AND is supported in filters");
+    const unknown = Object.keys(filter).find((k) => !filterable.includes(k));
+    if (unknown) throw opts.fail("unsupportedFilter", unknown);
     // Stalwart's default order is newest first, by id.
     const rows = list().filter((o) => match(o, filter)).sort((x, y) => String(y.id).localeCompare(String(x.id), undefined, { numeric: true }));
     const position = Math.max(0, Number(a.position ?? 0));
@@ -245,8 +254,8 @@ export function createDirectory(opts: Options) {
 
   const handlers: Record<string, (a: Obj) => Obj> = {
     "x:Account/get": get(accounts, "sysAccountGet"),
-    "x:Account/query": query(() => accounts, "sysAccountQuery", (o, f) =>
-      (f.type === undefined || o["@type"] === f.type) && (f.domainId === undefined || o.domainId === f.domainId) && matchText(o, f.text) && matchText(o, f.name)),
+    "x:Account/query": query(() => accounts, "sysAccountQuery", ["text", "@type", "domainId", "externalId", "memberGroupIds", "memberTenantId", "name"], (o, f) =>
+      (f["@type"] === undefined || o["@type"] === f["@type"]) && (f.domainId === undefined || o.domainId === f.domainId) && matchText(o, f.text) && matchText(o, f.name)),
     "x:Account/set": (a) => {
       const created: Obj = {};
       const notCreated: Obj = {};
@@ -319,7 +328,7 @@ export function createDirectory(opts: Options) {
       return { accountId: opts.accountId, oldState: "1", newState: "2", created, updated, destroyed, ...(Object.keys(notCreated).length ? { notCreated } : {}), ...(Object.keys(notUpdated).length ? { notUpdated } : {}), ...(Object.keys(notDestroyed).length ? { notDestroyed } : {}) };
     },
     "x:Domain/get": get(domains, "sysDomainGet"),
-    "x:Domain/query": query(() => domains, "sysDomainQuery", (o, f) => matchText(o, f.text) && matchText(o, f.name)),
+    "x:Domain/query": query(() => domains, "sysDomainQuery", ["text", "aliases", "memberTenantId", "name"], (o, f) => matchText(o, f.text) && matchText(o, f.name)),
     "x:Domain/set": (a) => {
       const created: Obj = {};
       const notCreated: Obj = {};
@@ -366,7 +375,7 @@ export function createDirectory(opts: Options) {
       return { accountId: opts.accountId, oldState: "1", newState: "2", created, updated, destroyed, ...(Object.keys(notCreated).length ? { notCreated } : {}), ...(Object.keys(notUpdated).length ? { notUpdated } : {}), ...(Object.keys(notDestroyed).length ? { notDestroyed } : {}) };
     },
     "x:DkimSignature/get": get(dkimKeys, "sysDkimSignatureGet"),
-    "x:DkimSignature/query": query(() => dkimKeys, "sysDkimSignatureQuery", (o, f) => f.domainId === undefined || o.domainId === f.domainId),
+    "x:DkimSignature/query": query(() => dkimKeys, "sysDkimSignatureQuery", ["domainId", "memberTenantId"], (o, f) => f.domainId === undefined || o.domainId === f.domainId),
     "x:DkimSignature/set": (a) => {
       const destroyed: string[] = [];
       for (const id of (a.destroy as string[]) ?? []) {
@@ -382,7 +391,7 @@ export function createDirectory(opts: Options) {
       return { accountId: opts.accountId, state: "1", list: ((a.ids as string[]) ?? ["ns1"]).filter((id) => id === "ns1").map((id) => ({ id, "@type": "Cloudflare", description: "Cloudflare (main zone)" })), notFound: [] };
     },
     "x:Role/get": get(roles, "sysRoleGet"),
-    "x:Role/query": query(() => roles, "sysRoleQuery", (o, f) => matchText(o, f.description)),
+    "x:Role/query": query(() => roles, "sysRoleQuery", ["text", "description", "memberTenantId"], (o, f) => matchText(o, f.description)),
   };
 
   return { handlers, permissions: [...permissions], accounts };

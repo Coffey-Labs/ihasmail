@@ -21,7 +21,7 @@ test("an ordinary user is refused the directory outright", () => {
 
 test("helpdesk may read and edit but not create or delete", () => {
   const dir = make("helpdesk");
-  const { ids } = dir.handlers["x:Account/query"]!({ filter: { type: "User" } }) as { ids: string[] };
+  const { ids } = dir.handlers["x:Account/query"]!({ filter: { "@type": "User" } }) as { ids: string[] };
   assert.ok(ids.length > 20);
   assert.throws(() => dir.handlers["x:Account/set"]!({ create: { n: { name: "x", domainId: "d1" } } }), (e: Refused) => e.type === "forbidden");
   assert.throws(() => dir.handlers["x:Account/set"]!({ destroy: [ids[0]] }), (e: Refused) => e.type === "forbidden");
@@ -29,11 +29,11 @@ test("helpdesk may read and edit but not create or delete", () => {
 
 test("queries page, count and match text the way the client asks", () => {
   const dir = make("admin");
-  const all = dir.handlers["x:Account/query"]!({ filter: { type: "User" }, calculateTotal: true }) as { ids: string[]; total: number };
-  const page = dir.handlers["x:Account/query"]!({ filter: { type: "User" }, position: 10, limit: 5, calculateTotal: true }) as { ids: string[]; total: number };
+  const all = dir.handlers["x:Account/query"]!({ filter: { "@type": "User" }, calculateTotal: true }) as { ids: string[]; total: number };
+  const page = dir.handlers["x:Account/query"]!({ filter: { "@type": "User" }, position: 10, limit: 5, calculateTotal: true }) as { ids: string[]; total: number };
   assert.equal(page.total, all.total);
   assert.deepEqual(page.ids, all.ids.slice(10, 15));
-  const ada = dir.handlers["x:Account/query"]!({ filter: { type: "User", text: "lovelace" } }) as { ids: string[] };
+  const ada = dir.handlers["x:Account/query"]!({ filter: { "@type": "User", text: "lovelace" } }) as { ids: string[] };
   assert.equal(ada.ids.length, 1);
   assert.throws(() => dir.handlers["x:Account/query"]!({ filter: { operator: "OR", conditions: [] } }), (e: Refused) => e.type === "unsupportedFilter");
 });
@@ -92,4 +92,11 @@ test("a domain's zone file is computed on read, with long keys split as the serv
   const zone = got.list[0]!.dnsZoneFile;
   assert.match(zone, /IN MX 10 /);
   assert.match(zone, /_domainkey\.example\.com\. IN TXT \(\n {4}"/);
+});
+
+test("a filter on a name the registry does not index is refused, as the live server refuses it", () => {
+  const dir = make("admin");
+  // Seen on a live 0.16 server: "x:Account/query: unsupportedFilter - type".
+  assert.throws(() => dir.handlers["x:Account/query"]!({ filter: { type: "User" } }), (e: Refused) => e.type === "unsupportedFilter" && e.message === "type");
+  assert.doesNotThrow(() => dir.handlers["x:Account/query"]!({ filter: { "@type": "Group", domainId: "d1", text: "x" } }));
 });
