@@ -73,6 +73,7 @@ More, including the mobile layout, on [ihasmail.org](https://ihasmail.org/#scree
 - **Nine new interface languages** — German, Spanish, French, Dutch, Portuguese (Brazil), Russian, Ukrainian, Simplified Chinese and Japanese, alongside English and separate from the date-and-time locale. Every one is marked **Beta**: they were made by AI and no native speaker has read them yet, which Settings says plainly, with a link for reporting anything wrong
 - **Twelve themes** — Classic and ihasmail's own, plus Catppuccin, Dracula, Gruvbox, Rosé Pine, Tokyo Night, Solarized, Ayu, Kanagawa, Everforest and Primer, each with the light and dark half its own project publishes. Palette and light-or-dark are separate choices, and the accent colour still sits on top of any of them. Only published colour values are used, taken from each project's own repository; the shades between them are derived and every text colour is measured against the surface it sits on, so a palette that would not meet the contrast this app claims is not written at all — see [Themes](FEATURES.md#themes)
 - **On a phone** — swipe a message to archive or delete it (either direction, your choice), hold one to select it, hold a folder for its menu, pull the list to refresh, swipe back from a conversation
+- **Administration** — for an account whose Stalwart role manages accounts or domains, from the account menu: create, edit and delete accounts and set their passwords; add domains, copy their DNS records one at a time or as a zone file, see their DKIM keys, and remove them once nothing uses them. Each control is there only when the role allows it, and Stalwart decides every call. Only for a session signed in with *This is my own device* ticked, and `ADMINISTRATION=0` turns it off for everyone — see [Administration](FEATURES.md#administration)
 - **Platform** — installable PWA, Web Push with ihasmail closed, `mailto:` handler, no credentials in the browser, strict CSP, SSRF-safe image proxy
 
 The long version is on [ihasmail.org](https://ihasmail.org/#features); how to
@@ -374,11 +375,12 @@ without a real mailbox. It reproduces the things a naive fake would get wrong,
 because each cost a live debugging session: `urn:stalwart:jmap` advertised
 **per-account** rather than session-level, identity signatures capped at 2047
 **bytes**, and `CalendarEvent/set` speaking Stalwart's vocabulary rather than
-RFC 8984's. Three switches: `MOCK_NO_FUTURE_RELEASE=1` advertises FUTURERELEASE
+RFC 8984's. Four switches: `MOCK_NO_FUTURE_RELEASE=1` advertises FUTURERELEASE
 and then drops every hold; `MOCK_NO_REGISTRY=1` omits the Stalwart capability so
 the sign-in refusal can be tested; and `MOCK_NO_SCHEDULING_SEND=1` refuses a
 calendar write that asks for scheduling messages, the way an account without
-that permission is refused.
+that permission is refused; and `MOCK_ROLE` decides who the demo user is for
+Administration — `admin` (the default), `tenant-admin`, `helpdesk` or `user`.
 
 It tracks the current release rather than 0.16 in general, and each behaviour
 is confirmed against a real server before it is copied here — the comments say
