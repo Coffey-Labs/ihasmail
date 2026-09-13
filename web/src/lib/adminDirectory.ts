@@ -19,7 +19,8 @@ import type { PermissionsMode, RoleDef, UserRoles } from "@/lib/adminAccess";
  *   `emailAddress` and `usedDiskQuota` are computed by the server.
  * - Secrets read back masked. A new password is written to the existing
  *   password credential, so its id -- which OAuth tokens are tied to -- stays.
- * - Filters are AND only, and the default order is newest first.
+ * - Filters are AND only, keyed by property name as it appears on the object
+ *   (`@type`, not `type`), and the default order is newest first.
  *
  * Query and get are two requests rather than one with a result reference.
  * Whether the registry methods resolve back-references has not been checked on
@@ -89,7 +90,9 @@ interface QueryResult {
 }
 
 export async function queryAccounts(opts: { type: "User" | "Group"; text?: string; position?: number; limit?: number }): Promise<{ ids: string[]; total: number }> {
-  const filter: Record<string, unknown> = { type: opts.type };
+  // The registry names the discriminator `@type`, as it is on the object. A
+  // plain `type` is not a property it knows and fails the whole query.
+  const filter: Record<string, unknown> = { "@type": opts.type };
   if (opts.text?.trim()) filter.text = opts.text.trim();
   const res = await client.call<QueryResult>("x:Account/query", {
     filter,

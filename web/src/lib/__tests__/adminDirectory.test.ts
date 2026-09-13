@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
-import { aliasList, describeDirectoryError, DirectoryError, hasPassword, passwordPatch, quotasWithDisk } from "@/lib/adminDirectory";
+import { describe, expect, it, vi } from "vitest";
+import { client } from "@/jmap/client";
+import { aliasList, describeDirectoryError, DirectoryError, hasPassword, passwordPatch, queryAccounts, quotasWithDisk } from "@/lib/adminDirectory";
 
 describe("setting a password", () => {
   it("writes into the existing password credential, keeping its place", () => {
@@ -41,5 +42,16 @@ describe("explaining a refusal", () => {
 
   it("handles a method-level refusal as well as a set error", () => {
     expect(describeDirectoryError({ type: "forbidden", message: "x:Account/set: forbidden" })).toMatch(/refused/);
+  });
+});
+
+describe("the account query", () => {
+  it("filters on @type, the property's name on the object", async () => {
+    // A live 0.16 server answers a plain `type` with "unsupportedFilter - type"
+    // and fails the whole list, which is how this was found.
+    const call = vi.spyOn(client, "call").mockResolvedValue({ ids: [], total: 0 });
+    await queryAccounts({ type: "User", text: " ada ", position: 50, limit: 50 });
+    expect(call).toHaveBeenCalledWith("x:Account/query", { filter: { "@type": "User", text: "ada" }, position: 50, limit: 50, calculateTotal: true });
+    call.mockRestore();
   });
 });
