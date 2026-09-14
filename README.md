@@ -33,6 +33,16 @@ durable belongs to Stalwart; the container is disposable.
 | 🧪 **[KNOWN-ISSUES.md](KNOWN-ISSUES.md)** | What was verified live, and where Stalwart departs from a spec |
 | 🛣 **[ROADMAP.md](ROADMAP.md)** | What ihasmail does not do, and why |
 
+### Companion tools
+
+Two tools for getting a Stalwart server ready for ihasmail, one for each place
+you might be starting from:
+
+| | Starting from | What it does |
+| --- | --- | --- |
+| 🚀 **[ihasmail-oneshot](https://github.com/Coffey-Labs/ihasmail-oneshot)** | **Nothing** — a fresh Linux host with Docker | One command deploys a new Stalwart and a new ihasmail on a single host, already linked: certificates for both, the first mailboxes, and the DNS records to publish. Or `--local` for a loopback-only pair to try it |
+| ⬆️ **[stalwart-migrator](https://github.com/Coffey-Labs/stalwart-migrator)** | **An existing Stalwart 0.15.5** server | Upgrades it in place to the 0.16 series ihasmail requires, checkpointing every phase so an interrupted run resumes, and validating the server afterwards. Take a snapshot first: it does not undo a migration |
+
 > **Releases are weekly, so `latest` normally lags `main`.** Automation builds
 > and publishes the GHCR image every **Monday at 09:00 UTC**, in a week that had
 > changes. Between one Monday and the next, `main` is ahead of the newest image
@@ -113,6 +123,10 @@ reproduces those four.
 - Upgrading? [stalwart-migrator](https://github.com/Coffey-Labs/stalwart-migrator) does it in place, checkpointing every phase and validating afterwards. The live instance moved 0.15.5 → 0.16.19 with eight seconds of downtime and nothing lost.
 
 ## Quick start (Docker)
+
+No Stalwart yet? [ihasmail-oneshot](https://github.com/Coffey-Labs/ihasmail-oneshot)
+sets up both on one host in a single command. The steps below are for pointing
+ihasmail at a Stalwart you already run.
 
 ```bash
 cp .env.example .env
