@@ -215,35 +215,83 @@ export function quotasWithDisk(quotas: Record<string, number> | undefined, bytes
 }
 
 /**
- * Say what went wrong in terms of the person's own action.
- *
- * Stalwart's descriptions are often exact and occasionally all there is -- a
- * password policy says what it wants, in English -- so a description is kept
- * where it carries something the type does not.
+ * The server's own wording for a value one of its validators refused, and
+ * what to say instead. These come from the registry's string validators
+ * (`crates/registry/src/types/string.rs`), which is the whole list: anything
+ * else Stalwart says about a value is picked up by the fallback below.
  */
-export function describeDirectoryError(err: unknown): string {
+const VALIDATOR_MESSAGES: Record<string, () => string> = {
+  "Invalid domain name": () => t("That isn't a valid domain name. Use a name such as example.com, on a real top-level domain."),
+  "Invalid email address": () => t("That isn't a valid email address. Use a full address, such as name@example.com."),
+  "Invalid email local part": () => t("That isn't a valid address. Use letters, numbers, dots, hyphens or underscores before the @."),
+  "Invalid hostname or IP address": () => t("That isn't a valid host name or IP address."),
+  "String cannot be empty": () => t("A required value was left empty."),
+};
+
+/** What kind of thing a refusal was about, where the wording has to differ. */
+export type DirectoryObject = "account" | "domain";
+
+/**
+ * Say what went wrong in terms of the person's own action, in their language.
+ *
+ * Stalwart explains a refusal in English, and its words are never shown as
+ * they are: an interface in German that answers in English reads as broken
+ * even when the English is exact. Every type the registry returns has its
+ * own message, and a value a validator refused is recognised by the
+ * validator's wording and said again here.
+ *
+ * One exception, on purpose. A password policy is the server's to set -- a
+ * length, a strength -- and there is no way to know its rule in advance to
+ * translate it, so its reason is kept after a translated sentence. Dropping it
+ * would leave "not accepted" with no way to find out why.
+ */
+export function describeDirectoryError(err: unknown, object: DirectoryObject = "account"): string {
   if (!(err instanceof DirectoryError)) {
-    const e = err as { type?: string; message?: string };
+    const e = err as { type?: string; code?: string; status?: number };
+    // ihasmail's own proxy, refusing for this session or this installation.
+    if (e?.code === "administration_needs_own_device") return t("Only on a device you've marked as your own. Sign in again with “This is my own device” ticked.");
+    if (e?.code === "administration_disabled") return t("Administration is turned off on this installation.");
+    if (e?.code === "network_error" || e?.status === 0) return t("Network error. Please check your connection.");
+    if (e?.code === "rate_limited" || e?.status === 429) return t("Too many attempts. Please wait a few minutes and try again.");
+    // A method-level JMAP error: the whole call was refused.
     if (e?.type === "forbidden") return t("The mail server refused this. Your role may not allow it.");
-    return e?.message ?? String(err);
+    if (e?.type) return t("The mail server could not carry out the request ({code}).", { code: e.type });
+    return t("The mail server could not carry out the request ({code}).", { code: e?.code ?? "error" });
   }
+  const description = err.description ?? "";
   switch (err.type) {
     case "forbidden":
-      return err.description ? t("The mail server refused this: {reason}", { reason: err.description }) : t("The mail server refused this. Your role may not allow it.");
+      if (/not authorized to grant/i.test(description)) return t("You can't give an account permissions your own role doesn't have.");
+      if (/external directory/i.test(description)) return t("This account signs in through an external directory, so its password can't be set here.");
+      if (/licen[cs]ed account limit/i.test(description)) return t("The server's licence allows no more accounts.");
+      return t("The mail server refused this. Your role may not allow it.");
     case "primaryKeyViolation":
-      return t("That address is already in use on this server, as an account, a list or an alias.");
+      return object === "domain"
+        ? t("That domain name is already in use on this server, as a domain or another domain's other name.")
+        : t("That address is already in use on this server, as an account, a list or an alias.");
     case "invalidForeignKey":
       return t("One of the chosen domain, role or group can't be used for this account.");
     case "overQuota":
-      return t("Your organisation has reached the number of accounts it is allowed.");
+      return object === "domain" ? t("Your organisation has reached the number of domains it is allowed.") : t("Your organisation has reached the number of accounts it is allowed.");
     case "objectIsLinked":
       return t("Something still depends on this, so the server kept it.");
     case "notFound":
-      return t("This account no longer exists. Someone may have deleted it.");
+      return object === "domain" ? t("This domain no longer exists. Someone may have removed it.") : t("This account no longer exists. Someone may have deleted it.");
+    case "rateLimit":
+      return t("Too many attempts. Please wait a few minutes and try again.");
+    case "tooLarge":
+      return t("That is more than the mail server accepts in one change.");
+    case "invalidPatch":
     case "invalidProperties":
-      if (err.properties.includes("secret")) return err.description ? t("The password was not accepted: {reason}", { reason: err.description }) : t("The password was not accepted.");
-      return err.description ? t("The mail server rejected a value: {reason}", { reason: err.description }) : t("The mail server rejected a value.");
+    case "validationFailed": {
+      if (err.properties.includes("secret")) {
+        return description ? t("The password was not accepted: {reason}", { reason: description }) : t("The password was not accepted.");
+      }
+      const known = VALIDATOR_MESSAGES[description];
+      if (known) return known();
+      return t("The mail server rejected one of the values. Check what you entered and try again.");
+    }
     default:
-      return err.description ?? err.type;
+      return t("The mail server refused the change ({code}).", { code: err.type });
   }
 }

@@ -98,7 +98,7 @@ export function DomainSheet({ id, accountCount, onClose, onChanged, onCreated, o
           void namesOf("DnsServer", [serverId]).then((n) => { if (!cancelled) setProvider(n.get(serverId) ?? null); }, () => {});
         }
       } catch (err) {
-        if (!cancelled) setLoadError(describeDirectoryError(err));
+        if (!cancelled) setLoadError(describeDirectoryError(err, "domain"));
       }
     })();
     return () => {
@@ -148,7 +148,7 @@ export function DomainSheet({ id, accountCount, onClose, onChanged, onCreated, o
       setRevision((n) => n + 1);
       onChanged();
     } catch (err) {
-      setError(describeDirectoryError(err));
+      setError(describeDirectoryError(err, "domain"));
     } finally {
       setBusy(false);
     }
@@ -389,7 +389,7 @@ function RemoveDomain({ domain, accountCount, keys, canRemoveKeys, onDeleted }: 
                   setError(
                     err instanceof DomainError && err.type === "objectIsLinked" && err.linked.length
                       ? t("The server kept the domain: it is still used by {things}.", { things: describeLinked(err.linked) })
-                      : describeDirectoryError(err),
+                      : describeDirectoryError(err, "domain"),
                   );
                 } finally {
                   setBusy(false);

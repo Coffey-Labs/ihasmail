@@ -55,3 +55,45 @@ describe("the account query", () => {
     call.mockRestore();
   });
 });
+
+/**
+ * Stalwart explains a refusal in English, and none of it should reach an
+ * interface in another language as it is. Each case below is a refusal a
+ * live server gave, or one its source says it gives.
+ */
+describe("refusals in the reader's language", () => {
+  it("recognises the registry's validators and says it again, without the server's words", () => {
+    // Live, 2026-09-13: a reserved TLD, and a catch-all without a domain.
+    const domain = describeDirectoryError(new DirectoryError("invalidPatch", "Invalid domain name", ["name"]), "domain");
+    expect(domain).toMatch(/isn't a valid domain name/);
+    expect(domain).not.toContain("Invalid domain name");
+    expect(describeDirectoryError(new DirectoryError("invalidPatch", "Invalid email address", ["catchAllAddress"]), "domain")).toMatch(/full address/);
+    expect(describeDirectoryError(new DirectoryError("invalidProperties", "Invalid email local part", ["name"]))).toMatch(/before the @/);
+  });
+
+  it("never echoes a description it does not know", () => {
+    const text = describeDirectoryError(new DirectoryError("invalidPatch", "Something only the server would say", ["whatever"]));
+    expect(text).not.toContain("Something only the server would say");
+    expect(describeDirectoryError(new DirectoryError("forbidden", "You are not allowed to do that thing"))).not.toContain("not allowed to do that thing");
+    expect(describeDirectoryError(new DirectoryError("someNewType", "Brand new English"))).not.toContain("Brand new English");
+  });
+
+  it("tells a grant refusal and a directory-backed account apart from a plain no", () => {
+    expect(describeDirectoryError(new DirectoryError("forbidden", "You are not authorized to grant permissions: sysDomainDestroy."))).toMatch(/permissions your own role/);
+    expect(describeDirectoryError(new DirectoryError("forbidden", "Cannot set credentials for accounts in an external directory."))).toMatch(/external directory/);
+  });
+
+  it("words a clash and a missing object for what it was about", () => {
+    expect(describeDirectoryError(new DirectoryError("primaryKeyViolation", undefined, ["name"]), "domain")).toMatch(/domain name is already in use/);
+    expect(describeDirectoryError(new DirectoryError("primaryKeyViolation", undefined))).toMatch(/address is already in use/);
+    expect(describeDirectoryError(new DirectoryError("notFound", undefined), "domain")).toMatch(/domain no longer exists/);
+  });
+
+  it("explains ihasmail's own refusals by their code, not their English message", () => {
+    const own = { status: 403, code: "administration_needs_own_device", message: "Administration is only available when signed in on a device marked as your own (x:Account/query)." };
+    expect(describeDirectoryError(own)).toMatch(/marked as your own/);
+    expect(describeDirectoryError(own)).not.toContain("x:Account/query");
+    expect(describeDirectoryError({ status: 403, code: "administration_disabled", message: "…" })).toMatch(/turned off/);
+    expect(describeDirectoryError({ method: "x:Account/query", type: "unsupportedFilter", message: "x:Account/query: unsupportedFilter - type" })).toBe("The mail server could not carry out the request (unsupportedFilter).");
+  });
+});
