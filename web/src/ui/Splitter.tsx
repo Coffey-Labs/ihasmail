@@ -7,15 +7,16 @@ interface Props {
   onEnd?: () => void;
   onReset?: () => void;
   ariaLabel?: string;
+  className?: string;
 }
 
 /** Drag handle between two panes. Calls onResize with the pointer delta since the last event. */
-export function Splitter({ direction, onResize, onEnd, onReset, ariaLabel }: Props) {
+export function Splitter({ direction, onResize, onEnd, onReset, ariaLabel, className }: Props) {
   const last = useRef(0);
   const active = useRef(false);
   return (
     <div
-      className={`splitter ${direction}`}
+      className={`splitter ${direction}${className ? ` ${className}` : ""}`}
       role="separator"
       aria-orientation={direction === "vertical" ? "vertical" : "horizontal"}
       aria-label={ariaLabel ?? t("Resize panes")}
@@ -47,8 +48,13 @@ export function Splitter({ direction, onResize, onEnd, onReset, ariaLabel }: Pro
         onEnd?.();
       }}
       onKeyDown={(e) => {
-        if (e.key === "ArrowLeft" || e.key === "ArrowUp") onResize(-24);
-        if (e.key === "ArrowRight" || e.key === "ArrowDown") onResize(24);
+        const step = e.key === "ArrowLeft" || e.key === "ArrowUp" ? -24 : e.key === "ArrowRight" || e.key === "ArrowDown" ? 24 : 0;
+        if (!step) return;
+        e.preventDefault();
+        // A key press is a whole drag in one: without the end, the size moved on
+        // screen and was never saved.
+        onResize(step);
+        onEnd?.();
       }}
     >
       <span className="splitter-grip" />

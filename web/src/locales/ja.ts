@@ -1193,6 +1193,8 @@ export const catalog: Catalog = {
     "Maximize": "最大化",
     "Full screen": "全画面",
     "Resize panes": "ペインの大きさを変更",
+    "Resize message list": "メール一覧の大きさを変更",
+    "Resize sidebar": "サイドバーの大きさを変更",
     "QR code": "QR コード",
     "Draft discarded": "下書きを破棄しました",
     "Draft saved": "下書きを保存しました",

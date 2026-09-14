@@ -1282,8 +1282,17 @@ a.menu-item:hover { color: var(--fg); }
 @keyframes push-pulse { 50% { opacity: .45; } }
 @media (prefers-reduced-motion: reduce) { .push-dot.connecting { animation: none; } }
 
-.app-body { display: grid; grid-template-columns: var(--sidebar-w) minmax(0, 1fr); min-height: 0; transition: grid-template-columns .2s var(--ease); }
+.app-body { position: relative; display: grid; grid-template-columns: var(--sidebar-w) minmax(0, 1fr); min-height: 0; transition: grid-template-columns .2s var(--ease); }
 .app-body.collapsed { grid-template-columns: var(--sidebar-w-collapsed) minmax(0, 1fr); }
+/* A drag follows the pointer; the ease is for the collapse toggle, and applied
+   to every frame of a drag it leaves the edge trailing behind the hand. */
+.app-body.resizing, .app-body.resizing > .sidebar-splitter { transition: none; }
+/* The sidebar edge (#345). Laid over the seam rather than given a grid column:
+   the sidebar and the content meet at the content's own border, and a 6px
+   bar of border colour between them would draw a line the design never had.
+   Out of the flow, it shows only on hover and focus, like the list splitter. */
+.app-body > .sidebar-splitter { position: absolute; top: 0; bottom: 0; left: calc(var(--sidebar-w) - 3px); background: transparent; transition: left .2s var(--ease); }
+.app-body > .sidebar-splitter:hover, .app-body > .sidebar-splitter:focus-visible { background: var(--accent); }
 .sidebar { display: flex; flex-direction: column; min-height: 0; padding: 4px 8px 8px 8px; gap: 2px; overflow: hidden; }
 .sidebar-scroll { overflow-y: auto; overflow-x: hidden; flex: 1; min-height: 0; padding-bottom: 8px; }
 .compose-btn { display: flex; align-items: center; gap: 12px; height: 52px; padding: 0 22px 0 18px; margin: 6px 4px 12px; border-radius: 16px; background: var(--bg-elev); box-shadow: var(--shadow-1); font-weight: 600; font-size: 1em; color: var(--fg); transition: box-shadow .15s, transform .05s, background .12s; white-space: nowrap; }

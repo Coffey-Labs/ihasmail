@@ -1190,6 +1190,8 @@ export const catalog: Catalog = {
     "Maximize": "Agrandir",
     "Full screen": "Plein écran",
     "Resize panes": "Redimensionner les volets",
+    "Resize message list": "Redimensionner la liste des messages",
+    "Resize sidebar": "Redimensionner la barre latérale",
     "QR code": "QR code",
     "Draft discarded": "Brouillon abandonné",
     "Draft saved": "Brouillon enregistré",

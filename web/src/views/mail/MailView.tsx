@@ -385,18 +385,24 @@ export function MailView({ mailboxId, threadId, search }: { mailboxId?: string; 
   const layoutRef = useRef<HTMLDivElement>(null);
   const updateSettings = useSettings((s) => s.update);
   const [liveSize, setLiveSize] = useState<number | null>(null);
+  // Mirrors liveSize for the end of a key press, which follows the resize in
+  // the same tick -- before the state could have come back round.
+  const liveSizeRef = useRef<number | null>(null);
   const paneSize = liveSize ?? (settings.readingPane === "bottom" ? settings.listPaneHeight : settings.listPaneWidth);
   const onSplit = (delta: number) => {
     const el = layoutRef.current;
     const total = el ? (settings.readingPane === "bottom" ? el.clientHeight : el.clientWidth) : 1200;
     const min = settings.readingPane === "bottom" ? 160 : 320;
     const max = Math.max(min, total - (settings.readingPane === "bottom" ? 200 : 420));
-    setLiveSize((cur) => Math.min(max, Math.max(min, (cur ?? paneSize) + delta)));
+    const next = Math.min(max, Math.max(min, (liveSizeRef.current ?? paneSize) + delta));
+    liveSizeRef.current = next;
+    setLiveSize(next);
   };
   const onSplitEnd = () => {
-    if (liveSize == null) return;
-    updateSettings(settings.readingPane === "bottom" ? { listPaneHeight: liveSize } : { listPaneWidth: liveSize });
+    const size = liveSizeRef.current;
+    liveSizeRef.current = null;
     setLiveSize(null);
+    if (size != null) updateSettings(settings.readingPane === "bottom" ? { listPaneHeight: size } : { listPaneWidth: size });
   };
 
   return (
@@ -416,7 +422,7 @@ export function MailView({ mailboxId, threadId, search }: { mailboxId?: string; 
         />
       )}
       {showList && showReading && settings.readingPane !== "off" && !narrow && (
-        <Splitter direction={settings.readingPane === "bottom" ? "horizontal" : "vertical"} onResize={onSplit} onEnd={onSplitEnd} onReset={() => updateSettings(settings.readingPane === "bottom" ? { listPaneHeight: 340 } : { listPaneWidth: 520 })} ariaLabel="Resize message list" />
+        <Splitter direction={settings.readingPane === "bottom" ? "horizontal" : "vertical"} onResize={onSplit} onEnd={onSplitEnd} onReset={() => updateSettings(settings.readingPane === "bottom" ? { listPaneHeight: 340 } : { listPaneWidth: 520 })} ariaLabel={translate("Resize message list")} />
       )}
       {showReading && (
         <div className="mail-reading-pane">
