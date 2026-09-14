@@ -47,7 +47,7 @@ export function DomainsAdmin({ selectedId }: { selectedId?: string }) {
       } catch (err) {
         if (!cancelled) {
           setPage({ domains: [], total: 0 });
-          setError(describeDirectoryError(err));
+          setError(describeDirectoryError(err, "domain"));
         }
       }
     })();

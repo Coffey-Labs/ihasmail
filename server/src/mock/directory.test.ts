@@ -77,7 +77,7 @@ test("a domain in use is kept, and names what uses it", () => {
 
 test("an unused domain goes once its keys do", () => {
   const dir = make("admin");
-  const created = dir.handlers["x:Domain/set"]!({ create: { n: { name: "fresh.example" } } }) as { created: Record<string, { id: string }> };
+  const created = dir.handlers["x:Domain/set"]!({ create: { n: { name: "fresh.example.net" } } }) as { created: Record<string, { id: string }> };
   const id = created.created.n!.id;
   const keys = dir.handlers["x:DkimSignature/query"]!({ filter: { domainId: id } }) as { ids: string[] };
   assert.equal(keys.ids.length, 1, "automatic DKIM makes a key straight away");
@@ -99,4 +99,13 @@ test("a filter on a name the registry does not index is refused, as the live ser
   // Seen on a live 0.16 server: "x:Account/query: unsupportedFilter - type".
   assert.throws(() => dir.handlers["x:Account/query"]!({ filter: { type: "User" } }), (e: Refused) => e.type === "unsupportedFilter" && e.message === "type");
   assert.doesNotThrow(() => dir.handlers["x:Account/query"]!({ filter: { "@type": "Group", domainId: "d1", text: "x" } }));
+});
+
+test("the domain validators refuse what the live server refused, in its words", () => {
+  const dir = make("admin");
+  const set = dir.handlers["x:Domain/set"]!;
+  const created = set({ create: { n: { name: "admin-test.example" } } }) as { notCreated?: Record<string, { type: string; description: string }> };
+  assert.deepEqual([created.notCreated?.n?.type, created.notCreated?.n?.description], ["invalidPatch", "Invalid domain name"]);
+  const updated = set({ update: { d2: { catchAllAddress: "postmaster" } } }) as { notUpdated?: Record<string, { type: string; description: string }> };
+  assert.deepEqual([updated.notUpdated?.d2?.type, updated.notUpdated?.d2?.description], ["invalidPatch", "Invalid email address"]);
 });

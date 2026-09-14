@@ -341,7 +341,9 @@ export function createDirectory(opts: Options) {
         demand("sysDomainCreate");
         const o = raw as Obj;
         const name = String(o.name ?? "");
-        if (!/^([a-z0-9-]+\.)+[a-z0-9-]{2,}$/.test(name)) { notCreated[cid] = setError("invalidProperties", "Invalid domain name.", ["name"]); continue; }
+        // Live on 2026-09-13: a reserved TLD is refused by the registry's
+        // domain validator, as invalidPatch with the validator's own words.
+        if (!/^([a-z0-9-]+\.)+[a-z0-9-]{2,}$/.test(name) || /\.(example|test|invalid|localhost)$/.test(name)) { notCreated[cid] = setError("invalidPatch", "Invalid domain name", ["name"]); continue; }
         if (taken(name)) { notCreated[cid] = setError("primaryKeyViolation", "A domain with this name already exists.", ["name"]); continue; }
         const id = `d${counter++}`;
         domains.push(domain(id, name, { ...o, id, createdAt: new Date().toISOString().replace(/\.\d{3}Z$/, "Z") }));
@@ -355,6 +357,8 @@ export function createDirectory(opts: Options) {
         if (!target) { notUpdated[id] = setError("notFound", "Domain not found."); continue; }
         const next = structuredClone(target);
         for (const [path, value] of Object.entries(raw as Obj)) setPointer(next, path, value);
+        // Live on 2026-09-13: a catch-all that is not a whole address.
+        if (typeof next.catchAllAddress === "string" && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(next.catchAllAddress)) { notUpdated[id] = setError("invalidPatch", "Invalid email address", ["catchAllAddress"]); continue; }
         const clash = Object.keys((next.aliases as Obj) ?? {}).find((alias) => alias === next.name || taken(alias, id));
         if (clash) { notUpdated[id] = setError("primaryKeyViolation", `The name ${clash} is already in use.`, ["aliases"]); continue; }
         Object.assign(target, next);
