@@ -239,7 +239,7 @@ export function DateField({ value, onChange, className, disabled, required, id, 
         <CalIcon size={15} />
       </button>
       {anchor && (
-        <Popover anchor={anchor} onClose={() => { setAnchor(null); inputRef.current?.focus(); }} role="dialog" className="dp-pop" closeOnClick={false} ariaLabel="Choose a date">
+        <Popover anchor={anchor} onClose={() => { setAnchor(null); inputRef.current?.focus(); }} role="dialog" className="dp-pop" closeOnClick={false} ariaLabel={translate("Choose a date")}>
           <CalendarGrid
             selected={selected}
             onClose={() => { setAnchor(null); inputRef.current?.focus(); }}
@@ -335,7 +335,7 @@ export function DateTimeField({ value, onChange, className, disabled, required, 
         <span className="dp-open" aria-hidden="true"><Clock size={15} /></span>
       </span>
       {anchor && (
-        <Popover anchor={anchor} onClose={close} role="dialog" className="dp-pop dp-pop-wide" closeOnClick={false} ariaLabel="Choose a date and time">
+        <Popover anchor={anchor} onClose={close} role="dialog" className="dp-pop dp-pop-wide" closeOnClick={false} ariaLabel={translate("Choose a date and time")}>
           <div className="dp-split">
             <CalendarGrid
               selected={valid}

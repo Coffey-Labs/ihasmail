@@ -40,7 +40,13 @@ const UI_PROPS = new Set([
   "title", "message", "label", "confirmLabel", "cancelLabel", "ariaLabel",
   "placeholder", "hint", "occurrenceLabel", "occurrenceHint", "seriesLabel", "seriesHint",
 ]);
-const UI_ATTRS = new Set(["title", "aria-label", "placeholder", "alt"]);
+/*
+ * A JSX attribute is shown whether it lands on an element or on a component:
+ * `<MenuItem label="Collapse all">` renders its label as given, exactly as
+ * `<button title="…">` does. Checking only the DOM spellings let every
+ * component prop through, so the props are checked here too.
+ */
+const UI_ATTRS = new Set(["title", "aria-label", "placeholder", "alt", ...UI_PROPS]);
 const TOASTS = new Set(["error", "success", "info", "show"]);
 const WRAPPERS = ["t", "tc", "tNode", "translate", "plural"];
 const EQUALITY = new Set([
@@ -74,8 +80,15 @@ const keys = new Set();
 const found = [];
 for (const file of globSync("web/src/**/*.{ts,tsx}").filter((f) => !f.includes("__tests__") && !f.includes("/locales/"))) {
   const src = ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  const report = (node, text) => {
-    if (!looksLikeUi(text) || keys.has(text) || NEVER_TRANSLATED.has(text)) return;
+  /*
+   * `strict` withdraws the catalogue-key exemption. It exists for English held
+   * in a constant and translated where it renders; a literal written straight
+   * into a JSX attribute has no later render site to be translated at -- no
+   * component here passes its props through t() -- so being a key only means
+   * a translation exists that this string never reaches.
+   */
+  const report = (node, text, strict = false) => {
+    if (!looksLikeUi(text) || (!strict && keys.has(text)) || NEVER_TRANSLATED.has(text)) return;
     const { line } = src.getLineAndCharacterOfPosition(node.getStart(src));
     found.push({ file, line: line + 1, text });
   };
@@ -110,7 +123,7 @@ for (const file of globSync("web/src/**/*.{ts,tsx}").filter((f) => !f.includes("
     }
     if (ts.isJsxAttribute(n) && n.initializer && UI_ATTRS.has(n.name.getText(src))) {
       const walk = (x) => {
-        if (ts.isStringLiteral(x) && !wrapped.has(x)) report(x, x.text);
+        if (ts.isStringLiteral(x) && !wrapped.has(x)) report(x, x.text, true);
         if (!ts.isCallExpression(x)) ts.forEachChild(x, walk);
       };
       walk(n.initializer);

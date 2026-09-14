@@ -289,7 +289,7 @@ export function Composer({ draft }: { draft: Draft }) {
             <button className="btn btn-primary" onClick={sendMenu.open} aria-label={translate("Send options")}><ChevronDown size={16} /></button>
           </span>
           <Popover anchor={sendMenu.anchor} onClose={sendMenu.close} side="top" width={280}>
-            <MenuItem icon={<Send size={16} />} label={d.sendAt !== null ? "Send now instead" : "Send"} kbd={d.sendAt !== null ? undefined : "Ctrl+↵"} onClick={() => { if (d.sendAt !== null) patch({ sendAt: null }); sendMenu.close(); void doSend(); }} />
+            <MenuItem icon={<Send size={16} />} label={d.sendAt !== null ? translate("Send now instead") : translate("Send")} kbd={d.sendAt !== null ? undefined : "Ctrl+↵"} onClick={() => { if (d.sendAt !== null) patch({ sendAt: null }); sendMenu.close(); void doSend(); }} />
             <MenuItem icon={<Clock size={16} />} label={translate("Undo window: {seconds}s", { seconds: settings.undoSendSeconds })} onClick={() => updateSettings({ undoSendSeconds: settings.undoSendSeconds >= 30 ? 0 : settings.undoSendSeconds + 5 })} />
             {canSchedule && <ScheduleMenuItems maxMs={scheduleMax} onPick={scheduleFor} onCustom={() => { sendMenu.close(); setScheduleOpen(true); }} />}
           </Popover>
@@ -323,7 +323,7 @@ export function Composer({ draft }: { draft: Draft }) {
             </Popover>
             <button className="icon-btn" onClick={moreMenu.open} aria-label={translate("More options")}><MoreVertical size={18} /></button>
             <Popover anchor={moreMenu.anchor} onClose={moreMenu.close} side="top" width={260}>
-              <MenuItem icon={<Type size={16} />} label={d.format === "html" ? "Switch to plain text" : "Switch to rich text"} onClick={toggleFormat} />
+              <MenuItem icon={<Type size={16} />} label={d.format === "html" ? translate("Switch to plain text") : translate("Switch to rich text")} onClick={toggleFormat} />
               <MenuItem icon={<CheckCheck size={16} />} label={translate("Request read receipt")} checked={d.requestReceipt} onClick={() => patch({ requestReceipt: !d.requestReceipt })} />
               <MenuSep />
               <MenuTitle>{translate("Priority")}</MenuTitle>

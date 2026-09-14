@@ -338,7 +338,7 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
             the other three rather than down among the read-only actions. */}
         <MenuItem icon={<MailPlus size={16} />} label={translate("Compose as new")} onClick={() => void useCompose.getState().composeAsNew(e)} />
         <MenuSep />
-        <MenuItem icon={<Mail size={16} />} label={e.keywords.$seen ? "Mark as unread" : "Mark as read"} onClick={() => void useMail.getState().markRead([e.id], !e.keywords.$seen)} />
+        <MenuItem icon={<Mail size={16} />} label={e.keywords.$seen ? translate("Mark as unread") : translate("Mark as read")} onClick={() => void useMail.getState().markRead([e.id], !e.keywords.$seen)} />
         <MenuItem icon={<Trash2 size={16} />} label={translate("Delete this message")} onClick={() => void useMail.getState().trash([e.id])} />
         <MenuSep />
         <MenuItem icon={<Eye size={16} />} label={translate("Show original")} onClick={() => void openSource()} />
@@ -351,7 +351,7 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
         {from && (
           <>
             <MenuSep />
-            <MenuItem icon={<Ban size={16} />} label={senderTrusted ? "Stop trusting sender images" : "Always show images from sender"} onClick={() => updateSettings({ trustedImageSenders: senderTrusted ? settings.trustedImageSenders.filter((x) => x !== from.email.toLowerCase()) : [...settings.trustedImageSenders, from.email.toLowerCase()] })} />
+            <MenuItem icon={<Ban size={16} />} label={senderTrusted ? translate("Stop trusting sender images") : translate("Always show images from sender")} onClick={() => updateSettings({ trustedImageSenders: senderTrusted ? settings.trustedImageSenders.filter((x) => x !== from.email.toLowerCase()) : [...settings.trustedImageSenders, from.email.toLowerCase()] })} />
           </>
         )}
       </Popover>
