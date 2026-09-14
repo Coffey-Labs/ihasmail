@@ -192,7 +192,7 @@ export function CalendarSidebar() {
           {sharedSubscribed.map(({ accountId, accountName, calendar: c }) => {
             const key = `${accountId}:${c.id}`;
             return (
-              <div key={key} className={`cal-list-item ${cal.hidden[key] ? "hidden-cal" : ""}`} onClick={() => cal.toggleHidden(key)} title={`${c.name} — shared by ${accountName}`}>
+              <div key={key} className={`cal-list-item ${cal.hidden[key] ? "hidden-cal" : ""}`} onClick={() => cal.toggleHidden(key)} title={t("{name} — shared by {owner}", { name: c.name, owner: accountName })}>
                 <span className="cal-color" style={{ background: c.color ?? "var(--accent)", borderColor: c.color ?? "var(--accent)" }} />
                 <span className="cal-name">{c.name}</span>
                 <button
@@ -212,7 +212,7 @@ export function CalendarSidebar() {
         <>
           <div className="nav-section"><span>{t("Available to add")}</span></div>
           {sharedAvailable.map(({ accountId, accountName, calendar: c }) => (
-            <div key={`${accountId}:${c.id}`} className="cal-list-item" title={`${c.name} — from ${accountName}`}>
+            <div key={`${accountId}:${c.id}`} className="cal-list-item" title={t("{name} — from {owner}", { name: c.name, owner: accountName })}>
               <span className="cal-color" style={{ background: "transparent", borderColor: c.color ?? "var(--border-strong)" }} />
               <span className="cal-name faint">{c.name}</span>
               <button

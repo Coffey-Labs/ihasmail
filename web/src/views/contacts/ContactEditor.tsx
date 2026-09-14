@@ -156,7 +156,7 @@ export function ContactEditor({ card, defaultBookId, onClose, onSaved }: Props) 
   const photoSrc = photo?.dataUrl ?? (!removePhoto && existingPhoto ? (existingPhoto.uri?.startsWith("data:") ? existingPhoto.uri : existingPhoto.blobId ? client.downloadUrl(contacts.accountId!, existingPhoto.blobId, "photo", existingPhoto.mediaType ?? "image/jpeg", true) : null) : null);
 
   return (
-    <Dialog open onClose={onClose} title={isNew ? t("New contact") : `Edit ${contactDisplayName(card as ContactCard)}`} size="lg" footer={<><button className="btn" onClick={onClose}>{t("Cancel")}</button><button className="btn btn-primary" disabled={busy} onClick={() => void save()}>{busy ? t("Saving…") : t("Save")}</button></>}>
+    <Dialog open onClose={onClose} title={isNew ? t("New contact") : t("Edit {name}", { name: contactDisplayName(card as ContactCard) })} size="lg" footer={<><button className="btn" onClick={onClose}>{t("Cancel")}</button><button className="btn btn-primary" disabled={busy} onClick={() => void save()}>{busy ? t("Saving…") : t("Save")}</button></>}>
       <div className="contact-form">
         <div className="row" style={{ gap: 16, marginBottom: 12 }}>
           <label className="avatar xl" style={{ background: "var(--bg-sunken)", color: "var(--fg-muted)", cursor: "pointer", position: "relative" }} title={t("Change photo")}>

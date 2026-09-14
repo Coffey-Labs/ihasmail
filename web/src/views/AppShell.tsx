@@ -365,7 +365,7 @@ function QuotaBar() {
   if (!q || !q.hardLimit) return null;
   const pct = Math.min(100, Math.round((q.used / q.hardLimit) * 100));
   return (
-    <div className="quota" title={`${formatSize(q.used)} of ${formatSize(q.hardLimit)} used`}>
+    <div className="quota" title={t("{used} of {total} used", { used: formatSize(q.used), total: formatSize(q.hardLimit) })}>
       <div className="row" style={{ justifyContent: "space-between" }}>
         <span>
           {t("{used} of {total}", { used: formatSize(q.used), total: formatSize(q.hardLimit) })}

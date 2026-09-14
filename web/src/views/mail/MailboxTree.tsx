@@ -369,7 +369,7 @@ function FolderRow({ mailbox: m, label, depth, hasChildren, open, hiddenUnread, 
       </span>
       <span className="folder-icon" style={tint ? ({ "--folder-color": tint } as React.CSSProperties) : undefined}>{icon}</span>
       <span className="nav-label">{label}</span>
-      {count > 0 && <span className="nav-count" title={hiddenUnread ? `${own} here, ${hiddenUnread} in subfolders` : undefined}>{count > 9999 ? "9999+" : count}</span>}
+      {count > 0 && <span className="nav-count" title={hiddenUnread ? t("{here} here, {inSubfolders} in subfolders", { here: own, inSubfolders: hiddenUnread }) : undefined}>{count > 9999 ? "9999+" : count}</span>}
       {count > 0 && <span className="nav-dot" />}
       <button
         className="icon-btn nav-more"

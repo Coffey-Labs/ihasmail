@@ -116,13 +116,32 @@ for (const file of globSync("web/src/**/*.{ts,tsx}").filter((f) => !f.includes("
   mark(src);
   const wrapped = exempt;
 
+  /*
+   * English assembled around values: `aria-label={`Remove ${email}`}`.
+   *
+   * The literal cannot be a catalogue key as written, so whether it is a key is
+   * not asked. Neither is looksLikeUi, which reads the opening of a sentence:
+   * `${name} — shared by ${owner}` opens with a value and its words come after.
+   * Any run of letters between the values counts. The only template literals
+   * that reach a UI attribute and are not prose are pure punctuation around
+   * values, like `${name} (${size})`, and those have none.
+   */
+  const reportTemplate = (x) => {
+    const parts = ts.isNoSubstitutionTemplateLiteral(x) ? [x.text] : [x.head.text, ...x.templateSpans.map((s) => s.literal.text)];
+    if (!/[A-Za-z]{2,}/.test(parts.join(""))) return;
+    const { line } = src.getLineAndCharacterOfPosition(x.getStart(src));
+    found.push({ file, line: line + 1, text: parts.join("{}") });
+  };
+  const isTemplate = (x) => ts.isTemplateExpression(x) || ts.isNoSubstitutionTemplateLiteral(x);
+
   const visit = (n) => {
-    if (ts.isPropertyAssignment(n) && ts.isStringLiteral(n.initializer) && !wrapped.has(n.initializer)
-        && UI_PROPS.has(n.name.getText(src).replace(/['"]/g, ""))) {
-      report(n.initializer, n.initializer.text);
+    if (ts.isPropertyAssignment(n) && UI_PROPS.has(n.name.getText(src).replace(/['"]/g, ""))) {
+      if (ts.isStringLiteral(n.initializer) && !wrapped.has(n.initializer)) report(n.initializer, n.initializer.text);
+      if (isTemplate(n.initializer)) reportTemplate(n.initializer);
     }
     if (ts.isJsxAttribute(n) && n.initializer && UI_ATTRS.has(n.name.getText(src))) {
       const walk = (x) => {
+        if (isTemplate(x)) reportTemplate(x);
         if (ts.isStringLiteral(x) && !wrapped.has(x)) report(x, x.text, true);
         if (!ts.isCallExpression(x)) ts.forEachChild(x, walk);
       };

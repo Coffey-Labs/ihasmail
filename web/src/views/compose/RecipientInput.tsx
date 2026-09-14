@@ -4,6 +4,7 @@ import type { EmailAddress } from "@/jmap/types";
 import { isValidEmail, parseAddressList, displayName } from "@/lib/address";
 import { useContacts, type Suggestion } from "@/store/contacts";
 import { Avatar } from "@/ui/misc";
+import { t as translate } from "@/lib/i18n";
 
 interface Props {
   value: EmailAddress[];
@@ -112,7 +113,7 @@ export function RecipientInput({ value, onChange, placeholder, autoFocus, id }: 
       {value.map((a, i) => (
         <span key={`${a.email}-${i}`} className={`chip ${isValidEmail(a.email) ? "" : "invalid"}`} title={a.email}>
           <span className="truncate" style={{ maxWidth: 220 }}>{a.name ? displayName(a) : a.email}</span>
-          <button type="button" className="chip-x" aria-label={`Remove ${a.email}`} onClick={(e) => { e.stopPropagation(); onChange(value.filter((_, j) => j !== i)); }}>
+          <button type="button" className="chip-x" aria-label={translate("Remove {address}", { address: a.email })} onClick={(e) => { e.stopPropagation(); onChange(value.filter((_, j) => j !== i)); }}>
             <X size={12} />
           </button>
         </span>
