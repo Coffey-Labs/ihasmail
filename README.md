@@ -91,12 +91,12 @@ on the first call.
 **Validated against 0.16.22**, released 13 September 2026: the live instance
 runs it and the app has been tested against it. Four of its JMAP changes are
 visible to a client, all in calendars and contacts:
-`CalendarEvent/get` returns `baseEventId` only on a synthetic occurrence, so a
-one-off event now carries `null` there; it returns `null` for `recurrenceRule`
-and `recurrenceOverrides` asked for on an occurrence; `useDefaultAlerts` is
-stored per user and reads `false` when never set; and `CalendarEvent/get` and
-`ContactCard/get` return only `id` for an empty `properties` list, rather than
-everything. The mock does not follow these yet.
+`CalendarEvent/get` returns `baseEventId` only for a synthetic id, so an event
+read by its stored id now carries `null` there rather than its own id; it
+returns `null` for `recurrenceRule` and `recurrenceOverrides` asked for on a
+synthetic id; `useDefaultAlerts` is stored per user and reads `false` when never
+set; and `CalendarEvent/get` and `ContactCard/get` return only `id` for an empty
+`properties` list, rather than everything. The mock reproduces all four.
 
 Before it, **0.16.21**, released 6 September 2026: the app was run against a
 real instance of it and the mail, calendar and contacts paths were exercised by
