@@ -13,13 +13,21 @@ name: Weekly release
 
 on:
   schedule:
-    # Mondays, 09:00 UTC. GitHub runs scheduled jobs on a best-effort basis and
+    # Mondays, 09:17 UTC. GitHub runs scheduled jobs on a best-effort basis and
     # can delay a run by a good while when the queue is busy, so do not read
-    # the exact minute as a promise. Note also that GitHub disables scheduled
-    # workflows in a repository with no activity for 60 days -- not a concern
-    # while this one is being worked on weekly, but it is why a silent stop is
-    # worth checking for before assuming the file is broken.
-    - cron: "0 9 * * 1"
+    # the exact minute as a promise. The odd minute is deliberate: the top of
+    # the hour is when most schedules fire, and at 09:00 the first scheduled
+    # run started almost six hours late and the second had not started at all
+    # four and a half hours in. Moving off the hour does not make GitHub keep
+    # time, but it stops competing for the busiest slot. A missed week can be
+    # cut by hand with workflow_dispatch; a late scheduled run that follows
+    # finds the tag already there and does nothing.
+    #
+    # Note also that GitHub disables scheduled workflows in a repository with
+    # no activity for 60 days -- not a concern while this one is being worked
+    # on weekly, but it is why a silent stop is worth checking for before
+    # assuming the file is broken.
+    - cron: "17 9 * * 1"
   workflow_dispatch:
     inputs:
       dry_run:
