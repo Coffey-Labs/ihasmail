@@ -12,10 +12,12 @@ questions:
 | [KNOWN-ISSUES.md](KNOWN-ISSUES.md) | What was verified live, and where Stalwart departs from a spec |
 | [docs.ihasmail.org](https://docs.ihasmail.org) | How to install, configure and drive each of these |
 
-Written against the tree at Stalwart **0.16.21**, which is the version the live
+Written against the tree at Stalwart **0.16.22**, which is the version the live
 instance runs. Behaviours carrying an older version below were checked against
-that one and have not changed since; where 0.16.21 changed something, the entry
-says so and names both. ihasmail
+that one and have not changed since; where a later release changed something,
+the entry says so and names both. 0.16.22 changed nothing described here: its
+client-visible changes are in what `CalendarEvent/get` and `ContactCard/get`
+return, and [KNOWN-ISSUES.md](KNOWN-ISSUES.md) lists them. ihasmail
 requires 0.16 or newer and refuses older servers at sign-in, by name.
 
 ## The shape of it
