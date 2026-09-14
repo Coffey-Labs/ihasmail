@@ -9,7 +9,7 @@
 
 <p align="center">
   <a href="LICENSE"><img alt="Licence: AGPL-3.0-or-later" src="https://img.shields.io/badge/licence-AGPL--3.0--or--later-2dd4bf?style=flat-square"></a>
-  <a href="https://stalw.art" target="_blank" rel="noreferrer"><img alt="Requires Stalwart 0.16 or newer; tested against 0.16.21" src="https://img.shields.io/badge/Stalwart-0.16.21-6366f1?style=flat-square"></a>
+  <a href="https://stalw.art" target="_blank" rel="noreferrer"><img alt="Requires Stalwart 0.16 or newer; tested against 0.16.22" src="https://img.shields.io/badge/Stalwart-0.16.22-6366f1?style=flat-square"></a>
   <a href="https://docs.ihasmail.org" target="_blank" rel="noreferrer"><img alt="Documentation: docs.ihasmail.org" src="https://img.shields.io/badge/docs-docs.ihasmail.org-0ea5e9?style=flat-square"></a>
   <a href="https://coffeylabs.org" target="_blank" rel="noreferrer"><img alt="by Coffey Labs" src="https://img.shields.io/badge/by-Coffey%20Labs-0f766e?style=flat-square"></a>
 </p>
@@ -88,16 +88,26 @@ wrong guess had somewhere to fall back to, so it failed *quietly* — and that
 reached production. With one supported generation a wrong guess is a loud error
 on the first call.
 
-**Validated against 0.16.21**, released 6 September 2026: the app was run
-against a real instance of it and the mail, calendar and contacts paths were
-exercised by hand. Four of that release's JMAP changes are visible to a client
+**Validated against 0.16.22**, released 13 September 2026: the live instance
+runs it and the app has been tested against it. Four of its JMAP changes are
+visible to a client, all in calendars and contacts:
+`CalendarEvent/get` returns `baseEventId` only on a synthetic occurrence, so a
+one-off event now carries `null` there; it returns `null` for `recurrenceRule`
+and `recurrenceOverrides` asked for on an occurrence; `useDefaultAlerts` is
+stored per user and reads `false` when never set; and `CalendarEvent/get` and
+`ContactCard/get` return only `id` for an empty `properties` list, rather than
+everything. The mock does not follow these yet.
+
+Before it, **0.16.21**, released 6 September 2026: the app was run against a
+real instance of it and the mail, calendar and contacts paths were exercised by
+hand. Four of that release's JMAP changes are visible to a client
 — an occurrence of a recurring event is now identified by its recurrence id
 rather than by its position in the series, so an id held across a write no
 longer silently names a different date; `Calendar/get` and `AddressBook/get`
 return every property when none are named; EventSource advertises its ping
 interval in seconds rather than milliseconds; and a calendar write that asks
 for scheduling messages is refused when the account may not send them. The mock
-reproduces all four.
+reproduces those four.
 
 - Still on 0.15? The last release that runs on it is tagged [`stalwart-0.15-support`](https://github.com/Coffey-Labs/ihasmail/releases/tag/stalwart-0.15-support).
 - Upgrading? [stalwart-migrator](https://github.com/Coffey-Labs/stalwart-migrator) does it in place, checkpointing every phase and validating afterwards. The live instance moved 0.15.5 → 0.16.19 with eight seconds of downtime and nothing lost.
