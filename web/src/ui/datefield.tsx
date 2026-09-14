@@ -301,7 +301,7 @@ export function DateTimeField({ value, onChange, className, disabled, required, 
           disabled={disabled}
           required={required}
           placeholder={dateInputPlaceholder()}
-          aria-label={rest["aria-label"] ? `${rest["aria-label"]} (date)` : "Date"}
+          aria-label={rest["aria-label"] ? translate("{label} (date)", { label: rest["aria-label"] }) : translate("Date")}
           aria-haspopup="dialog"
           aria-expanded={Boolean(anchor)}
           value={dateField.text}
@@ -326,7 +326,7 @@ export function DateTimeField({ value, onChange, className, disabled, required, 
           spellCheck={false}
           disabled={disabled}
           placeholder={timeInputPlaceholder()}
-          aria-label={rest["aria-label"] ? `${rest["aria-label"]} (time)` : "Time"}
+          aria-label={rest["aria-label"] ? translate("{label} (time)", { label: rest["aria-label"] }) : translate("Time")}
           value={timeField.text}
           onChange={(e) => { timeField.setEditing(true); timeField.setText(e.target.value); }}
           onBlur={timeField.onBlur}

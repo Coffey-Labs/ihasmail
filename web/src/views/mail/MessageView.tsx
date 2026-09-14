@@ -888,7 +888,7 @@ function AttachmentList({ attachments, accountId, email }: { attachments: EmailB
           const url = a.blobId ? client.downloadUrl(accountId, a.blobId, a.name ?? "attachment", a.type) : "#";
           const inlineUrl = a.blobId ? client.downloadUrl(accountId, a.blobId, a.name ?? "attachment", a.type, true) : "#";
           return (
-            <a key={a.blobId ?? i} className="attachment" href={url} download={a.name ?? undefined} title={`${a.name ?? "attachment"} (${formatSize(a.size)})`} onClick={(ev) => { if (viewable(a)) { ev.preventDefault(); setPreview(a); } }}>
+            <a key={a.blobId ?? i} className="attachment" href={url} download={a.name ?? undefined} title={`${a.name ?? translate("Attachment")} (${formatSize(a.size)})`} onClick={(ev) => { if (viewable(a)) { ev.preventDefault(); setPreview(a); } }}>
               <span className="att-icon">{a.type.startsWith("image/") && a.type !== "image/svg+xml" && a.blobId ? <img src={inlineUrl} alt="" loading="lazy" /> : attachmentIcon(a.type, a.name)}</span>
               <span className="att-text">
                 <span className="att-name">{a.name ?? "(unnamed)"}</span>

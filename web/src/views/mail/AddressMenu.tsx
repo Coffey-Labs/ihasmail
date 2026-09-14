@@ -40,7 +40,7 @@ export function useAddressMenu() {
   const node: ReactNode = (
     <>
       {menu && (
-        <Popover anchor={menu.anchor} onClose={close} width={230} ariaLabel={`Actions for ${menu.address.email}`}>
+        <Popover anchor={menu.anchor} onClose={close} width={230} ariaLabel={t("Actions for {address}", { address: menu.address.email })}>
           <div className="menu-title truncate">{formatAddress(menu.address)}</div>
           {contacts.available && (
             known ? (

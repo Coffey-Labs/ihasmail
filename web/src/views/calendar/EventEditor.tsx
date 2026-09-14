@@ -34,6 +34,14 @@ export interface EditorInit {
 
 const ALERT_OPTIONS = [0, 5, 10, 15, 30, 60, 120, 1440, 2880, 10080];
 
+// A free/busy block's status names a JMAP value, not a word; the bar's tooltip
+// showed "confirmed" in every language until it was given one.
+const BUSY_LABEL: Record<"confirmed" | "tentative" | "unavailable", string> = {
+  confirmed: "Busy",
+  tentative: "Tentative",
+  unavailable: "Unavailable",
+};
+
 /**
  * Fields this form always sends that a single occurrence will not take.
  *
@@ -482,7 +490,7 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
                               const bs = Math.max(new Date(b.utcStart).getTime(), fbWindow.start.getTime());
                               const be = Math.min(new Date(b.utcEnd).getTime(), fbWindow.end.getTime());
                               if (be <= bs) return null;
-                              return <span key={i} className="fb-busy" style={pct(bs, be)} title={`${b.busyStatus}: ${formatClock(new Date(b.utcStart))} – ${formatClock(new Date(b.utcEnd))}`} />;
+                              return <span key={i} className="fb-busy" style={pct(bs, be)} title={translate("{status}: {start} – {end}", { status: translate(BUSY_LABEL[b.busyStatus]), start: formatClock(new Date(b.utcStart)), end: formatClock(new Date(b.utcEnd)) })} />;
                             })}
                             {fbHover && <span className="fb-guide" style={{ left: `${((fbHover.getTime() - fbWindow.start.getTime()) / fbWindow.span) * 100}%` }} />}
                             {!allDay && <span className="fb-window" style={pct(start.getTime(), end.getTime())} />}
