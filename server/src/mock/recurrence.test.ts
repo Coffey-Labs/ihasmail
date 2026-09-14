@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { expandOccurrences, occurrenceAt, occurrenceView, parseSyntheticId, splitOccurrencePatch, syntheticId } from "./recurrence.js";
+import { eventGetView, expandOccurrences, occurrenceAt, occurrenceView, parseSyntheticId, splitOccurrencePatch, syntheticId } from "./recurrence.js";
 
 /**
  * The mock expands recurrences so that per-occurrence editing can be developed
@@ -95,6 +95,54 @@ describe("occurrenceView", () => {
     const view = occurrenceView(base, occurrenceAt(base, "2026-09-08T09:00:00")!);
     assert.equal(view.start, "2026-09-08T09:00:00");
     assert.equal(view.title, "Moved");
+  });
+});
+
+describe("eventGetView", () => {
+  /*
+   * What 0.16.22 changed in `CalendarEvent/get`, read from its source and the
+   * tests that came with it (`tests/src/jmap/calendar/event.rs` and
+   * `instance.rs`).
+   */
+  it("reports no base for an event read by its stored id", () => {
+    // 0.16.21 answered with the event's own id here.
+    assert.deepEqual(eventGetView(oneOff(), false, ["id", "baseEventId"]), { id: "ev2", baseEventId: null });
+    assert.equal(eventGetView(series(), false, ["baseEventId"]).baseEventId, null);
+  });
+
+  it("still gives a one-off read through its synthetic id a base", () => {
+    // An expanded query hands a one-off a synthetic id, so this has not
+    // changed: `baseEventId` is still no evidence of a series.
+    const base = oneOff();
+    const view = eventGetView(occurrenceView(base, occurrenceAt(base, "2026-09-08T12:00:00")!), true, ["baseEventId"]);
+    assert.equal(view.baseEventId, "ev2");
+  });
+
+  it("answers null for the rule and overrides named on an occurrence", () => {
+    const base = { ...series(), recurrenceOverrides: { "2026-09-09T09:00:00": { title: "Standup (long)" } } };
+    const view = eventGetView(occurrenceView(base, occurrenceAt(base, "2026-09-08T09:00:00")!), true,
+      ["recurrenceId", "recurrenceRule", "recurrenceOverrides"]);
+    assert.deepEqual(view, { id: "ev1-r20260908T090000", recurrenceId: "2026-09-08T09:00:00", recurrenceRule: null, recurrenceOverrides: null });
+  });
+
+  it("leaves the rule on the series itself alone", () => {
+    assert.deepEqual(eventGetView(series(), false, ["recurrenceRule"]).recurrenceRule, WEEKDAYS);
+  });
+
+  it("reads useDefaultAlerts as false until it is set", () => {
+    // It used to read true until set.
+    assert.equal(eventGetView(series(), false, ["useDefaultAlerts"]).useDefaultAlerts, false);
+    assert.equal(eventGetView({ ...series(), useDefaultAlerts: true }, false, ["useDefaultAlerts"]).useDefaultAlerts, true);
+    assert.equal(eventGetView({ ...series(), useDefaultAlerts: false }, false, ["useDefaultAlerts"]).useDefaultAlerts, false);
+  });
+
+  it("returns only the id for an empty list", () => {
+    // 0.16.21 treated an empty list as asking for everything.
+    assert.deepEqual(eventGetView(series(), false, []), { id: "ev1" });
+  });
+
+  it("returns the object unchanged when no list is given", () => {
+    assert.deepEqual(eventGetView(series(), false, null), series());
   });
 });
 

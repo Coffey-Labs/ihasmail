@@ -6,7 +6,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
 import { signedMessage, type SIGNED_MESSAGES } from "./signedMessages.js";
-import { expandOccurrences, occurrenceAt, occurrenceView, parseSyntheticId, splitOccurrencePatch, syntheticId, type Occurrence } from "./recurrence.js";
+import { eventGetView, expandOccurrences, occurrenceAt, occurrenceView, parseSyntheticId, splitOccurrencePatch, syntheticId, type Occurrence } from "./recurrence.js";
 import { parseOtpauthUrl, verifyTotp } from "../totp.js";
 import { holdUntilOf, undoStatusOf } from "./futurerelease.js";
 import { createDirectory, mockRole } from "./directory.js";
@@ -1263,15 +1263,17 @@ const handlers: Record<string, Handler> = {
   "CalendarEvent/get": (a) => {
     const list = eventsFor(a.accountId);
     const ids = a.ids as string[] | null | undefined;
-    if (!ids) return genericGet(list)(a);
+    const properties = a.properties as string[] | null | undefined;
+    // With no ids every event comes back under its stored id, none synthetic.
+    if (!ids) return { accountId: ACCOUNT, state: String(state.n), list: list.map((x) => eventGetView(x, false, properties)), notFound: [] };
     const found: Obj[] = [];
     const notFound: string[] = [];
     for (const id of ids) {
       const resolved = resolveEvent(list, id);
       if (!resolved) { notFound.push(id); continue; }
-      found.push(resolved.occ ? occurrenceView(resolved.base, resolved.occ) : resolved.base);
+      found.push(resolved.occ ? eventGetView(occurrenceView(resolved.base, resolved.occ), true, properties) : eventGetView(resolved.base, false, properties));
     }
-    return { accountId: ACCOUNT, state: String(state.n), list: found.map((x) => pick(x, a.properties as string[] | null)), notFound };
+    return { accountId: ACCOUNT, state: String(state.n), list: found, notFound };
   },
   // Stalwart 0.16 rejects the RFC 8984 array outright and silently discards
   // participants addressed the RFC 8984 way. The mock did neither, which is how
@@ -1311,6 +1313,8 @@ const handlers: Record<string, Handler> = {
     return genericSet(booksFor(a.accountId), "ab", (o) => Object.assign(o, { description: null, sortOrder: 0, isDefault: false, isSubscribed: true, shareWith: {}, myRights: abRights(), ...o }))(a);
   },
   "ContactCard/query": (a) => { const list = a.accountId === SHARED_ACCOUNT ? sharedCards : cards; return { accountId: a.accountId ?? ACCOUNT, queryState: "1", canCalculateChanges: false, position: 0, ids: list.map((c) => c.id), total: list.length }; },
+  // An empty `properties` list returns `id` alone, which `pick` already does.
+  // 0.16.22 made Stalwart agree; through 0.16.21 it returned every property.
   "ContactCard/get": (a) => genericGet(a.accountId === SHARED_ACCOUNT ? sharedCards : cards)(a),
   "ContactCard/set": genericSet(cards, "cc"),
   "ContactCard/parse": (a) => { const parsed: Obj = {}; for (const b of a.blobIds as string[]) { const t = blobs.get(b)?.data.toString() ?? ""; const fn = /^FN:(.*)$/m.exec(t)?.[1]?.trim() ?? "Imported"; const em = /^EMAIL[^:]*:(.*)$/m.exec(t)?.[1]?.trim(); parsed[b] = [{ "@type": "Card", version: "1.0", uid: randomUUID(), kind: "individual", name: { full: fn }, emails: em ? { e1: { address: em } } : undefined }]; } return { accountId: ACCOUNT, parsed, notParsable: [] }; },

@@ -1,5 +1,5 @@
 /**
- * Enough recurrence expansion for the mock to behave like Stalwart 0.16.21.
+ * Enough recurrence expansion for the mock to behave like Stalwart 0.16.22.
  *
  * The mock used to hand a recurring event back once, as its stored self. Three
  * things that only a live server showed were therefore impossible to develop
@@ -186,6 +186,43 @@ export function occurrenceView(base: Obj, occ: Occurrence): Obj {
   if (base.recurrenceRule) view.recurrenceId = occ.recurrenceId;
   delete view.excluded;
   return view;
+}
+
+/** Series properties a synthetic id answers `null` for, when they are named. */
+const NULL_ON_OCCURRENCE = new Set(["recurrenceRule", "recurrenceOverrides"]);
+
+/**
+ * The object a `CalendarEvent/get` with a `properties` list returns, as 0.16.22
+ * builds it. Omitted or null `properties` returns the stored object unchanged.
+ *
+ * Three of the named properties are no longer read off the object:
+ *
+ * - `baseEventId` is the master's id on a synthetic id and `null` on anything
+ *   else. Through 0.16.21 an event read by its stored id reported that id as
+ *   its own base. An expanded query still hands a one-off a synthetic id, so
+ *   one read that way still carries a base, and `baseEventId` is still no
+ *   evidence of a series;
+ * - `recurrenceRule` and `recurrenceOverrides` come back as `null` on a
+ *   synthetic id rather than being left out;
+ * - `useDefaultAlerts` is the reader's own preference, and `false` when they
+ *   never set one. It used to read `true` until set. The mock has one reader,
+ *   so a value stored on the event stands in for that reader's.
+ *
+ * An empty list returns `id` alone, where 0.16.21 treated it as asking for
+ * everything. `ContactCard/get` changed the same way.
+ *
+ * Read from the 0.16.22 source (`calendar_event/get.rs`) and its tests.
+ */
+export function eventGetView(event: Obj, synthetic: boolean, properties: string[] | null | undefined): Obj {
+  if (!properties) return event;
+  const out: Obj = { id: event.id };
+  for (const p of properties) {
+    if (p === "baseEventId") out[p] = synthetic ? event.baseEventId : null;
+    else if (p === "useDefaultAlerts") out[p] = event.useDefaultAlerts === true;
+    else if (synthetic && NULL_ON_OCCURRENCE.has(p)) out[p] = null;
+    else if (p in event) out[p] = event[p];
+  }
+  return out;
 }
 
 /* ---------- what a single occurrence will not take ---------- */
