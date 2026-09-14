@@ -9,7 +9,7 @@
 
 <p align="center">
   <a href="LICENSE"><img alt="Licence: AGPL-3.0-or-later" src="https://img.shields.io/badge/licence-AGPL--3.0--or--later-2dd4bf?style=flat-square"></a>
-  <a href="https://stalw.art" target="_blank" rel="noreferrer"><img alt="Requires Stalwart 0.16 or newer; runs on 0.16.22" src="https://img.shields.io/badge/Stalwart-0.16.22-6366f1?style=flat-square"></a>
+  <a href="https://stalw.art" target="_blank" rel="noreferrer"><img alt="Requires Stalwart 0.16 or newer; tested against 0.16.22" src="https://img.shields.io/badge/Stalwart-0.16.22-6366f1?style=flat-square"></a>
   <a href="https://docs.ihasmail.org" target="_blank" rel="noreferrer"><img alt="Documentation: docs.ihasmail.org" src="https://img.shields.io/badge/docs-docs.ihasmail.org-0ea5e9?style=flat-square"></a>
   <a href="https://coffeylabs.org" target="_blank" rel="noreferrer"><img alt="by Coffey Labs" src="https://img.shields.io/badge/by-Coffey%20Labs-0f766e?style=flat-square"></a>
 </p>
@@ -88,9 +88,9 @@ wrong guess had somewhere to fall back to, so it failed *quietly* — and that
 reached production. With one supported generation a wrong guess is a loud error
 on the first call.
 
-**The live instance runs 0.16.22**, released 13 September 2026 and upgraded to
-the same day. It was read against its diff rather than re-run, and four of its
-JMAP changes are visible to a client, all in calendars and contacts:
+**Validated against 0.16.22**, released 13 September 2026: the live instance
+runs it and the app has been tested against it. Four of its JMAP changes are
+visible to a client, all in calendars and contacts:
 `CalendarEvent/get` returns `baseEventId` only on a synthetic occurrence, so a
 one-off event now carries `null` there; it returns `null` for `recurrenceRule`
 and `recurrenceOverrides` asked for on an occurrence; `useDefaultAlerts` is
@@ -98,9 +98,9 @@ stored per user and reads `false` when never set; and `CalendarEvent/get` and
 `ContactCard/get` return only `id` for an empty `properties` list, rather than
 everything. The mock does not follow these yet.
 
-**Validated by hand against 0.16.21**, released 6 September 2026: the app was
-run against a real instance of it and the mail, calendar and contacts paths were
-exercised by hand. Four of that release's JMAP changes are visible to a client
+Before it, **0.16.21**, released 6 September 2026: the app was run against a
+real instance of it and the mail, calendar and contacts paths were exercised by
+hand. Four of that release's JMAP changes are visible to a client
 — an occurrence of a recurring event is now identified by its recurrence id
 rather than by its position in the series, so an id held across a write no
 longer silently names a different date; `Calendar/get` and `AddressBook/get`
