@@ -92,7 +92,7 @@ in all nine languages. Nothing errors. The only signal is the fallback count
 going up, so read it:
 
 ```sh
-npm run i18n:check                    # literals wrapped, and catalogue health
+npm run i18n:check                    # literals wrapped, and catalogue health; exits 1 on a finding
 node scripts/i18n-catalog-check.mjs   # per-language: translated / used / falling back
 ```
 
