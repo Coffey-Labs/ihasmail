@@ -1192,6 +1192,8 @@ export const catalog: Catalog = {
     "Maximize": "最大化",
     "Full screen": "全屏",
     "Resize panes": "调整窗格大小",
+    "Resize message list": "调整邮件列表大小",
+    "Resize sidebar": "调整侧边栏大小",
     "QR code": "二维码",
     "Draft discarded": "草稿已放弃",
     "Draft saved": "草稿已保存",

@@ -256,6 +256,13 @@ export interface Settings {
   listPaneWidth: number;
   /** Height (px) of the message list when the reading pane is below. */
   listPaneHeight: number;
+  /**
+   * Width (px) of the sidebar, dragged by its edge (#345). Null until someone
+   * drags it, and null again after a double-click resets it -- which leaves the
+   * width to the stylesheet's `--sidebar-w`, so a reader who already widens the
+   * sidebar with their own CSS keeps what they had until they choose otherwise.
+   */
+  sidebarWidth: number | null;
   /** Outlook-style colour categories for calendar events. */
   eventCategories: Array<{ name: string; color: string }>;
   /** Default sending identity per account (JMAP has no such flag). */
@@ -370,6 +377,7 @@ export const DEFAULT_SETTINGS: Settings = {
   sendAndArchive: false,
   listPaneWidth: 520,
   listPaneHeight: 340,
+  sidebarWidth: null,
   eventCategories: [
     { name: "Important", color: "#dc2626" },
     { name: "Work", color: "#2563eb" },
@@ -400,6 +408,7 @@ export const DEVICE_KEYS: ReadonlySet<keyof Settings> = new Set<keyof Settings>(
   "notificationSound",
   "listPaneWidth",
   "listPaneHeight",
+  "sidebarWidth",
 ]);
 
 /** The part of the settings that is written to the account's settings file. */

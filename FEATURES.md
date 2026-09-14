@@ -71,9 +71,11 @@ per-account shape.
 ## Layout
 
 Three panes: folder tree, message list, reading pane. The splitter between the
-list and the reading pane is dragged to resize, and the size is remembered per
-device — a width chosen on a 27" monitor is wrong on a laptop, so it is one of
-the few settings that does not follow the account.
+list and the reading pane is dragged to resize, and so is the edge of the
+sidebar, between 240 and 480px; arrow keys move either one, and a double-click
+puts it back. The sizes are remembered per device — a width chosen on a 27"
+monitor is wrong on a laptop, so they are among the few settings that do not
+follow the account.
 
 - **Reading pane** right of the list, below it, or off (messages open full width).
 - **Density** comfortable, cozy or compact, which changes row height as well as padding.
