@@ -13,7 +13,13 @@ The calendar entries carrying a 2026-08-31 date were exercised against a live
 0.16.20 directly, as were the public-key entries dated 2026-09-05.
 
 **0.16.21 was different and was re-run rather than read.** It changed four
-things a client can see, one of which resolved an entry below outright. The app
+things a client can see, one of which resolved an entry below outright: an
+occurrence of a recurring event is identified by its recurrence id rather than
+its position in the series, so an id held across a write no longer names a
+different date; `Calendar/get` and `AddressBook/get` return every property when
+none are named; EventSource advertises its ping interval in seconds rather than
+milliseconds; and a calendar write that asks for scheduling messages is refused
+when the account may not send them. The mock reproduces all four. The app
 was run against a real 0.16.21 with mail, calendar and contacts exercised by
 hand, including editing one occurrence of a recurring series through the
 interface and confirming the rest of the series stayed where it was.
