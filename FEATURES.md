@@ -1067,7 +1067,7 @@ Every one has both halves, so the top-bar toggle only ever changes the side and
 never the colours. Accent colours still sit on top of any of them.
 
 The ten borrowed palettes are the work of their own projects and are used
-under the MIT licence — see [NOTICE](NOTICE). Only the published colour values
+under the MIT license — see [NOTICE](NOTICE). Only the published colour values
 are used, taken from each project's own repository; the values as fetched are
 recorded in `.palette-sources/palettes-upstream.md`.
 

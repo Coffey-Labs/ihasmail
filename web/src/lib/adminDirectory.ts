@@ -272,7 +272,7 @@ export function describeDirectoryError(err: unknown, object: DirectoryObject = "
         return object === "role" ? t("You can't give a role permissions your own role doesn't have.") : t("You can't give an account permissions your own role doesn't have.");
       }
       if (/external directory/i.test(description)) return t("This account signs in through an external directory, so its password can't be set here.");
-      if (/licen[cs]ed account limit/i.test(description)) return t("The server's licence allows no more accounts.");
+      if (/licen[cs]ed account limit/i.test(description)) return t("The server's license allows no more accounts.");
       return t("The mail server refused this. Your role may not allow it.");
     case "primaryKeyViolation":
       return object === "domain"

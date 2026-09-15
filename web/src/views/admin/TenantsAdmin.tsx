@@ -24,7 +24,7 @@ const PAGE_SIZE = 50;
  * beyond an ordinary user's permissions, so there is nothing worth creating or
  * listing. On Enterprise the notice is left out, unless the installation asks
  * for it (SHOW_ENTERPRISE_NOTICES), as the public demo does so as not to
- * suggest tenants come without the licence.
+ * suggest tenants come without the license.
  */
 export function TenantsAdmin({ selectedId }: { selectedId?: string }) {
   const edition = useSession((s) => s.session?.ihasmail?.server?.edition ?? null);

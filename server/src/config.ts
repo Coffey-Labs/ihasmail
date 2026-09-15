@@ -311,7 +311,7 @@ export const config = {
    * Say that an Enterprise-only section is Enterprise-only even on an
    * Enterprise server. Off, as a real installation wants it; the public demo
    * turns it on, because it reports Enterprise to show those sections and
-   * should not suggest they come without the licence.
+   * should not suggest they come without the license.
    */
   showEnterpriseNotices: bool("SHOW_ENTERPRISE_NOTICES", false),
   appSecret,

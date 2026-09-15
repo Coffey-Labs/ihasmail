@@ -107,7 +107,7 @@ export function AppearanceSettings() {
         })}
       </div>
       <p className="hint" style={{ marginTop: 10 }}>
-        {translate("Palettes named after another project are that project's work, used under its own licence; the shades between their published colours are derived, and every one is checked for contrast. The accent colour below still applies over any of them.")}
+        {translate("Palettes named after another project are that project's work, used under its own license; the shades between their published colours are derived, and every one is checked for contrast. The accent colour below still applies over any of them.")}
       </p>
       <Switch
         checked={s.themeMessageBody}
