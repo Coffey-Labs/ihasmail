@@ -215,18 +215,28 @@ export function createDirectory(opts: Options) {
     if (opts.metricsOff) throw opts.fail("forbidden", "This feature is only available in the Enterprise edition of Stalwart.");
   };
 
+  /**
+   * Mailing lists: an address and the addresses it passes mail on to. The
+   * recipient set's shape is the live server's (2026-09-15).
+   */
+  const lists: Obj[] = [
+    { id: "l1", name: "announce", domainId: "d1", description: "Announcements", recipients: flags([opts.user, "ada@example.org", "grace@example.org", "partner@elsewhere.test"]), aliases: {}, memberTenantId: null },
+    { id: "l2", name: "board", domainId: "d2", description: "Board", recipients: flags(["ada@example.org", "chair@elsewhere.test"]), aliases: {}, memberTenantId: null },
+  ];
+  const addressOk = (a: unknown) => typeof a === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(a);
+
   const demand = (perm: string) => {
     if (!permissions.has(perm)) throw opts.fail("forbidden", `You do not have the ${perm} permission.`);
   };
   const domainName = (id: unknown) => domains.find((d) => d.id === id)?.name as string | undefined;
   const addressOf = (o: Obj) => `${o.name}@${domainName(o.domainId) ?? "invalid"}`;
-  /** Every address in use, primary and alias, across accounts. */
+  /** Every address in use, primary and alias, across accounts and mailing lists. */
   const addressTaken = (address: string, except?: string) =>
-    accounts.some((a) => a.id !== except && (addressOf(a) === address || Object.values((a.aliases as Obj) ?? {}).some((al) => `${(al as Obj).name}@${domainName((al as Obj).domainId)}` === address)));
+    [...accounts, ...lists].some((a) => a.id !== except && (addressOf(a) === address || Object.values((a.aliases as Obj) ?? {}).some((al) => `${(al as Obj).name}@${domainName((al as Obj).domainId)}` === address)));
 
   const view = (o: Obj, properties: unknown): Obj => {
     const full: Obj = { ...o };
-    if (accounts.includes(o)) full.emailAddress = addressOf(o);
+    if (accounts.includes(o) || lists.includes(o)) full.emailAddress = addressOf(o);
     if (domains.includes(o)) full.dnsZoneFile = zoneFile(o);
     if (full.credentials) {
       full.credentials = Object.fromEntries(Object.entries(full.credentials as Obj).map(([k, c]) => [k, { ...(c as Obj), secret: MASKED }]));
@@ -464,6 +474,51 @@ export function createDirectory(opts: Options) {
         (f.timestampIsGreaterThanOrEqual === undefined || String(o.timestamp) >= String(f.timestampIsGreaterThanOrEqual)) &&
         (f.timestampIsLessThanOrEqual === undefined || String(o.timestamp) <= String(f.timestampIsLessThanOrEqual)) &&
         (!Array.isArray(f.metric) || (f.metric as string[]).includes(o.metric as string)))(a);
+    },
+    "x:MailingList/get": get(lists, "sysMailingListGet"),
+    "x:MailingList/query": query(() => lists, "sysMailingListQuery", ["text", "memberTenantId"], (o, f) => matchText(o, f.text)),
+    "x:MailingList/set": (a) => {
+      const created: Obj = {};
+      const notCreated: Obj = {};
+      const updated: Obj = {};
+      const notUpdated: Obj = {};
+      const destroyed: string[] = [];
+      const notDestroyed: Obj = {};
+      const check = (o: Obj, id?: string): Obj | null => {
+        if (typeof o.name !== "string" || !/^[a-z0-9._-]+$/i.test(o.name)) return setError("invalidProperties", "Invalid email local part", ["name"]);
+        if (!domainName(o.domainId)) return setError("invalidForeignKey", "Domain does not exist.", ["domainId"]);
+        if (addressTaken(`${o.name}@${domainName(o.domainId)}`, id)) return setError("primaryKeyViolation", "An account or alias with this email address already exists.");
+        if (Object.keys((o.recipients as Obj) ?? {}).some((r) => !addressOk(r))) return setError("invalidProperties", "Invalid email address", ["recipients"]);
+        return null;
+      };
+      for (const [cid, raw] of Object.entries((a.create as Obj) ?? {})) {
+        demand("sysMailingListCreate");
+        const o: Obj = { recipients: {}, aliases: {}, description: null, ...(raw as Obj) };
+        const failure = check(o);
+        if (failure) { notCreated[cid] = failure; continue; }
+        const id = `l${counter++}`;
+        lists.push({ ...o, id, memberTenantId: null });
+        created[cid] = { id, emailAddress: `${o.name}@${domainName(o.domainId)}` };
+      }
+      for (const [id, raw] of Object.entries((a.update as Obj) ?? {})) {
+        demand("sysMailingListUpdate");
+        const target = lists.find((x) => x.id === id);
+        if (!target) { notUpdated[id] = setError("notFound", "Mailing list not found."); continue; }
+        const next = structuredClone(target);
+        for (const [path, value] of Object.entries(raw as Obj)) setPointer(next, path, value);
+        const failure = check(next, id);
+        if (failure) { notUpdated[id] = { ...failure, type: failure.type === "invalidProperties" ? "invalidPatch" : failure.type }; continue; }
+        Object.assign(target, next);
+        updated[id] = null;
+      }
+      for (const id of (a.destroy as string[]) ?? []) {
+        demand("sysMailingListDestroy");
+        const i = lists.findIndex((x) => x.id === id);
+        if (i < 0) { notDestroyed[id] = setError("notFound", "Mailing list not found."); continue; }
+        lists.splice(i, 1);
+        destroyed.push(id);
+      }
+      return { accountId: opts.accountId, oldState: "1", newState: "2", created, updated, destroyed, ...(Object.keys(notCreated).length ? { notCreated } : {}), ...(Object.keys(notUpdated).length ? { notUpdated } : {}), ...(Object.keys(notDestroyed).length ? { notDestroyed } : {}) };
     },
     "x:Role/get": get(roles, "sysRoleGet"),
     "x:Role/query": query(() => roles, "sysRoleQuery", ["text", "description", "memberTenantId"], (o, f) => matchText(o, f.description)),

@@ -1209,6 +1209,27 @@ it in the menu.
 
 Groups do not contain groups; Stalwart has no nesting.
 
+## Mailing lists
+
+A mailing list is an address that passes mail on to everyone on it, on this
+server or anywhere else. For a role with `sysMailingListQuery` and
+`sysMailingListGet`, under Directory after Groups:
+
+- **List and search** by name or address, with each list's recipient count.
+- **Create** a list on a domain; **edit** its display name, recipients and
+  other addresses, which save together.
+- **Recipients** can be pasted several at a time — a column from a
+  spreadsheet, a line of addresses separated by commas, `Name <address>` —
+  and anything with an @ that is not an address stays in the box with a note
+  rather than being dropped. Past a dozen, a filter narrows them. Saving sends
+  only the addresses added and removed, so a recipient someone else added while
+  the panel was open is not lost.
+- **Delete** asks for the address to be typed. The recipients' own mail is not
+  touched.
+
+That is all a list is in Stalwart: there are no owners, moderators or posting
+rules to set.
+
 ## Domains
 
 For a role that can read domains (`sysDomainQuery`, `sysDomainGet`):
@@ -1267,8 +1288,8 @@ session information already kept for thirty minutes — so a role granted or
 taken away shows in the menu at the next sign-in or within half an hour, and in
 the meantime Stalwart refuses what is no longer allowed.
 
-The dashboard, accounts, groups and domains are the sections so far. Mailing
-lists, roles and tenants are Stalwart capabilities the same screen is
+The dashboard, accounts, groups, mailing lists and domains are the sections so
+far. Roles and tenants are Stalwart capabilities the same screen is
 laid out to take. Beyond the dashboard's counts, managing queues, logs and
 server settings is deliberately out of scope.
 
@@ -1736,7 +1757,7 @@ demo user is: `admin` (the default), `tenant-admin` (the queue but not the
 history), `helpdesk` — a custom role that may view and edit accounts but not
 create or delete them, and read domains — or `user`, who is not offered the
 menu at all. `MOCK_METRICS=off` refuses the history the way a Community server
-does.
+does. Two mailing lists round it out.
 
 ---
 

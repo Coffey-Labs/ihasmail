@@ -5,6 +5,7 @@ import { AccountsAdmin } from "./AccountsAdmin";
 import { AdminDashboard } from "./AdminDashboard";
 import { DomainsAdmin } from "./DomainsAdmin";
 import { GroupsAdmin } from "./GroupsAdmin";
+import { ListsAdmin } from "./ListsAdmin";
 import { currentAdminSection } from "./AdminNav";
 import { usePermissions } from "./usePermissions";
 
@@ -12,6 +13,7 @@ const RENDER: Record<AdminSection, (id?: string) => ReactNode> = {
   dashboard: () => <AdminDashboard />,
   accounts: (id) => <AccountsAdmin selectedId={id} />,
   groups: (id) => <GroupsAdmin selectedId={id} />,
+  lists: (id) => <ListsAdmin selectedId={id} />,
   domains: (id) => <DomainsAdmin selectedId={id} />,
 };
 
