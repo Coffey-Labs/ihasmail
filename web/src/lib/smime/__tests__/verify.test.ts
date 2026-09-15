@@ -75,7 +75,7 @@ describe("what the signature is allowed to mean", () => {
     expect(shouldRemember(report)).toBe(true);
   });
 
-  it("the same certificate again is recognised", async () => {
+  it("the same certificate again is recognized", async () => {
     const crypto = await verifyMessage(fixture("signed-rsa.eml"));
     if (crypto.kind !== "intact") throw new Error("fixture should verify");
     const known: KnownSigner = { fingerprint: crypto.cert.fingerprint, name: "Ada Lovelace", firstSeen: "2026-09-01T00:00:00Z" };
@@ -129,7 +129,7 @@ describe("matching a certificate to an address", () => {
   });
 });
 
-describe("canonicalisation", () => {
+describe("canonicalization", () => {
   it("turns a lone LF into CRLF and leaves an existing CRLF alone", () => {
     const mixed = new TextEncoder().encode("a\nb\r\nc\n");
     expect(new TextDecoder().decode(toCanonicalCrlf(mixed))).toBe("a\r\nb\r\nc\r\n");
@@ -141,7 +141,7 @@ describe("canonicalisation", () => {
   });
 
   /*
-   * The reason canonicalisation is applied at all: a store that hands back a
+   * The reason canonicalization is applied at all: a store that hands back a
    * message with bare LFs would otherwise fail every signature it holds, and
    * the message would look identical on screen while doing it.
    */

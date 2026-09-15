@@ -27,7 +27,7 @@ describe("lockAxis", () => {
     expect(lockAxis(30, 25)).toBe("y");
   });
 
-  it("counts distance on either axis towards committing", () => {
+  it("counts distance on either axis toward committing", () => {
     expect(lockAxis(0, AXIS_SLOP)).toBe("y");
     expect(lockAxis(AXIS_SLOP, 0)).toBe("x");
   });

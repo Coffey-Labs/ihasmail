@@ -151,15 +151,15 @@
 
  *
 
- * Every colour is from the palette's own project (all MIT); the published
+ * Every color is from the palette's own project (all MIT); the published
 
  * values are recorded in .palette-sources/palettes-upstream.md. The tiers
 
- * between them are derived, and every text colour is checked against the
+ * between them are derived, and every text color is checked against the
 
  * surface it sits on: 4.5:1 for prose, 3:1 for borders and marks. Several
 
- * of these palettes do not meet that as published -- Dracula's comment grey
+ * of these palettes do not meet that as published -- Dracula's comment gray
 
  * is about 3.0:1 on its own background -- so those tiers are lifted, which
 
@@ -1098,7 +1098,7 @@ img { max-width: 100%; }
 .menu-item:hover, .menu-item.active { background: var(--bg-hover); }
 .menu-item:disabled { opacity: .5; cursor: default; }
 /* A menu entry that is a link still looks like a menu entry. The global rule
-   for `a` would otherwise colour and underline the one item that leaves the
+   for `a` would otherwise color and underline the one item that leaves the
    app, which reads as a mistake rather than a distinction. */
 a.menu-item { text-decoration: none; color: var(--fg); cursor: pointer; }
 a.menu-item:hover { color: var(--fg); }
@@ -1261,7 +1261,7 @@ a.menu-item:hover { color: var(--fg); }
 .topbar-actions { display: flex; align-items: center; gap: 4px; }
 /* Live-updates indicator. Three states, and a raised bead rather than a flat
    speck: at 8px flat it was invisible against either theme. The gloss is a
-   highlight over a solid colour rather than a colour-mix, so it needs no
+   highlight over a solid color rather than a color-mix, so it needs no
    per-theme variant -- the same bead reads on light and dark alike. */
 .push-status { display: inline-flex; align-items: center; padding: 0 4px; }
 .push-dot {
@@ -1289,7 +1289,7 @@ a.menu-item:hover { color: var(--fg); }
 .app-body.resizing, .app-body.resizing > .sidebar-splitter { transition: none; }
 /* The sidebar edge (#345). Laid over the seam rather than given a grid column:
    the sidebar and the content meet at the content's own border, and a 6px
-   bar of border colour between them would draw a line the design never had.
+   bar of border color between them would draw a line the design never had.
    Out of the flow, it shows only on hover and focus, like the list splitter. */
 .app-body > .sidebar-splitter { position: absolute; top: 0; bottom: 0; left: calc(var(--sidebar-w) - 3px); background: transparent; transition: left .2s var(--ease); }
 .app-body > .sidebar-splitter:hover, .app-body > .sidebar-splitter:focus-visible { background: var(--accent); }
@@ -1310,9 +1310,9 @@ a.menu-item:hover { color: var(--fg); }
 .nav-item.active.unread .nav-label, .nav-item.active.unread .nav-count { color: inherit; }
 .nav-item.drop-target { background: var(--accent-soft); outline: 2px dashed var(--accent); outline-offset: -2px; }
 .nav-item.folder-row.dragging { opacity: .45; }
-/* A folder colour tints its icon; the label keeps the sidebar's contrast. */
+/* A folder color tints its icon; the label keeps the sidebar's contrast. */
 .folder-row .folder-icon { display: inline-flex; align-items: center; }
-/* .nav-item svg sets colour on the svg itself, so inheriting from the span is
+/* .nav-item svg sets color on the svg itself, so inheriting from the span is
    not enough -- the icon has to be targeted directly to win the cascade.
    The fill overrides lucide's own fill="none": a CSS rule beats a presentation
    attribute, and a solid folder reads at a glance where an outline does not. */
@@ -1535,7 +1535,7 @@ a.menu-item:hover { color: var(--fg); }
 .vcard-card { margin: 0 16px 12px; padding: 12px 16px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-sunken); display: flex; align-items: center; gap: 12px; }
 .unsubscribe-row { margin: 0 16px 8px; font-size: .88em; color: var(--fg-muted); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .reply-box { margin: 8px 16px 24px; }
-/* Wraps, because it does not fit. Three labelled buttons and an overflow need
+/* Wraps, because it does not fit. Three labeled buttons and an overflow need
    about 390px of it, which a 430px phone has and a 360px one does not -- and it
    was already over the line on the smaller ones before the overflow was added. */
 .reply-box .reply-prompt { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius); color: var(--fg-muted); }
@@ -1578,7 +1578,7 @@ a.menu-item:hover { color: var(--fg); }
 
 /*
  * A native <select>'s dropdown is painted by the browser from the element's own
- * colours, not the page's. `.from-select` is deliberately transparent so it
+ * colors, not the page's. `.from-select` is deliberately transparent so it
  * sits flush in the composer's From line -- which left its popup with no
  * background of its own, so the browser drew a light one while the text kept
  * the app's light foreground: light on light, unreadable in any dark theme.
@@ -1878,7 +1878,7 @@ select optgroup { background-color: var(--bg-elev); color: var(--fg); }
 .ev-chip.timed:hover { background: var(--bg-hover) !important; }
 .ev-chip.declined { text-decoration: line-through; opacity: .6; }
 .ev-chip.tentative { border-style: dashed; opacity: .85; }
-.ev-chip.cancelled { text-decoration: line-through; opacity: .5; }
+.ev-chip.canceled { text-decoration: line-through; opacity: .5; }
 .week-view { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .week-head { display: grid; grid-template-columns: 56px repeat(var(--cols, 7), 1fr); border-bottom: 1px solid var(--border); flex: 0 0 auto; }
 .week-head .wh-day { padding: 8px 4px 4px; text-align: center; border-left: 1px solid var(--border); cursor: pointer; }
@@ -2045,7 +2045,7 @@ select optgroup { background-color: var(--bg-elev); color: var(--fg); }
 .ptr-dial.armed { color: var(--accent); border-color: var(--accent); }
 
 /*
- * A tap that leaves a grey rectangle behind reads as a rendering glitch rather
+ * A tap that leaves a gray rectangle behind reads as a rendering glitch rather
  * than as feedback, and every surface here has a :active or a ripple of its own.
  */
 @media (hover: none) {
@@ -2156,13 +2156,13 @@ select optgroup { background-color: var(--bg-elev); color: var(--fg); }
  * icons at 36px (the search filter at 30), the folder twisty at 18, the row ⋮
  * at 24. Growing the boxes would reflow a top bar that has no room to give, so
  * each control keeps the size it draws at and gains a transparent hit area
- * centred on it. Rows grow for real, because a 44px hit area inside a 36px row
+ * centered on it. Rows grow for real, because a 44px hit area inside a 36px row
  * would reach into the rows above and below and steal their taps.
  */
 @media (pointer: coarse) {
   .icon-btn, .nav-twisty { position: relative; }
   /* `.drill-into` already draws at 44px and is excluded: expanding a control
-     that is big enough only lets it reach into its neighbour. */
+     that is big enough only lets it reach into its neighbor. */
   .icon-btn:not(.drill-into)::after, .nav-twisty[role="button"]::after {
     content: "";
     position: absolute;
@@ -2199,11 +2199,11 @@ select optgroup { background-color: var(--bg-elev); color: var(--fg); }
  *
  * Paper has no theme. Whatever palette is on screen, the tokens are pinned to
  * a light, unpainted set here -- backgrounds white rather than the light
- * theme's greys, since a printer would otherwise lay ink over the whole sheet.
+ * theme's grays, since a printer would otherwise lay ink over the whole sheet.
  * Doing it on the tokens rather than per rule is what reaches the message
  * body: it renders in a shadow root this stylesheet cannot select into, and
  * follows the app theme through inherited custom properties (see
- * EMAIL_BASE_CSS in lib/html.ts). Mail that brings colours of its own is left
+ * EMAIL_BASE_CSS in lib/html.ts). Mail that brings colors of its own is left
  * alone -- it is not themed in the first place.
  *
  * `!important` rather than a longer selector: the dark palettes sit on
@@ -2250,7 +2250,7 @@ select optgroup { background-color: var(--bg-elev); color: var(--fg); }
   .app, .app-body, .main, .mail-layout, .mail-reading-pane, .thread-view, .thread-scroll { display: block !important; height: auto !important; overflow: visible !important; grid-template-columns: 1fr !important; border: 0 !important; }
   /*
    * `break-inside: avoid` on the whole card is what put the first message on
-   * page two: a message longer than a sheet cannot honour it, and Chrome
+   * page two: a message longer than a sheet cannot honor it, and Chrome
    * answers by moving the card to a fresh page and breaking it there anyway --
    * leaving page one holding nothing but the subject. Only the header is
    * indivisible now, and it is kept with the body that follows it.
@@ -2385,11 +2385,11 @@ button.dp-open:disabled { cursor: default; opacity: .5; }
 /* The senders whose remote images load without asking, in Privacy & safety. */
 .trusted-senders { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
 
-/* The banner naming a sender from outside the organisation. */
+/* The banner naming a sender from outside the organization. */
 .remote-banner.external-banner { background: var(--warn-soft); border-color: var(--warn); }
 /*
- * The signature banner's colour is the claim it is making, so the quiet tones
- * are deliberate. "Signed by somebody new" is grey, because an unknown
+ * The signature banner's color is the claim it is making, so the quiet tones
+ * are deliberate. "Signed by somebody new" is gray, because an unknown
  * certificate that verifies against itself has established nothing worth a
  * green tick; green is kept for the one case that earned it, a signer matching
  * what was pinned the first time. Red is for a signer that changed.

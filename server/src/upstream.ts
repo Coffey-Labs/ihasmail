@@ -250,7 +250,7 @@ const SCRIPT_MODIFIERS: Record<string, string> = {
 };
 
 /**
- * Normalise a POSIX-style locale ("de_DE.UTF-8@euro") into a BCP-47 tag
+ * Normalize a POSIX-style locale ("de_DE.UTF-8@euro") into a BCP-47 tag
  * ("de-DE"). Returns null for the locale-less values ("C", "POSIX") and for
  * anything that does not look like a language tag.
  */
@@ -336,10 +336,10 @@ function localeOf(call: [string, Record<string, unknown>, string] | undefined): 
 }
 
 /**
- * Permission names in the form the source serialises them.
+ * Permission names in the form the source serializes them.
  *
  * Stalwart 0.16 builds `/api/account`'s list from the same enum as everything
- * else, which serialises as camelCase (`sysAccountGet`). Its documentation and
+ * else, which serializes as camelCase (`sysAccountGet`). Its documentation and
  * OpenAPI example show kebab-case (`sys-account-get`) instead. Until a live
  * server settles which is true, both are read as the one form, so a check
  * written against `sysAccountGet` holds either way.
@@ -426,7 +426,7 @@ export function localizeSession(s: UpstreamSession, extras: Record<string, unkno
  * So by default only the path and query are taken from the advertised URL;
  * scheme, host and port come from the configured base. That is what a proxy
  * should have done all along -- the operator named the route on purpose.
- * STALWART_FOLLOW_ADVERTISED_URLS=1 restores the old behaviour for a setup
+ * STALWART_FOLLOW_ADVERTISED_URLS=1 restores the old behavior for a setup
  * that genuinely needs to reach Stalwart at a different origin than the one
  * it was given.
  */

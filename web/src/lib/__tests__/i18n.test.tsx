@@ -29,12 +29,12 @@ describe("t", () => {
     expect(currentLanguage()).toBe("en");
   });
 
-  it("translates once a catalogue is in force", () => {
+  it("translates once a catalog is in force", () => {
     setCatalog("de", de);
     expect(t("Archive")).toBe("Archivieren");
   });
 
-  it("falls back per string, not per catalogue", () => {
+  it("falls back per string, not per catalog", () => {
     setCatalog("de", de);
     expect(t("Report spam")).toBe("Report spam");
   });
@@ -60,7 +60,7 @@ describe("interpolation", () => {
 describe("plural", () => {
   const FORMS = { one: "{n} message", other: "{n} messages" };
 
-  it("picks the English form without a catalogue", () => {
+  it("picks the English form without a catalog", () => {
     expect(plural(1, FORMS)).toBe("1 message");
     expect(plural(0, FORMS)).toBe("0 messages");
     expect(plural(5, FORMS)).toBe("5 messages");
@@ -73,7 +73,7 @@ describe("plural", () => {
     expect(plural(7, FORMS)).toBe("7 сообщений");   // many
   });
 
-  it("falls back to `other` when the catalogue lacks the category", () => {
+  it("falls back to `other` when the catalog lacks the category", () => {
     setCatalog("de", de);
     // German has no "few"; asking for 3 must not render undefined.
     expect(plural(3, FORMS)).toBe("3 Nachrichten");
@@ -95,7 +95,7 @@ describe("tNode", () => {
 
   it("lets a translator move the element", () => {
     // Splitting the sentence into two t() calls could not do this: the
-    // fragments would render in the English order whatever the catalogue said.
+    // fragments would render in the English order whatever the catalog said.
     setCatalog("de", de);
     expect(render(tNode("Open {scheme} links here", { scheme: <code>mailto:</code> })))
       .toBe("<code>mailto:</code>-Links hier öffnen");

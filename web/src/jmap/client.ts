@@ -321,7 +321,7 @@ export class JmapClient {
         else reject(new ApiError(xhr.status, (xhr.response as ApiErrorBody)?.error ?? "upload_failed", (xhr.response as ApiErrorBody)?.message ?? "Upload failed"));
       };
       xhr.onerror = () => reject(new ApiError(0, "network_error", "Network error during upload"));
-      xhr.onabort = () => reject(new ApiError(0, "aborted", "Upload cancelled"));
+      xhr.onabort = () => reject(new ApiError(0, "aborted", "Upload canceled"));
       opts.signal?.addEventListener("abort", () => xhr.abort());
       xhr.send(data);
     });

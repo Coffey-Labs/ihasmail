@@ -85,7 +85,7 @@ describe("the rest of the schema", () => {
     expect(phones).toContainEqual(expect.objectContaining({ number: "3", features: { pager: true } }));
   });
 
-  it("reads the organisation, its units and the job title", () => {
+  it("reads the organization, its units and the job title", () => {
     const c = card("dn: cn=X\ncn: X\no: Example Corp\nou: Research\nou: Optics\ntitle: Lens Grinder\n")!;
     expect(values(c.organizations)[0]).toMatchObject({
       name: "Example Corp",

@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "wouter";
 import { ArrowDownToLine, ArrowUpFromLine, ExternalLink, Globe, Hourglass, LayoutDashboard, MemoryStick, RefreshCw, Users } from "lucide-react";
 import { adminSections, dashboardCards, type DashboardCard } from "@/lib/adminAccess";
-import { balancedColumns, countObjects, DASHBOARD_WINDOW_MS, isRefused, loadMetrics, summariseMetrics, type MessageStats } from "@/lib/adminDashboard";
+import { balancedColumns, countObjects, DASHBOARD_WINDOW_MS, isRefused, loadMetrics, summarizeMetrics, type MessageStats } from "@/lib/adminDashboard";
 import { formatDayMonthTime, resolvedLocale } from "@/lib/datetime";
 import { formatSize } from "@/lib/format";
 import { t } from "@/lib/i18n";
@@ -45,17 +45,17 @@ export function AdminDashboard() {
   const key = cards.join(",");
 
   useEffect(() => {
-    let cancelled = false;
+    let canceled = false;
     const into = <T,>(set: (v: Loaded<T>) => void, work: () => Promise<T>) => {
       set(LOADING);
-      void settle(work()).then((v) => !cancelled && set(v));
+      void settle(work()).then((v) => !canceled && set(v));
     };
     if (cards.includes("users")) into(setUsers, () => countObjects("Account"));
     if (cards.includes("domains")) into(setDomains, () => countObjects("Domain"));
     if (cards.includes("pending")) into(setPending, () => countObjects("QueuedMessage"));
-    if (cards.includes("received")) into(setMessages, async () => summariseMetrics(await loadMetrics(new Date(Date.now() - DASHBOARD_WINDOW_MS))));
+    if (cards.includes("received")) into(setMessages, async () => summarizeMetrics(await loadMetrics(new Date(Date.now() - DASHBOARD_WINDOW_MS))));
     return () => {
-      cancelled = true;
+      canceled = true;
     };
     // `key` is the card list's contents; the array itself is new every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps

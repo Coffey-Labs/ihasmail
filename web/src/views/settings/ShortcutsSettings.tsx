@@ -23,7 +23,7 @@ export function ShortcutsSettings() {
           <div key={group}>
             {/* Group names and descriptions are registered in English at the
                 call sites -- see views/Shortcuts.tsx -- because the binding
-                table is data, not markup, and the English is the catalogue
+                table is data, not markup, and the English is the catalog
                 key. Translating at render keeps the registration simple and
                 means a binding added anywhere is translatable without the
                 registrar knowing about i18n. */}

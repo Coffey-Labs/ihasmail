@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { client, JmapMethodError } from "@/jmap/client";
-import { balancedColumns, countObjects, isRefused, loadMetrics, summariseMetrics, type MetricRecord } from "@/lib/adminDashboard";
+import { balancedColumns, countObjects, isRefused, loadMetrics, summarizeMetrics, type MetricRecord } from "@/lib/adminDashboard";
 
 const counter = (metric: string, count: number, timestamp = "2026-09-15T14:00:00Z"): MetricRecord => ({ "@type": "Counter", metric, count, timestamp });
 
 describe("the dashboard's message numbers", () => {
   it("adds received and sent up over the metric names Stalwart's own dashboard uses", () => {
-    const stats = summariseMetrics([
+    const stats = summarizeMetrics([
       counter("queue.message-queued", 6),
       counter("queue.message-queued", 4, "2026-09-15T13:00:00Z"),
       counter("queue.authenticated-message-queued", 2),
@@ -20,7 +20,7 @@ describe("the dashboard's message numbers", () => {
   });
 
   it("reads memory from the newest gauge, not the first one listed", () => {
-    const stats = summariseMetrics([
+    const stats = summarizeMetrics([
       { "@type": "Gauge", metric: "server.memory", count: 100, timestamp: "2026-09-15T12:00:00Z" },
       { "@type": "Gauge", metric: "server.memory", count: 300, timestamp: "2026-09-15T14:00:00Z" },
       { "@type": "Gauge", metric: "queue.count", count: 7, timestamp: "2026-09-15T15:00:00Z" },
@@ -29,8 +29,8 @@ describe("the dashboard's message numbers", () => {
   });
 
   it("tells a history that records nothing from a quiet day", () => {
-    expect(summariseMetrics([]).recorded).toBe(false);
-    const quiet = summariseMetrics([{ "@type": "Gauge", metric: "server.memory", count: 1, timestamp: "2026-09-15T14:00:00Z" }]);
+    expect(summarizeMetrics([]).recorded).toBe(false);
+    const quiet = summarizeMetrics([{ "@type": "Gauge", metric: "server.memory", count: 1, timestamp: "2026-09-15T14:00:00Z" }]);
     expect(quiet).toMatchObject({ recorded: true, received: 0, sent: 0 });
   });
 });

@@ -113,7 +113,7 @@ export function createDirectory(opts: Options) {
     { id: "k2", "@type": "Dkim1RsaSha256", domainId: "d1", selector: "v1-rsa-20260601", stage: "active", createdAt: "2026-06-01T09:00:00Z", nextTransitionAt: "2026-08-30T09:00:00Z", memberTenantId: null },
     { id: "k3", "@type": "Dkim1Ed25519Sha256", domainId: "d2", selector: "v1-ed25519-20260710", stage: "active", createdAt: "2026-07-10T09:00:00Z", nextTransitionAt: null, memberTenantId: null },
   ];
-  /** What Stalwart's BIND serialiser writes, including a TXT long enough to be split. */
+  /** What Stalwart's BIND serializer writes, including a TXT long enough to be split. */
   const zoneFile = (d: Obj): string => {
     const n = String(d.name);
     const lines = [

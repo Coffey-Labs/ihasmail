@@ -623,7 +623,7 @@ export const useCompose = create<ComposeState>((set, get) => ({
         });
       }
     };
-    // A scheduled send is already delayed, and cancelling it is a server-side
+    // A scheduled send is already delayed, and canceling it is a server-side
     // operation from the Scheduled folder -- holding it locally first would
     // only add a second, different kind of undo.
     if (delay <= 0 || scheduling) {

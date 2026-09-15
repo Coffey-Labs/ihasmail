@@ -72,7 +72,7 @@ test("every entry in the example mapping is a domain and an http(s) URL", () => 
     if (key.startsWith("_")) continue;
     const domain = key.trim().toLowerCase().replace(/\.$/, "");
     assert.ok(domain, "a domain key is empty");
-    assert.ok(!seen.has(domain), `${domain} appears twice once normalised`);
+    assert.ok(!seen.has(domain), `${domain} appears twice once normalized`);
     seen.add(domain);
     // A URL, or an object naming the server's URL and its administration's.
     const entry = value && typeof value === "object" ? (value as Record<string, unknown>) : { url: value };

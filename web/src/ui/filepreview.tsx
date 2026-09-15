@@ -154,7 +154,7 @@ export function FilePreviewDialog({
    *
    * The bytes have to be fetched rather than the URL passed along, because the
    * share sheet takes a File. `same-origin` credentials because both URLs are
-   * ihasmail's own blob proxy and it is the session cookie that authorises the
+   * ihasmail's own blob proxy and it is the session cookie that authorizes the
    * read -- which is also why this does not break the rule about `ui/` not
    * reaching for the JMAP client: it is a plain fetch of a URL the caller
    * already handed over.

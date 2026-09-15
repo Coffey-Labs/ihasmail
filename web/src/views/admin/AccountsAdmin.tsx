@@ -51,22 +51,22 @@ export function AccountsAdmin({ selectedId }: { selectedId?: string }) {
   }, [text]);
 
   useEffect(() => {
-    let cancelled = false;
+    let canceled = false;
     setError(null);
     void (async () => {
       try {
         const q = await queryAccounts({ type: "User", text: query, position, limit: PAGE_SIZE });
         const accounts = await getAccounts(q.ids);
-        if (!cancelled) setPage({ accounts, total: q.total });
+        if (!canceled) setPage({ accounts, total: q.total });
       } catch (err) {
-        if (!cancelled) {
+        if (!canceled) {
           setPage({ accounts: [], total: 0 });
           setError(describeDirectoryError(err));
         }
       }
     })();
     return () => {
-      cancelled = true;
+      canceled = true;
     };
   }, [query, position, reload]);
 
@@ -85,13 +85,13 @@ export function AccountsAdmin({ selectedId }: { selectedId?: string }) {
       setLoose(null);
       return;
     }
-    let cancelled = false;
+    let canceled = false;
     void getAccounts([selectedId]).then(
-      ([a]) => { if (!cancelled) setLoose(a ?? null); },
-      () => { if (!cancelled) setLoose(null); },
+      ([a]) => { if (!canceled) setLoose(a ?? null); },
+      () => { if (!canceled) setLoose(null); },
     );
     return () => {
-      cancelled = true;
+      canceled = true;
     };
   }, [selectedId, page]);
 

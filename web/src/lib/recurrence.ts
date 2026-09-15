@@ -7,8 +7,8 @@ import { plural, t } from "@/lib/i18n";
  *
  * This was a table of English strings carrying `label: "Monday"` and
  * `short: "M"`, rendered straight into the picker. The long names could have
- * become catalogue entries; the short ones could not, because "T" is both
- * Tuesday and Thursday and "S" is both Saturday and Sunday, and a catalogue
+ * become catalog entries; the short ones could not, because "T" is both
+ * Tuesday and Thursday and "S" is both Saturday and Sunday, and a catalog
  * cannot hold two translations under one key. Intl knows all of them.
  */
 export const WEEKDAY_KEYS: Array<JSCalendarNDay["day"]> = ["mo", "tu", "we", "th", "fr", "sa", "su"];
@@ -61,7 +61,7 @@ export function ruleFromPreset(preset: RecurrencePreset, start: Date): JSCalenda
  *
  * Built as whole sentences with placeholders rather than by concatenation.
  * The old version appended fragments -- `base += " on " + names` -- which is
- * untranslatable however complete the catalogue is: German puts the weekday
+ * untranslatable however complete the catalog is: German puts the weekday
  * list somewhere else in the clause, and a translator handed " on " alone
  * cannot move it. Every branch below is one key a translator can rewrite in
  * full, including the word order.
@@ -144,7 +144,7 @@ export function describeRule(rule: JSCalendarRecurrenceRule | undefined): string
  * "first", "second", "last" -- words, not "1st".
  *
  * The suffix table this replaced ("st", "nd", "rd", "th") is English spelling
- * rules in code: German writes "1.", Japanese "第1", and no catalogue can
+ * rules in code: German writes "1.", Japanese "第1", and no catalog can
  * reach a suffix chosen by arithmetic. JSCalendar's nthOfPeriod is 1-5 or -1
  * in practice, so five words and "last" cover it; anything else falls back to
  * the bare number, which is wrong in no language.

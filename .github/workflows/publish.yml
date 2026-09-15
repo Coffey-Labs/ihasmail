@@ -4,7 +4,7 @@
 # `ghcr.io/coffey-labs/ihasmail:latest` for a long time, and nothing ever
 # pushed it: `docker pull` answered `denied`, because the package did not
 # exist. This is the workflow that makes those instructions true. It is also
-# the prerequisite for the self-hosted app catalogues -- TrueNAS and Unraid
+# the prerequisite for the self-hosted app catalogs -- TrueNAS and Unraid
 # both install by pulling an image and neither builds from source.
 #
 # FIRST RUN: a package GHCR creates for the first time is **private**, even in
@@ -44,7 +44,7 @@ on:
         type: boolean
         default: false
   # Same reasoning as ci.yml's dispatch trigger: a run GitHub queues and then
-  # orphans can be neither rerun nor cancelled, and this workflow otherwise
+  # orphans can be neither rerun nor canceled, and this workflow otherwise
   # only fires on a release -- which is not something to cut twice because a
   # runner died. `ref` also allows publishing an image for a tag that predates
   # this workflow, which is how the first one gets built.

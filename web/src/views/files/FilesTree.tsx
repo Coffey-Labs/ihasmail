@@ -62,7 +62,7 @@ export function FilesTree() {
   const [rootDrop, setRootDrop] = useState(false);
   const menu = useMenu();
 
-  /* Shared with the list pane: a drag starting in one has to be recognised by
+  /* Shared with the list pane: a drag starting in one has to be recognized by
      the other. See the note on `draggingId` in the store. */
   const draggingIds = useFiles((s) => s.draggingIds);
   const setDragging = useFiles((s) => s.setDragging);

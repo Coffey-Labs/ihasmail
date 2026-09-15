@@ -73,7 +73,7 @@ describe("replying to a message somebody sent me", () => {
     expect(addrs(d.cc)).toEqual([BOB.email]);
   });
 
-  it("honours the sender's Reply-To, which is what it is for", async () => {
+  it("honors the sender's Reply-To, which is what it is for", async () => {
     const d = await draftFor({ ...HERS, replyTo: [{ name: null, email: "desk@example.com" }] } as Email, "reply");
     expect(addrs(d.to)).toEqual(["desk@example.com"]);
   });
@@ -105,7 +105,7 @@ describe("replying to a message I sent", () => {
     expect(addrs(d.cc)).toEqual([BOB.email]);
   });
 
-  it("recognises my address however the identity stored it", async () => {
+  it("recognizes my address however the identity stored it", async () => {
     // A hand-typed identity address can carry whitespace, and comparing
     // strings rather than addresses made that enough to break the reply.
     const padded = [{ id: "i1", name: "John", email: "  John@Example.ORG " }] as unknown as Identity[];

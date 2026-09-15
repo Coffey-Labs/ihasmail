@@ -1,7 +1,7 @@
 /**
  * Settings that follow the account rather than the browser.
  *
- * Everything used to live in localStorage, which meant no preference travelled
+ * Everything used to live in localStorage, which meant no preference traveled
  * between devices — most painfully the default identity, where the fallback is
  * whichever address sorts first, so a forgotten setting sends mail from an
  * address the recipient may not know (issue #54).
@@ -152,7 +152,7 @@ export async function flushSettingsPush(): Promise<void> {
   if (!pending || !armed) return;
   const body = pending;
   pending = null;
-  // Serialise: two overlapping writes could land in either order.
+  // Serialize: two overlapping writes could land in either order.
   inFlight = (inFlight ?? Promise.resolve()).then(() => writeSettings(body)).catch(() => undefined);
   await inFlight;
 }

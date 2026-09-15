@@ -45,7 +45,7 @@ test("an unmapped domain still goes to the default while others are mapped", () 
 });
 
 test("the domain is matched however it was typed", () => {
-  // Keys are normalised on load; the username has to be normalised the same
+  // Keys are normalized on load; the username has to be normalized the same
   // way or a mapping silently never matches.
   config.stalwartServers["mapped.test"] = "https://mail.mapped.test";
   try {

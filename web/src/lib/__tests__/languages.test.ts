@@ -19,7 +19,7 @@ describe("resolveUiLanguage", () => {
   });
 
   it("refuses a language whose strings are not shipped", () => {
-    // The account travels between machines and can outlive a catalogue. A
+    // The account travels between machines and can outlive a catalog. A
     // page that says lang="fr" while rendering English is worse than one that
     // admits to English: it stops the reader translating it themselves.
     // Derived rather than named, so shipping another language does not turn
@@ -30,7 +30,7 @@ describe("resolveUiLanguage", () => {
   });
 
   it("carries the Beta flag until a person has signed the language off", () => {
-    // Not a completeness measure. A catalogue can be word-for-word finished
+    // Not a completeness measure. A catalog can be word-for-word finished
     // and still read like a machine wrote it, which is what this marks.
     // Every shipped language except English is unreviewed, and stays marked
     // until a person says otherwise.
@@ -40,12 +40,12 @@ describe("resolveUiLanguage", () => {
     }
   });
 
-  it("honours one that is", () => {
+  it("honors one that is", () => {
     for (const l of UI_LANGUAGES) expect(resolveUiLanguage(l.tag)).toBe(l.tag);
   });
 
   it("only offers languages that resolve to themselves", () => {
-    // Guards the ordering mistake: adding a picker entry before its catalogue.
+    // Guards the ordering mistake: adding a picker entry before its catalog.
     for (const l of UI_LANGUAGES) {
       expect(resolveUiLanguage(l.tag)).toBe(l.tag);
       expect(l.name.trim()).not.toBe("");

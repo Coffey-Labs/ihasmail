@@ -45,24 +45,24 @@ export function GroupsAdmin({ selectedId }: { selectedId?: string }) {
   }, [text]);
 
   useEffect(() => {
-    let cancelled = false;
+    let canceled = false;
     setError(null);
     void (async () => {
       try {
         const q = await queryGroups({ text: query, position, limit: PAGE_SIZE });
         const groups = await getGroups(q.ids);
-        if (cancelled) return;
+        if (canceled) return;
         setPage({ groups, total: q.total });
-        void countMembers(groups.map((g) => g.id)).then((c) => !cancelled && setCounts(c));
+        void countMembers(groups.map((g) => g.id)).then((c) => !canceled && setCounts(c));
       } catch (err) {
-        if (!cancelled) {
+        if (!canceled) {
           setPage({ groups: [], total: 0 });
           setError(describeDirectoryError(err, "group"));
         }
       }
     })();
     return () => {
-      cancelled = true;
+      canceled = true;
     };
   }, [query, position, reload]);
 
@@ -76,13 +76,13 @@ export function GroupsAdmin({ selectedId }: { selectedId?: string }) {
       setLoose(null);
       return;
     }
-    let cancelled = false;
+    let canceled = false;
     void getGroups([selectedId]).then(
-      ([g]) => { if (!cancelled) setLoose(g ?? null); },
-      () => { if (!cancelled) setLoose(null); },
+      ([g]) => { if (!canceled) setLoose(g ?? null); },
+      () => { if (!canceled) setLoose(null); },
     );
     return () => {
-      cancelled = true;
+      canceled = true;
     };
   }, [selectedId, page]);
 

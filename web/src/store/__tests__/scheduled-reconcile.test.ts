@@ -111,7 +111,7 @@ describe("reconcile", () => {
     expect(useScheduled.getState().pending).toEqual({});
   });
 
-  it("returns a message cancelled elsewhere to Drafts, as a draft again", async () => {
+  it("returns a message canceled elsewhere to Drafts, as a draft again", async () => {
     const s = server(["e1"], [{ id: "s1", emailId: "e1", sendAt: FUTURE, undoStatus: "canceled" }]);
     await useScheduled.getState().reconcile();
     expect(moved(s.updates[0]!.e1!)).toEqual({ into: DRAFTS, outOf: SCHED });
@@ -156,7 +156,7 @@ describe("reconcile", () => {
   });
 
   it("keeps a message whose live hold was moved earlier than the one it replaced", async () => {
-    // Rescheduling to a sooner time leaves the cancelled submission holding the
+    // Rescheduling to a sooner time leaves the canceled submission holding the
     // later sendAt. Going by timestamp alone would file a message back to
     // Drafts while the queue still has it.
     const s = server(

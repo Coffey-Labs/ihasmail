@@ -74,7 +74,7 @@ export async function collectShare(): Promise<SharedContent | null> {
        * The bytes, rather than the Blob holding them.
        *
        * `new File([blob], …)` is correct and works in a browser, but a Blob
-       * only counts as a part where the File constructor recognises it as one
+       * only counts as a part where the File constructor recognizes it as one
        * -- and where it does not, it is stringified instead, producing a file
        * containing the thirteen characters "[object Blob]" and no error
        * anywhere. That is exactly what CI caught on Node 22 while it passed

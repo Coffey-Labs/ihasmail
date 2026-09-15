@@ -1331,7 +1331,7 @@ async function notifyNewMail(created: Id[], get: () => MailState) {
         onClick: () => {
           window.location.hash = "";
           // The one navigation that does not go through wouter -- it is
-          // synthesising a popstate so the router picks the address up -- so
+          // synthesizing a popstate so the router picks the address up -- so
           // it is also the one that has to add the mount prefix itself.
           window.history.pushState({}, "", withBase(`/mail/${inbox}/${e.threadId}`));
           window.dispatchEvent(new PopStateEvent("popstate"));

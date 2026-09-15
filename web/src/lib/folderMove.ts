@@ -66,7 +66,7 @@ export function canMoveFolderTo(mailboxes: Record<Id, Mailbox>, id: Id, targetId
   return targetId === null || Boolean(mailboxes[targetId]?.myRights.mayCreateChild);
 }
 
-/** The colour chosen for a folder, if any. Ids are used, so a rename keeps it. */
+/** The color chosen for a folder, if any. Ids are used, so a rename keeps it. */
 export function folderColor(colors: Record<string, string>, id: Id): string | null {
   return colors[id] ?? null;
 }

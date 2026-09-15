@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { SWIPE_CHOICES, describeSwipe, type SwipeAction } from "../swipe";
 
 /**
- * A swipe names what it is about to do on a coloured strip the reader sees for
+ * A swipe names what it is about to do on a colored strip the reader sees for
  * about a third of a second before letting go. These check that the name is
  * true in the folder it is being read in — which is the whole reason the
  * descriptor exists rather than a fixed label per setting.

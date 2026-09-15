@@ -168,7 +168,7 @@ function toIsoDateTime(d: Date): string {
   return `${toLocalDateOnly(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-/** Shared text-box behaviour: type freely, commit on blur or Enter, revert what won't parse. */
+/** Shared text-box behavior: type freely, commit on blur or Enter, revert what won't parse. */
 function useTextField(value: string, display: (v: string) => string, commit: (text: string) => boolean) {
   const [text, setText] = useState(() => display(value));
   const [editing, setEditing] = useState(false);

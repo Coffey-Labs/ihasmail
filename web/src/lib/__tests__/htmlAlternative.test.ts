@@ -36,7 +36,7 @@ describe("deciding whether a message has an HTML alternative", () => {
     expect(hasHtmlAlternative({ type: "text/htmlish" }, "<p>Hi</p>")).toBe(false);
   });
 
-  it("matches the type case-insensitively, since a header may be capitalised", () => {
+  it("matches the type case-insensitively, since a header may be capitalized", () => {
     expect(hasHtmlAlternative({ type: "TEXT/HTML" }, "<p>Hi</p>")).toBe(true);
   });
 

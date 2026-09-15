@@ -127,18 +127,18 @@ export async function namesOf(object: "Tenant" | "DnsServer", ids: string[]): Pr
 }
 
 /** Lower-case, no surrounding space or root dot: how a domain is written back. */
-export function normaliseDomain(name: string): string {
+export function normalizeDomain(name: string): string {
   return name.trim().toLowerCase().replace(/\.$/, "");
 }
 
 /** Enough of a check to catch a typo before the server does; the server decides. */
 export function looksLikeDomain(name: string): boolean {
-  return /^(?=.{1,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9-]{2,63}$/.test(normaliseDomain(name));
+  return /^(?=.{1,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9-]{2,63}$/.test(normalizeDomain(name));
 }
 
 export async function createDomain(input: { name: string; description: string }): Promise<string> {
   const res = await client.call<SetResponse>("x:Domain/set", {
-    create: { n: { name: normaliseDomain(input.name), description: input.description.trim() || null } },
+    create: { n: { name: normalizeDomain(input.name), description: input.description.trim() || null } },
   });
   refused(res, "notCreated");
   const id = (res.created?.n as { id?: string } | undefined)?.id;
@@ -179,8 +179,8 @@ export interface DnsRecord {
 /**
  * Read the zone file Stalwart computes for a domain.
  *
- * Its serialiser writes one record per line as `name IN TYPE value`, and a TXT
- * record longer than 255 bytes as a parenthesised run of quoted strings, one
+ * Its serializer writes one record per line as `name IN TYPE value`, and a TXT
+ * record longer than 255 bytes as a parenthesized run of quoted strings, one
  * per line. A DNS provider's form wants the whole value, so the strings are
  * joined and unescaped; the original lines are kept for anyone pasting into a
  * zone. Anything that does not parse is kept too, as its own row, rather than

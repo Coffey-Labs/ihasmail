@@ -97,14 +97,14 @@ describe("explicit date formats", () => {
 });
 
 describe("clock preference", () => {
-  it("honours 24-hour regardless of locale", () => {
+  it("honors 24-hour regardless of locale", () => {
     setDateTimePrefs({ locale: "en-US", timeFormat: "24" });
     expect(formatClock(SAMPLE)).toBe("18:23");
     expect(uses24Hour()).toBe(true);
     expect(formatHourLabel(13)).toBe("13");
     expect(formatHourLabel(9)).toBe("09");
   });
-  it("honours 12-hour regardless of locale", () => {
+  it("honors 12-hour regardless of locale", () => {
     setDateTimePrefs({ locale: "de-DE", timeFormat: "12" });
     expect(formatClock(SAMPLE)).toBe("6:23 PM");
     expect(uses24Hour()).toBe(false);

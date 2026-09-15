@@ -27,7 +27,7 @@ function unsafe(ch: string): boolean {
 }
 
 /**
- * Long enough to stay recognisable, short enough to survive a 255-*byte* limit
+ * Long enough to stay recognizable, short enough to survive a 255-*byte* limit
  * once a CJK subject is three bytes a character.
  */
 const MAX = 80;

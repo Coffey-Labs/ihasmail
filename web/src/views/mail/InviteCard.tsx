@@ -17,18 +17,18 @@ export function InviteCard({ email, part }: { email: Email; part: EmailBodyPart 
 
   useEffect(() => {
     if (!cal.available || !part.blobId) return;
-    let cancelled = false;
+    let canceled = false;
     cal
       .parseIcs(part.blobId)
       .then(async (evs) => {
-        if (cancelled) return;
+        if (canceled) return;
         setEvents(evs);
         const first = evs[0];
         if (first?.uid) setExisting(await cal.findByUid(first.uid));
       })
-      .catch((err) => !cancelled && setError((err as Error).message));
+      .catch((err) => !canceled && setError((err as Error).message));
     return () => {
-      cancelled = true;
+      canceled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [part.blobId, cal.available]);
@@ -80,7 +80,7 @@ export function InviteCard({ email, part }: { email: Email; part: EmailBodyPart 
     }
   };
 
-  const title = method === "CANCEL" ? "Cancelled event" : method === "REPLY" ? "Invitation reply" : method === "REQUEST" ? (existing ? "Invitation (in your calendar)" : "Invitation") : "Event";
+  const title = method === "CANCEL" ? "Canceled event" : method === "REPLY" ? "Invitation reply" : method === "REQUEST" ? (existing ? "Invitation (in your calendar)" : "Invitation") : "Event";
 
   return (
     <div className="invite-card">

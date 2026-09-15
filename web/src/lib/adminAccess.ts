@@ -107,7 +107,7 @@ export interface RoleDef {
  * more rights than its own and sign in as it. ihasmail refuses to offer that,
  * and treats such an account as read-only.
  *
- * It errs towards refusing. A role that cannot be read -- the viewer lacks
+ * It errs toward refusing. A role that cannot be read -- the viewer lacks
  * `sysRoleGet`, or the id is not in the list -- counts as outranking, because
  * an unknown grant is not a grant the viewer can be shown to hold. What it
  * cannot see is tenancy: an "Administrator" account is a tenant administrator

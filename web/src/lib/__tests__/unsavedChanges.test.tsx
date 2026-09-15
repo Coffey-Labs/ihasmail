@@ -5,7 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 /*
  * The guard's answers, and which of them the dialog leans on.
  *
- * It shipped with "Discard changes" as the only choice carrying a colour, which
+ * It shipped with "Discard changes" as the only choice carrying a color, which
  * made losing the work the easy thing to click on a dialog whose entire purpose
  * is to stop that (#175). The emphasis belongs on the safe answer; the
  * destructive one stays legible as destructive without being the loudest thing

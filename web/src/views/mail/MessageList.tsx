@@ -612,7 +612,7 @@ const Row = memo(function Row({ email: e, threadEmails, top, height, selected, f
   /*
    * How far this row has been dragged from home, and whether it is currently
    * animating back. Kept here rather than in the list so that a moving finger
-   * re-renders one row instead of the whole virtualised list; the list is told
+   * re-renders one row instead of the whole virtualized list; the list is told
    * only the three things the strip behind the row needs -- which row, which
    * way, and whether letting go now would fire.
    */

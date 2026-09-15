@@ -78,18 +78,18 @@ export function GroupSheet({ group, ctx, onClose, onChanged, onCreated, onDelete
 
   useEffect(() => {
     if (!group) return;
-    let cancelled = false;
+    let canceled = false;
     setMembersError(null);
     listMembers(group.id).then(
-      (m) => !cancelled && setMembers(m),
+      (m) => !canceled && setMembers(m),
       (err) => {
-        if (cancelled) return;
+        if (canceled) return;
         setMembers({ members: [], total: 0 });
         setMembersError(describeDirectoryError(err, "group"));
       },
     );
     return () => {
-      cancelled = true;
+      canceled = true;
     };
   }, [group, membersRevision]);
 
@@ -348,15 +348,15 @@ function AddMember({ ctx, exclude, busy, onAdd }: { ctx: DirectoryContext; exclu
       setFound(null);
       return;
     }
-    let cancelled = false;
+    let canceled = false;
     const id = window.setTimeout(() => {
       searchUsers(needle).then(
-        (list) => !cancelled && setFound(list),
-        () => !cancelled && setFound([]),
+        (list) => !canceled && setFound(list),
+        () => !canceled && setFound([]),
       );
     }, 250);
     return () => {
-      cancelled = true;
+      canceled = true;
       window.clearTimeout(id);
     };
   }, [text]);

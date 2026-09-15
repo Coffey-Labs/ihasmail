@@ -5,9 +5,9 @@ import { DEFAULT_UI_LANGUAGE, resolveUiLanguage } from "@/lib/languages";
  * Translation, in about as little machinery as the job takes.
  *
  * The English text is the key. `t("Archive")` looks "Archive" up in whatever
- * catalogue is loaded and returns the English if it is not there, which buys
+ * catalog is loaded and returns the English if it is not there, which buys
  * three things worth more than tidy symbolic keys: there is no English
- * catalogue to keep in step with the code, a missing translation degrades to
+ * catalog to keep in step with the code, a missing translation degrades to
  * readable English rather than to `mail.list.archive`, and extracting a string
  * is wrapping it rather than inventing a name for it. Names are where
  * extraction stalls -- 55 components is a lot of small naming arguments.
@@ -71,7 +71,7 @@ export function t(source: string, vars?: Vars): string {
  *
  * So a context can be given, and the lookup becomes context + source while the
  * fallback stays the plain English. A translator sees the context and knows
- * which sense to render; a catalogue that has not got round to it still
+ * which sense to render; a catalog that has not got round to it still
  * renders the English word, which was right in English all along.
  *
  * The separator is a control character rather than a punctuation mark, which
@@ -91,7 +91,7 @@ export function tc(context: string, source: string, vars?: Vars): string {
  * Two forms is an English assumption and does not survive the second phase of
  * this: Russian and Ukrainian use three, and picking between them is not
  * `n === 1`. `Intl.PluralRules` knows the rule for every language the browser
- * knows, so the catalogue supplies the forms and the runtime picks.
+ * knows, so the catalog supplies the forms and the runtime picks.
  *
  * The English `other` form is the key, so a call site reads as the sentence it
  * produces and needs no invented name.
@@ -143,7 +143,7 @@ export function tNode(source: string, parts: Record<string, ReactNode>, vars?: V
   return out;
 }
 
-/** Subscribe to catalogue changes without React. Used by the tests. */
+/** Subscribe to catalog changes without React. Used by the tests. */
 export function subscribeForTest(fn: () => void): () => void {
   listeners.add(fn);
   return () => void listeners.delete(fn);
@@ -155,27 +155,27 @@ export function currentLanguage(): string {
 }
 
 /**
- * Put a catalogue in force.
+ * Put a catalog in force.
  *
  * Exported for tests and for the loader; nothing else should call it, because
- * the tag and the catalogue have to move together or `plural` selects with one
+ * the tag and the catalog have to move together or `plural` selects with one
  * language's rules against another's forms.
  */
 export function setCatalog(tag: string, catalog: Catalog): void {
   /*
-   * Publishing only when something actually changed is not an optimisation
+   * Publishing only when something actually changed is not an optimization
    * here, it is the thing that stops an infinite loop.
    *
    * The root keys its tree on the language version, so a publish remounts
    * everything. Remounting re-runs the effect that fetches the account's
    * settings file, which calls `hydrate`, which calls `applyLang`, which lands
-   * back here -- with the identical tag and the identical catalogue. Publishing
+   * back here -- with the identical tag and the identical catalog. Publishing
    * that non-change bumped the version again and went round for ever: the
    * message list refetched on every pass, which is what it looked like from
    * the outside.
    *
    * Reference equality is enough. `EMPTY` is a module constant and a
-   * dynamically imported catalogue is cached, so the same language really does
+   * dynamically imported catalog is cached, so the same language really does
    * hand back the same object.
    */
   if (currentTag === tag && current === catalog) return;
@@ -188,16 +188,16 @@ export function setCatalog(tag: string, catalog: Catalog): void {
  * Load and apply a language.
  *
  * English is the built-in: it is the source text, so there is nothing to fetch
- * and no chance of a missing catalogue leaving the app blank. Everything else
+ * and no chance of a missing catalog leaving the app blank. Everything else
  * is a dynamic import, so a reader who never leaves English never downloads a
- * catalogue -- which matters, because the main bundle is already large enough
+ * catalog -- which matters, because the main bundle is already large enough
  * to warn about.
  */
 /**
- * The catalogue load that is in flight, so the first paint can wait for it.
+ * The catalog load that is in flight, so the first paint can wait for it.
  *
- * Without this, a cold load paints before the catalogue lands. Components
- * recover -- the tree is rebuilt when the catalogue arrives -- but a string
+ * Without this, a cold load paints before the catalog lands. Components
+ * recover -- the tree is rebuilt when the catalog arrives -- but a string
  * computed in an effect does not: a toast fired in that window is emitted in
  * English and stays English, in an interface that is otherwise German.
  * Reported as a stale-folder toast that ignored the language setting.
@@ -224,7 +224,7 @@ async function loadLanguageNow(tag: string): Promise<void> {
     const mod = (await import(`../locales/${resolved}.ts`)) as { catalog: Catalog };
     setCatalog(resolved, mod.catalog);
   } catch {
-    // A catalogue that will not load leaves English in force rather than a
+    // A catalog that will not load leaves English in force rather than a
     // half-rendered page. `resolveUiLanguage` should already have prevented
     // this; it being reachable at all is why it is caught.
     setCatalog(DEFAULT_UI_LANGUAGE, EMPTY);

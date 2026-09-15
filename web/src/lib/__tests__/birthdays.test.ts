@@ -73,7 +73,7 @@ describe("birthdaysInRange", () => {
     expect(birthdaysInRange([card("c2", "", { month: 6, day: 15 })], s, e)).toEqual([]);
   });
 
-  it("falls back to a name built from components, then to the organisation", () => {
+  it("falls back to a name built from components, then to the organization", () => {
     const [s, e] = range("2026-01-01", "2027-01-01");
     const parts = {
       id: "c1",
@@ -115,7 +115,7 @@ describe("birthdaysInRange", () => {
     expect(out.map((b) => b.name)).toEqual(["Amy", "Zoe"]);
   });
 
-  it("gives each occurrence a stable, unique id that marks it as synthesised", () => {
+  it("gives each occurrence a stable, unique id that marks it as synthesized", () => {
     const [s, e] = range("2025-01-01", "2027-01-01");
     const out = birthdaysInRange([card("c1", "Ada", { month: 6, day: 15 })], s, e);
     expect(new Set(out.map((b) => b.id)).size).toBe(out.length);

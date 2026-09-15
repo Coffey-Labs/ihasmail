@@ -97,7 +97,7 @@ export interface DialogChoice {
    * The safe answer, given the weight a dialog's confirm button has.
    *
    * A list of choices has no default until one is said to be, and the
-   * destructive one must not become it by being the only thing with a colour --
+   * destructive one must not become it by being the only thing with a color --
    * which is what "Discard changes" was, on a guard whose whole purpose is to
    * stop you losing work ([#175]).
    *

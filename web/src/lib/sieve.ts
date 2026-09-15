@@ -183,7 +183,7 @@ export function rulesToSieve(rules: SieveRule[]): string {
  *
  * Saving replaces the whole script with a fresh serialization of the rules read
  * out of it, so whatever was not read is deleted. `sieveToRules` cannot raise
- * the alarm by itself: it skips what it does not recognise, so a script cut off
+ * the alarm by itself: it skips what it does not recognize, so a script cut off
  * partway through parses cleanly into a shorter list and looks exactly like one
  * that genuinely has fewer rules. That is the shape of the loss in #76 -- a
  * truncated download, a plausible parse, and a save that wrote the short
@@ -326,10 +326,10 @@ export function reorderRules(rules: SieveRule[], fromId: string, toId: string, b
  *
  * Rebuilt as whole sentences with placeholders. The old version concatenated
  * fragments -- a header name, an operator, a quoted value, joined by " and "
- * -- which no catalogue could fix: German puts the verb last, Japanese does
+ * -- which no catalog could fix: German puts the verb last, Japanese does
  * not separate list items with a word at all, and a translator handed " and "
  * on its own cannot move anything. Reported by a native speaker reviewing the
- * German catalogue (#247).
+ * German catalog (#247).
  *
  * Intl.ListFormat does the joining, so "A, B and C" becomes "A, B und C" and,
  * for an anyof rule, the disjunction the language actually uses.

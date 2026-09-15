@@ -23,7 +23,7 @@ export interface Birthday {
   age: number | null;
 }
 
-/** The prefix marking a synthesised event, so nothing tries to save one. */
+/** The prefix marking a synthesized event, so nothing tries to save one. */
 export const BIRTHDAY_ID_PREFIX = "ihm-birthday:";
 
 /** The virtual calendar's id. Not a JMAP id, and deliberately unlike one. */

@@ -77,7 +77,7 @@ test("junk in the chain is discarded rather than used as a key", () => {
   assert.equal(resolveClientIp("127.0.0.1", { forwardedFor: "" }, cfg), "127.0.0.1");
 });
 
-test("bracketed and IPv4-mapped forms are normalised", () => {
+test("bracketed and IPv4-mapped forms are normalized", () => {
   assert.equal(resolveClientIp("::1", { forwardedFor: "[2001:db8::5]" }, cfg), "2001:db8::5");
   assert.equal(resolveClientIp("::1", { forwardedFor: "::ffff:198.51.100.7" }, cfg), "198.51.100.7");
 });

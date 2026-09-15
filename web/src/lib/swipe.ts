@@ -35,7 +35,7 @@ export interface SwipeDescriptor {
   action: Exclude<SwipeAction, "none">;
   label: string;
   icon: SwipeIcon;
-  /** Which colour the strip behind the row takes. */
+  /** Which color the strip behind the row takes. */
   tone: "danger" | "warn" | "accent" | "neutral";
   /**
    * Whether firing it takes the row out of the list. Those slide the rest of

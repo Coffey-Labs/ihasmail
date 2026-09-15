@@ -97,10 +97,10 @@ export function TenantSheet({ tenant, roles, onClose, onChanged, onCreated, onDe
 
   useEffect(() => {
     if (!tenant) return;
-    let cancelled = false;
-    void countTenantMembers(tenant.id).then((c) => !cancelled && setCounts(c));
+    let canceled = false;
+    void countTenantMembers(tenant.id).then((c) => !canceled && setCounts(c));
     return () => {
-      cancelled = true;
+      canceled = true;
     };
   }, [tenant, revision]);
 
@@ -260,21 +260,21 @@ function TenantDomains({ tenant, canChange, onChanged }: { tenant: DirectoryTena
   const [revision, setRevision] = useState(0);
 
   useEffect(() => {
-    let cancelled = false;
+    let canceled = false;
     tenantDomains(tenant.id).then(
       (s) => {
-        if (cancelled) return;
+        if (canceled) return;
         setState(s);
         setPick(s.unassigned[0]?.id ?? "");
       },
       (err) => {
-        if (cancelled) return;
+        if (canceled) return;
         setState({ inTenant: [], unassigned: [] });
         setError(describeDirectoryError(err, "domain"));
       },
     );
     return () => {
-      cancelled = true;
+      canceled = true;
     };
   }, [tenant, revision]);
 

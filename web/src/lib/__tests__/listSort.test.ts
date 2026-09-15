@@ -94,7 +94,7 @@ describe("comparatorsFor, custom levels", () => {
 });
 
 describe("optional sorts, which a server is allowed to refuse", () => {
-  it("recognises the keyword properties", () => {
+  it("recognizes the keyword properties", () => {
     expect(isOptionalSort({ property: "hasKeyword", keyword: "$seen" })).toBe(true);
     expect(isOptionalSort({ property: "someInThreadHaveKeyword", keyword: "$flagged" })).toBe(true);
     expect(isOptionalSort({ property: "receivedAt" })).toBe(false);

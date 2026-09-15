@@ -94,7 +94,7 @@ describe("generated passwords", () => {
     expect(p).not.toMatch(/[01lIO]/);
   });
 
-  it("skip bytes that would favour the start of the alphabet", () => {
+  it("skip bytes that would favor the start of the alphabet", () => {
     // 256 % 55 leaves 36 byte values over; a plain modulo would hand those to
     // the first 36 characters twice as often. Bytes of 220 and up are dropped
     // and more are drawn, so a batch of nothing but those costs a draw.

@@ -59,7 +59,7 @@ export function baseUrlOf(basePath) {
  *
  * The comparison is deliberately not `startsWith(base)`: that would let
  * `/mailbox` in under a `/mail` mount and serve it the app shell, which is
- * both wrong and a small open door for a neighbouring site on the same host.
+ * both wrong and a small open door for a neighboring site on the same host.
  */
 export function stripBasePath(basePath, pathname) {
   const base = normalizeBasePath(basePath);

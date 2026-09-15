@@ -7,7 +7,7 @@ import { settingsAlreadyLoadedFor, stopSettingsSync } from "../settingsSync";
  * Settings used to live only in localStorage, so nothing followed the user
  * between devices — issue #54, whose sharpest case is the default identity:
  * with none set, the address that sorts first wins, so mail goes out from an
- * address the recipient may not recognise.
+ * address the recipient may not recognize.
  *
  * The split is written as a list of exceptions, which means the interesting
  * test is not "does this key sync" but "does a key added later sync without

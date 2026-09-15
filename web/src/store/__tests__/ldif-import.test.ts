@@ -92,7 +92,7 @@ describe("importing an LDIF address book", () => {
     const uids = Object.values(sets[0]!.create!).map((c) => c.uid as string);
     expect(new Set(uids).size).toBe(2);
     // Namespaced, so it is never mistaken for a UID a vCard author meant, and
-    // stable, so importing the same file again recognises these.
+    // stable, so importing the same file again recognizes these.
     expect(uids.every((u) => u.startsWith("urn:x-ihasmail:ldif:"))).toBe(true);
   });
 

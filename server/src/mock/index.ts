@@ -24,7 +24,7 @@ const PORT = Number(process.env.MOCK_PORT ?? 8788);
  */
 const NO_REGISTRY = process.env.MOCK_NO_REGISTRY === "1";
 /**
- * Stalwart advertises FUTURERELEASE in the session but only honours it when
+ * Stalwart advertises FUTURERELEASE in the session but only honors it when
  * the MTA's own `futureRelease` setting is on -- and that setting defaults to
  * off, in which case the hold is dropped without a word and the message goes
  * out at once. Set MOCK_NO_FUTURE_RELEASE=1 to reproduce that trap.
@@ -200,7 +200,7 @@ function addSignedEmail(o: { which: keyof typeof SIGNED_MESSAGES; from: [string,
  * A marketing template of the shape #290 was reported against.
  *
  * Nothing in it is unusual — an outer 600px wrapper on `bgcolor="#ffffff"`, a
- * `<style>` block, a coloured call to action, a grey footer — and that is the
+ * `<style>` block, a colored call to action, a gray footer — and that is the
  * point. Every one of those is enough to make `htmlDeclaresColors` true, so a
  * mock without one could not show what "apply the theme to messages too" does
  * to the mail people actually receive: nothing at all.
@@ -706,7 +706,7 @@ function genericSet(list: Obj[], prefix: string, onCreate?: (o: Obj) => void) {
  * answer. One event still comes back as a bare object, the shape this returned
  * when an invitation was all it had to handle.
  *
- * The synthetic organiser and attendee only go on events that arrived with a
+ * The synthetic organizer and attendee only go on events that arrived with a
  * METHOD. Those are scheduling messages, which is what the invitation fixtures
  * are; a plain export is not addressed to anyone, and inventing participants
  * for it would make imported events look like invitations nobody sent.
@@ -920,7 +920,7 @@ const handlers: Record<string, Handler> = {
   "Email/query": (a) => {
     let list = emails.filter((e) => matchFilter(e, a.filter as Obj));
     /*
-     * Honour the sort rather than always answering newest-first. This used to
+     * Honor the sort rather than always answering newest-first. This used to
      * ignore it entirely, which reproduced a server that silently returns a
      * different order from the one asked for -- the one shape of wrongness a
      * client cannot detect.
@@ -1040,7 +1040,7 @@ const handlers: Record<string, Handler> = {
     return setResp({ updated: { singleton: null } });
   },
   /*
-   * Push subscriptions. The JMAP half can be modelled; delivery cannot -- that
+   * Push subscriptions. The JMAP half can be modeled; delivery cannot -- that
    * runs through the browser vendor's real push service, so nothing local will
    * ever make a notification appear.
    *
@@ -1225,7 +1225,7 @@ const handlers: Record<string, Handler> = {
       }
       const status = undoStatusOf(sub, Date.now());
       if (status !== "pending") {
-        notUpdated[id] = { type: "cannotUnsend", description: status === "canceled" ? "The message was already cancelled." : "The message has already been sent." };
+        notUpdated[id] = { type: "cannotUnsend", description: status === "canceled" ? "The message was already canceled." : "The message has already been sent." };
         continue;
       }
       sub.undoStatus = "canceled";
@@ -1370,7 +1370,7 @@ function checkAuth(req: IncomingMessage): boolean {
   const u = raw.slice(0, sep);
   const p = raw.slice(sep + 1);
   if (u !== USER) return false;
-  // App passwords are recognised by shape and skip the second factor, which is
+  // App passwords are recognized by shape and skip the second factor, which is
   // exactly what lets a webmail session survive 2FA being switched on.
   if (account.appPasswords.some((a) => a.secret === p)) return true;
   if (!account.otpUrl) return p === account.password;
@@ -1501,7 +1501,7 @@ export const server = createServer(async (req, res) => {
    * **Confirmed live on 0.16.21 (2026-09-06):** the interval is in **seconds**
    * — `data: {"interval": 30}` — where up to 0.16.20 the same field carried
    * milliseconds. The server floors it at 30 s (asking for 1, 2 or 5 all
-   * answered 30 and pinged every 30 s) and honours anything above (45 pinged
+   * answered 30 and pinged every 30 s) and honors anything above (45 pinged
    * at 45 s and said 45, 60 at 60 and said 60). `ping=0` disables pings
    * altogether; a value that is not a number at all — `abc`, or empty — is a
    * 400 before the stream opens.

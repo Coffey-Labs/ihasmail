@@ -108,7 +108,7 @@ export const useSieve = create<SieveState>((set, get) => ({
 
   async saveRules(rules) {
     const existing = get().scripts.find((s) => s.name === IHASMAIL_SCRIPT) ?? null;
-    // The last line of defence. Writing rules replaces the whole script, so
+    // The last line of defense. Writing rules replaces the whole script, so
     // doing it from a baseline we never managed to read deletes whatever was
     // there. Refusing is recoverable; overwriting is not.
     if (existing) {

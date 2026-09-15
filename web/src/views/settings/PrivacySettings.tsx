@@ -20,7 +20,7 @@ import { isEnforced } from "@/lib/settingsPolicy";
  * two similar words next to each other in a nav is how a menu becomes
  * something people hunt through: that section is credentials and access --
  * password, two-factor, app passwords, live sessions. This one is how the app
- * behaves towards the reader and towards senders.
+ * behaves toward the reader and toward senders.
  */
 export function PrivacySettings() {
   const s = useSettings((st) => st.settings);
@@ -155,7 +155,7 @@ export function PrivacySettings() {
 /**
  * A list of domains, added one at a time and removed by their chip.
  *
- * Typed entries are normalised on the way in -- a leading `@`, stray case, a
+ * Typed entries are normalized on the way in -- a leading `@`, stray case, a
  * whole address pasted instead of a domain -- because the thing being compared
  * against is a hostname, and a list holding "@Example.com " silently matches
  * nothing at all.

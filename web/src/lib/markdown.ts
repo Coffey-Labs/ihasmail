@@ -11,7 +11,7 @@ import { marked } from "marked";
  * something is DOMPurify, which the app already carries for mail.
  *
  * Rendered inline rather than in a shadow root the way mail bodies are: this
- * output is ours, sanitised and styled by `.md-body`, where an email arrives
+ * output is ours, sanitized and styled by `.md-body`, where an email arrives
  * with a design of its own that has to be quarantined from the app's.
  */
 

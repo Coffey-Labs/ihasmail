@@ -3,7 +3,7 @@ import { plural, setCatalog } from "@/lib/i18n";
 import { catalog as ru } from "@/locales/ru";
 
 /**
- * Russian is the first shipped catalogue that needs `few` and `many`, so this
+ * Russian is the first shipped catalog that needs `few` and `many`, so this
  * checks the real entries rather than a fixture. English would have rendered
  * "5 письмо" for all of these, which is the kind of wrong that makes a
  * translation read as machine output however good the vocabulary is.
@@ -26,7 +26,7 @@ describe("Russian plurals", () => {
   });
 
   it("carries every form for each counted string it ships", () => {
-    // A catalogue missing `few` silently falls back to `other`, which is
+    // A catalog missing `few` silently falls back to `other`, which is
     // grammatical often enough to go unnoticed and wrong the rest of the time.
     for (const [key, forms] of Object.entries(ru.plurals)) {
       for (const cat of ["one", "few", "many", "other"] as const) {

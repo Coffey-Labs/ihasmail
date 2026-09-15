@@ -3,7 +3,7 @@
  *
  * `import.meta.env.BASE_URL` is Vite's own copy of the `base` it built with,
  * and `vite.config.ts` sets that from `BASE_PATH` through the shared
- * normaliser -- so this is the same answer the server reached, not a second
+ * normalizer -- so this is the same answer the server reached, not a second
  * guess at it. Reading it here rather than re-deriving it from
  * `window.location` matters because the app is a SPA: at `/mail/inbox/abc`
  * there is nothing in the address that says how much of it is the mount.

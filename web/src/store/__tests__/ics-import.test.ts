@@ -264,7 +264,7 @@ describe("importing a file bigger than the server will take at once", () => {
  * Re-importing the same file.
  *
  * The import kept the file's own UID from the day it was written, which is the
- * whole of what is needed to recognise an event that is already here -- and
+ * whole of what is needed to recognize an event that is already here -- and
  * nothing looked. Importing an export twice left second copies of everything,
  * which the reporter's colleague hit during testing (#173, decided there:
  * "duplicate checks on UIDs if UID present in event"). Issue #222 made that a

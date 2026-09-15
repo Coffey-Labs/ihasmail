@@ -41,7 +41,7 @@ export type Axis = "x" | "y" | null;
 /**
  * Which way a drag has committed, once it has moved far enough to tell.
  *
- * Deliberately biased towards the vertical. Scrolling is what a finger on a
+ * Deliberately biased toward the vertical. Scrolling is what a finger on a
  * message list is doing almost every time, and a scroll misread as a swipe
  * grabs the list out from under the reader, while a swipe misread as a scroll
  * costs them a second attempt. So `x` has to win clearly -- a drag that is
@@ -67,7 +67,7 @@ export function swipeThreshold(width: number): number {
 }
 
 /**
- * How far the row actually moves for a finger that has travelled `dx`.
+ * How far the row actually moves for a finger that has traveled `dx`.
  *
  * One-to-one until the action would fire, and increasingly reluctant after
  * that. The resistance is the only thing that tells a thumb, without the
@@ -113,7 +113,7 @@ export function pullDistance(dy: number): number {
  * without this the only feedback arrives after the row has already gone.
  *
  * iOS supports none of this and never has, so this is silently nothing there
- * rather than something to apologise for. Wrapped because a vibration inside
+ * rather than something to apologize for. Wrapped because a vibration inside
  * a cross-origin iframe throws rather than returning false.
  */
 export function haptic(pattern: number | number[] = 8): void {
@@ -197,7 +197,7 @@ export function useTouchRow({ enabled, onLongPress, canSwipe, onSwipeMove, onSwi
       if (onLongPress) {
         timer.current = window.setTimeout(() => {
           timer.current = null;
-          // Still here, still not moving: nothing has cancelled us.
+          // Still here, still not moving: nothing has canceled us.
           if (!start.current || axis.current) return;
           swallowClick.current = true;
           onLongPress(start.current.target);
@@ -251,7 +251,7 @@ export function useTouchRow({ enabled, onLongPress, canSwipe, onSwipeMove, onSwi
       /*
        * Crossing back the other way mid-gesture. The direction is re-read
        * rather than held from the lock, so a reader who overshoots, thinks
-       * better of it and drags back past centre gets the other action offered
+       * better of it and drags back past center gets the other action offered
        * instead of the row refusing to move.
        */
       if (d !== dir.current) {
@@ -322,7 +322,7 @@ export function useTouchRow({ enabled, onLongPress, canSwipe, onSwipeMove, onSwi
  *
  * Native listeners rather than React props because the move handler has to be
  * able to call `preventDefault`, and React attaches its own passively. Bound
- * to the scroll container itself so that everything inside it -- a virtualised
+ * to the scroll container itself so that everything inside it -- a virtualized
  * list included -- comes down with the pull without knowing about it.
  */
 export function usePullToRefresh(
@@ -542,7 +542,7 @@ export function swipeNavDirection(dx: number, width: number): -1 | 0 | 1 {
  *    moment it can be decided cleanly.
  *  - **It does not start on the toolbar.** Buttons live there.
  *
- * The axis lock is the shared one, so it keeps the same bias towards the
+ * The axis lock is the shared one, so it keeps the same bias toward the
  * vertical: the day grid scrolls through the hours, and a scroll misread as a
  * swipe throws the reader into another day.
  */

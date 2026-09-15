@@ -6,8 +6,8 @@ import { catalog as de } from "@/locales/de";
 
 /**
  * The briefing is the only thing standing between a notification action and a
- * button labelled in a language the reader does not use — the worker is plain
- * JavaScript outside the bundle and cannot reach a catalogue.
+ * button labeled in a language the reader does not use — the worker is plain
+ * JavaScript outside the bundle and cannot reach a catalog.
  *
  * It is also the only place the archive mailbox is named, and getting that
  * wrong does not fail visibly: a message would be filed somewhere, just not
@@ -45,7 +45,7 @@ describe("the worker's briefing", () => {
   });
 
   it("carries the worker's text in the language the tab is in", async () => {
-    // The worker has no catalogue. Everything it will say has to be said here
+    // The worker has no catalog. Everything it will say has to be said here
     // first, or a German reader gets English buttons on their lock screen.
     setCatalog("de", de);
     const { store } = fakeCaches();

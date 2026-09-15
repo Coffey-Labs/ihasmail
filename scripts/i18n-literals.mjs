@@ -11,11 +11,11 @@
  * A string reaches a reader translated if either is true:
  *
  *   1. it is wrapped where it is written -- t(), tc(), tNode(), plural()
- *   2. it is a catalogue key, translated somewhere else
+ *   2. it is a catalog key, translated somewhere else
  *
  * The second case is a real convention here, not a loophole: constant tables
  * hold English and the render site calls `t(s.label)`. What this refuses is a
- * string that is neither -- one no catalogue has a key for, which therefore
+ * string that is neither -- one no catalog has a key for, which therefore
  * cannot be translated at all, however many languages ship.
  */
 /*
@@ -56,7 +56,7 @@ const EQUALITY = new Set([
 
 /*
  * Product names, example addresses and URL scaffolding. These reach t() and
- * are deliberately absent from every catalogue -- translating "ihasmail" or
+ * are deliberately absent from every catalog -- translating "ihasmail" or
  * "name@example.com" would be a bug, not a feature -- so they would otherwise
  * be reported for ever.
  */
@@ -81,7 +81,7 @@ const found = [];
 for (const file of globSync("web/src/**/*.{ts,tsx}").filter((f) => !f.includes("__tests__") && !f.includes("/locales/"))) {
   const src = ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   /*
-   * `strict` withdraws the catalogue-key exemption. It exists for English held
+   * `strict` withdraws the catalog-key exemption. It exists for English held
    * in a constant and translated where it renders; a literal written straight
    * into a JSX attribute has no later render site to be translated at -- no
    * component here passes its props through t() -- so being a key only means
@@ -119,7 +119,7 @@ for (const file of globSync("web/src/**/*.{ts,tsx}").filter((f) => !f.includes("
   /*
    * English assembled around values: `aria-label={`Remove ${email}`}`.
    *
-   * The literal cannot be a catalogue key as written, so whether it is a key is
+   * The literal cannot be a catalog key as written, so whether it is a key is
    * not asked. Neither is looksLikeUi, which reads the opening of a sentence:
    * `${name} — shared by ${owner}` opens with a value and its words come after.
    * Any run of letters between the values counts. The only template literals
@@ -151,7 +151,7 @@ for (const file of globSync("web/src/**/*.{ts,tsx}").filter((f) => !f.includes("
         && n.expression.expression.getText(src) === "toast" && TOASTS.has(n.expression.name.text)) {
       const a0 = n.arguments[0];
       if (a0 && ts.isStringLiteral(a0) && !wrapped.has(a0)) report(a0, a0.text);
-      /* A template literal cannot be a catalogue key at all, so it is always a find. */
+      /* A template literal cannot be a catalog key at all, so it is always a find. */
       if (a0 && ts.isTemplateExpression(a0)) report(a0, a0.head.text + "{}");
     }
     ts.forEachChild(n, visit);
@@ -160,11 +160,11 @@ for (const file of globSync("web/src/**/*.{ts,tsx}").filter((f) => !f.includes("
 }
 
 if (!found.length) {
-  console.log("i18n literals: none -- every user-visible string is wrapped or has a catalogue key");
+  console.log("i18n literals: none -- every user-visible string is wrapped or has a catalog key");
   process.exit(0);
 }
-console.log(`${found.length} user-visible string(s) the extractor cannot see and no catalogue can translate:\n`);
+console.log(`${found.length} user-visible string(s) the extractor cannot see and no catalog can translate:\n`);
 for (const f of found) console.log(`  ${f.file}:${f.line}\n    ${JSON.stringify(f.text)}`);
 console.log("\nWrap them in t() / plural(), or -- for a label held in a constant and");
-console.log("translated where it renders -- make sure the English is a catalogue key.");
+console.log("translated where it renders -- make sure the English is a catalog key.");
 process.exit(process.argv.includes("--check") ? 1 : 0);

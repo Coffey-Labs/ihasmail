@@ -64,7 +64,7 @@ export function withPrefs<T>(over: Partial<DateTimePrefs>, fn: () => T): T {
   }
 }
 
-/** Locale reported by Stalwart for this account (normalised), or null. */
+/** Locale reported by Stalwart for this account (normalized), or null. */
 export function setServerLocale(raw: string | null | undefined): void {
   serverLocale = normalizeLocale(raw);
 }
@@ -193,7 +193,7 @@ function num(value: number, digits: number): string {
   return f.format(value);
 }
 
-/** Time-of-day options honouring the 12h/24h preference. */
+/** Time-of-day options honoring the 12h/24h preference. */
 export function timeOptions(): Intl.DateTimeFormatOptions {
   switch (prefs.timeFormat) {
     case "24":
@@ -562,13 +562,13 @@ export function localeOptions(): LocaleOption[] {
  * Weekday names in the reader's locale, indexed by JSCalendar's two-letter day.
  *
  * These used to be a table of English strings with a `short` of "M", "T", "W"…
- * which could not become catalogue entries at all: "T" is both Tuesday and
+ * which could not become catalog entries at all: "T" is both Tuesday and
  * Thursday and "S" is both Saturday and Sunday, so the key collides with
- * itself. A catalogue cannot hold two translations under one key, and no
+ * itself. A catalog cannot hold two translations under one key, and no
  * amount of translating fixes that — the data was wrong, not the wiring.
  *
  * Intl has the names already, in every locale, in three widths, and gets the
- * plural and capitalisation conventions right without anybody maintaining a
+ * plural and capitalization conventions right without anybody maintaining a
  * list. 2026-06-01 is a Monday; the rest follow from it.
  */
 export type WeekdayKey = "mo" | "tu" | "we" | "th" | "fr" | "sa" | "su";

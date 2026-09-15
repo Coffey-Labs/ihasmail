@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildMarkerSignature, byteLength, compactHtml, markerOf, signatureTooLong, SIGNATURE_LIMIT } from "../signatureHtml";
 
 describe("signature compaction", () => {
-  it("strips office cruft and non-essential styles but keeps colours and links", () => {
+  it("strips office cruft and non-essential styles but keeps colors and links", () => {
     const src = `<!--[if gte mso 9]><xml>x</xml><![endif]--><div class="WordSection1" style="mso-margin-top-alt:auto;line-height:115%;font-family:'Calibri',sans-serif;color:windowtext"><p class="MsoNormal" style="margin:0cm;font-size:11pt"><span lang="EN-US" style="font-size:12pt;color:#1F4E79;mso-fareast-language:EN-US"><b>John Coffey</b></span><o:p></o:p></p><p><span></span></p><a href="https://linuxexpert.org" target="_blank" data-x="1">linuxexpert.org</a><img src="https://x/y.png" width="100" style="mso-foo:bar"></div>`;
     const out = compactHtml(src);
     expect(out).not.toContain("mso-");

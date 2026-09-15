@@ -29,8 +29,8 @@ import {
 } from "./upstream.js";
 import {
   AccountError,
-  assertEnrolmentCode,
-  beginOtpEnrolment,
+  assertEnrollmentCode,
+  beginOtpEnrollment,
   changePassword,
   createAppPassword,
   disableOtp,
@@ -404,7 +404,7 @@ export function createApp(basePath = config.basePath): Hono<Env> {
         );
       }
       /*
-       * A 401 is a judgement about the password and stays counted. Anything
+       * A 401 is a judgment about the password and stays counted. Anything
        * else -- refused, timed out, DNS, TLS -- is the upstream failing to
        * answer, which says nothing about the credentials and must not spend
        * somebody's attempts while they wait for it to come back (#239).
@@ -559,7 +559,7 @@ export function createApp(basePath = config.basePath): Hono<Env> {
   api.post("/account/2fa/begin", requireSession, async (c) => {
     try {
       // Nothing is stored yet; the client hands the URL back to confirm.
-      return c.json(beginOtpEnrolment(await accountCtx(c)));
+      return c.json(beginOtpEnrollment(await accountCtx(c)));
     } catch (err) {
       return accountFailure(c, err);
     }
@@ -584,7 +584,7 @@ export function createApp(basePath = config.basePath): Hono<Env> {
      * the moment 2FA is enabled this session can no longer authenticate at all.
      */
     try {
-      assertEnrolmentCode(body.url, code);
+      assertEnrollmentCode(body.url, code);
     } catch (err) {
       return accountFailure(c, err);
     }
@@ -691,7 +691,7 @@ export function createApp(basePath = config.basePath): Hono<Env> {
 
   // ---------- Administration: Stalwart's permission list ----------
   /*
-   * The one administration read that is not a JMAP call: the labelled list of
+   * The one administration read that is not a JMAP call: the labeled list of
    * permissions from Stalwart's schema, for the Roles picker. Behind the same
    * two gates as the registry methods, so a session that may not administer
    * learns nothing from it.
@@ -950,7 +950,7 @@ const PASSTHROUGH_HEADERS = new Set(["content-type", "content-disposition", "con
  * small IncomingMessage/ServerResponse pair.
  *
  * Returns a Response Hono treats as already sent: the raw bindings are
- * written to directly, and the returned value is never serialised.
+ * written to directly, and the returned value is never serialized.
  */
 const SSE_HEADERS = {
   "content-type": "text/event-stream",

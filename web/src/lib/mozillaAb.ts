@@ -144,7 +144,7 @@ export function cardFromLdif(rec: LdifRecord): Partial<ContactCard> | null {
   /*
    * The four custom fields have nowhere of their own to go: JSContact has no
    * equivalent, and the schema does not say what they hold -- they are whatever
-   * their owner decided. Appending them to the note keeps them, labelled the
+   * their owner decided. Appending them to the note keeps them, labeled the
    * way Thunderbird labels them, which is worth more than the tidiness of
    * dropping something somebody chose to write down.
    */

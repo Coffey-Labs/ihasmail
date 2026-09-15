@@ -123,7 +123,7 @@ export function Composer({ draft }: { draft: Draft }) {
         const names = outside.slice(0, 5).map((a) => a.email).join(", ");
         const rest = outside.length > 5 ? translate(" and {count} more", { count: String(outside.length - 5) }) : "";
         const ok = await confirmDialog({
-          title: translate("Send outside your organisation?"),
+          title: translate("Send outside your organization?"),
           message: translate("This goes to {recipients}{rest}.", { recipients: names, rest }),
           confirmLabel: translate("Send anyway"),
         });

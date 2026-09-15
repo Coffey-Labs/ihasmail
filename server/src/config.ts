@@ -234,7 +234,7 @@ export function parseStalwartServers(raw: unknown, file: string): { urls: Record
        a mapping that silently never matches. */
     const domain = rawDomain.trim().toLowerCase().replace(/\.$/, "");
     if (!domain) throw new Error(`Invalid STALWART_SERVERS_FILE (${file}): a domain key is empty`);
-    if (domain in out) throw new Error(`Invalid STALWART_SERVERS_FILE (${file}): "${domain}" appears twice once normalised`);
+    if (domain in out) throw new Error(`Invalid STALWART_SERVERS_FILE (${file}): "${domain}" appears twice once normalized`);
     /* A domain's value is its server's URL, or an object that also names where
        that server's own administration is: `{"url": …, "adminUrl": …}`. */
     const value = rawValue && typeof rawValue === "object" && !Array.isArray(rawValue) ? (rawValue as Record<string, unknown>) : { url: rawValue };
@@ -311,7 +311,7 @@ export const config = {
    * Say that an Enterprise-only section is Enterprise-only even on an
    * Enterprise server. Off, as a real installation wants it; the public demo
    * turns it on, because it reports Enterprise to show those sections and
-   * should not suggest they come without the licence.
+   * should not suggest they come without the license.
    */
   showEnterpriseNotices: bool("SHOW_ENTERPRISE_NOTICES", false),
   appSecret,
@@ -356,7 +356,7 @@ export const config = {
   compressJmap: process.env.COMPRESS_JMAP !== "0",
   /*
    * How push reaches the browser. "relay" holds one upstream stream per tab
-   * (today's behaviour). "subscribe" registers one JMAP PushSubscription per
+   * (today's behavior). "subscribe" registers one JMAP PushSubscription per
    * account and fans Stalwart's POSTs out to that account's tabs, holding no
    * upstream connection at all -- see push.ts. It needs PUSH_URL: the https
    * origin Stalwart can reach ihasmail at, with a certificate it trusts.

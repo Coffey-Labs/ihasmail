@@ -60,12 +60,12 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
   /*
    * Following a link out of a message, when the reader has asked to be asked.
    *
-   * The click is cancelled and the navigation re-issued after the answer,
+   * The click is canceled and the navigation re-issued after the answer,
    * because there is no way to hold a real navigation open across a dialog.
    * `window.open` runs in the continuation of the dialog's own click, which is
    * still the user gesture the popup blocker wants to see.
    *
-   * Both message bodies go through here -- the sanitised HTML one and the
+   * Both message bodies go through here -- the sanitized HTML one and the
    * plain-text one -- because a link in a plain-text mail is linkified by us
    * and is exactly as capable of pointing somewhere else as one the sender
    * marked up.
@@ -167,7 +167,7 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
    * the reader has asked for the theme over that too.
    *
    * `forced` is the second switch and is narrower than `themed`: it only turns
-   * on for mail that actually declares colours, so plain mail is themed the
+   * on for mail that actually declares colors, so plain mail is themed the
    * gentle way and never pays for the override rules.
    */
   const declaresColors = useMemo(
@@ -411,7 +411,7 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
                 onClick={async () => {
                   try {
                     await cancelScheduled(e.id);
-                    toast.success(translate("Send cancelled — the message is back in Drafts"));
+                    toast.success(translate("Send canceled — the message is back in Drafts"));
                   } catch (err) {
                     toast.error(translate("Could not cancel: {error}", { error: (err as Error).message }));
                   }
@@ -427,7 +427,7 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
             <div className="remote-banner external-banner" style={{ margin: "0 16px 8px" }}>
               <ShieldAlert size={16} />
               <span className="grow">
-                {tNode("This message came from {domain}, which is outside your organisation.", {
+                {tNode("This message came from {domain}, which is outside your organization.", {
                   domain: <strong className="notranslate" translate="no">{domainOf(from?.email ?? "")}</strong>,
                 })}
               </span>

@@ -15,7 +15,7 @@ import { TenantSheet } from "./TenantSheet";
 const PAGE_SIZE = 50;
 
 /**
- * Tenants: separate organisations on one server, each with its own people,
+ * Tenants: separate organizations on one server, each with its own people,
  * domains and limits.
  *
  * The section is offered to whoever may read tenants. On a server that does not
@@ -24,7 +24,7 @@ const PAGE_SIZE = 50;
  * beyond an ordinary user's permissions, so there is nothing worth creating or
  * listing. On Enterprise the notice is left out, unless the installation asks
  * for it (SHOW_ENTERPRISE_NOTICES), as the public demo does so as not to
- * suggest tenants come without the licence.
+ * suggest tenants come without the license.
  */
 export function TenantsAdmin({ selectedId }: { selectedId?: string }) {
   const edition = useSession((s) => s.session?.ihasmail?.server?.edition ?? null);
@@ -35,7 +35,7 @@ export function TenantsAdmin({ selectedId }: { selectedId?: string }) {
         <div className="admin-head">
           <div className="grow">
             <h1>{t("Tenants")}</h1>
-            <p className="lead">{t("Separate organisations on one server, each with its own people, domains and limits.")}</p>
+            <p className="lead">{t("Separate organizations on one server, each with its own people, domains and limits.")}</p>
           </div>
         </div>
         <EnterpriseNotice warn />
@@ -71,22 +71,22 @@ function EnterpriseTenants({ selectedId, notice }: { selectedId?: string; notice
   }, [text]);
 
   useEffect(() => {
-    let cancelled = false;
+    let canceled = false;
     setError(null);
     void (async () => {
       try {
         const q = await queryTenants({ text: query, position, limit: PAGE_SIZE });
         const tenants = await getTenants(q.ids);
-        if (!cancelled) setPage({ tenants, total: q.total });
+        if (!canceled) setPage({ tenants, total: q.total });
       } catch (err) {
-        if (!cancelled) {
+        if (!canceled) {
           setPage({ tenants: [], total: 0 });
           setError(describeDirectoryError(err, "tenant"));
         }
       }
     })();
     return () => {
-      cancelled = true;
+      canceled = true;
     };
   }, [query, position, reload]);
 
@@ -99,13 +99,13 @@ function EnterpriseTenants({ selectedId, notice }: { selectedId?: string; notice
       setLoose(null);
       return;
     }
-    let cancelled = false;
+    let canceled = false;
     void getTenants([selectedId]).then(
-      ([x]) => { if (!cancelled) setLoose(x ?? null); },
-      () => { if (!cancelled) setLoose(null); },
+      ([x]) => { if (!canceled) setLoose(x ?? null); },
+      () => { if (!canceled) setLoose(null); },
     );
     return () => {
-      cancelled = true;
+      canceled = true;
     };
   }, [selectedId, page]);
 
@@ -118,7 +118,7 @@ function EnterpriseTenants({ selectedId, notice }: { selectedId?: string; notice
       <div className="admin-head">
         <div className="grow">
           <h1>{t("Tenants")}</h1>
-          <p className="lead">{t("Separate organisations on one server, each with its own people, domains and limits.")}</p>
+          <p className="lead">{t("Separate organizations on one server, each with its own people, domains and limits.")}</p>
         </div>
         {can(perms, "Tenant", "Create") && (
           <button className="btn btn-primary" onClick={() => navigate("/admin/tenants/new")}>

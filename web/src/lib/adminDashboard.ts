@@ -46,7 +46,7 @@ export interface MessageStats {
   recorded: boolean;
 }
 
-export function summariseMetrics(records: readonly MetricRecord[]): MessageStats {
+export function summarizeMetrics(records: readonly MetricRecord[]): MessageStats {
   let received = 0;
   let sent = 0;
   let memory: MessageStats["memory"] = null;

@@ -19,7 +19,7 @@
  * without a certificate authority anywhere in the picture.
  *
  * So nothing here ever renders the bare word "verified". The caller is given
- * the crypto result and the trust judgement separately, and has to say both.
+ * the crypto result and the trust judgment separately, and has to say both.
  */
 import { parseSignedData, type SignerInfo } from "./cms";
 import { decodeTransfer, findPart, parseMime, toCanonicalCrlf, type MimePart } from "./mime";

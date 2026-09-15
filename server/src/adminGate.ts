@@ -13,7 +13,7 @@
  * An allowlist rather than a list of administrative objects, because the
  * registry has dozens of them -- listeners, stores, tracers, system settings --
  * and a new release adds more. An object not named here is refused, which errs
- * towards the operator's decision.
+ * toward the operator's decision.
  *
  * The standard JMAP methods (mail, calendars, contacts, files, sharing) are not
  * touched: they act on what the account can already reach.
@@ -65,7 +65,7 @@ export function mayNameRegistryMethod(raw: string): boolean {
 
 /**
  * Check a JMAP request body. On success, hands back the body to forward --
- * serialised from what was inspected, so the server can never be sent
+ * serialized from what was inspected, so the server can never be sent
  * something different from what was checked (a duplicate key, say, read one
  * way here and another way there).
  */

@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /*
- * Every source string a catalogue needs, straight out of the calls.
+ * Every source string a catalog needs, straight out of the calls.
  *
- * The English text is the key, so the catalogue's keys are not a list somebody
+ * The English text is the key, so the catalog's keys are not a list somebody
  * maintains -- they are whatever t(), tNode() and plural() are actually asked
- * for. Reading them from the code means a catalogue can never drift out of
+ * for. Reading them from the code means a catalog can never drift out of
  * step with the app in the one direction that matters: a key that no longer
  * exists is dead weight, but a call with no key is an untranslated string
  * nobody noticed.

@@ -169,10 +169,10 @@ export async function revokeAppPassword(ctx: Ctx, id: string): Promise<void> {
 }
 
 /**
- * Start enrolment: mint a secret and hand back the URL to show as a QR code.
+ * Start enrollment: mint a secret and hand back the URL to show as a QR code.
  * Nothing is stored until the user proves they can produce a code from it.
  */
-export function beginOtpEnrolment(ctx: Ctx): { secret: string; url: string } {
+export function beginOtpEnrollment(ctx: Ctx): { secret: string; url: string } {
   const secret = generateSecret();
   return { secret, url: otpauthUrl({ secret, account: ctx.username, issuer: config.appName || "ihasmail" }) };
 }
@@ -184,7 +184,7 @@ export function beginOtpEnrolment(ctx: Ctx): { secret: string; url: string } {
  * the new secret, so without this an authenticator that was mistyped or out of
  * step would lock the user out of their mailbox at the next sign-in.
  */
-export function assertEnrolmentCode(url: string, code: string): void {
+export function assertEnrollmentCode(url: string, code: string): void {
   const params = parseOtpauthUrl(url);
   if (!params) throw new AccountError("That two-factor secret is not usable.", 400, "bad_otp_url");
   if (!verifyTotp(params, code)) {
@@ -193,7 +193,7 @@ export function assertEnrolmentCode(url: string, code: string): void {
 }
 
 export async function enableOtp(ctx: Ctx, opts: { url: string; code: string; current: string }): Promise<void> {
-  assertEnrolmentCode(opts.url, opts.code);
+  assertEnrollmentCode(opts.url, opts.code);
   const res = await jmap(ctx, [
     [
       "x:AccountPassword/set",

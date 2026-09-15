@@ -38,7 +38,7 @@ describe("expandOccurrences", () => {
     assert.equal(out[0]!.index, 0);
   });
 
-  it("honours count", () => {
+  it("honors count", () => {
     const ev = { ...series(), recurrenceRule: { ...WEEKDAYS, count: 3 } };
     const [a, b] = week("2026-09-07T00:00:00", "2026-10-01T00:00:00");
     assert.equal(expandOccurrences(ev, a, b).length, 3);
