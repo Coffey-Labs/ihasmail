@@ -1190,6 +1190,7 @@ export const catalog: Catalog = {
     "Full screen": "Во весь экран",
     "Resize panes": "Изменить размер панелей",
     "Resize message list": "Изменить размер списка писем",
+    "Resize contact list": "Изменить размер списка контактов",
     "Resize sidebar": "Изменить размер боковой панели",
     "Hide from list": "Скрыть из списка",
     "Show in list": "Показать в списке",

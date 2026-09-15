@@ -1196,6 +1196,7 @@ export const catalog: Catalog = {
     "Full screen": "全画面",
     "Resize panes": "ペインの大きさを変更",
     "Resize message list": "メール一覧の大きさを変更",
+    "Resize contact list": "連絡先一覧の大きさを変更",
     "Resize sidebar": "サイドバーの大きさを変更",
     "Hide from list": "一覧で非表示にする",
     "Show in list": "一覧に表示する",

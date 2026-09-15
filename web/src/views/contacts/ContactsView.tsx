@@ -10,6 +10,8 @@ import { formatDate, formatDateLong } from "@/lib/datetime";
 import { Avatar, Empty, Spinner, useIsNarrow } from "@/ui/misc";
 import { confirmDialog } from "@/ui/dialog";
 import { toast } from "@/ui/toast";
+import { Splitter } from "@/ui/Splitter";
+import { useSettings } from "@/store/settings";
 import { ContactEditor } from "./ContactEditor";
 import { avatarColor } from "@/lib/address";
 import { plural, t as translate } from "@/lib/i18n";
@@ -18,6 +20,14 @@ export function ContactsView({ id }: { id?: string }) {
   const [, navigate] = useLocation();
   const contacts = useContacts();
   const narrow = useIsNarrow();
+  const listWidth = useSettings((s) => s.settings.contactsListWidth);
+  const updateSettings = useSettings((s) => s.update);
+  const layoutRef = useRef<HTMLDivElement>(null);
+  /* The width mid-drag, and a ref mirroring it for the end of a key press,
+     which follows the resize in the same tick -- the same pair as the mail
+     list's splitter, for the same reason. */
+  const [liveWidth, setLiveWidth] = useState<number | null>(null);
+  const liveWidthRef = useRef<number | null>(null);
   const [q, setQ] = useState("");
   /* The book being shown lives in the store, because the list that chooses it
      is the app's own sidebar rather than anything this view owns. */
@@ -240,8 +250,23 @@ export function ContactsView({ id }: { id?: string }) {
     }
   };
 
+  const shownListWidth = liveWidth ?? listWidth;
+  const onSplit = (delta: number) => {
+    const total = layoutRef.current?.clientWidth ?? 1200;
+    const max = Math.max(240, total - 360);
+    const next = Math.min(max, Math.max(240, (liveWidthRef.current ?? shownListWidth) + delta));
+    liveWidthRef.current = next;
+    setLiveWidth(next);
+  };
+  const onSplitEnd = () => {
+    const width = liveWidthRef.current;
+    liveWidthRef.current = null;
+    setLiveWidth(null);
+    if (width != null) updateSettings({ contactsListWidth: width });
+  };
+
   return (
-    <div className={`contacts-layout ${selected || editing ? "detail" : ""}`}>
+    <div ref={layoutRef} className={`contacts-layout ${selected || editing ? "detail" : ""}`} style={{ "--list-size": `${shownListWidth}px` } as React.CSSProperties}>
 
       <section className="contacts-list">
         {pickedIds.length ? (
@@ -303,6 +328,7 @@ export function ContactsView({ id }: { id?: string }) {
           ))}
         </div>
       </section>
+      {!narrow && <Splitter direction="vertical" onResize={onSplit} onEnd={onSplitEnd} onReset={() => updateSettings({ contactsListWidth: 320 })} ariaLabel={translate("Resize contact list")} />}
 
       <section className="contact-detail">
         {selected ? (

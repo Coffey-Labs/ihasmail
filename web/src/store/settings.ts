@@ -256,6 +256,8 @@ export interface Settings {
   listPaneWidth: number;
   /** Height (px) of the message list when the reading pane is below. */
   listPaneHeight: number;
+  /** Width (px) of the contact list, beside the contact on show. */
+  contactsListWidth: number;
   /**
    * Width (px) of the sidebar, dragged by its edge (#345). Null until someone
    * drags it, and null again after a double-click resets it -- which leaves the
@@ -377,6 +379,7 @@ export const DEFAULT_SETTINGS: Settings = {
   sendAndArchive: false,
   listPaneWidth: 520,
   listPaneHeight: 340,
+  contactsListWidth: 320,
   sidebarWidth: null,
   eventCategories: [
     { name: "Important", color: "#dc2626" },
@@ -408,6 +411,7 @@ export const DEVICE_KEYS: ReadonlySet<keyof Settings> = new Set<keyof Settings>(
   "notificationSound",
   "listPaneWidth",
   "listPaneHeight",
+  "contactsListWidth",
   "sidebarWidth",
 ]);
 
