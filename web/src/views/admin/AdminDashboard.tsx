@@ -1,12 +1,13 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "wouter";
-import { ArrowDownToLine, ArrowUpFromLine, Globe, Hourglass, LayoutDashboard, MemoryStick, RefreshCw, Users } from "lucide-react";
+import { ArrowDownToLine, ArrowUpFromLine, ExternalLink, Globe, Hourglass, LayoutDashboard, MemoryStick, RefreshCw, Users } from "lucide-react";
 import { adminSections, dashboardCards, type DashboardCard } from "@/lib/adminAccess";
 import { balancedColumns, countObjects, DASHBOARD_WINDOW_MS, isRefused, loadMetrics, summariseMetrics, type MessageStats } from "@/lib/adminDashboard";
 import { formatDayMonthTime, resolvedLocale } from "@/lib/datetime";
 import { formatSize } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import { Empty } from "@/ui/misc";
+import { useSession } from "@/store/session";
 import { usePermissions } from "./usePermissions";
 
 /** Loading, a number, refused by the server (the card goes), or failed (the card says so). */
@@ -33,6 +34,7 @@ async function settle<T>(work: Promise<T>): Promise<Loaded<T>> {
  */
 export function AdminDashboard() {
   const perms = usePermissions();
+  const adminUrl = useSession((s) => s.session?.ihasmail?.server?.adminUrl ?? null);
   const cards = dashboardCards(perms);
   const sections = adminSections(perms);
   const [reload, setReload] = useState(0);
@@ -109,6 +111,20 @@ export function AdminDashboard() {
       ) : (
         <Empty icon={<LayoutDashboard size={32} />} title={t("Nothing to show")} />
       )}
+      {/* The line between the two interfaces, said where someone looking for
+          more numbers will be: this is a glance, and operating the server is
+          Stalwart's own administration. The link is the operator's to give. */}
+      <p className="hint admin-dashboard-note">
+        {t("Detailed metrics, the delivery queue, logs and server settings are in Stalwart's own administration.")}
+        {adminUrl && (
+          <>
+            {" "}
+            <a href={adminUrl} target="_blank" rel="noopener noreferrer">
+              {t("Open Stalwart admin")} <ExternalLink size={13} aria-hidden="true" />
+            </a>
+          </>
+        )}
+      </p>
     </div>
   );
 }

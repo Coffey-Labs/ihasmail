@@ -1152,6 +1152,13 @@ names Stalwart's own dashboard uses. The columns follow the number of cards,
 so rows come out even: six are three over three, and fall to two and then one
 as the space narrows. **Refresh** reads everything again; nothing is polled.
 
+Below the cards, a line says where the rest is: detailed metrics, the delivery
+queue, logs and server settings are in Stalwart's own administration. It links
+there when the operator sets `STALWART_ADMIN_URL` — or, for a domain routed to
+another server, that server's `adminUrl` in the servers file — and is plain text
+otherwise, since the address ihasmail reaches Stalwart on is often not one a
+browser can open.
+
 ## Accounts
 
 - **List and search** by name or address, fifty to a page, newest first — the
@@ -1594,6 +1601,7 @@ wizard, because either would be state.
 | Variable | Default | Does |
 | --- | --- | --- |
 | `STALWART_URL` | — | Where Stalwart is; the JMAP session is discovered at `/.well-known/jmap` |
+| `STALWART_ADMIN_URL` | — | Where a browser opens Stalwart's own administration, linked from the Administration dashboard. Separate from `STALWART_URL`, which is often an address only this server can reach; unset, the dashboard names Stalwart's administration without a link |
 | `APP_SECRET` | — | Key material for sealing sessions. **Required in production** — the server refuses to start without it |
 | `HOST` / `PORT` | `0.0.0.0` / `8080` | Listen address |
 | `BASE_PATH` | — (the domain root) | Subpath to serve from, e.g. `/mail`. Must be set for the **build** as well as the run — see below |

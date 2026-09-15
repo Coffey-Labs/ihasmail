@@ -144,6 +144,8 @@ export const catalog: Catalog = {
     "The numbers your role can see, as the server reports them.": "Les chiffres que votre rôle permet de voir, tels que le serveur les indique.",
     "Nothing to show": "Rien à afficher",
     "Could not be loaded": "Chargement impossible",
+    "Detailed metrics, the delivery queue, logs and server settings are in Stalwart's own administration.": "Les métriques détaillées, la file de distribution, les journaux et les réglages du serveur se trouvent dans l’administration de Stalwart.",
+    "Open Stalwart admin": "Ouvrir l’administration de Stalwart",
     "User": "Utilisateur",
     "Administrator": "Administrateur",
     "Custom role": "Rôle personnalisé",

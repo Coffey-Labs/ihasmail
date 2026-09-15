@@ -1750,6 +1750,9 @@ select optgroup { background-color: var(--bg-elev); color: var(--fg); }
    pane beside it can be any width. */
 .admin-dashboard { max-width: calc(var(--cols-wide, 3) * 300px + (var(--cols-wide, 3) - 1) * 12px); }
 .admin-cards-wrap { container: admin-cards / inline-size; margin-top: 8px; }
+.admin-dashboard-note { margin-top: 16px; }
+.admin-dashboard-note a { white-space: nowrap; }
+.admin-dashboard-note svg { vertical-align: -1px; }
 .admin-cards { display: grid; gap: 12px; grid-template-columns: repeat(var(--cols-wide, 3), minmax(0, 1fr)); max-width: calc(var(--cols-wide, 3) * 300px + (var(--cols-wide, 3) - 1) * 12px); }
 @container admin-cards (max-width: 760px) { .admin-cards { grid-template-columns: repeat(var(--cols-mid, 2), minmax(0, 1fr)); max-width: calc(var(--cols-mid, 2) * 300px + (var(--cols-mid, 2) - 1) * 12px); } }
 @container admin-cards (max-width: 480px) { .admin-cards { grid-template-columns: minmax(0, 1fr); max-width: none; } }

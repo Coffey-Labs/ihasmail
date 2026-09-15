@@ -138,6 +138,8 @@ export const catalog: Catalog = {
     "The numbers your role can see, as the server reports them.": "あなたのロールで見られる数値を、サーバーの報告どおりに表示します。",
     "Nothing to show": "表示するものはありません",
     "Could not be loaded": "読み込めませんでした",
+    "Detailed metrics, the delivery queue, logs and server settings are in Stalwart's own administration.": "詳しいメトリクス、配送キュー、ログ、サーバー設定は Stalwart 自体の管理画面にあります。",
+    "Open Stalwart admin": "Stalwart の管理画面を開く",
     "User": "ユーザー",
     "Administrator": "管理者",
     "Custom role": "カスタムロール",

@@ -23,6 +23,7 @@ import {
   getAccountInfo,
   getUpstreamSession,
   upstreamFor,
+  adminUrlFor,
   localizeSession,
 } from "./upstream.js";
 import {
@@ -865,8 +866,12 @@ function sessionExtras(session: LiveSession, info: AccountInfo = { locale: null,
       remember: session.remember,
       /** Locale configured for the account in Stalwart's directory, if readable. */
       userLocale: info.locale,
-      /** What the upstream server would tell us about itself. */
-      server: { edition: info.edition },
+      /**
+       * What the upstream server would tell us about itself, and -- for a
+       * session that may administer -- where the operator says its own
+       * administration is.
+       */
+      server: { edition: info.edition, adminUrl: administrationAllowed(config.administration, session.remember) ? adminUrlFor(session.username) : null },
       /**
        * Whether this session may administer: the installation offers it
        * (ADMINISTRATION) and the person signed in on a device marked as their own.

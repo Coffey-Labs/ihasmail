@@ -137,6 +137,8 @@ export const catalog: Catalog = {
     "The numbers your role can see, as the server reports them.": "您的角色可以查看的数字，按服务器报告显示。",
     "Nothing to show": "没有可显示的内容",
     "Could not be loaded": "无法加载",
+    "Detailed metrics, the delivery queue, logs and server settings are in Stalwart's own administration.": "详细指标、投递队列、日志和服务器设置位于 Stalwart 自身的管理界面中。",
+    "Open Stalwart admin": "打开 Stalwart 管理界面",
     "User": "用户",
     "Administrator": "管理员",
     "Custom role": "自定义角色",

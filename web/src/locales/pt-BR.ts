@@ -142,6 +142,8 @@ export const catalog: Catalog = {
     "The numbers your role can see, as the server reports them.": "Os números que sua função pode ver, como o servidor os informa.",
     "Nothing to show": "Nada para mostrar",
     "Could not be loaded": "Não foi possível carregar",
+    "Detailed metrics, the delivery queue, logs and server settings are in Stalwart's own administration.": "Métricas detalhadas, a fila de entrega, os logs e as configurações do servidor ficam na administração do próprio Stalwart.",
+    "Open Stalwart admin": "Abrir a administração do Stalwart",
     "User": "Usuário",
     "Administrator": "Administrador",
     "Custom role": "Função personalizada",

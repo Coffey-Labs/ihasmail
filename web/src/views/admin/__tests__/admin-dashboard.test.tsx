@@ -111,3 +111,40 @@ describe("the Administration dashboard", () => {
     expect(cards()[4]).toEqual(["Received", "—", "Could not be loaded"]);
   });
 });
+
+describe("the pointer to Stalwart's own administration", () => {
+  let host: HTMLDivElement;
+  let root: Root;
+  beforeEach(() => {
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+  });
+  afterEach(async () => {
+    await act(async () => root.unmount());
+    host.remove();
+  });
+  const renderWith = async (adminUrl: string | null) => {
+    useSession.setState({ session: { capabilities: {}, accounts: {}, primaryAccounts: {}, username: "a@example.com", ihasmail: { permissions: HELPDESK, server: { edition: "enterprise", adminUrl } } } as unknown as JmapSession });
+    const { hook } = memoryLocation({ path: "/admin" });
+    await act(async () => {
+      root.render(<Router hook={hook}><AdminDashboard /></Router>);
+    });
+    await act(async () => {});
+  };
+
+  it("names it, and links it where the operator has said where it is", async () => {
+    await renderWith("https://admin.example.com");
+    const note = host.querySelector(".admin-dashboard-note")!;
+    expect(note.textContent).toContain("Stalwart's own administration");
+    const link = note.querySelector("a")!;
+    expect(link.getAttribute("href")).toBe("https://admin.example.com");
+    expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+  });
+
+  it("names it without a link where nobody has", async () => {
+    await renderWith(null);
+    expect(host.querySelector(".admin-dashboard-note")?.textContent).toContain("Stalwart's own administration");
+    expect(host.querySelector(".admin-dashboard-note a")).toBeNull();
+  });
+});
