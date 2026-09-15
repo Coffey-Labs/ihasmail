@@ -373,9 +373,9 @@ export function createDirectory(opts: Options) {
         if (i < 0) { notDestroyed[id] = setError("notFound", "Account not found."); continue; }
         if (accounts[i]!["@type"] === "Group" && accounts.some((x) => (x.memberGroupIds as Obj | undefined)?.[id])) {
           // Every member's memberGroupIds names the group, which is a link the
-          // registry will not delete through; the shape is what a domain's
-          // DKIM keys produced on the live server.
-          notDestroyed[id] = { type: "objectIsLinked", objectId: id, linkedObjects: accounts.filter((x) => (x.memberGroupIds as Obj | undefined)?.[id]).map((x) => ({ object: "Account", id: x.id })) };
+          // registry will not delete through. The shape is the live server's,
+          // from a throwaway group on 2026-09-15.
+          notDestroyed[id] = { type: "objectIsLinked", objectId: { object: "Account", id }, linkedObjects: accounts.filter((x) => (x.memberGroupIds as Obj | undefined)?.[id]).map((x) => ({ object: "Account", id: x.id })) };
           continue;
         }
         accounts.splice(i, 1);
