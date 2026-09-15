@@ -307,6 +307,13 @@ export const config = {
    */
   stalwartAdminUrl: process.env.STALWART_ADMIN_URL ? httpUrl(process.env.STALWART_ADMIN_URL, "STALWART_ADMIN_URL") : "",
   stalwartAdminUrls: stalwartServers.adminUrls,
+  /**
+   * Say that an Enterprise-only section is Enterprise-only even on an
+   * Enterprise server. Off, as a real installation wants it; the public demo
+   * turns it on, because it reports Enterprise to show those sections and
+   * should not suggest they come without the licence.
+   */
+  showEnterpriseNotices: bool("SHOW_ENTERPRISE_NOTICES", false),
   appSecret,
   trustProxy: bool("TRUST_PROXY", true),
   /**

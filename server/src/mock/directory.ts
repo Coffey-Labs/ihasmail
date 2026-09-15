@@ -18,8 +18,11 @@
  * history (`x:Metric`), dated from when the mock started. MOCK_METRICS=off
  * refuses the history the way a Community server does.
  *
- * What it does not reproduce is tenancy: every caller sees every record. The
- * real server scopes a tenant administrator's queries, and nothing in the client
+ * Tenants are there for a system administrator to manage -- one tenant holding a
+ * domain and an account, `memberTenantId` filters on the queries, and the rule
+ * that only an administrator outside every tenant may move things into one. What
+ * it does not reproduce is a tenant administrator's scoping: every caller sees
+ * every record. The real server scopes those queries, and nothing in the client
  * relies on seeing more or less than it is given.
  *
  * MOCK_ROLE picks who the demo user is: `admin` (the default), `tenant-admin`,
@@ -102,7 +105,8 @@ export function createDirectory(opts: Options) {
   const domains: Obj[] = [
     domain("d1", userDomain, { ...managed(true, true, true), aliases: { [`mail.${userDomain}`]: true }, description: "Main domain" }),
     domain("d2", userDomain === "example.org" ? "example.net" : "example.org", { catchAllAddress: `postmaster@${userDomain}` }),
-    domain("d3", "old-brand.example", { ...managed(false, false, false), description: "No longer used", subAddressing: { "@type": "Custom", customRule: "..." } }),
+    domain("d3", "old-brand.example", { ...managed(false, false, false), description: "No longer used", subAddressing: { "@type": "Custom", customRule: "..." }, memberTenantId: "t1" }),
+    domain("d4", "spare.example", { description: "Waiting for a tenant" }),
   ];
   const dkimKeys: Obj[] = [
     { id: "k1", "@type": "Dkim1Ed25519Sha256", domainId: "d1", selector: "v1-ed25519-20260601", stage: "active", createdAt: "2026-06-01T09:00:00Z", nextTransitionAt: "2026-08-30T09:00:00Z", memberTenantId: null },
@@ -151,8 +155,8 @@ export function createDirectory(opts: Options) {
   const ownRoles = opts.role === "admin" || opts.role === "tenant-admin" ? { "@type": "Admin" } : opts.role === "helpdesk" ? { "@type": "Custom", roleIds: { r2: true } } : { "@type": "User" };
 
   const accounts: Obj[] = [];
-  const user = (o: { id?: string; name: string; domain?: string; description: string; roles?: Obj; used?: number; quota?: number; aliases?: string[]; groups?: string[]; password?: boolean }) => {
-    const domainId = o.domain === "d2" ? "d2" : "d1";
+  const user = (o: { id?: string; name: string; domain?: string; description: string; roles?: Obj; used?: number; quota?: number; aliases?: string[]; groups?: string[]; password?: boolean; tenant?: string }) => {
+    const domainId = o.domain === "d2" || o.domain === "d3" ? o.domain : "d1";
     const row: Obj = {
       id: o.id ?? `u${counter++}`,
       "@type": "User",
@@ -162,7 +166,7 @@ export function createDirectory(opts: Options) {
       credentials: o.password === false ? {} : { "0": { "@type": "Password", credentialId: "0", secret: MASKED, otpAuth: null, expiresAt: null, allowedIps: {} } },
       createdAt: new Date(Date.now() - counter * 86_400_000).toISOString().replace(/\.\d{3}Z$/, "Z"),
       memberGroupIds: flags(o.groups ?? []),
-      memberTenantId: null,
+      memberTenantId: o.tenant ?? null,
       roles: o.roles ?? { "@type": "User" },
       permissions: { "@type": "Inherit" },
       quotas: o.quota ? { maxDiskQuota: o.quota * GIB } : {},
@@ -183,6 +187,7 @@ export function createDirectory(opts: Options) {
   user({ id: opts.accountId, name: userLocal, description: "Demo User", roles: ownRoles, used: 1.4, quota: 10, aliases: ["postmaster"], groups: ["g1"] });
   user({ name: "ada", domain: "d2", description: "Ada Lovelace", used: 3.2, quota: 5, groups: ["g2"] });
   user({ name: "grace", domain: "d2", description: "Grace Hopper", used: 4.7, quota: 5, groups: ["g2"] });
+  user({ name: "wile", domain: "d3", description: "Wile E. Coyote", roles: { "@type": "Admin" }, used: 2.1, quota: 5, tenant: "t1" });
   user({ name: "alan", domain: "d2", description: "Alan Turing", roles: { "@type": "Custom", roleIds: { r2: true } }, used: 0.8, quota: 5, groups: ["g1"] });
   user({ name: "margaret", description: "Margaret Hamilton", roles: { "@type": "Admin" }, used: 2.1, quota: 20 });
   user({ name: "katherine", description: "Katherine Johnson", roles: { "@type": "Custom", roleIds: { r3: true } }, used: 0.4, quota: 5 });
@@ -221,6 +226,26 @@ export function createDirectory(opts: Options) {
       push(4, "Counter", "queue.report-queued", h % 4 === 1 ? 2 : 0);
     }
   }
+  /** Tenants: a name, limits, and whatever names them in its memberTenantId. */
+  const tenants: Obj[] = [
+    { id: "t1", name: "Acme Corp", logo: null, roles: { "@type": "Default" }, permissions: { "@type": "Inherit" }, quotas: { maxAccounts: 25, maxDomains: 2, maxDiskQuota: 50 * GIB }, createdAt: "2026-07-01T09:00:00Z" },
+  ];
+  const tenantUsage = (id: string) => accounts.filter((x) => x.memberTenantId === id).reduce((n, x) => n + Number(x.usedDiskQuota ?? 0), 0);
+  /**
+   * Something in a tenant has to be on a domain in that tenant; something in no
+   * tenant may be on anyone's domain. Both as the live server answered
+   * (2026-09-15), including the shape of the refusal.
+   */
+  const domainTenantRefused = (o: Obj): Obj | null => {
+    const tenant = o.memberTenantId ?? null;
+    const domain = domains.find((d) => d.id === o.domainId);
+    if (!tenant || !domain || (domain.memberTenantId ?? null) === tenant) return null;
+    return { type: "invalidForeignKey", objectId: { object: "Domain", id: domain.id } };
+  };
+  /** Only an administrator outside every tenant may put things in one; Stalwart refuses anyone else. */
+  const tenantRefused = (patch: Obj): Obj | null =>
+    "memberTenantId" in patch && opts.role !== "admin" ? setError("invalidPatch", "Cannot modify memberTenantId property", ["memberTenantId"]) : null;
+
   const refuseMetrics = () => {
     if (opts.metricsOff) throw opts.fail("forbidden", "This feature is only available in the Enterprise edition of Stalwart.");
   };
@@ -323,7 +348,8 @@ export function createDirectory(opts: Options) {
     "x:Account/get": get(accounts, "sysAccountGet"),
     "x:Account/query": query(() => accounts, "sysAccountQuery", ["text", "@type", "domainId", "externalId", "memberGroupIds", "memberTenantId", "name"], (o, f) =>
       (f["@type"] === undefined || o["@type"] === f["@type"]) && (f.domainId === undefined || o.domainId === f.domainId) &&
-      (f.memberGroupIds === undefined || Boolean((o.memberGroupIds as Obj | undefined)?.[f.memberGroupIds as string])) && matchText(o, f.text) && matchText(o, f.name)),
+      (f.memberGroupIds === undefined || Boolean((o.memberGroupIds as Obj | undefined)?.[f.memberGroupIds as string])) &&
+      (f.memberTenantId === undefined || o.memberTenantId === f.memberTenantId) && matchText(o, f.text) && matchText(o, f.name)),
     "x:Account/set": (a) => {
       const created: Obj = {};
       const notCreated: Obj = {};
@@ -339,6 +365,10 @@ export function createDirectory(opts: Options) {
         if (addressTaken(`${o.name}@${domainName(o.domainId)}`)) { notCreated[cid] = setError("primaryKeyViolation", "An account or alias with this email address already exists."); continue; }
         const refused = grantRefused(o.roles);
         if (refused) { notCreated[cid] = setError("forbidden", refused); continue; }
+        if (o.memberTenantId) {
+          const refusedTenant = tenantRefused(o) ?? domainTenantRefused(o);
+          if (refusedTenant) { notCreated[cid] = refusedTenant; continue; }
+        }
         const password = Object.values((o.credentials as Obj) ?? {})[0] as Obj | undefined;
         const weak = password ? weakPassword(password.secret) : null;
         if (weak) { notCreated[cid] = setError("invalidProperties", weak, ["secret"]); continue; }
@@ -352,7 +382,7 @@ export function createDirectory(opts: Options) {
         if (!target) { notUpdated[id] = setError("notFound", "Account not found."); continue; }
         const patch = raw as Obj;
         const next = structuredClone(target);
-        let failure: Obj | null = null;
+        let failure: Obj | null = tenantRefused(patch);
         for (const [path, value] of Object.entries(patch)) {
           if (path === "id" || path === "@type" || path === "usedDiskQuota" || path === "emailAddress") { failure = setError("invalidProperties", `Property ${path} cannot be changed.`, [path]); break; }
           if (path.endsWith("/secret")) {
@@ -370,6 +400,7 @@ export function createDirectory(opts: Options) {
           if (target["@type"] === "Group") failure = setError("invalidProperties", "Groups cannot be members of other groups.", ["memberGroupIds"]);
           else if (Object.keys((next.memberGroupIds as Obj) ?? {}).some((g) => accounts.find((x) => x.id === g)?.["@type"] !== "Group")) failure = setError("invalidForeignKey", "Group does not exist.", ["memberGroupIds"]);
         }
+        if (!failure && "memberTenantId" in patch) failure = domainTenantRefused(next);
         if (!failure && ("roles" in patch || "permissions" in patch)) {
           const refused = grantRefused(next.roles);
           if (refused) failure = setError("forbidden", refused);
@@ -404,7 +435,7 @@ export function createDirectory(opts: Options) {
       return { accountId: opts.accountId, oldState: "1", newState: "2", created, updated, destroyed, ...(Object.keys(notCreated).length ? { notCreated } : {}), ...(Object.keys(notUpdated).length ? { notUpdated } : {}), ...(Object.keys(notDestroyed).length ? { notDestroyed } : {}) };
     },
     "x:Domain/get": get(domains, "sysDomainGet"),
-    "x:Domain/query": query(() => domains, "sysDomainQuery", ["text", "aliases", "memberTenantId", "name"], (o, f) => matchText(o, f.text) && matchText(o, f.name)),
+    "x:Domain/query": query(() => domains, "sysDomainQuery", ["text", "aliases", "memberTenantId", "name"], (o, f) => (f.memberTenantId === undefined || o.memberTenantId === f.memberTenantId) && matchText(o, f.text) && matchText(o, f.name)),
     "x:Domain/set": (a) => {
       const created: Obj = {};
       const notCreated: Obj = {};
@@ -431,6 +462,9 @@ export function createDirectory(opts: Options) {
         demand("sysDomainUpdate");
         const target = domains.find((d) => d.id === id);
         if (!target) { notUpdated[id] = setError("notFound", "Domain not found."); continue; }
+        const refusedTenant = tenantRefused(raw as Obj);
+        if (refusedTenant) { notUpdated[id] = refusedTenant; continue; }
+        if ((raw as Obj).memberTenantId && !tenants.some((x) => x.id === (raw as Obj).memberTenantId)) { notUpdated[id] = setError("invalidForeignKey", "Tenant does not exist.", ["memberTenantId"]); continue; }
         const next = structuredClone(target);
         for (const [path, value] of Object.entries(raw as Obj)) setPointer(next, path, value);
         // Live on 2026-09-13: a catch-all that is not a whole address.
@@ -455,7 +489,8 @@ export function createDirectory(opts: Options) {
       return { accountId: opts.accountId, oldState: "1", newState: "2", created, updated, destroyed, ...(Object.keys(notCreated).length ? { notCreated } : {}), ...(Object.keys(notUpdated).length ? { notUpdated } : {}), ...(Object.keys(notDestroyed).length ? { notDestroyed } : {}) };
     },
     "x:DkimSignature/get": get(dkimKeys, "sysDkimSignatureGet"),
-    "x:DkimSignature/query": query(() => dkimKeys, "sysDkimSignatureQuery", ["domainId", "memberTenantId"], (o, f) => f.domainId === undefined || o.domainId === f.domainId),
+    "x:DkimSignature/query": query(() => dkimKeys, "sysDkimSignatureQuery", ["domainId", "memberTenantId"], (o, f) =>
+      (f.domainId === undefined || o.domainId === f.domainId) && (f.memberTenantId === undefined || (o.memberTenantId ?? null) === f.memberTenantId)),
     "x:DkimSignature/set": (a) => {
       const destroyed: string[] = [];
       for (const id of (a.destroy as string[]) ?? []) {
@@ -486,7 +521,7 @@ export function createDirectory(opts: Options) {
         (!Array.isArray(f.metric) || (f.metric as string[]).includes(o.metric as string)))(a);
     },
     "x:MailingList/get": get(lists, "sysMailingListGet"),
-    "x:MailingList/query": query(() => lists, "sysMailingListQuery", ["text", "memberTenantId"], (o, f) => matchText(o, f.text)),
+    "x:MailingList/query": query(() => lists, "sysMailingListQuery", ["text", "memberTenantId"], (o, f) => (f.memberTenantId === undefined || o.memberTenantId === f.memberTenantId) && matchText(o, f.text)),
     "x:MailingList/set": (a) => {
       const created: Obj = {};
       const notCreated: Obj = {};
@@ -504,10 +539,10 @@ export function createDirectory(opts: Options) {
       for (const [cid, raw] of Object.entries((a.create as Obj) ?? {})) {
         demand("sysMailingListCreate");
         const o: Obj = { recipients: {}, aliases: {}, description: null, ...(raw as Obj) };
-        const failure = check(o);
+        const failure = check(o) ?? (o.memberTenantId ? (tenantRefused(o) ?? domainTenantRefused(o)) : null);
         if (failure) { notCreated[cid] = failure; continue; }
         const id = `l${counter++}`;
-        lists.push({ ...o, id, memberTenantId: null });
+        lists.push({ memberTenantId: null, ...o, id });
         created[cid] = { id, emailAddress: `${o.name}@${domainName(o.domainId)}` };
       }
       for (const [id, raw] of Object.entries((a.update as Obj) ?? {})) {
@@ -601,8 +636,65 @@ export function createDirectory(opts: Options) {
       }
       return { accountId: opts.accountId, oldState: "1", newState: "2", created, updated, destroyed, ...(Object.keys(notCreated).length ? { notCreated } : {}), ...(Object.keys(notUpdated).length ? { notUpdated } : {}), ...(Object.keys(notDestroyed).length ? { notDestroyed } : {}) };
     },
+    "x:Tenant/get": (a) => {
+      demand("sysTenantGet");
+      for (const x of tenants) x.usedDiskQuota = tenantUsage(x.id as string);
+      return get(tenants, "sysTenantGet")(a);
+    },
+    "x:Tenant/query": query(() => tenants, "sysTenantQuery", ["text"], (o, f) => matchText(o, f.text)),
+    "x:Tenant/set": (a) => {
+      const created: Obj = {};
+      const notCreated: Obj = {};
+      const updated: Obj = {};
+      const notUpdated: Obj = {};
+      const destroyed: string[] = [];
+      const notDestroyed: Obj = {};
+      const check = (o: Obj): Obj | null => {
+        if (typeof o.name !== "string" || !o.name.trim()) return setError("invalidProperties", "String cannot be empty", ["name"]);
+        for (const [k, v] of Object.entries((o.quotas as Obj) ?? {})) {
+          if (!["maxAccounts", "maxGroups", "maxDomains", "maxMailingLists", "maxRoles", "maxOauthClients", "maxDkimKeys", "maxDnsServers", "maxDirectories", "maxAcmeProviders", "maxDiskQuota"].includes(k) || typeof v !== "number" || v < 0) {
+            return setError("invalidProperties", "Invalid value for object property", [`quotas/${k}`]);
+          }
+        }
+        return grantRefused(o.roles) ? setError("forbidden", grantRefused(o.roles)!) : null;
+      };
+      for (const [cid, raw] of Object.entries((a.create as Obj) ?? {})) {
+        demand("sysTenantCreate");
+        const o: Obj = { logo: null, roles: { "@type": "Default" }, permissions: { "@type": "Inherit" }, quotas: {}, ...(raw as Obj) };
+        const failure = check(o);
+        if (failure) { notCreated[cid] = failure; continue; }
+        const id = `t${counter++}`;
+        tenants.push({ ...o, id, createdAt: new Date().toISOString().replace(/\.\d{3}Z$/, "Z") });
+        created[cid] = { id };
+      }
+      for (const [id, raw] of Object.entries((a.update as Obj) ?? {})) {
+        demand("sysTenantUpdate");
+        const target = tenants.find((x) => x.id === id);
+        if (!target) { notUpdated[id] = setError("notFound", "Tenant not found."); continue; }
+        const next = structuredClone(target);
+        for (const [path, value] of Object.entries(raw as Obj)) setPointer(next, path, value);
+        const failure = check(next);
+        if (failure) { notUpdated[id] = failure.type === "invalidProperties" ? { ...failure, type: "invalidPatch" } : failure; continue; }
+        Object.assign(target, next);
+        updated[id] = null;
+      }
+      for (const id of (a.destroy as string[]) ?? []) {
+        demand("sysTenantDestroy");
+        if (!tenants.some((x) => x.id === id)) { notDestroyed[id] = setError("notFound", "Tenant not found."); continue; }
+        const linked = [
+          ...accounts.filter((x) => x.memberTenantId === id).map((x) => ({ object: "Account", id: x.id })),
+          ...domains.filter((x) => x.memberTenantId === id).map((x) => ({ object: "Domain", id: x.id })),
+          ...lists.filter((x) => x.memberTenantId === id).map((x) => ({ object: "MailingList", id: x.id })),
+          ...roles.filter((x) => x.memberTenantId === id).map((x) => ({ object: "Role", id: x.id })),
+        ];
+        if (linked.length) { notDestroyed[id] = { type: "objectIsLinked", objectId: { object: "Tenant", id }, linkedObjects: linked }; continue; }
+        tenants.splice(tenants.findIndex((x) => x.id === id), 1);
+        destroyed.push(id);
+      }
+      return { accountId: opts.accountId, oldState: "1", newState: "2", created, updated, destroyed, ...(Object.keys(notCreated).length ? { notCreated } : {}), ...(Object.keys(notUpdated).length ? { notUpdated } : {}), ...(Object.keys(notDestroyed).length ? { notDestroyed } : {}) };
+    },
     "x:Role/get": get(roles, "sysRoleGet"),
-    "x:Role/query": query(() => roles, "sysRoleQuery", ["text", "description", "memberTenantId"], (o, f) => matchText(o, f.description)),
+    "x:Role/query": query(() => roles, "sysRoleQuery", ["text", "description", "memberTenantId"], (o, f) => (f.memberTenantId === undefined || (o.memberTenantId ?? null) === f.memberTenantId) && matchText(o, f.description)),
   };
 
   return { handlers, permissions: [...permissions], accounts };
@@ -629,6 +721,9 @@ function setPointer(obj: Obj, path: string, value: unknown): void {
     node = node[part] as Obj;
   }
   const last = parts[parts.length - 1]!;
-  if (value === null) delete node[last];
+  // A top-level property set to null reads back as null -- deleting it here
+  // would leave the old value in place when the change is merged back. A
+  // nested pointer to null takes the entry out of its set or map.
+  if (value === null && parts.length > 1) delete node[last];
   else node[last] = value;
 }

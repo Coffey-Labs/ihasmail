@@ -1260,6 +1260,42 @@ Its labels are English only, so ihasmail ships its own translation of every one
 of them, loaded only when the Roles screen opens; a permission added by a later
 Stalwart shows the server's English until it is translated.
 
+## Tenants
+
+A tenant is a separate organisation on the same server — its own people,
+domains and limits, and an administrator who manages only what is in it. It is
+a Stalwart Enterprise feature. On a server that does not report Enterprise — or
+reports no edition at all — the page is only the notice *Tenants are a Stalwart
+Enterprise feature.*: no list, no search, nothing to create. On Enterprise the
+notice is left out, unless `SHOW_ENTERPRISE_NOTICES=1` asks for it above the
+list, as the public demo does. On Enterprise, for a role with `sysTenantQuery`
+and `sysTenantGet`, under Access:
+
+- **List and search** tenants, with each one's storage and account limit.
+- **Create and edit** a tenant's name, logo (an https address, drawn through the
+  image proxy, or an image data URL), role and limits — accounts, groups,
+  mailing lists, domains, roles, DKIM keys and storage. An empty limit is no
+  limit, and a limit ihasmail does not offer keeps whatever it had.
+- **The tenant's role** is the most anyone inside it can be allowed: their own
+  roles are cut down to it.
+- **What it holds** is counted, each against its limit. Stalwart keeps no list
+  on the tenant; each account, group, domain, list, role and DKIM key names its
+  tenant, so the counts are queries for those. A domain created in a tenant
+  brings its keys with it.
+- **Domains** are added to a tenant, or taken out, from its panel. Only a domain
+  in no tenant can be added, and the accounts already on it stay where they
+  are. A domain comes out only once none of the tenant's accounts are on it —
+  Stalwart would allow it, and strand them.
+- **An account's tenant** is chosen on the account's own panel, which is how a
+  tenant gets its first administrator: an Administrator inside a tenant
+  administers that tenant. Stalwart puts something in a tenant only on a domain
+  in that tenant, so the choice is between no tenant and the domain's own, and
+  a new account starts in its domain's tenant.
+- **Delete** is offered once the tenant holds nothing.
+
+Only an administrator outside every tenant can put anything into one; Stalwart
+refuses anyone else, and inside a tenant it scopes every list to that tenant.
+
 ## Domains
 
 For a role that can read domains (`sysDomainQuery`, `sysDomainGet`):
@@ -1318,9 +1354,8 @@ session information already kept for thirty minutes — so a role granted or
 taken away shows in the menu at the next sign-in or within half an hour, and in
 the meantime Stalwart refuses what is no longer allowed.
 
-The dashboard, accounts, groups, mailing lists, roles and domains are the
-sections so far. Tenants are Stalwart capabilities the same screen is
-laid out to take. Beyond the dashboard's counts, managing queues, logs and
+The dashboard, accounts, groups, mailing lists, tenants, roles and domains are
+the sections so far. Beyond the dashboard's counts, managing queues, logs and
 server settings is deliberately out of scope.
 
 ---
@@ -1679,6 +1714,7 @@ wizard, because either would be state.
 | Variable | Default | Does |
 | --- | --- | --- |
 | `STALWART_URL` | — | Where Stalwart is; the JMAP session is discovered at `/.well-known/jmap` |
+| `SHOW_ENTERPRISE_NOTICES` | `0` | Say an Enterprise-only section (Tenants) is Enterprise-only even when the server is Enterprise. For a demo that reports Enterprise to show those sections; a real installation leaves it off |
 | `STALWART_ADMIN_URL` | — | Where a browser opens Stalwart's own administration, linked from the Administration dashboard. Separate from `STALWART_URL`, which is often an address only this server can reach; unset, the dashboard names Stalwart's administration without a link |
 | `APP_SECRET` | — | Key material for sealing sessions. **Required in production** — the server refuses to start without it |
 | `HOST` / `PORT` | `0.0.0.0` / `8080` | Listen address |
@@ -1787,7 +1823,8 @@ demo user is: `admin` (the default), `tenant-admin` (the queue but not the
 history), `helpdesk` — a custom role that may view and edit accounts but not
 create or delete them, and read domains — or `user`, who is not offered the
 menu at all. `MOCK_METRICS=off` refuses the history the way a Community server
-does. Two mailing lists round it out.
+does, and `MOCK_EDITION=enterprise` reports Enterprise so Tenants can be
+worked on (the default, `oss`, shows only its notice). Two mailing lists round it out.
 
 ---
 

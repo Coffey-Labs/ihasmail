@@ -54,6 +54,8 @@ export interface DirectoryAccount {
   usedDiskQuota?: number;
   aliases?: Record<string, EmailAlias>;
   memberGroupIds?: Record<string, boolean>;
+  /** The tenant the account belongs to; only ever read back to an administrator outside every tenant. */
+  memberTenantId?: string | null;
   credentials?: Record<string, Credential>;
   createdAt?: string;
 }
@@ -61,11 +63,13 @@ export interface DirectoryAccount {
 export interface DirectoryDomain {
   id: string;
   name: string;
+  /** The tenant the domain is in: an account can be in a tenant only on one of its domains. */
+  memberTenantId?: string | null;
 }
 
 const ACCOUNT_PROPERTIES = [
   "@type", "name", "domainId", "emailAddress", "description", "roles", "permissions", "quotas",
-  "usedDiskQuota", "aliases", "memberGroupIds", "credentials", "createdAt",
+  "usedDiskQuota", "aliases", "memberGroupIds", "memberTenantId", "credentials", "createdAt",
 ];
 
 /** The one quota ihasmail edits; the others keep whatever they had. */
@@ -119,7 +123,7 @@ async function all<T>(object: "Domain" | "Role", properties: string[]): Promise<
   return res.list;
 }
 
-export const listDomains = () => all<DirectoryDomain>("Domain", ["name"]);
+export const listDomains = () => all<DirectoryDomain>("Domain", ["name", "memberTenantId"]);
 export const listRoles = () => all<RoleDef>("Role", ["description", "enabledPermissions", "roleIds"]);
 
 export async function listGroups(): Promise<DirectoryAccount[]> {
@@ -143,6 +147,8 @@ export interface NewAccount {
   password: string;
   roles: UserRoles;
   diskQuotaBytes: number | null;
+  /** Put the account in a tenant; only an administrator outside every tenant may. */
+  memberTenantId?: string | null;
 }
 
 export async function createAccount(input: NewAccount): Promise<string> {
@@ -159,6 +165,7 @@ export async function createAccount(input: NewAccount): Promise<string> {
         quotas: input.diskQuotaBytes ? { [DISK_QUOTA]: input.diskQuotaBytes } : {},
         aliases: {},
         memberGroupIds: {},
+        ...(input.memberTenantId ? { memberTenantId: input.memberTenantId } : {}),
         // Required on create. Turning it on is one-way and not offered here.
         encryptionAtRest: { "@type": "Disabled" },
       },
@@ -229,7 +236,7 @@ const VALIDATOR_MESSAGES: Record<string, () => string> = {
 };
 
 /** What kind of thing a refusal was about, where the wording has to differ. */
-export type DirectoryObject = "account" | "domain" | "group" | "list" | "role";
+export type DirectoryObject = "account" | "domain" | "group" | "list" | "role" | "tenant";
 
 /**
  * Say what went wrong in terms of the person's own action, in their language.
@@ -282,7 +289,9 @@ export function describeDirectoryError(err: unknown, object: DirectoryObject = "
             ? t("Your organisation has reached the number of mailing lists it is allowed.")
             : object === "role"
               ? t("Your organisation has reached the number of roles it is allowed.")
-              : t("Your organisation has reached the number of accounts it is allowed.");
+              : object === "tenant"
+                ? t("The server allows no more tenants.")
+                : t("Your organisation has reached the number of accounts it is allowed.");
     case "objectIsLinked":
       return t("Something still depends on this, so the server kept it.");
     case "notFound":
@@ -294,7 +303,9 @@ export function describeDirectoryError(err: unknown, object: DirectoryObject = "
             ? t("This mailing list no longer exists. Someone may have deleted it.")
             : object === "role"
               ? t("This role no longer exists. Someone may have deleted it.")
-              : t("This account no longer exists. Someone may have deleted it.");
+              : object === "tenant"
+                ? t("This tenant no longer exists. Someone may have deleted it.")
+                : t("This account no longer exists. Someone may have deleted it.");
     case "rateLimit":
       return t("Too many attempts. Please wait a few minutes and try again.");
     case "tooLarge":

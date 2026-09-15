@@ -21,6 +21,7 @@ import { Avatar, Empty, Spinner } from "@/ui/misc";
 import { usePermissions } from "./usePermissions";
 import { isSelf, roleName, type DirectoryContext } from "./directoryContext";
 import { AccountSheet } from "./AccountSheet";
+import { listTenantNames } from "@/lib/adminTenants";
 
 const PAGE_SIZE = 50;
 
@@ -38,6 +39,7 @@ export function AccountsAdmin({ selectedId }: { selectedId?: string }) {
   const [roles, setRoles] = useState<Map<string, RoleDef> | null>(null);
   const [groups, setGroups] = useState<Map<string, DirectoryAccount>>(new Map());
   const [loose, setLoose] = useState<DirectoryAccount | null>(null);
+  const [tenants, setTenants] = useState<Array<{ id: string; name: string }> | null>(null);
 
   // Typing is not a query per keystroke.
   useEffect(() => {
@@ -74,6 +76,7 @@ export function AccountsAdmin({ selectedId }: { selectedId?: string }) {
     if (can(perms, "Domain", "Query") && can(perms, "Domain", "Get")) void listDomains().then(setServerDomains, () => setServerDomains(null));
     if (can(perms, "Role", "Query") && can(perms, "Role", "Get")) void listRoles().then((list) => setRoles(new Map(list.map((r) => [r.id, r]))), () => setRoles(null));
     void listGroups().then((list) => setGroups(new Map(list.map((g) => [g.id, g]))), () => setGroups(new Map()));
+    if (can(perms, "Tenant", "Query") && can(perms, "Tenant", "Get")) void listTenantNames().then(setTenants, () => setTenants(null));
   }, [perms, reload]);
 
   // An account opened by address that is not on the page being shown.
@@ -103,9 +106,10 @@ export function AccountsAdmin({ selectedId }: { selectedId?: string }) {
       domains: (serverDomains ?? [...seen.values()]).slice().sort((x, y) => x.name.localeCompare(y.name)),
       roles,
       groups,
+      tenants,
       self: { ids: new Set(ownId ? [ownId] : []), address: (session?.username ?? "").toLowerCase() },
     };
-  }, [page, serverDomains, roles, groups, session]);
+  }, [page, serverDomains, roles, groups, tenants, session]);
 
   const selected = selectedId && selectedId !== "new" ? (page?.accounts.find((a) => a.id === selectedId) ?? loose) : null;
   const close = () => navigate("/admin/accounts");

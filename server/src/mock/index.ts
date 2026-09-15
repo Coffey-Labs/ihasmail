@@ -45,6 +45,8 @@ const SHARED_CAPS: Obj = {
 const USER = process.env.MOCK_USER ?? "demo@example.com";
 /** Locale the fake directory reports for the account (POSIX style, as Stalwart does). */
 const MOCK_LOCALE = process.env.MOCK_LOCALE ?? "en_US";
+/** What /api/account reports. Tenants are managed only on "enterprise"; MOCK_EDITION=enterprise to develop them. */
+const MOCK_EDITION = process.env.MOCK_EDITION ?? "oss";
 const PASS = process.env.MOCK_PASS ?? "demo";
 /**
  * Credential state, mutable so the self-service flows can be exercised against
@@ -1430,7 +1432,7 @@ export const server = createServer(async (req, res) => {
   // The account info endpoint; the only place a server reports its edition.
   if (url.pathname === "/api/account" && req.method === "GET") {
     res.writeHead(200, { "content-type": "application/json" });
-    return res.end(JSON.stringify({ permissions: directory.permissions, edition: "oss", locale: MOCK_LOCALE }));
+    return res.end(JSON.stringify({ permissions: directory.permissions, edition: MOCK_EDITION, locale: MOCK_LOCALE }));
   }
   // The registry schema, cut down to the permission list the Roles picker
   // reads. Gzipped as the real file is, from the 0.16.22 snapshot the

@@ -255,3 +255,48 @@ test("a permission name Stalwart does not know fails the whole change", () => {
   assert.equal(r.notUpdated?.r4?.type, "invalidPatch");
   assert.deepEqual(r.notUpdated!.r4!.properties, ["enabledPermissions/notARealPermission"]);
 });
+
+/** Tenants: what they hold is whatever names them, and only an administrator outside one may move things in. */
+test("a tenant's members are found by memberTenantId, and it is kept while it has any", () => {
+  const dir = make("admin");
+  const accounts = dir.handlers["x:Account/query"]!({ filter: { "@type": "User", memberTenantId: "t1" }, calculateTotal: true, limit: 0 }) as { total: number };
+  const domains = dir.handlers["x:Domain/query"]!({ filter: { memberTenantId: "t1" }, calculateTotal: true }) as { ids: string[] };
+  assert.equal(accounts.total, 1);
+  assert.deepEqual(domains.ids, ["d3"]);
+  const refused = dir.handlers["x:Tenant/set"]!({ destroy: ["t1"] }) as { notDestroyed?: Record<string, { type: string; linkedObjects: Array<{ object: string }> }> };
+  assert.equal(refused.notDestroyed?.t1?.type, "objectIsLinked");
+  assert.deepEqual([...new Set(refused.notDestroyed!.t1!.linkedObjects.map((l) => l.object))].sort(), ["Account", "Domain"]);
+});
+
+test("a tenant is created with quotas, a domain moves into it, and an empty one is deleted", () => {
+  const dir = make("admin");
+  const c = dir.handlers["x:Tenant/set"]!({ create: { n: { name: "Globex", quotas: { maxAccounts: 5, maxDiskQuota: 1024 } } } }) as { created: Record<string, { id: string }> };
+  const id = c.created.n!.id;
+  const bad = dir.handlers["x:Tenant/set"]!({ update: { [id]: { "quotas/maxWidgets": 3 } } }) as { notUpdated?: Record<string, { type: string }> };
+  assert.equal(bad.notUpdated?.[id]?.type, "invalidPatch");
+  dir.handlers["x:Domain/set"]!({ update: { d4: { memberTenantId: id } } });
+  assert.equal((dir.handlers["x:Domain/query"]!({ filter: { memberTenantId: id }, calculateTotal: true }) as { total: number }).total, 1);
+  dir.handlers["x:Domain/set"]!({ update: { d4: { memberTenantId: null } } });
+  assert.deepEqual((dir.handlers["x:Tenant/set"]!({ destroy: [id] }) as { destroyed: string[] }).destroyed, [id]);
+});
+
+test("a tenant administrator cannot move anything into a tenant", () => {
+  const dir = make("tenant-admin");
+  const r = dir.handlers["x:Domain/set"]!({ update: { d4: { memberTenantId: "t1" } } }) as { notUpdated?: Record<string, { type: string; description: string }> };
+  assert.equal(r.notUpdated?.d4?.type, "invalidPatch");
+  assert.match(r.notUpdated!.d4!.description, /memberTenantId/);
+});
+
+test("something in a tenant has to be on a domain in it, and something in none may be anywhere", () => {
+  const dir = make("admin");
+  const outside = dir.handlers["x:MailingList/set"]!({ create: { n: { name: "stray", domainId: "d1", memberTenantId: "t1" } } }) as { notCreated?: Record<string, { type: string; objectId: { object: string } }> };
+  assert.equal(outside.notCreated?.n?.type, "invalidForeignKey");
+  assert.equal(outside.notCreated!.n!.objectId.object, "Domain");
+  const inside = dir.handlers["x:MailingList/set"]!({ create: { n: { name: "team", domainId: "d3", memberTenantId: "t1" } } }) as { created?: Record<string, { id: string }> };
+  assert.ok(inside.created?.n?.id);
+  const none = dir.handlers["x:MailingList/set"]!({ create: { n: { name: "open", domainId: "d3" } } }) as { created?: Record<string, { id: string }> };
+  assert.ok(none.created?.n?.id);
+  const [someone] = (dir.handlers["x:Account/query"]!({ filter: { "@type": "User", domainId: "d1" } }) as { ids: string[] }).ids;
+  const move = dir.handlers["x:Account/set"]!({ update: { [someone!]: { memberTenantId: "t1" } } }) as { notUpdated?: Record<string, { type: string }> };
+  assert.equal(move.notUpdated?.[someone!]?.type, "invalidForeignKey");
+});

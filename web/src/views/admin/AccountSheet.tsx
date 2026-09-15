@@ -85,12 +85,18 @@ export function AccountSheet({ account, ctx, onClose, onChanged, onCreated, onDe
   const [role, setRole] = useState(roleKey(account?.roles));
   const [quota, setQuota] = useState(gibOf(account?.quotas?.[DISK_QUOTA]));
   const [aliases, setAliases] = useState<EmailAlias[]>(() => Object.values(account?.aliases ?? {}));
+  const [tenantId, setTenantId] = useState(account?.memberTenantId ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!domainId && ctx.domains[0]) setDomainId(ctx.domains[0].id);
   }, [ctx.domains, domainId]);
+
+  // A new account starts in the tenant of the domain it is being made on.
+  useEffect(() => {
+    if (creating) setTenantId(ctx.domains.find((d) => d.id === domainId)?.memberTenantId ?? "");
+  }, [creating, domainId, ctx.domains]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -101,6 +107,13 @@ export function AccountSheet({ account, ctx, onClose, onChanged, onCreated, onDe
   }, [onClose]);
 
   const domainName = (id: string) => ctx.domains.find((d) => d.id === id)?.name ?? "";
+  /*
+   * Stalwart refuses an account in a tenant on a domain outside it (live,
+   * 2026-09-15: invalidForeignKey naming the domain), and allows one in no
+   * tenant on a tenant's domain. So the only tenant to offer is the domain's.
+   */
+  const domainTenant = ctx.domains.find((d) => d.id === (account?.domainId ?? domainId))?.memberTenantId ?? null;
+  const tenantName = (id: string) => ctx.tenants?.find((x) => x.id === id)?.name ?? id;
   const address = account?.emailAddress ?? `${name}@${domainName(domainId)}`;
 
   const roleOptions = useMemo(() => {
@@ -132,7 +145,7 @@ export function AccountSheet({ account, ctx, onClose, onChanged, onCreated, onDe
           setError(t("An account needs an address."));
           return;
         }
-        const id = await createAccount({ name, domainId, description, password, roles: rolesFromKey(role), diskQuotaBytes: bytesOf(quota) });
+        const id = await createAccount({ name, domainId, description, password, roles: rolesFromKey(role), diskQuotaBytes: bytesOf(quota), memberTenantId: tenantId || null });
         toast.success(t("Created {address}", { address }));
         onCreated(id);
         return;
@@ -140,6 +153,7 @@ export function AccountSheet({ account, ctx, onClose, onChanged, onCreated, onDe
       const patch: Record<string, unknown> = {};
       if ((account.description ?? "") !== description) patch.description = description.trim() || null;
       if (roleKey(account.roles) !== role) patch.roles = rolesFromKey(role);
+      if ((account.memberTenantId ?? "") !== tenantId) patch.memberTenantId = tenantId || null;
       if ((account.quotas?.[DISK_QUOTA] ?? null) !== bytesOf(quota)) patch.quotas = quotasWithDisk(account.quotas, bytesOf(quota));
       const before = JSON.stringify(aliasList(Object.values(account.aliases ?? {})));
       if (before !== JSON.stringify(aliasList(aliases))) patch.aliases = aliasList(aliases);
@@ -244,6 +258,22 @@ export function AccountSheet({ account, ctx, onClose, onChanged, onCreated, onDe
         <p className="hint">
           {self ? t("You can't change your own role.") : t("Only roles whose permissions you hold yourself are offered. On an account inside a tenant, Administrator means administrator of that tenant.")}
         </p>
+
+        {ctx.tenants && (domainTenant || tenantId) && (
+          <>
+            <h3>{t("Tenant")}</h3>
+            <select className="input admin-wide" aria-label={t("Tenant")} value={tenantId} disabled={!editable || self} onChange={(e) => setTenantId(e.target.value)}>
+              <option value="">{t("No tenant")}</option>
+              {domainTenant && <option value={domainTenant}>{tenantName(domainTenant)}</option>}
+              {tenantId && tenantId !== domainTenant && <option value={tenantId}>{tenantName(tenantId)}</option>}
+            </select>
+            <p className="hint">
+              {self
+                ? t("You can't move your own account into a tenant.")
+                : t("An account can be in the tenant its domain is in. In a tenant it is limited by the tenant's role and counts towards its limits, and Administrator means administrator of that tenant.")}
+            </p>
+          </>
+        )}
 
         <h3>{t("Storage")}</h3>
         {!creating && (
