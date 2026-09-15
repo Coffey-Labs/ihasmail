@@ -229,7 +229,7 @@ const VALIDATOR_MESSAGES: Record<string, () => string> = {
 };
 
 /** What kind of thing a refusal was about, where the wording has to differ. */
-export type DirectoryObject = "account" | "domain" | "group" | "list";
+export type DirectoryObject = "account" | "domain" | "group" | "list" | "role";
 
 /**
  * Say what went wrong in terms of the person's own action, in their language.
@@ -261,7 +261,9 @@ export function describeDirectoryError(err: unknown, object: DirectoryObject = "
   const description = err.description ?? "";
   switch (err.type) {
     case "forbidden":
-      if (/not authorized to grant/i.test(description)) return t("You can't give an account permissions your own role doesn't have.");
+      if (/not authorized to grant/i.test(description)) {
+        return object === "role" ? t("You can't give a role permissions your own role doesn't have.") : t("You can't give an account permissions your own role doesn't have.");
+      }
       if (/external directory/i.test(description)) return t("This account signs in through an external directory, so its password can't be set here.");
       if (/licen[cs]ed account limit/i.test(description)) return t("The server's licence allows no more accounts.");
       return t("The mail server refused this. Your role may not allow it.");
@@ -278,7 +280,9 @@ export function describeDirectoryError(err: unknown, object: DirectoryObject = "
           ? t("Your organisation has reached the number of groups it is allowed.")
           : object === "list"
             ? t("Your organisation has reached the number of mailing lists it is allowed.")
-            : t("Your organisation has reached the number of accounts it is allowed.");
+            : object === "role"
+              ? t("Your organisation has reached the number of roles it is allowed.")
+              : t("Your organisation has reached the number of accounts it is allowed.");
     case "objectIsLinked":
       return t("Something still depends on this, so the server kept it.");
     case "notFound":
@@ -288,7 +292,9 @@ export function describeDirectoryError(err: unknown, object: DirectoryObject = "
           ? t("This group no longer exists. Someone may have deleted it.")
           : object === "list"
             ? t("This mailing list no longer exists. Someone may have deleted it.")
-            : t("This account no longer exists. Someone may have deleted it.");
+            : object === "role"
+              ? t("This role no longer exists. Someone may have deleted it.")
+              : t("This account no longer exists. Someone may have deleted it.");
     case "rateLimit":
       return t("Too many attempts. Please wait a few minutes and try again.");
     case "tooLarge":

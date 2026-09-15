@@ -8,6 +8,7 @@ import { RESPONSE_ALREADY_SENT } from "@hono/node-server/utils/response";
 import { attach as pushAttach, attachRelay as pushAttachRelay, prepare as pushPrepare, receive as pushReceive, pushStatus } from "./push.js";
 import { getConnInfo } from "@hono/node-server/conninfo";
 import { config } from "./config.js";
+import { fetchPermissions } from "./permissionSchema.js";
 import { administrationAllowed, gateAdministration, grantsAdministration } from "./adminGate.js";
 import { SessionStore, type SessionBackend, type LiveSession } from "./sessions.js";
 import { RateLimiter } from "./ratelimit.js";
@@ -683,6 +684,30 @@ export function createApp(basePath = config.basePath): Hono<Env> {
         return c.json({ error: "unauthenticated" }, 401);
       }
       return passthrough(res);
+    } catch (err) {
+      return upstreamFailure(c, err);
+    }
+  });
+
+  // ---------- Administration: Stalwart's permission list ----------
+  /*
+   * The one administration read that is not a JMAP call: the labelled list of
+   * permissions from Stalwart's schema, for the Roles picker. Behind the same
+   * two gates as the registry methods, so a session that may not administer
+   * learns nothing from it.
+   */
+  api.get("/admin/permissions", requireSession, apiRateLimited, async (c) => {
+    const session = c.get("session");
+    if (!administrationAllowed(config.administration, session.remember)) {
+      return config.administration
+        ? c.json({ error: "administration_needs_own_device" }, 403)
+        : c.json({ error: "administration_disabled" }, 403);
+    }
+    try {
+      const upstream = await getUpstreamSession(session.id, session.authorization, upstreamFor(session.username));
+      const permissions = await fetchPermissions(session.authorization, upstream.baseUrl);
+      if (!permissions) return c.json({ error: "upstream_error" }, 502);
+      return c.json({ permissions });
     } catch (err) {
       return upstreamFailure(c, err);
     }

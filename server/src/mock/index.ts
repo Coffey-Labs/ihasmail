@@ -10,6 +10,10 @@ import { eventGetView, expandOccurrences, occurrenceAt, occurrenceView, parseSyn
 import { parseOtpauthUrl, verifyTotp } from "../totp.js";
 import { holdUntilOf, undoStatusOf } from "./futurerelease.js";
 import { createDirectory, mockRole } from "./directory.js";
+import { readFileSync } from "node:fs";
+import { gzipSync } from "node:zlib";
+
+const PERMISSION_SNAPSHOT = (JSON.parse(readFileSync(new URL("../../../web/src/locales/permissions/source.json", import.meta.url), "utf8")) as { permissions: Array<{ name: string; label: string }> }).permissions;
 
 const PORT = Number(process.env.MOCK_PORT ?? 8788);
 /**
@@ -1427,6 +1431,13 @@ export const server = createServer(async (req, res) => {
   if (url.pathname === "/api/account" && req.method === "GET") {
     res.writeHead(200, { "content-type": "application/json" });
     return res.end(JSON.stringify({ permissions: directory.permissions, edition: "oss", locale: MOCK_LOCALE }));
+  }
+  // The registry schema, cut down to the permission list the Roles picker
+  // reads. Gzipped as the real file is, from the 0.16.22 snapshot the
+  // translations are checked against.
+  if (url.pathname === "/api/schema" && req.method === "GET") {
+    res.writeHead(200, { "content-type": "application/json", "content-encoding": "gzip" });
+    return res.end(gzipSync(JSON.stringify({ enums: { Permission: PERMISSION_SNAPSHOT } })));
   }
   if (url.pathname === "/jmap/" && req.method === "POST") {
     const body = JSON.parse((await readBody(req)).toString()) as { methodCalls: [string, Obj, string][]; using?: string[] };

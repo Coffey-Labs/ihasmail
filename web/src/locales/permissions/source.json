@@ -1,0 +1,2654 @@
+{
+ "_comment": [
+  "Stalwart 0.16.22's Permission enum, as GET /api/schema serves it (enums.Permission).",
+  "The server's own list is what the Roles screen shows; this copy is what the translations are checked against,",
+  "so a language that misses a permission, or keeps one Stalwart no longer has, fails a test."
+ ],
+ "version": "0.16.22",
+ "permissions": [
+  {
+   "name": "authenticate",
+   "label": "Sign in to the server"
+  },
+  {
+   "name": "authenticateWithAlias",
+   "label": "Sign in using email alias addresses"
+  },
+  {
+   "name": "interactAi",
+   "label": "Interact with AI models"
+  },
+  {
+   "name": "impersonate",
+   "label": "Act on behalf of another user"
+  },
+  {
+   "name": "unlimitedRequests",
+   "label": "Bypass request rate limits"
+  },
+  {
+   "name": "unlimitedUploads",
+   "label": "Bypass upload size and rate limits"
+  },
+  {
+   "name": "fetchAnyBlob",
+   "label": "Retrieve arbitrary blobs, even those not owned by the account"
+  },
+  {
+   "name": "emailSend",
+   "label": "Email: Send emails"
+  },
+  {
+   "name": "emailReceive",
+   "label": "Email: Receive emails"
+  },
+  {
+   "name": "calendarAlarmsSend",
+   "label": "Calendar: Send calendar alarm notifications via email"
+  },
+  {
+   "name": "calendarSchedulingSend",
+   "label": "Calendar: Send calendar invitations and updates via email"
+  },
+  {
+   "name": "calendarSchedulingReceive",
+   "label": "Calendar: Process incoming calendar invitations and replies"
+  },
+  {
+   "name": "jmapPushSubscriptionGet",
+   "label": "JMAP: Retrieve push subscription details"
+  },
+  {
+   "name": "jmapPushSubscriptionCreate",
+   "label": "JMAP: Create new push subscriptions"
+  },
+  {
+   "name": "jmapPushSubscriptionUpdate",
+   "label": "JMAP: Modify existing push subscriptions"
+  },
+  {
+   "name": "jmapPushSubscriptionDestroy",
+   "label": "JMAP: Remove push subscriptions"
+  },
+  {
+   "name": "jmapMailboxGet",
+   "label": "JMAP: Retrieve mailbox details and properties"
+  },
+  {
+   "name": "jmapMailboxChanges",
+   "label": "JMAP: Track changes to mailboxes since a given state"
+  },
+  {
+   "name": "jmapMailboxQuery",
+   "label": "JMAP: Search for mailboxes matching criteria"
+  },
+  {
+   "name": "jmapMailboxQueryChanges",
+   "label": "JMAP: Track changes to mailbox query results"
+  },
+  {
+   "name": "jmapMailboxCreate",
+   "label": "JMAP: Create new mailboxes"
+  },
+  {
+   "name": "jmapMailboxUpdate",
+   "label": "JMAP: Modify existing mailboxes"
+  },
+  {
+   "name": "jmapMailboxDestroy",
+   "label": "JMAP: Remove mailboxes"
+  },
+  {
+   "name": "jmapThreadGet",
+   "label": "JMAP: Retrieve email thread details"
+  },
+  {
+   "name": "jmapThreadChanges",
+   "label": "JMAP: Track changes to threads since a given state"
+  },
+  {
+   "name": "jmapEmailGet",
+   "label": "JMAP: Retrieve email details and properties"
+  },
+  {
+   "name": "jmapEmailChanges",
+   "label": "JMAP: Track changes to emails since a given state"
+  },
+  {
+   "name": "jmapEmailQuery",
+   "label": "JMAP: Search for emails matching criteria"
+  },
+  {
+   "name": "jmapEmailQueryChanges",
+   "label": "JMAP: Track changes to email query results"
+  },
+  {
+   "name": "jmapEmailCreate",
+   "label": "JMAP: Create new emails"
+  },
+  {
+   "name": "jmapEmailUpdate",
+   "label": "JMAP: Modify existing emails"
+  },
+  {
+   "name": "jmapEmailDestroy",
+   "label": "JMAP: Remove emails"
+  },
+  {
+   "name": "jmapEmailCopy",
+   "label": "JMAP: Copy emails to another account"
+  },
+  {
+   "name": "jmapEmailImport",
+   "label": "JMAP: Import emails from blob data"
+  },
+  {
+   "name": "jmapEmailParse",
+   "label": "JMAP: Parse raw email data without storing"
+  },
+  {
+   "name": "jmapSearchSnippetGet",
+   "label": "JMAP: Retrieve search result snippets for emails"
+  },
+  {
+   "name": "jmapIdentityGet",
+   "label": "JMAP: Retrieve sender identity details"
+  },
+  {
+   "name": "jmapIdentityChanges",
+   "label": "JMAP: Track changes to identities since a given state"
+  },
+  {
+   "name": "jmapIdentityCreate",
+   "label": "JMAP: Create new sender identities"
+  },
+  {
+   "name": "jmapIdentityUpdate",
+   "label": "JMAP: Modify existing sender identities"
+  },
+  {
+   "name": "jmapIdentityDestroy",
+   "label": "JMAP: Remove sender identities"
+  },
+  {
+   "name": "jmapEmailSubmissionGet",
+   "label": "JMAP: Retrieve email submission details"
+  },
+  {
+   "name": "jmapEmailSubmissionChanges",
+   "label": "JMAP: Track changes to email submissions since a given state"
+  },
+  {
+   "name": "jmapEmailSubmissionQuery",
+   "label": "JMAP: Search for email submissions matching criteria"
+  },
+  {
+   "name": "jmapEmailSubmissionQueryChanges",
+   "label": "JMAP: Track changes to email submission query results"
+  },
+  {
+   "name": "jmapEmailSubmissionCreate",
+   "label": "JMAP: Create new email submissions for sending"
+  },
+  {
+   "name": "jmapEmailSubmissionUpdate",
+   "label": "JMAP: Modify existing email submissions"
+  },
+  {
+   "name": "jmapEmailSubmissionDestroy",
+   "label": "JMAP: Remove email submissions"
+  },
+  {
+   "name": "jmapVacationResponseGet",
+   "label": "JMAP: Retrieve vacation response configuration"
+  },
+  {
+   "name": "jmapVacationResponseCreate",
+   "label": "JMAP: Create vacation response settings"
+  },
+  {
+   "name": "jmapVacationResponseUpdate",
+   "label": "JMAP: Modify vacation response settings"
+  },
+  {
+   "name": "jmapVacationResponseDestroy",
+   "label": "JMAP: Remove vacation response settings"
+  },
+  {
+   "name": "jmapSieveScriptGet",
+   "label": "JMAP: Retrieve Sieve filter script details"
+  },
+  {
+   "name": "jmapSieveScriptQuery",
+   "label": "JMAP: Search for Sieve scripts matching criteria"
+  },
+  {
+   "name": "jmapSieveScriptValidate",
+   "label": "JMAP: Validate a Sieve script without storing"
+  },
+  {
+   "name": "jmapSieveScriptCreate",
+   "label": "JMAP: Create new Sieve filter scripts"
+  },
+  {
+   "name": "jmapSieveScriptUpdate",
+   "label": "JMAP: Modify existing Sieve filter scripts"
+  },
+  {
+   "name": "jmapSieveScriptDestroy",
+   "label": "JMAP: Remove Sieve filter scripts"
+  },
+  {
+   "name": "jmapPrincipalGet",
+   "label": "JMAP: Retrieve principal details and properties"
+  },
+  {
+   "name": "jmapPrincipalQuery",
+   "label": "JMAP: Search for principals matching criteria"
+  },
+  {
+   "name": "jmapPrincipalChanges",
+   "label": "JMAP: Track changes to principals since a given state"
+  },
+  {
+   "name": "jmapPrincipalQueryChanges",
+   "label": "JMAP: Track changes to principal query results"
+  },
+  {
+   "name": "jmapPrincipalGetAvailability",
+   "label": "JMAP: Query availability information for principals"
+  },
+  {
+   "name": "jmapPrincipalCreate",
+   "label": "JMAP: Create new principals"
+  },
+  {
+   "name": "jmapPrincipalUpdate",
+   "label": "JMAP: Modify existing principals"
+  },
+  {
+   "name": "jmapPrincipalDestroy",
+   "label": "JMAP: Remove principals"
+  },
+  {
+   "name": "jmapQuotaGet",
+   "label": "JMAP: Retrieve quota usage and limits"
+  },
+  {
+   "name": "jmapQuotaChanges",
+   "label": "JMAP: Track changes to quotas since a given state"
+  },
+  {
+   "name": "jmapQuotaQuery",
+   "label": "JMAP: Search for quotas matching criteria"
+  },
+  {
+   "name": "jmapQuotaQueryChanges",
+   "label": "JMAP: Track changes to quota query results"
+  },
+  {
+   "name": "jmapBlobGet",
+   "label": "JMAP: Download blob data"
+  },
+  {
+   "name": "jmapBlobCopy",
+   "label": "JMAP: Copy blobs to another account"
+  },
+  {
+   "name": "jmapBlobLookup",
+   "label": "JMAP: Look up blob usage across data types"
+  },
+  {
+   "name": "jmapBlobUpload",
+   "label": "JMAP: Upload new blob data"
+  },
+  {
+   "name": "jmapAddressBookGet",
+   "label": "JMAP: Retrieve address book details and properties"
+  },
+  {
+   "name": "jmapAddressBookChanges",
+   "label": "JMAP: Track changes to address books since a given state"
+  },
+  {
+   "name": "jmapAddressBookCreate",
+   "label": "JMAP: Create new address books"
+  },
+  {
+   "name": "jmapAddressBookUpdate",
+   "label": "JMAP: Modify existing address books"
+  },
+  {
+   "name": "jmapAddressBookDestroy",
+   "label": "JMAP: Remove address books"
+  },
+  {
+   "name": "jmapContactCardGet",
+   "label": "JMAP: Retrieve contact card details"
+  },
+  {
+   "name": "jmapContactCardChanges",
+   "label": "JMAP: Track changes to contact cards since a given state"
+  },
+  {
+   "name": "jmapContactCardQuery",
+   "label": "JMAP: Search for contact cards matching criteria"
+  },
+  {
+   "name": "jmapContactCardQueryChanges",
+   "label": "JMAP: Track changes to contact card query results"
+  },
+  {
+   "name": "jmapContactCardCreate",
+   "label": "JMAP: Create new contact cards"
+  },
+  {
+   "name": "jmapContactCardUpdate",
+   "label": "JMAP: Modify existing contact cards"
+  },
+  {
+   "name": "jmapContactCardDestroy",
+   "label": "JMAP: Remove contact cards"
+  },
+  {
+   "name": "jmapContactCardCopy",
+   "label": "JMAP: Copy contact cards to another account"
+  },
+  {
+   "name": "jmapContactCardParse",
+   "label": "JMAP: Parse raw contact card data without storing"
+  },
+  {
+   "name": "jmapFileNodeGet",
+   "label": "JMAP: Retrieve file node details and properties"
+  },
+  {
+   "name": "jmapFileNodeChanges",
+   "label": "JMAP: Track changes to file nodes since a given state"
+  },
+  {
+   "name": "jmapFileNodeQuery",
+   "label": "JMAP: Search for file nodes matching criteria"
+  },
+  {
+   "name": "jmapFileNodeQueryChanges",
+   "label": "JMAP: Track changes to file node query results"
+  },
+  {
+   "name": "jmapFileNodeCreate",
+   "label": "JMAP: Create new file nodes"
+  },
+  {
+   "name": "jmapFileNodeUpdate",
+   "label": "JMAP: Modify existing file nodes"
+  },
+  {
+   "name": "jmapFileNodeDestroy",
+   "label": "JMAP: Remove file nodes"
+  },
+  {
+   "name": "jmapFileNodeCopy",
+   "label": "JMAP: Copy file nodes to another account"
+  },
+  {
+   "name": "jmapShareNotificationGet",
+   "label": "JMAP: Retrieve share notification details"
+  },
+  {
+   "name": "jmapShareNotificationChanges",
+   "label": "JMAP: Track changes to share notifications since a given state"
+  },
+  {
+   "name": "jmapShareNotificationQuery",
+   "label": "JMAP: Search for share notifications matching criteria"
+  },
+  {
+   "name": "jmapShareNotificationQueryChanges",
+   "label": "JMAP: Track changes to share notification query results"
+  },
+  {
+   "name": "jmapShareNotificationCreate",
+   "label": "JMAP: Create new share notifications"
+  },
+  {
+   "name": "jmapShareNotificationUpdate",
+   "label": "JMAP: Modify existing share notifications"
+  },
+  {
+   "name": "jmapShareNotificationDestroy",
+   "label": "JMAP: Remove share notifications"
+  },
+  {
+   "name": "jmapCalendarGet",
+   "label": "JMAP: Retrieve calendar details and properties"
+  },
+  {
+   "name": "jmapCalendarChanges",
+   "label": "JMAP: Track changes to calendars since a given state"
+  },
+  {
+   "name": "jmapCalendarCreate",
+   "label": "JMAP: Create new calendars"
+  },
+  {
+   "name": "jmapCalendarUpdate",
+   "label": "JMAP: Modify existing calendars"
+  },
+  {
+   "name": "jmapCalendarDestroy",
+   "label": "JMAP: Remove calendars"
+  },
+  {
+   "name": "jmapCalendarEventGet",
+   "label": "JMAP: Retrieve calendar event details"
+  },
+  {
+   "name": "jmapCalendarEventChanges",
+   "label": "JMAP: Track changes to calendar events since a given state"
+  },
+  {
+   "name": "jmapCalendarEventQuery",
+   "label": "JMAP: Search for calendar events matching criteria"
+  },
+  {
+   "name": "jmapCalendarEventQueryChanges",
+   "label": "JMAP: Track changes to calendar event query results"
+  },
+  {
+   "name": "jmapCalendarEventCreate",
+   "label": "JMAP: Create new calendar events"
+  },
+  {
+   "name": "jmapCalendarEventUpdate",
+   "label": "JMAP: Modify existing calendar events"
+  },
+  {
+   "name": "jmapCalendarEventDestroy",
+   "label": "JMAP: Remove calendar events"
+  },
+  {
+   "name": "jmapCalendarEventCopy",
+   "label": "JMAP: Copy calendar events to another account"
+  },
+  {
+   "name": "jmapCalendarEventParse",
+   "label": "JMAP: Parse raw calendar event data without storing"
+  },
+  {
+   "name": "jmapCalendarEventNotificationGet",
+   "label": "JMAP: Retrieve calendar event notification details"
+  },
+  {
+   "name": "jmapCalendarEventNotificationChanges",
+   "label": "JMAP: Track changes to calendar event notifications since a given state"
+  },
+  {
+   "name": "jmapCalendarEventNotificationQuery",
+   "label": "JMAP: Search for calendar event notifications matching criteria"
+  },
+  {
+   "name": "jmapCalendarEventNotificationQueryChanges",
+   "label": "JMAP: Track changes to calendar event notification query results"
+  },
+  {
+   "name": "jmapCalendarEventNotificationCreate",
+   "label": "JMAP: Create new calendar event notifications"
+  },
+  {
+   "name": "jmapCalendarEventNotificationUpdate",
+   "label": "JMAP: Modify existing calendar event notifications"
+  },
+  {
+   "name": "jmapCalendarEventNotificationDestroy",
+   "label": "JMAP: Remove calendar event notifications"
+  },
+  {
+   "name": "jmapParticipantIdentityGet",
+   "label": "JMAP: Retrieve participant identity details"
+  },
+  {
+   "name": "jmapParticipantIdentityChanges",
+   "label": "JMAP: Track changes to participant identities since a given state"
+  },
+  {
+   "name": "jmapParticipantIdentityCreate",
+   "label": "JMAP: Create new participant identities"
+  },
+  {
+   "name": "jmapParticipantIdentityUpdate",
+   "label": "JMAP: Modify existing participant identities"
+  },
+  {
+   "name": "jmapParticipantIdentityDestroy",
+   "label": "JMAP: Remove participant identities"
+  },
+  {
+   "name": "jmapCoreEcho",
+   "label": "JMAP: Echo back input data for testing"
+  },
+  {
+   "name": "imapAuthenticate",
+   "label": "IMAP: Sign in to the IMAP server"
+  },
+  {
+   "name": "imapAclGet",
+   "label": "IMAP: View mailbox access control lists"
+  },
+  {
+   "name": "imapAclSet",
+   "label": "IMAP: Modify mailbox access control lists"
+  },
+  {
+   "name": "imapMyRights",
+   "label": "IMAP: View own permissions on a mailbox"
+  },
+  {
+   "name": "imapListRights",
+   "label": "IMAP: List available permission flags for a mailbox"
+  },
+  {
+   "name": "imapAppend",
+   "label": "IMAP: Upload messages to a mailbox"
+  },
+  {
+   "name": "imapCapability",
+   "label": "IMAP: Query supported IMAP extensions"
+  },
+  {
+   "name": "imapId",
+   "label": "IMAP: Query server identification and version"
+  },
+  {
+   "name": "imapCopy",
+   "label": "IMAP: Copy messages between mailboxes"
+  },
+  {
+   "name": "imapMove",
+   "label": "IMAP: Move messages between mailboxes"
+  },
+  {
+   "name": "imapCreate",
+   "label": "IMAP: Create new mailboxes"
+  },
+  {
+   "name": "imapDelete",
+   "label": "IMAP: Delete mailboxes or mark messages for deletion"
+  },
+  {
+   "name": "imapEnable",
+   "label": "IMAP: Activate optional IMAP extensions"
+  },
+  {
+   "name": "imapExpunge",
+   "label": "IMAP: Permanently remove messages marked for deletion"
+  },
+  {
+   "name": "imapFetch",
+   "label": "IMAP: Download message content and metadata"
+  },
+  {
+   "name": "imapIdle",
+   "label": "IMAP: Receive real-time notifications for mailbox changes"
+  },
+  {
+   "name": "imapList",
+   "label": "IMAP: List available mailboxes and their attributes"
+  },
+  {
+   "name": "imapLsub",
+   "label": "IMAP: List mailboxes the user is subscribed to"
+  },
+  {
+   "name": "imapNamespace",
+   "label": "IMAP: Query available mailbox namespace prefixes"
+  },
+  {
+   "name": "imapRename",
+   "label": "IMAP: Rename or move mailboxes"
+  },
+  {
+   "name": "imapSearch",
+   "label": "IMAP: Search messages by criteria"
+  },
+  {
+   "name": "imapSort",
+   "label": "IMAP: Retrieve messages in a specified sort order"
+  },
+  {
+   "name": "imapSelect",
+   "label": "IMAP: Open a mailbox for read-write access"
+  },
+  {
+   "name": "imapExamine",
+   "label": "IMAP: Open a mailbox for read-only access"
+  },
+  {
+   "name": "imapStatus",
+   "label": "IMAP: Query mailbox message counts and state"
+  },
+  {
+   "name": "imapStore",
+   "label": "IMAP: Set or clear message flags (read, flagged, deleted, etc.)"
+  },
+  {
+   "name": "imapSubscribe",
+   "label": "IMAP: Subscribe or unsubscribe to mailboxes"
+  },
+  {
+   "name": "imapThread",
+   "label": "IMAP: Group messages into conversation threads"
+  },
+  {
+   "name": "pop3Authenticate",
+   "label": "POP3: Sign in to the POP3 server"
+  },
+  {
+   "name": "pop3List",
+   "label": "POP3: List messages and their sizes"
+  },
+  {
+   "name": "pop3Uidl",
+   "label": "POP3: Retrieve unique message identifiers"
+  },
+  {
+   "name": "pop3Stat",
+   "label": "POP3: Query mailbox message count and total size"
+  },
+  {
+   "name": "pop3Retr",
+   "label": "POP3: Download message content"
+  },
+  {
+   "name": "pop3Dele",
+   "label": "POP3: Mark messages for deletion on disconnect"
+  },
+  {
+   "name": "sieveAuthenticate",
+   "label": "ManageSieve: Sign in to the ManageSieve server"
+  },
+  {
+   "name": "sieveListScripts",
+   "label": "ManageSieve: List uploaded Sieve scripts"
+  },
+  {
+   "name": "sieveSetActive",
+   "label": "ManageSieve: Designate which Sieve script is active"
+  },
+  {
+   "name": "sieveGetScript",
+   "label": "ManageSieve: Download Sieve script content"
+  },
+  {
+   "name": "sievePutScript",
+   "label": "ManageSieve: Upload or replace a Sieve script"
+  },
+  {
+   "name": "sieveDeleteScript",
+   "label": "ManageSieve: Remove a Sieve script"
+  },
+  {
+   "name": "sieveRenameScript",
+   "label": "ManageSieve: Rename a Sieve script"
+  },
+  {
+   "name": "sieveCheckScript",
+   "label": "ManageSieve: Validate Sieve script syntax without saving"
+  },
+  {
+   "name": "sieveHaveSpace",
+   "label": "ManageSieve: Check if quota allows uploading a script of a given size"
+  },
+  {
+   "name": "davSyncCollection",
+   "label": "WebDAV: Synchronize collection changes with client"
+  },
+  {
+   "name": "davExpandProperty",
+   "label": "WebDAV: Expand properties that reference other resources"
+  },
+  {
+   "name": "davPrincipalAcl",
+   "label": "WebDAV: Manage access control properties on principals"
+  },
+  {
+   "name": "davPrincipalList",
+   "label": "WebDAV: List available principals in the system"
+  },
+  {
+   "name": "davPrincipalMatch",
+   "label": "WebDAV: Match principals based on specified criteria"
+  },
+  {
+   "name": "davPrincipalSearch",
+   "label": "WebDAV: Search for principals by property values"
+  },
+  {
+   "name": "davPrincipalSearchPropSet",
+   "label": "WebDAV: Query which properties can be searched on principals"
+  },
+  {
+   "name": "davFilePropFind",
+   "label": "WebDAV: Retrieve properties of file resources"
+  },
+  {
+   "name": "davFilePropPatch",
+   "label": "WebDAV: Modify properties of file resources"
+  },
+  {
+   "name": "davFileGet",
+   "label": "WebDAV: Download file resources"
+  },
+  {
+   "name": "davFileMkCol",
+   "label": "WebDAV: Create new file collections or directories"
+  },
+  {
+   "name": "davFileDelete",
+   "label": "WebDAV: Remove file resources"
+  },
+  {
+   "name": "davFilePut",
+   "label": "WebDAV: Upload or modify file resources"
+  },
+  {
+   "name": "davFileCopy",
+   "label": "WebDAV: Copy file resources to new locations"
+  },
+  {
+   "name": "davFileMove",
+   "label": "WebDAV: Move file resources to new locations"
+  },
+  {
+   "name": "davFileLock",
+   "label": "WebDAV: Lock file resources to prevent concurrent modifications"
+  },
+  {
+   "name": "davFileAcl",
+   "label": "WebDAV: Manage access control lists for file resources"
+  },
+  {
+   "name": "davCardPropFind",
+   "label": "WebDAV: Retrieve properties of address book entries"
+  },
+  {
+   "name": "davCardPropPatch",
+   "label": "WebDAV: Modify properties of address book entries"
+  },
+  {
+   "name": "davCardGet",
+   "label": "WebDAV: Download address book entries"
+  },
+  {
+   "name": "davCardMkCol",
+   "label": "WebDAV: Create new address book collections"
+  },
+  {
+   "name": "davCardDelete",
+   "label": "WebDAV: Remove address book entries or collections"
+  },
+  {
+   "name": "davCardPut",
+   "label": "WebDAV: Upload or modify address book entries"
+  },
+  {
+   "name": "davCardCopy",
+   "label": "WebDAV: Copy address book entries to new locations"
+  },
+  {
+   "name": "davCardMove",
+   "label": "WebDAV: Move address book entries to new locations"
+  },
+  {
+   "name": "davCardLock",
+   "label": "WebDAV: Lock address book entries to prevent concurrent modifications"
+  },
+  {
+   "name": "davCardAcl",
+   "label": "WebDAV: Manage access control lists for address book entries"
+  },
+  {
+   "name": "davCardQuery",
+   "label": "WebDAV: Search for address book entries matching criteria"
+  },
+  {
+   "name": "davCardMultiGet",
+   "label": "WebDAV: Retrieve multiple address book entries in a single request"
+  },
+  {
+   "name": "davCalPropFind",
+   "label": "WebDAV: Retrieve properties of calendar entries"
+  },
+  {
+   "name": "davCalPropPatch",
+   "label": "WebDAV: Modify properties of calendar entries"
+  },
+  {
+   "name": "davCalGet",
+   "label": "WebDAV: Download calendar entries"
+  },
+  {
+   "name": "davCalMkCol",
+   "label": "WebDAV: Create new calendar collections"
+  },
+  {
+   "name": "davCalDelete",
+   "label": "WebDAV: Remove calendar entries or collections"
+  },
+  {
+   "name": "davCalPut",
+   "label": "WebDAV: Upload or modify calendar entries"
+  },
+  {
+   "name": "davCalCopy",
+   "label": "WebDAV: Copy calendar entries to new locations"
+  },
+  {
+   "name": "davCalMove",
+   "label": "WebDAV: Move calendar entries to new locations"
+  },
+  {
+   "name": "davCalLock",
+   "label": "WebDAV: Lock calendar entries to prevent concurrent modifications"
+  },
+  {
+   "name": "davCalAcl",
+   "label": "WebDAV: Manage access control lists for calendar entries"
+  },
+  {
+   "name": "davCalQuery",
+   "label": "WebDAV: Search for calendar entries matching criteria"
+  },
+  {
+   "name": "davCalMultiGet",
+   "label": "WebDAV: Retrieve multiple calendar entries in a single request"
+  },
+  {
+   "name": "davCalFreeBusyQuery",
+   "label": "WebDAV: Query free/busy time information for scheduling"
+  },
+  {
+   "name": "oAuthClientRegistration",
+   "label": "Register new OAuth client applications"
+  },
+  {
+   "name": "oAuthClientOverride",
+   "label": "Bypass OAuth client registration requirements"
+  },
+  {
+   "name": "liveTracing",
+   "label": "View real-time server event traces"
+  },
+  {
+   "name": "liveMetrics",
+   "label": "View real-time server performance metrics"
+  },
+  {
+   "name": "liveDeliveryTest",
+   "label": "Send test emails to verify delivery configuration"
+  },
+  {
+   "name": "scimAccess",
+   "label": "Provision users and groups through the SCIM endpoint"
+  },
+  {
+   "name": "sysAccountGet",
+   "label": "Accounts Management: Get accounts"
+  },
+  {
+   "name": "sysAccountCreate",
+   "label": "Accounts Management: Create accounts"
+  },
+  {
+   "name": "sysAccountUpdate",
+   "label": "Accounts Management: Update accounts"
+  },
+  {
+   "name": "sysAccountDestroy",
+   "label": "Accounts Management: Destroy accounts"
+  },
+  {
+   "name": "sysAccountQuery",
+   "label": "Accounts Management: Query accounts"
+  },
+  {
+   "name": "sysAccountPasswordGet",
+   "label": "Settings: Get account password settings"
+  },
+  {
+   "name": "sysAccountPasswordUpdate",
+   "label": "Settings: Update account password settings"
+  },
+  {
+   "name": "sysAccountSettingsGet",
+   "label": "Settings: Get account settings settings"
+  },
+  {
+   "name": "sysAccountSettingsUpdate",
+   "label": "Settings: Update account settings settings"
+  },
+  {
+   "name": "sysAcmeProviderGet",
+   "label": "Providers Management: Get providers"
+  },
+  {
+   "name": "sysAcmeProviderCreate",
+   "label": "Providers Management: Create providers"
+  },
+  {
+   "name": "sysAcmeProviderUpdate",
+   "label": "Providers Management: Update providers"
+  },
+  {
+   "name": "sysAcmeProviderDestroy",
+   "label": "Providers Management: Destroy providers"
+  },
+  {
+   "name": "sysAcmeProviderQuery",
+   "label": "Providers Management: Query providers"
+  },
+  {
+   "name": "actionReloadSettings",
+   "label": "Action: Reload: Server settings"
+  },
+  {
+   "name": "actionReloadTlsCertificates",
+   "label": "Action: Reload: TLS certificates"
+  },
+  {
+   "name": "actionReloadLookupStores",
+   "label": "Action: Reload: Lookup stores"
+  },
+  {
+   "name": "actionReloadBlockedIps",
+   "label": "Action: Reload: Blocked IPs list"
+  },
+  {
+   "name": "actionUpdateApps",
+   "label": "Action: Application Management: Update applications"
+  },
+  {
+   "name": "actionTroubleshootDmarc",
+   "label": "Action: DMARC: Troubleshooting"
+  },
+  {
+   "name": "actionClassifySpam",
+   "label": "Action: Spam Filter: Classify a message"
+  },
+  {
+   "name": "actionInvalidateCaches",
+   "label": "Action: Cache: Invalidate all caches"
+  },
+  {
+   "name": "actionInvalidateNegativeCaches",
+   "label": "Action: Cache: Invalidate negative caches"
+  },
+  {
+   "name": "actionPauseMtaQueue",
+   "label": "Action: MTA: Pause queue processing"
+  },
+  {
+   "name": "actionResumeMtaQueue",
+   "label": "Action: MTA: Resume queue processing"
+  },
+  {
+   "name": "sysActionGet",
+   "label": "Actions Management: Get actions"
+  },
+  {
+   "name": "sysActionCreate",
+   "label": "Actions Management: Create actions"
+  },
+  {
+   "name": "sysActionUpdate",
+   "label": "Actions Management: Update actions"
+  },
+  {
+   "name": "sysActionDestroy",
+   "label": "Actions Management: Destroy actions"
+  },
+  {
+   "name": "sysActionQuery",
+   "label": "Actions Management: Query actions"
+  },
+  {
+   "name": "sysAddressBookGet",
+   "label": "Settings: Get address book settings"
+  },
+  {
+   "name": "sysAddressBookUpdate",
+   "label": "Settings: Update address book settings"
+  },
+  {
+   "name": "sysAiModelGet",
+   "label": "AI models Management: Get AI models"
+  },
+  {
+   "name": "sysAiModelCreate",
+   "label": "AI models Management: Create AI models"
+  },
+  {
+   "name": "sysAiModelUpdate",
+   "label": "AI models Management: Update AI models"
+  },
+  {
+   "name": "sysAiModelDestroy",
+   "label": "AI models Management: Destroy AI models"
+  },
+  {
+   "name": "sysAiModelQuery",
+   "label": "AI models Management: Query AI models"
+  },
+  {
+   "name": "sysAlertGet",
+   "label": "Alerts Management: Get alerts"
+  },
+  {
+   "name": "sysAlertCreate",
+   "label": "Alerts Management: Create alerts"
+  },
+  {
+   "name": "sysAlertUpdate",
+   "label": "Alerts Management: Update alerts"
+  },
+  {
+   "name": "sysAlertDestroy",
+   "label": "Alerts Management: Destroy alerts"
+  },
+  {
+   "name": "sysAlertQuery",
+   "label": "Alerts Management: Query alerts"
+  },
+  {
+   "name": "sysAllowedIpGet",
+   "label": "Addresses Management: Get addresses"
+  },
+  {
+   "name": "sysAllowedIpCreate",
+   "label": "Addresses Management: Create addresses"
+  },
+  {
+   "name": "sysAllowedIpUpdate",
+   "label": "Addresses Management: Update addresses"
+  },
+  {
+   "name": "sysAllowedIpDestroy",
+   "label": "Addresses Management: Destroy addresses"
+  },
+  {
+   "name": "sysAllowedIpQuery",
+   "label": "Addresses Management: Query addresses"
+  },
+  {
+   "name": "sysApiKeyGet",
+   "label": "API keys Management: Get API keys"
+  },
+  {
+   "name": "sysApiKeyCreate",
+   "label": "API keys Management: Create API keys"
+  },
+  {
+   "name": "sysApiKeyUpdate",
+   "label": "API keys Management: Update API keys"
+  },
+  {
+   "name": "sysApiKeyDestroy",
+   "label": "API keys Management: Destroy API keys"
+  },
+  {
+   "name": "sysApiKeyQuery",
+   "label": "API keys Management: Query API keys"
+  },
+  {
+   "name": "sysAppPasswordGet",
+   "label": "App passwords Management: Get App passwords"
+  },
+  {
+   "name": "sysAppPasswordCreate",
+   "label": "App passwords Management: Create App passwords"
+  },
+  {
+   "name": "sysAppPasswordUpdate",
+   "label": "App passwords Management: Update App passwords"
+  },
+  {
+   "name": "sysAppPasswordDestroy",
+   "label": "App passwords Management: Destroy App passwords"
+  },
+  {
+   "name": "sysAppPasswordQuery",
+   "label": "App passwords Management: Query App passwords"
+  },
+  {
+   "name": "sysApplicationGet",
+   "label": "Applications Management: Get applications"
+  },
+  {
+   "name": "sysApplicationCreate",
+   "label": "Applications Management: Create applications"
+  },
+  {
+   "name": "sysApplicationUpdate",
+   "label": "Applications Management: Update applications"
+  },
+  {
+   "name": "sysApplicationDestroy",
+   "label": "Applications Management: Destroy applications"
+  },
+  {
+   "name": "sysApplicationQuery",
+   "label": "Applications Management: Query applications"
+  },
+  {
+   "name": "sysArchivedItemGet",
+   "label": "Archived items Management: Get archived items"
+  },
+  {
+   "name": "sysArchivedItemCreate",
+   "label": "Archived items Management: Create archived items"
+  },
+  {
+   "name": "sysArchivedItemUpdate",
+   "label": "Archived items Management: Update archived items"
+  },
+  {
+   "name": "sysArchivedItemDestroy",
+   "label": "Archived items Management: Destroy archived items"
+  },
+  {
+   "name": "sysArchivedItemQuery",
+   "label": "Archived items Management: Query archived items"
+  },
+  {
+   "name": "sysArfExternalReportGet",
+   "label": "Reports Management: Get reports"
+  },
+  {
+   "name": "sysArfExternalReportCreate",
+   "label": "Reports Management: Create reports"
+  },
+  {
+   "name": "sysArfExternalReportUpdate",
+   "label": "Reports Management: Update reports"
+  },
+  {
+   "name": "sysArfExternalReportDestroy",
+   "label": "Reports Management: Destroy reports"
+  },
+  {
+   "name": "sysArfExternalReportQuery",
+   "label": "Reports Management: Query reports"
+  },
+  {
+   "name": "sysAsnGet",
+   "label": "Settings: Get asn settings"
+  },
+  {
+   "name": "sysAsnUpdate",
+   "label": "Settings: Update asn settings"
+  },
+  {
+   "name": "sysAuthenticationGet",
+   "label": "Settings: Get authentication settings"
+  },
+  {
+   "name": "sysAuthenticationUpdate",
+   "label": "Settings: Update authentication settings"
+  },
+  {
+   "name": "sysBlobStoreGet",
+   "label": "Settings: Get blob store settings"
+  },
+  {
+   "name": "sysBlobStoreUpdate",
+   "label": "Settings: Update blob store settings"
+  },
+  {
+   "name": "sysBlockedIpGet",
+   "label": "Addresses Management: Get addresses"
+  },
+  {
+   "name": "sysBlockedIpCreate",
+   "label": "Addresses Management: Create addresses"
+  },
+  {
+   "name": "sysBlockedIpUpdate",
+   "label": "Addresses Management: Update addresses"
+  },
+  {
+   "name": "sysBlockedIpDestroy",
+   "label": "Addresses Management: Destroy addresses"
+  },
+  {
+   "name": "sysBlockedIpQuery",
+   "label": "Addresses Management: Query addresses"
+  },
+  {
+   "name": "sysBootstrapGet",
+   "label": "Settings: Get bootstrap settings"
+  },
+  {
+   "name": "sysBootstrapUpdate",
+   "label": "Settings: Update bootstrap settings"
+  },
+  {
+   "name": "sysCacheGet",
+   "label": "Settings: Get cache settings"
+  },
+  {
+   "name": "sysCacheUpdate",
+   "label": "Settings: Update cache settings"
+  },
+  {
+   "name": "sysCalendarGet",
+   "label": "Settings: Get calendar settings"
+  },
+  {
+   "name": "sysCalendarUpdate",
+   "label": "Settings: Update calendar settings"
+  },
+  {
+   "name": "sysCalendarAlarmGet",
+   "label": "Settings: Get calendar alarm settings"
+  },
+  {
+   "name": "sysCalendarAlarmUpdate",
+   "label": "Settings: Update calendar alarm settings"
+  },
+  {
+   "name": "sysCalendarSchedulingGet",
+   "label": "Settings: Get calendar scheduling settings"
+  },
+  {
+   "name": "sysCalendarSchedulingUpdate",
+   "label": "Settings: Update calendar scheduling settings"
+  },
+  {
+   "name": "sysCertificateGet",
+   "label": "Certificates Management: Get certificates"
+  },
+  {
+   "name": "sysCertificateCreate",
+   "label": "Certificates Management: Create certificates"
+  },
+  {
+   "name": "sysCertificateUpdate",
+   "label": "Certificates Management: Update certificates"
+  },
+  {
+   "name": "sysCertificateDestroy",
+   "label": "Certificates Management: Destroy certificates"
+  },
+  {
+   "name": "sysCertificateQuery",
+   "label": "Certificates Management: Query certificates"
+  },
+  {
+   "name": "sysClusterNodeGet",
+   "label": "Cluster nodes Management: Get cluster nodes"
+  },
+  {
+   "name": "sysClusterNodeCreate",
+   "label": "Cluster nodes Management: Create cluster nodes"
+  },
+  {
+   "name": "sysClusterNodeUpdate",
+   "label": "Cluster nodes Management: Update cluster nodes"
+  },
+  {
+   "name": "sysClusterNodeDestroy",
+   "label": "Cluster nodes Management: Destroy cluster nodes"
+  },
+  {
+   "name": "sysClusterNodeQuery",
+   "label": "Cluster nodes Management: Query cluster nodes"
+  },
+  {
+   "name": "sysClusterRoleGet",
+   "label": "Roles Management: Get roles"
+  },
+  {
+   "name": "sysClusterRoleCreate",
+   "label": "Roles Management: Create roles"
+  },
+  {
+   "name": "sysClusterRoleUpdate",
+   "label": "Roles Management: Update roles"
+  },
+  {
+   "name": "sysClusterRoleDestroy",
+   "label": "Roles Management: Destroy roles"
+  },
+  {
+   "name": "sysClusterRoleQuery",
+   "label": "Roles Management: Query roles"
+  },
+  {
+   "name": "sysCoordinatorGet",
+   "label": "Settings: Get coordinator settings"
+  },
+  {
+   "name": "sysCoordinatorUpdate",
+   "label": "Settings: Update coordinator settings"
+  },
+  {
+   "name": "sysDataRetentionGet",
+   "label": "Settings: Get data retention settings"
+  },
+  {
+   "name": "sysDataRetentionUpdate",
+   "label": "Settings: Update data retention settings"
+  },
+  {
+   "name": "sysDataStoreGet",
+   "label": "Settings: Get data store settings"
+  },
+  {
+   "name": "sysDataStoreUpdate",
+   "label": "Settings: Update data store settings"
+  },
+  {
+   "name": "sysDirectoryGet",
+   "label": "Directories Management: Get directories"
+  },
+  {
+   "name": "sysDirectoryCreate",
+   "label": "Directories Management: Create directories"
+  },
+  {
+   "name": "sysDirectoryUpdate",
+   "label": "Directories Management: Update directories"
+  },
+  {
+   "name": "sysDirectoryDestroy",
+   "label": "Directories Management: Destroy directories"
+  },
+  {
+   "name": "sysDirectoryQuery",
+   "label": "Directories Management: Query directories"
+  },
+  {
+   "name": "sysDkimReportSettingsGet",
+   "label": "Settings: Get dkim report settings settings"
+  },
+  {
+   "name": "sysDkimReportSettingsUpdate",
+   "label": "Settings: Update dkim report settings settings"
+  },
+  {
+   "name": "sysDkimSignatureGet",
+   "label": "Signatures Management: Get signatures"
+  },
+  {
+   "name": "sysDkimSignatureCreate",
+   "label": "Signatures Management: Create signatures"
+  },
+  {
+   "name": "sysDkimSignatureUpdate",
+   "label": "Signatures Management: Update signatures"
+  },
+  {
+   "name": "sysDkimSignatureDestroy",
+   "label": "Signatures Management: Destroy signatures"
+  },
+  {
+   "name": "sysDkimSignatureQuery",
+   "label": "Signatures Management: Query signatures"
+  },
+  {
+   "name": "sysDmarcExternalReportGet",
+   "label": "Reports Management: Get reports"
+  },
+  {
+   "name": "sysDmarcExternalReportCreate",
+   "label": "Reports Management: Create reports"
+  },
+  {
+   "name": "sysDmarcExternalReportUpdate",
+   "label": "Reports Management: Update reports"
+  },
+  {
+   "name": "sysDmarcExternalReportDestroy",
+   "label": "Reports Management: Destroy reports"
+  },
+  {
+   "name": "sysDmarcExternalReportQuery",
+   "label": "Reports Management: Query reports"
+  },
+  {
+   "name": "sysDmarcInternalReportGet",
+   "label": "Reports Management: Get reports"
+  },
+  {
+   "name": "sysDmarcInternalReportCreate",
+   "label": "Reports Management: Create reports"
+  },
+  {
+   "name": "sysDmarcInternalReportUpdate",
+   "label": "Reports Management: Update reports"
+  },
+  {
+   "name": "sysDmarcInternalReportDestroy",
+   "label": "Reports Management: Destroy reports"
+  },
+  {
+   "name": "sysDmarcInternalReportQuery",
+   "label": "Reports Management: Query reports"
+  },
+  {
+   "name": "sysDmarcReportSettingsGet",
+   "label": "Settings: Get dmarc report settings settings"
+  },
+  {
+   "name": "sysDmarcReportSettingsUpdate",
+   "label": "Settings: Update dmarc report settings settings"
+  },
+  {
+   "name": "sysDnsResolverGet",
+   "label": "Settings: Get dns resolver settings"
+  },
+  {
+   "name": "sysDnsResolverUpdate",
+   "label": "Settings: Update dns resolver settings"
+  },
+  {
+   "name": "sysDnsServerGet",
+   "label": "DNS servers Management: Get DNS servers"
+  },
+  {
+   "name": "sysDnsServerCreate",
+   "label": "DNS servers Management: Create DNS servers"
+  },
+  {
+   "name": "sysDnsServerUpdate",
+   "label": "DNS servers Management: Update DNS servers"
+  },
+  {
+   "name": "sysDnsServerDestroy",
+   "label": "DNS servers Management: Destroy DNS servers"
+  },
+  {
+   "name": "sysDnsServerQuery",
+   "label": "DNS servers Management: Query DNS servers"
+  },
+  {
+   "name": "sysDomainGet",
+   "label": "Domains Management: Get domains"
+  },
+  {
+   "name": "sysDomainCreate",
+   "label": "Domains Management: Create domains"
+  },
+  {
+   "name": "sysDomainUpdate",
+   "label": "Domains Management: Update domains"
+  },
+  {
+   "name": "sysDomainDestroy",
+   "label": "Domains Management: Destroy domains"
+  },
+  {
+   "name": "sysDomainQuery",
+   "label": "Domains Management: Query domains"
+  },
+  {
+   "name": "sysDsnReportSettingsGet",
+   "label": "Settings: Get dsn report settings settings"
+  },
+  {
+   "name": "sysDsnReportSettingsUpdate",
+   "label": "Settings: Update dsn report settings settings"
+  },
+  {
+   "name": "sysEmailGet",
+   "label": "Settings: Get email settings"
+  },
+  {
+   "name": "sysEmailUpdate",
+   "label": "Settings: Update email settings"
+  },
+  {
+   "name": "sysEnterpriseGet",
+   "label": "Settings: Get enterprise settings"
+  },
+  {
+   "name": "sysEnterpriseUpdate",
+   "label": "Settings: Update enterprise settings"
+  },
+  {
+   "name": "sysEventTracingLevelGet",
+   "label": "Events Management: Get events"
+  },
+  {
+   "name": "sysEventTracingLevelCreate",
+   "label": "Events Management: Create events"
+  },
+  {
+   "name": "sysEventTracingLevelUpdate",
+   "label": "Events Management: Update events"
+  },
+  {
+   "name": "sysEventTracingLevelDestroy",
+   "label": "Events Management: Destroy events"
+  },
+  {
+   "name": "sysEventTracingLevelQuery",
+   "label": "Events Management: Query events"
+  },
+  {
+   "name": "sysFileStorageGet",
+   "label": "Settings: Get file storage settings"
+  },
+  {
+   "name": "sysFileStorageUpdate",
+   "label": "Settings: Update file storage settings"
+  },
+  {
+   "name": "sysHttpGet",
+   "label": "Settings: Get http settings"
+  },
+  {
+   "name": "sysHttpUpdate",
+   "label": "Settings: Update http settings"
+  },
+  {
+   "name": "sysHttpFormGet",
+   "label": "Settings: Get http form settings"
+  },
+  {
+   "name": "sysHttpFormUpdate",
+   "label": "Settings: Update http form settings"
+  },
+  {
+   "name": "sysHttpLookupGet",
+   "label": "Lists Management: Get lists"
+  },
+  {
+   "name": "sysHttpLookupCreate",
+   "label": "Lists Management: Create lists"
+  },
+  {
+   "name": "sysHttpLookupUpdate",
+   "label": "Lists Management: Update lists"
+  },
+  {
+   "name": "sysHttpLookupDestroy",
+   "label": "Lists Management: Destroy lists"
+  },
+  {
+   "name": "sysHttpLookupQuery",
+   "label": "Lists Management: Query lists"
+  },
+  {
+   "name": "sysImapGet",
+   "label": "Settings: Get imap settings"
+  },
+  {
+   "name": "sysImapUpdate",
+   "label": "Settings: Update imap settings"
+  },
+  {
+   "name": "sysInMemoryStoreGet",
+   "label": "Settings: Get in memory store settings"
+  },
+  {
+   "name": "sysInMemoryStoreUpdate",
+   "label": "Settings: Update in memory store settings"
+  },
+  {
+   "name": "sysJmapGet",
+   "label": "Settings: Get jmap settings"
+  },
+  {
+   "name": "sysJmapUpdate",
+   "label": "Settings: Update jmap settings"
+  },
+  {
+   "name": "sysLogGet",
+   "label": "Log entries Management: Get log entries"
+  },
+  {
+   "name": "sysLogCreate",
+   "label": "Log entries Management: Create log entries"
+  },
+  {
+   "name": "sysLogUpdate",
+   "label": "Log entries Management: Update log entries"
+  },
+  {
+   "name": "sysLogDestroy",
+   "label": "Log entries Management: Destroy log entries"
+  },
+  {
+   "name": "sysLogQuery",
+   "label": "Log entries Management: Query log entries"
+  },
+  {
+   "name": "sysMailingListGet",
+   "label": "Mailing lists Management: Get mailing lists"
+  },
+  {
+   "name": "sysMailingListCreate",
+   "label": "Mailing lists Management: Create mailing lists"
+  },
+  {
+   "name": "sysMailingListUpdate",
+   "label": "Mailing lists Management: Update mailing lists"
+  },
+  {
+   "name": "sysMailingListDestroy",
+   "label": "Mailing lists Management: Destroy mailing lists"
+  },
+  {
+   "name": "sysMailingListQuery",
+   "label": "Mailing lists Management: Query mailing lists"
+  },
+  {
+   "name": "sysMaskedEmailGet",
+   "label": "Masked emails Management: Get masked emails"
+  },
+  {
+   "name": "sysMaskedEmailCreate",
+   "label": "Masked emails Management: Create masked emails"
+  },
+  {
+   "name": "sysMaskedEmailUpdate",
+   "label": "Masked emails Management: Update masked emails"
+  },
+  {
+   "name": "sysMaskedEmailDestroy",
+   "label": "Masked emails Management: Destroy masked emails"
+  },
+  {
+   "name": "sysMaskedEmailQuery",
+   "label": "Masked emails Management: Query masked emails"
+  },
+  {
+   "name": "sysMemoryLookupKeyGet",
+   "label": "Keys Management: Get keys"
+  },
+  {
+   "name": "sysMemoryLookupKeyCreate",
+   "label": "Keys Management: Create keys"
+  },
+  {
+   "name": "sysMemoryLookupKeyUpdate",
+   "label": "Keys Management: Update keys"
+  },
+  {
+   "name": "sysMemoryLookupKeyDestroy",
+   "label": "Keys Management: Destroy keys"
+  },
+  {
+   "name": "sysMemoryLookupKeyQuery",
+   "label": "Keys Management: Query keys"
+  },
+  {
+   "name": "sysMemoryLookupKeyValueGet",
+   "label": "Keys Management: Get keys"
+  },
+  {
+   "name": "sysMemoryLookupKeyValueCreate",
+   "label": "Keys Management: Create keys"
+  },
+  {
+   "name": "sysMemoryLookupKeyValueUpdate",
+   "label": "Keys Management: Update keys"
+  },
+  {
+   "name": "sysMemoryLookupKeyValueDestroy",
+   "label": "Keys Management: Destroy keys"
+  },
+  {
+   "name": "sysMemoryLookupKeyValueQuery",
+   "label": "Keys Management: Query keys"
+  },
+  {
+   "name": "sysMetricGet",
+   "label": "Metrics Management: Get metrics"
+  },
+  {
+   "name": "sysMetricCreate",
+   "label": "Metrics Management: Create metrics"
+  },
+  {
+   "name": "sysMetricUpdate",
+   "label": "Metrics Management: Update metrics"
+  },
+  {
+   "name": "sysMetricDestroy",
+   "label": "Metrics Management: Destroy metrics"
+  },
+  {
+   "name": "sysMetricQuery",
+   "label": "Metrics Management: Query metrics"
+  },
+  {
+   "name": "sysMetricsGet",
+   "label": "Settings: Get metrics settings"
+  },
+  {
+   "name": "sysMetricsUpdate",
+   "label": "Settings: Update metrics settings"
+  },
+  {
+   "name": "sysMetricsStoreGet",
+   "label": "Settings: Get metrics store settings"
+  },
+  {
+   "name": "sysMetricsStoreUpdate",
+   "label": "Settings: Update metrics store settings"
+  },
+  {
+   "name": "sysMtaConnectionStrategyGet",
+   "label": "Strategies Management: Get strategies"
+  },
+  {
+   "name": "sysMtaConnectionStrategyCreate",
+   "label": "Strategies Management: Create strategies"
+  },
+  {
+   "name": "sysMtaConnectionStrategyUpdate",
+   "label": "Strategies Management: Update strategies"
+  },
+  {
+   "name": "sysMtaConnectionStrategyDestroy",
+   "label": "Strategies Management: Destroy strategies"
+  },
+  {
+   "name": "sysMtaConnectionStrategyQuery",
+   "label": "Strategies Management: Query strategies"
+  },
+  {
+   "name": "sysMtaDeliveryScheduleGet",
+   "label": "Schedules Management: Get schedules"
+  },
+  {
+   "name": "sysMtaDeliveryScheduleCreate",
+   "label": "Schedules Management: Create schedules"
+  },
+  {
+   "name": "sysMtaDeliveryScheduleUpdate",
+   "label": "Schedules Management: Update schedules"
+  },
+  {
+   "name": "sysMtaDeliveryScheduleDestroy",
+   "label": "Schedules Management: Destroy schedules"
+  },
+  {
+   "name": "sysMtaDeliveryScheduleQuery",
+   "label": "Schedules Management: Query schedules"
+  },
+  {
+   "name": "sysMtaExtensionsGet",
+   "label": "Settings: Get mta extensions settings"
+  },
+  {
+   "name": "sysMtaExtensionsUpdate",
+   "label": "Settings: Update mta extensions settings"
+  },
+  {
+   "name": "sysMtaHookGet",
+   "label": "Hooks Management: Get hooks"
+  },
+  {
+   "name": "sysMtaHookCreate",
+   "label": "Hooks Management: Create hooks"
+  },
+  {
+   "name": "sysMtaHookUpdate",
+   "label": "Hooks Management: Update hooks"
+  },
+  {
+   "name": "sysMtaHookDestroy",
+   "label": "Hooks Management: Destroy hooks"
+  },
+  {
+   "name": "sysMtaHookQuery",
+   "label": "Hooks Management: Query hooks"
+  },
+  {
+   "name": "sysMtaInboundSessionGet",
+   "label": "Settings: Get mta inbound session settings"
+  },
+  {
+   "name": "sysMtaInboundSessionUpdate",
+   "label": "Settings: Update mta inbound session settings"
+  },
+  {
+   "name": "sysMtaInboundThrottleGet",
+   "label": "Throttles Management: Get throttles"
+  },
+  {
+   "name": "sysMtaInboundThrottleCreate",
+   "label": "Throttles Management: Create throttles"
+  },
+  {
+   "name": "sysMtaInboundThrottleUpdate",
+   "label": "Throttles Management: Update throttles"
+  },
+  {
+   "name": "sysMtaInboundThrottleDestroy",
+   "label": "Throttles Management: Destroy throttles"
+  },
+  {
+   "name": "sysMtaInboundThrottleQuery",
+   "label": "Throttles Management: Query throttles"
+  },
+  {
+   "name": "sysMtaMilterGet",
+   "label": "Milters Management: Get milters"
+  },
+  {
+   "name": "sysMtaMilterCreate",
+   "label": "Milters Management: Create milters"
+  },
+  {
+   "name": "sysMtaMilterUpdate",
+   "label": "Milters Management: Update milters"
+  },
+  {
+   "name": "sysMtaMilterDestroy",
+   "label": "Milters Management: Destroy milters"
+  },
+  {
+   "name": "sysMtaMilterQuery",
+   "label": "Milters Management: Query milters"
+  },
+  {
+   "name": "sysMtaOutboundStrategyGet",
+   "label": "Settings: Get mta outbound strategy settings"
+  },
+  {
+   "name": "sysMtaOutboundStrategyUpdate",
+   "label": "Settings: Update mta outbound strategy settings"
+  },
+  {
+   "name": "sysMtaOutboundThrottleGet",
+   "label": "Throttles Management: Get throttles"
+  },
+  {
+   "name": "sysMtaOutboundThrottleCreate",
+   "label": "Throttles Management: Create throttles"
+  },
+  {
+   "name": "sysMtaOutboundThrottleUpdate",
+   "label": "Throttles Management: Update throttles"
+  },
+  {
+   "name": "sysMtaOutboundThrottleDestroy",
+   "label": "Throttles Management: Destroy throttles"
+  },
+  {
+   "name": "sysMtaOutboundThrottleQuery",
+   "label": "Throttles Management: Query throttles"
+  },
+  {
+   "name": "sysMtaQueueQuotaGet",
+   "label": "Quotas Management: Get quotas"
+  },
+  {
+   "name": "sysMtaQueueQuotaCreate",
+   "label": "Quotas Management: Create quotas"
+  },
+  {
+   "name": "sysMtaQueueQuotaUpdate",
+   "label": "Quotas Management: Update quotas"
+  },
+  {
+   "name": "sysMtaQueueQuotaDestroy",
+   "label": "Quotas Management: Destroy quotas"
+  },
+  {
+   "name": "sysMtaQueueQuotaQuery",
+   "label": "Quotas Management: Query quotas"
+  },
+  {
+   "name": "sysMtaRouteGet",
+   "label": "Routes Management: Get routes"
+  },
+  {
+   "name": "sysMtaRouteCreate",
+   "label": "Routes Management: Create routes"
+  },
+  {
+   "name": "sysMtaRouteUpdate",
+   "label": "Routes Management: Update routes"
+  },
+  {
+   "name": "sysMtaRouteDestroy",
+   "label": "Routes Management: Destroy routes"
+  },
+  {
+   "name": "sysMtaRouteQuery",
+   "label": "Routes Management: Query routes"
+  },
+  {
+   "name": "sysMtaStageAuthGet",
+   "label": "Settings: Get mta stage auth settings"
+  },
+  {
+   "name": "sysMtaStageAuthUpdate",
+   "label": "Settings: Update mta stage auth settings"
+  },
+  {
+   "name": "sysMtaStageConnectGet",
+   "label": "Settings: Get mta stage connect settings"
+  },
+  {
+   "name": "sysMtaStageConnectUpdate",
+   "label": "Settings: Update mta stage connect settings"
+  },
+  {
+   "name": "sysMtaStageDataGet",
+   "label": "Settings: Get mta stage data settings"
+  },
+  {
+   "name": "sysMtaStageDataUpdate",
+   "label": "Settings: Update mta stage data settings"
+  },
+  {
+   "name": "sysMtaStageEhloGet",
+   "label": "Settings: Get mta stage ehlo settings"
+  },
+  {
+   "name": "sysMtaStageEhloUpdate",
+   "label": "Settings: Update mta stage ehlo settings"
+  },
+  {
+   "name": "sysMtaStageMailGet",
+   "label": "Settings: Get mta stage mail settings"
+  },
+  {
+   "name": "sysMtaStageMailUpdate",
+   "label": "Settings: Update mta stage mail settings"
+  },
+  {
+   "name": "sysMtaStageRcptGet",
+   "label": "Settings: Get mta stage rcpt settings"
+  },
+  {
+   "name": "sysMtaStageRcptUpdate",
+   "label": "Settings: Update mta stage rcpt settings"
+  },
+  {
+   "name": "sysMtaStsGet",
+   "label": "Settings: Get mta sts settings"
+  },
+  {
+   "name": "sysMtaStsUpdate",
+   "label": "Settings: Update mta sts settings"
+  },
+  {
+   "name": "sysMtaTlsStrategyGet",
+   "label": "Strategies Management: Get strategies"
+  },
+  {
+   "name": "sysMtaTlsStrategyCreate",
+   "label": "Strategies Management: Create strategies"
+  },
+  {
+   "name": "sysMtaTlsStrategyUpdate",
+   "label": "Strategies Management: Update strategies"
+  },
+  {
+   "name": "sysMtaTlsStrategyDestroy",
+   "label": "Strategies Management: Destroy strategies"
+  },
+  {
+   "name": "sysMtaTlsStrategyQuery",
+   "label": "Strategies Management: Query strategies"
+  },
+  {
+   "name": "sysMtaVirtualQueueGet",
+   "label": "Queues Management: Get queues"
+  },
+  {
+   "name": "sysMtaVirtualQueueCreate",
+   "label": "Queues Management: Create queues"
+  },
+  {
+   "name": "sysMtaVirtualQueueUpdate",
+   "label": "Queues Management: Update queues"
+  },
+  {
+   "name": "sysMtaVirtualQueueDestroy",
+   "label": "Queues Management: Destroy queues"
+  },
+  {
+   "name": "sysMtaVirtualQueueQuery",
+   "label": "Queues Management: Query queues"
+  },
+  {
+   "name": "sysNetworkListenerGet",
+   "label": "Listeners Management: Get listeners"
+  },
+  {
+   "name": "sysNetworkListenerCreate",
+   "label": "Listeners Management: Create listeners"
+  },
+  {
+   "name": "sysNetworkListenerUpdate",
+   "label": "Listeners Management: Update listeners"
+  },
+  {
+   "name": "sysNetworkListenerDestroy",
+   "label": "Listeners Management: Destroy listeners"
+  },
+  {
+   "name": "sysNetworkListenerQuery",
+   "label": "Listeners Management: Query listeners"
+  },
+  {
+   "name": "sysOAuthClientGet",
+   "label": "OAuth clients Management: Get OAuth clients"
+  },
+  {
+   "name": "sysOAuthClientCreate",
+   "label": "OAuth clients Management: Create OAuth clients"
+  },
+  {
+   "name": "sysOAuthClientUpdate",
+   "label": "OAuth clients Management: Update OAuth clients"
+  },
+  {
+   "name": "sysOAuthClientDestroy",
+   "label": "OAuth clients Management: Destroy OAuth clients"
+  },
+  {
+   "name": "sysOAuthClientQuery",
+   "label": "OAuth clients Management: Query OAuth clients"
+  },
+  {
+   "name": "sysOidcProviderGet",
+   "label": "Settings: Get oidc provider settings"
+  },
+  {
+   "name": "sysOidcProviderUpdate",
+   "label": "Settings: Update oidc provider settings"
+  },
+  {
+   "name": "sysPublicKeyGet",
+   "label": "Public keys Management: Get public keys"
+  },
+  {
+   "name": "sysPublicKeyCreate",
+   "label": "Public keys Management: Create public keys"
+  },
+  {
+   "name": "sysPublicKeyUpdate",
+   "label": "Public keys Management: Update public keys"
+  },
+  {
+   "name": "sysPublicKeyDestroy",
+   "label": "Public keys Management: Destroy public keys"
+  },
+  {
+   "name": "sysPublicKeyQuery",
+   "label": "Public keys Management: Query public keys"
+  },
+  {
+   "name": "sysQueuedMessageGet",
+   "label": "Messages Management: Get messages"
+  },
+  {
+   "name": "sysQueuedMessageCreate",
+   "label": "Messages Management: Create messages"
+  },
+  {
+   "name": "sysQueuedMessageUpdate",
+   "label": "Messages Management: Update messages"
+  },
+  {
+   "name": "sysQueuedMessageDestroy",
+   "label": "Messages Management: Destroy messages"
+  },
+  {
+   "name": "sysQueuedMessageQuery",
+   "label": "Messages Management: Query messages"
+  },
+  {
+   "name": "sysReportSettingsGet",
+   "label": "Settings: Get report settings settings"
+  },
+  {
+   "name": "sysReportSettingsUpdate",
+   "label": "Settings: Update report settings settings"
+  },
+  {
+   "name": "sysRoleGet",
+   "label": "Roles Management: Get roles"
+  },
+  {
+   "name": "sysRoleCreate",
+   "label": "Roles Management: Create roles"
+  },
+  {
+   "name": "sysRoleUpdate",
+   "label": "Roles Management: Update roles"
+  },
+  {
+   "name": "sysRoleDestroy",
+   "label": "Roles Management: Destroy roles"
+  },
+  {
+   "name": "sysRoleQuery",
+   "label": "Roles Management: Query roles"
+  },
+  {
+   "name": "sysSearchGet",
+   "label": "Settings: Get search settings"
+  },
+  {
+   "name": "sysSearchUpdate",
+   "label": "Settings: Update search settings"
+  },
+  {
+   "name": "sysSearchStoreGet",
+   "label": "Settings: Get search store settings"
+  },
+  {
+   "name": "sysSearchStoreUpdate",
+   "label": "Settings: Update search store settings"
+  },
+  {
+   "name": "sysSecurityGet",
+   "label": "Settings: Get security settings"
+  },
+  {
+   "name": "sysSecurityUpdate",
+   "label": "Settings: Update security settings"
+  },
+  {
+   "name": "sysSenderAuthGet",
+   "label": "Settings: Get sender auth settings"
+  },
+  {
+   "name": "sysSenderAuthUpdate",
+   "label": "Settings: Update sender auth settings"
+  },
+  {
+   "name": "sysSharingGet",
+   "label": "Settings: Get sharing settings"
+  },
+  {
+   "name": "sysSharingUpdate",
+   "label": "Settings: Update sharing settings"
+  },
+  {
+   "name": "sysSieveSystemInterpreterGet",
+   "label": "Settings: Get sieve system interpreter settings"
+  },
+  {
+   "name": "sysSieveSystemInterpreterUpdate",
+   "label": "Settings: Update sieve system interpreter settings"
+  },
+  {
+   "name": "sysSieveSystemScriptGet",
+   "label": "Scripts Management: Get scripts"
+  },
+  {
+   "name": "sysSieveSystemScriptCreate",
+   "label": "Scripts Management: Create scripts"
+  },
+  {
+   "name": "sysSieveSystemScriptUpdate",
+   "label": "Scripts Management: Update scripts"
+  },
+  {
+   "name": "sysSieveSystemScriptDestroy",
+   "label": "Scripts Management: Destroy scripts"
+  },
+  {
+   "name": "sysSieveSystemScriptQuery",
+   "label": "Scripts Management: Query scripts"
+  },
+  {
+   "name": "sysSieveUserInterpreterGet",
+   "label": "Settings: Get sieve user interpreter settings"
+  },
+  {
+   "name": "sysSieveUserInterpreterUpdate",
+   "label": "Settings: Update sieve user interpreter settings"
+  },
+  {
+   "name": "sysSieveUserScriptGet",
+   "label": "Scripts Management: Get scripts"
+  },
+  {
+   "name": "sysSieveUserScriptCreate",
+   "label": "Scripts Management: Create scripts"
+  },
+  {
+   "name": "sysSieveUserScriptUpdate",
+   "label": "Scripts Management: Update scripts"
+  },
+  {
+   "name": "sysSieveUserScriptDestroy",
+   "label": "Scripts Management: Destroy scripts"
+  },
+  {
+   "name": "sysSieveUserScriptQuery",
+   "label": "Scripts Management: Query scripts"
+  },
+  {
+   "name": "sysSpamClassifierGet",
+   "label": "Settings: Get spam classifier settings"
+  },
+  {
+   "name": "sysSpamClassifierUpdate",
+   "label": "Settings: Update spam classifier settings"
+  },
+  {
+   "name": "sysSpamDnsblServerGet",
+   "label": "Servers Management: Get servers"
+  },
+  {
+   "name": "sysSpamDnsblServerCreate",
+   "label": "Servers Management: Create servers"
+  },
+  {
+   "name": "sysSpamDnsblServerUpdate",
+   "label": "Servers Management: Update servers"
+  },
+  {
+   "name": "sysSpamDnsblServerDestroy",
+   "label": "Servers Management: Destroy servers"
+  },
+  {
+   "name": "sysSpamDnsblServerQuery",
+   "label": "Servers Management: Query servers"
+  },
+  {
+   "name": "sysSpamDnsblSettingsGet",
+   "label": "Settings: Get spam dnsbl settings settings"
+  },
+  {
+   "name": "sysSpamDnsblSettingsUpdate",
+   "label": "Settings: Update spam dnsbl settings settings"
+  },
+  {
+   "name": "sysSpamFileExtensionGet",
+   "label": "Extensions Management: Get extensions"
+  },
+  {
+   "name": "sysSpamFileExtensionCreate",
+   "label": "Extensions Management: Create extensions"
+  },
+  {
+   "name": "sysSpamFileExtensionUpdate",
+   "label": "Extensions Management: Update extensions"
+  },
+  {
+   "name": "sysSpamFileExtensionDestroy",
+   "label": "Extensions Management: Destroy extensions"
+  },
+  {
+   "name": "sysSpamFileExtensionQuery",
+   "label": "Extensions Management: Query extensions"
+  },
+  {
+   "name": "sysSpamLlmGet",
+   "label": "Settings: Get spam llm settings"
+  },
+  {
+   "name": "sysSpamLlmUpdate",
+   "label": "Settings: Update spam llm settings"
+  },
+  {
+   "name": "sysSpamPyzorGet",
+   "label": "Settings: Get spam pyzor settings"
+  },
+  {
+   "name": "sysSpamPyzorUpdate",
+   "label": "Settings: Update spam pyzor settings"
+  },
+  {
+   "name": "sysSpamRuleGet",
+   "label": "Rules Management: Get rules"
+  },
+  {
+   "name": "sysSpamRuleCreate",
+   "label": "Rules Management: Create rules"
+  },
+  {
+   "name": "sysSpamRuleUpdate",
+   "label": "Rules Management: Update rules"
+  },
+  {
+   "name": "sysSpamRuleDestroy",
+   "label": "Rules Management: Destroy rules"
+  },
+  {
+   "name": "sysSpamRuleQuery",
+   "label": "Rules Management: Query rules"
+  },
+  {
+   "name": "sysSpamSettingsGet",
+   "label": "Settings: Get spam settings settings"
+  },
+  {
+   "name": "sysSpamSettingsUpdate",
+   "label": "Settings: Update spam settings settings"
+  },
+  {
+   "name": "sysSpamTagGet",
+   "label": "Tags Management: Get tags"
+  },
+  {
+   "name": "sysSpamTagCreate",
+   "label": "Tags Management: Create tags"
+  },
+  {
+   "name": "sysSpamTagUpdate",
+   "label": "Tags Management: Update tags"
+  },
+  {
+   "name": "sysSpamTagDestroy",
+   "label": "Tags Management: Destroy tags"
+  },
+  {
+   "name": "sysSpamTagQuery",
+   "label": "Tags Management: Query tags"
+  },
+  {
+   "name": "sysSpamTrainingSampleGet",
+   "label": "Samples Management: Get samples"
+  },
+  {
+   "name": "sysSpamTrainingSampleCreate",
+   "label": "Samples Management: Create samples"
+  },
+  {
+   "name": "sysSpamTrainingSampleUpdate",
+   "label": "Samples Management: Update samples"
+  },
+  {
+   "name": "sysSpamTrainingSampleDestroy",
+   "label": "Samples Management: Destroy samples"
+  },
+  {
+   "name": "sysSpamTrainingSampleQuery",
+   "label": "Samples Management: Query samples"
+  },
+  {
+   "name": "sysSpfReportSettingsGet",
+   "label": "Settings: Get spf report settings settings"
+  },
+  {
+   "name": "sysSpfReportSettingsUpdate",
+   "label": "Settings: Update spf report settings settings"
+  },
+  {
+   "name": "sysStoreLookupGet",
+   "label": "Lookups Management: Get lookups"
+  },
+  {
+   "name": "sysStoreLookupCreate",
+   "label": "Lookups Management: Create lookups"
+  },
+  {
+   "name": "sysStoreLookupUpdate",
+   "label": "Lookups Management: Update lookups"
+  },
+  {
+   "name": "sysStoreLookupDestroy",
+   "label": "Lookups Management: Destroy lookups"
+  },
+  {
+   "name": "sysStoreLookupQuery",
+   "label": "Lookups Management: Query lookups"
+  },
+  {
+   "name": "sysSystemSettingsGet",
+   "label": "Settings: Get system settings settings"
+  },
+  {
+   "name": "sysSystemSettingsUpdate",
+   "label": "Settings: Update system settings settings"
+  },
+  {
+   "name": "taskIndexDocument",
+   "label": "Task: Index document"
+  },
+  {
+   "name": "taskUnindexDocument",
+   "label": "Task: Unindex document"
+  },
+  {
+   "name": "taskIndexTrace",
+   "label": "Task: Index telemetry trace"
+  },
+  {
+   "name": "taskCalendarAlarmEmail",
+   "label": "Task: Calendar alarm e-mail"
+  },
+  {
+   "name": "taskCalendarAlarmNotification",
+   "label": "Task: Calendar alarm notification"
+  },
+  {
+   "name": "taskCalendarItipMessage",
+   "label": "Task: Calendar iTIP message"
+  },
+  {
+   "name": "taskMergeThreads",
+   "label": "Task: Merge email threads"
+  },
+  {
+   "name": "taskDmarcReport",
+   "label": "Task: Send DMARC report to remote server"
+  },
+  {
+   "name": "taskTlsReport",
+   "label": "Task: Send TLS report to remote server"
+  },
+  {
+   "name": "taskRestoreArchivedItem",
+   "label": "Task: Restore archived item"
+  },
+  {
+   "name": "taskDestroyAccount",
+   "label": "Task: Destroy account and all associated data"
+  },
+  {
+   "name": "taskAccountMaintenance",
+   "label": "Task: Perform account maintenance operations"
+  },
+  {
+   "name": "taskTenantMaintenance",
+   "label": "Task: Perform tenant maintenance operations"
+  },
+  {
+   "name": "taskStoreMaintenance",
+   "label": "Task: Perform store maintenance operations"
+  },
+  {
+   "name": "taskSpamFilterMaintenance",
+   "label": "Task: Perform spam filter maintenance operations"
+  },
+  {
+   "name": "taskAcmeRenewal",
+   "label": "Task: Perform ACME certificate renewal for a domain"
+  },
+  {
+   "name": "taskDkimManagement",
+   "label": "Task: Perform DKIM key rotation for a domain"
+  },
+  {
+   "name": "taskDnsManagement",
+   "label": "Task: Perform DNS management for a domain"
+  },
+  {
+   "name": "sysTaskGet",
+   "label": "Tasks Management: Get tasks"
+  },
+  {
+   "name": "sysTaskCreate",
+   "label": "Tasks Management: Create tasks"
+  },
+  {
+   "name": "sysTaskUpdate",
+   "label": "Tasks Management: Update tasks"
+  },
+  {
+   "name": "sysTaskDestroy",
+   "label": "Tasks Management: Destroy tasks"
+  },
+  {
+   "name": "sysTaskQuery",
+   "label": "Tasks Management: Query tasks"
+  },
+  {
+   "name": "sysTaskManagerGet",
+   "label": "Settings: Get task manager settings"
+  },
+  {
+   "name": "sysTaskManagerUpdate",
+   "label": "Settings: Update task manager settings"
+  },
+  {
+   "name": "sysTenantGet",
+   "label": "Tenants Management: Get tenants"
+  },
+  {
+   "name": "sysTenantCreate",
+   "label": "Tenants Management: Create tenants"
+  },
+  {
+   "name": "sysTenantUpdate",
+   "label": "Tenants Management: Update tenants"
+  },
+  {
+   "name": "sysTenantDestroy",
+   "label": "Tenants Management: Destroy tenants"
+  },
+  {
+   "name": "sysTenantQuery",
+   "label": "Tenants Management: Query tenants"
+  },
+  {
+   "name": "sysTlsExternalReportGet",
+   "label": "Reports Management: Get reports"
+  },
+  {
+   "name": "sysTlsExternalReportCreate",
+   "label": "Reports Management: Create reports"
+  },
+  {
+   "name": "sysTlsExternalReportUpdate",
+   "label": "Reports Management: Update reports"
+  },
+  {
+   "name": "sysTlsExternalReportDestroy",
+   "label": "Reports Management: Destroy reports"
+  },
+  {
+   "name": "sysTlsExternalReportQuery",
+   "label": "Reports Management: Query reports"
+  },
+  {
+   "name": "sysTlsInternalReportGet",
+   "label": "Reports Management: Get reports"
+  },
+  {
+   "name": "sysTlsInternalReportCreate",
+   "label": "Reports Management: Create reports"
+  },
+  {
+   "name": "sysTlsInternalReportUpdate",
+   "label": "Reports Management: Update reports"
+  },
+  {
+   "name": "sysTlsInternalReportDestroy",
+   "label": "Reports Management: Destroy reports"
+  },
+  {
+   "name": "sysTlsInternalReportQuery",
+   "label": "Reports Management: Query reports"
+  },
+  {
+   "name": "sysTlsReportSettingsGet",
+   "label": "Settings: Get tls report settings settings"
+  },
+  {
+   "name": "sysTlsReportSettingsUpdate",
+   "label": "Settings: Update tls report settings settings"
+  },
+  {
+   "name": "sysTraceGet",
+   "label": "Traces Management: Get traces"
+  },
+  {
+   "name": "sysTraceCreate",
+   "label": "Traces Management: Create traces"
+  },
+  {
+   "name": "sysTraceUpdate",
+   "label": "Traces Management: Update traces"
+  },
+  {
+   "name": "sysTraceDestroy",
+   "label": "Traces Management: Destroy traces"
+  },
+  {
+   "name": "sysTraceQuery",
+   "label": "Traces Management: Query traces"
+  },
+  {
+   "name": "sysTracerGet",
+   "label": "Tracers Management: Get tracers"
+  },
+  {
+   "name": "sysTracerCreate",
+   "label": "Tracers Management: Create tracers"
+  },
+  {
+   "name": "sysTracerUpdate",
+   "label": "Tracers Management: Update tracers"
+  },
+  {
+   "name": "sysTracerDestroy",
+   "label": "Tracers Management: Destroy tracers"
+  },
+  {
+   "name": "sysTracerQuery",
+   "label": "Tracers Management: Query tracers"
+  },
+  {
+   "name": "sysTracingStoreGet",
+   "label": "Settings: Get tracing store settings"
+  },
+  {
+   "name": "sysTracingStoreUpdate",
+   "label": "Settings: Update tracing store settings"
+  },
+  {
+   "name": "sysWebDavGet",
+   "label": "Settings: Get web dav settings"
+  },
+  {
+   "name": "sysWebDavUpdate",
+   "label": "Settings: Update web dav settings"
+  },
+  {
+   "name": "sysWebHookGet",
+   "label": "Webhooks Management: Get webhooks"
+  },
+  {
+   "name": "sysWebHookCreate",
+   "label": "Webhooks Management: Create webhooks"
+  },
+  {
+   "name": "sysWebHookUpdate",
+   "label": "Webhooks Management: Update webhooks"
+  },
+  {
+   "name": "sysWebHookDestroy",
+   "label": "Webhooks Management: Destroy webhooks"
+  },
+  {
+   "name": "sysWebHookQuery",
+   "label": "Webhooks Management: Query webhooks"
+  }
+ ]
+}

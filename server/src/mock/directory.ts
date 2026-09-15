@@ -43,7 +43,7 @@ const USER_PERMISSIONS = ["jmapEmailGet", "jmapEmailSet", "jmapMailboxGet", "sys
 export function permissionsFor(role: MockRole): string[] {
   switch (role) {
     case "admin":
-      return [...USER_PERMISSIONS, ...all("Account", "Domain", "Role", "MailingList", "DkimSignature", "DnsServer", "Tenant"), ...READ_SERVER, "impersonate"];
+      return [...USER_PERMISSIONS, ...all("Account", "Domain", "Role", "MailingList", "DkimSignature", "DnsServer", "Tenant"), ...READ_SERVER, "sysAuthenticationGet", "impersonate"];
     case "tenant-admin":
       // The queue but not the metric history: Stalwart scopes the one to a
       // tenant's domains, and the other has no tenant to scope it by.
@@ -133,10 +133,13 @@ export function createDirectory(opts: Options) {
   };
 
   const roles: Obj[] = [
-    { id: "r1", description: "User", enabledPermissions: flags(USER_PERMISSIONS), disabledPermissions: {}, roleIds: {} },
+    { id: "r1", description: "User", enabledPermissions: flags(USER_PERMISSIONS), disabledPermissions: {}, roleIds: {}, memberTenantId: null },
     { id: "r2", description: "Helpdesk", enabledPermissions: flags(permissionsFor("helpdesk").filter((p) => p.startsWith("sys"))), disabledPermissions: {}, roleIds: { r1: true } },
     { id: "r3", description: "Directory manager", enabledPermissions: flags(all("Account")), disabledPermissions: {}, roleIds: { r1: true } },
+    { id: "r4", description: "Read-only auditor", enabledPermissions: flags(["sysAccountGet", "sysAccountQuery", "sysDomainGet", "sysDomainQuery", "sysLogGet"]), disabledPermissions: flags(["jmapEmailSet"]), roleIds: { r1: true } },
   ];
+  /** Stalwart's defaults: which roles an account gets when it is given no others. */
+  const authentication: Record<string, Obj> = { defaultUserRoleIds: { r1: true }, defaultGroupRoleIds: {}, defaultTenantRoleIds: {}, defaultAdminRoleIds: {} };
 
   const ownRoles = opts.role === "admin" || opts.role === "tenant-admin" ? { "@type": "Admin" } : opts.role === "helpdesk" ? { "@type": "Custom", roleIds: { r2: true } } : { "@type": "User" };
 
@@ -516,6 +519,72 @@ export function createDirectory(opts: Options) {
         const i = lists.findIndex((x) => x.id === id);
         if (i < 0) { notDestroyed[id] = setError("notFound", "Mailing list not found."); continue; }
         lists.splice(i, 1);
+        destroyed.push(id);
+      }
+      return { accountId: opts.accountId, oldState: "1", newState: "2", created, updated, destroyed, ...(Object.keys(notCreated).length ? { notCreated } : {}), ...(Object.keys(notUpdated).length ? { notUpdated } : {}), ...(Object.keys(notDestroyed).length ? { notDestroyed } : {}) };
+    },
+    // Which roles Stalwart hands out by default. Its own settings object; the
+    // Roles screen reads it to warn before a default role is changed.
+    "x:Authentication/get": (a) => {
+      demand("sysAuthenticationGet");
+      const ids = (a.ids as string[] | null | undefined) ?? ["singleton"];
+      return { accountId: opts.accountId, state: "1", list: ids.filter((id) => id === "singleton").map((id) => ({ id, ...authentication })), notFound: ids.filter((id) => id !== "singleton") };
+    },
+    "x:Role/set": (a) => {
+      const created: Obj = {};
+      const notCreated: Obj = {};
+      const updated: Obj = {};
+      const notUpdated: Obj = {};
+      const destroyed: string[] = [];
+      const notDestroyed: Obj = {};
+      /** Stalwart refuses a role whose permissions -- its own or inherited -- the caller does not hold. */
+      const check = (o: Obj, id?: string): Obj | null => {
+        if (typeof o.description !== "string" || !o.description.trim()) return setError("invalidProperties", "String cannot be empty", ["description"]);
+        const seen = new Set<string>();
+        const walk = (rid: string): boolean => {
+          if (rid === id) return false;
+          if (seen.has(rid)) return true;
+          seen.add(rid);
+          const r = roles_(rid);
+          return !!r && Object.keys((r.roleIds as Obj) ?? {}).every(walk);
+        };
+        if (!Object.keys((o.roleIds as Obj) ?? {}).every(walk)) return setError("invalidProperties", "A role cannot inherit from itself or from a role that does not exist.", ["roleIds"]);
+        const granted = new Set(Object.keys((o.enabledPermissions as Obj) ?? {}));
+        for (const rid of seen) for (const p of Object.keys((roles_(rid)!.enabledPermissions as Obj) ?? {})) granted.add(p);
+        const missing = [...granted].filter((p) => !permissions.has(p));
+        if (missing.length) return setError("forbidden", `You are not authorized to grant permissions: ${missing.slice(0, 5).join(", ")}.`);
+        return null;
+      };
+      for (const [cid, raw] of Object.entries((a.create as Obj) ?? {})) {
+        demand("sysRoleCreate");
+        const o: Obj = { enabledPermissions: {}, disabledPermissions: {}, roleIds: {}, ...(raw as Obj) };
+        const failure = check(o);
+        if (failure) { notCreated[cid] = failure; continue; }
+        const id = `r${counter++}`;
+        roles.push({ ...o, id, memberTenantId: null });
+        created[cid] = { id };
+      }
+      for (const [id, raw] of Object.entries((a.update as Obj) ?? {})) {
+        demand("sysRoleUpdate");
+        const target = roles_(id);
+        if (!target) { notUpdated[id] = setError("notFound", "Role not found."); continue; }
+        const next = structuredClone(target);
+        for (const [path, value] of Object.entries(raw as Obj)) setPointer(next, path, value);
+        const failure = check(next, id);
+        if (failure) { notUpdated[id] = failure.type === "invalidProperties" ? { ...failure, type: "invalidPatch" } : failure; continue; }
+        Object.assign(target, next);
+        updated[id] = null;
+      }
+      for (const id of (a.destroy as string[]) ?? []) {
+        demand("sysRoleDestroy");
+        if (!roles_(id)) { notDestroyed[id] = setError("notFound", "Role not found."); continue; }
+        const linked = [
+          ...accounts.filter((x) => ((x.roles as Obj | undefined)?.roleIds as Obj | undefined)?.[id]).map((x) => ({ object: "Account", id: x.id })),
+          ...roles.filter((x) => (x.roleIds as Obj | undefined)?.[id]).map((x) => ({ object: "Role", id: x.id })),
+          ...(Object.values(authentication).some((set) => (set as Obj)[id]) ? [{ object: "Authentication", id: "singleton" }] : []),
+        ];
+        if (linked.length) { notDestroyed[id] = { type: "objectIsLinked", objectId: { object: "Role", id }, linkedObjects: linked }; continue; }
+        roles.splice(roles.findIndex((x) => x.id === id), 1);
         destroyed.push(id);
       }
       return { accountId: opts.accountId, oldState: "1", newState: "2", created, updated, destroyed, ...(Object.keys(notCreated).length ? { notCreated } : {}), ...(Object.keys(notUpdated).length ? { notUpdated } : {}), ...(Object.keys(notDestroyed).length ? { notDestroyed } : {}) };

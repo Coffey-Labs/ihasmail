@@ -218,3 +218,33 @@ test("a list's address cannot be one an account already has, and a role without 
   assert.equal(clash.notCreated?.n?.type, "primaryKeyViolation");
   assert.throws(() => make("helpdesk").handlers["x:MailingList/query"]!({}), (e: Refused) => e.type === "forbidden");
 });
+
+/** Roles: Stalwart's grant check, loops, and a role still in use. */
+test("a role is refused a permission the caller does not hold, directly or through a base", () => {
+  const helpdesk = make("helpdesk");
+  // Helpdesk cannot create roles at all.
+  assert.throws(() => helpdesk.handlers["x:Role/set"]!({ create: { n: { description: "x" } } }), (e: Refused) => e.type === "forbidden");
+  const tenant = make("tenant-admin");
+  const direct = tenant.handlers["x:Role/set"]!({ create: { n: { description: "Too much", enabledPermissions: { sysTenantCreate: true } } } }) as { notCreated?: Record<string, { type: string; description: string }> };
+  assert.equal(direct.notCreated?.n?.type, "forbidden");
+  assert.match(direct.notCreated!.n!.description, /not authorized to grant/);
+  const fine = tenant.handlers["x:Role/set"]!({ create: { n: { description: "Accounts only", enabledPermissions: { sysAccountGet: true }, roleIds: { r1: true } } } }) as { created: Record<string, { id: string }> };
+  assert.ok(fine.created.n!.id);
+});
+
+test("a role cannot build on itself through another, and one in use is kept", () => {
+  const dir = make("admin");
+  const loop = dir.handlers["x:Role/set"]!({ update: { r1: { "roleIds/r3": true } } }) as { notUpdated?: Record<string, { type: string }> };
+  assert.equal(loop.notUpdated?.r1?.type, "invalidPatch");
+  const inUse = dir.handlers["x:Role/set"]!({ destroy: ["r1"] }) as { notDestroyed?: Record<string, { type: string; linkedObjects: Array<{ object: string }> }> };
+  assert.equal(inUse.notDestroyed?.r1?.type, "objectIsLinked");
+  assert.deepEqual([...new Set(inUse.notDestroyed!.r1!.linkedObjects.map((l) => l.object))].sort(), ["Authentication", "Role"]);
+  const free = dir.handlers["x:Role/set"]!({ destroy: ["r4"] }) as { destroyed: string[] };
+  assert.deepEqual(free.destroyed, ["r4"]);
+});
+
+test("the default roles are read from the authentication settings", () => {
+  const { list } = make("admin").handlers["x:Authentication/get"]!({ ids: ["singleton"] }) as { list: Array<{ defaultUserRoleIds: Record<string, boolean> }> };
+  assert.deepEqual(list[0]!.defaultUserRoleIds, { r1: true });
+  assert.throws(() => make("tenant-admin").handlers["x:Authentication/get"]!({}), (e: Refused) => e.type === "forbidden");
+});
