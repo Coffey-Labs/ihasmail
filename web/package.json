@@ -12,7 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@tanstack/react-virtual": "^3.13.2",
+    "@tanstack/react-virtual": "^3.14.12",
     "dompurify": "^3.4.15",
     "lucide-react": "^0.477.0",
     "marked": "^18.0.11",
