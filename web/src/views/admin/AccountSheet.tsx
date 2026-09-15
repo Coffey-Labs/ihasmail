@@ -85,6 +85,7 @@ export function AccountSheet({ account, ctx, onClose, onChanged, onCreated, onDe
   const [role, setRole] = useState(roleKey(account?.roles));
   const [quota, setQuota] = useState(gibOf(account?.quotas?.[DISK_QUOTA]));
   const [aliases, setAliases] = useState<EmailAlias[]>(() => Object.values(account?.aliases ?? {}));
+  const [tenantId, setTenantId] = useState(account?.memberTenantId ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -132,7 +133,7 @@ export function AccountSheet({ account, ctx, onClose, onChanged, onCreated, onDe
           setError(t("An account needs an address."));
           return;
         }
-        const id = await createAccount({ name, domainId, description, password, roles: rolesFromKey(role), diskQuotaBytes: bytesOf(quota) });
+        const id = await createAccount({ name, domainId, description, password, roles: rolesFromKey(role), diskQuotaBytes: bytesOf(quota), memberTenantId: tenantId || null });
         toast.success(t("Created {address}", { address }));
         onCreated(id);
         return;
@@ -140,6 +141,7 @@ export function AccountSheet({ account, ctx, onClose, onChanged, onCreated, onDe
       const patch: Record<string, unknown> = {};
       if ((account.description ?? "") !== description) patch.description = description.trim() || null;
       if (roleKey(account.roles) !== role) patch.roles = rolesFromKey(role);
+      if ((account.memberTenantId ?? "") !== tenantId) patch.memberTenantId = tenantId || null;
       if ((account.quotas?.[DISK_QUOTA] ?? null) !== bytesOf(quota)) patch.quotas = quotasWithDisk(account.quotas, bytesOf(quota));
       const before = JSON.stringify(aliasList(Object.values(account.aliases ?? {})));
       if (before !== JSON.stringify(aliasList(aliases))) patch.aliases = aliasList(aliases);
@@ -244,6 +246,18 @@ export function AccountSheet({ account, ctx, onClose, onChanged, onCreated, onDe
         <p className="hint">
           {self ? t("You can't change your own role.") : t("Only roles whose permissions you hold yourself are offered. On an account inside a tenant, Administrator means administrator of that tenant.")}
         </p>
+
+        {ctx.tenants && (ctx.tenants.length > 0 || tenantId) && (
+          <>
+            <h3>{t("Tenant")}</h3>
+            <select className="input admin-wide" aria-label={t("Tenant")} value={tenantId} disabled={!editable || self} onChange={(e) => setTenantId(e.target.value)}>
+              <option value="">{t("No tenant")}</option>
+              {ctx.tenants.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
+              {tenantId && !ctx.tenants.some((x) => x.id === tenantId) && <option value={tenantId}>{tenantId}</option>}
+            </select>
+            <p className="hint">{self ? t("You can't move your own account into a tenant.") : t("An account in a tenant is limited by the tenant's role and counts towards its limits, and Administrator means administrator of that tenant.")}</p>
+          </>
+        )}
 
         <h3>{t("Storage")}</h3>
         {!creating && (

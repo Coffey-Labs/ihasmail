@@ -1260,6 +1260,35 @@ Its labels are English only, so ihasmail ships its own translation of every one
 of them, loaded only when the Roles screen opens; a permission added by a later
 Stalwart shows the server's English until it is translated.
 
+## Tenants
+
+A tenant is a separate organisation on the same server — its own people,
+domains and limits, and an administrator who manages only what is in it. It is
+a Stalwart Enterprise feature: on a server that does not report Enterprise the
+page says that anyone inside a tenant has only an ordinary user's permissions.
+For a role with `sysTenantQuery` and `sysTenantGet`, under Access:
+
+- **List and search** tenants, with each one's storage and account limit.
+- **Create and edit** a tenant's name, logo (an https address, drawn through the
+  image proxy, or an image data URL), role and limits — accounts, groups,
+  mailing lists, domains, roles, DKIM keys and storage. An empty limit is no
+  limit, and a limit ihasmail does not offer keeps whatever it had.
+- **The tenant's role** is the most anyone inside it can be allowed: their own
+  roles are cut down to it.
+- **What it holds** is counted, each against its limit. Stalwart keeps no list
+  on the tenant; each account, group, domain, list and role names its tenant,
+  so the counts are queries for those.
+- **Domains** are added to a tenant, or taken out, from its panel. Only a domain
+  in no tenant can be added, and the accounts already on it stay where they
+  are.
+- **An account's tenant** is chosen on the account's own panel, which is how a
+  tenant gets its first administrator: an Administrator inside a tenant
+  administers that tenant.
+- **Delete** is offered once the tenant holds nothing.
+
+Only an administrator outside every tenant can put anything into one; Stalwart
+refuses anyone else, and inside a tenant it scopes every list to that tenant.
+
 ## Domains
 
 For a role that can read domains (`sysDomainQuery`, `sysDomainGet`):
@@ -1318,9 +1347,8 @@ session information already kept for thirty minutes — so a role granted or
 taken away shows in the menu at the next sign-in or within half an hour, and in
 the meantime Stalwart refuses what is no longer allowed.
 
-The dashboard, accounts, groups, mailing lists, roles and domains are the
-sections so far. Tenants are Stalwart capabilities the same screen is
-laid out to take. Beyond the dashboard's counts, managing queues, logs and
+The dashboard, accounts, groups, mailing lists, tenants, roles and domains are
+the sections so far. Beyond the dashboard's counts, managing queues, logs and
 server settings is deliberately out of scope.
 
 ---

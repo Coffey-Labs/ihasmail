@@ -1788,6 +1788,9 @@ select optgroup { background-color: var(--bg-elev); color: var(--fg); }
 .admin-perm-rows li.granted { box-shadow: inset 3px 0 0 var(--accent); }
 .admin-perm-rows .mono { font-family: var(--font-mono); font-size: .8em; word-break: break-all; }
 .admin-perm-state { width: auto; min-width: 110px; flex: none; }
+.admin-tenant-logo { width: 40px; height: 40px; object-fit: contain; border-radius: var(--radius-sm); background: var(--bg-sunken); flex: none; }
+.admin-tenant-logo.sm { width: 24px; height: 24px; }
+.admin-quota-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 0 12px; }
 .admin-kv { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; align-items: center; margin: 0; font-size: .92em; }
 .admin-kv dt { color: var(--fg-muted); }
 .admin-kv dd { margin: 0; }
