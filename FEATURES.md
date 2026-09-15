@@ -1265,10 +1265,11 @@ Stalwart shows the server's English until it is translated.
 A tenant is a separate organisation on the same server — its own people,
 domains and limits, and an administrator who manages only what is in it. It is
 a Stalwart Enterprise feature. On a server that does not report Enterprise — or
-reports no edition at all — the page is only a notice that anyone inside a
-tenant has only an ordinary user's permissions: no list, no search, nothing to
-create. On Enterprise, for a role with `sysTenantQuery` and `sysTenantGet`,
-under Access:
+reports no edition at all — the page is only the notice *Tenants are a Stalwart
+Enterprise feature.*: no list, no search, nothing to create. On Enterprise the
+notice is left out, unless `SHOW_ENTERPRISE_NOTICES=1` asks for it above the
+list, as the public demo does. On Enterprise, for a role with `sysTenantQuery`
+and `sysTenantGet`, under Access:
 
 - **List and search** tenants, with each one's storage and account limit.
 - **Create and edit** a tenant's name, logo (an https address, drawn through the
@@ -1713,6 +1714,7 @@ wizard, because either would be state.
 | Variable | Default | Does |
 | --- | --- | --- |
 | `STALWART_URL` | — | Where Stalwart is; the JMAP session is discovered at `/.well-known/jmap` |
+| `SHOW_ENTERPRISE_NOTICES` | `0` | Say an Enterprise-only section (Tenants) is Enterprise-only even when the server is Enterprise. For a demo that reports Enterprise to show those sections; a real installation leaves it off |
 | `STALWART_ADMIN_URL` | — | Where a browser opens Stalwart's own administration, linked from the Administration dashboard. Separate from `STALWART_URL`, which is often an address only this server can reach; unset, the dashboard names Stalwart's administration without a link |
 | `APP_SECRET` | — | Key material for sealing sessions. **Required in production** — the server refuses to start without it |
 | `HOST` / `PORT` | `0.0.0.0` / `8080` | Listen address |

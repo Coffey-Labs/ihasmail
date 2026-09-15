@@ -18,8 +18,8 @@ vi.mock("@/lib/adminTenants", async (original) => ({
 const { TenantsAdmin } = await import("../TenantsAdmin");
 
 const PERMS = ["sysTenantGet", "sysTenantQuery", "sysTenantCreate"];
-const signIn = (edition: string | null) =>
-  useSession.setState({ session: { capabilities: {}, accounts: {}, primaryAccounts: {}, username: "a@example.com", ihasmail: { permissions: PERMS, server: { edition } } } as unknown as JmapSession });
+const signIn = (edition: string | null, enterpriseNotices = false) =>
+  useSession.setState({ session: { capabilities: {}, accounts: {}, primaryAccounts: {}, username: "a@example.com", ihasmail: { permissions: PERMS, server: { edition, enterpriseNotices } } } as unknown as JmapSession });
 
 /** Tenants are managed on Enterprise only; anywhere else the page is the notice and nothing more. */
 describe("the Tenants page", () => {
@@ -55,11 +55,37 @@ describe("the Tenants page", () => {
     });
   }
 
-  it("lists and offers tenants on Enterprise, without the notice", async () => {
+  it("lists and offers tenants on Enterprise, and does not say they are Enterprise", async () => {
     signIn("enterprise");
     await render();
-    expect(host.querySelector(".admin-notice.warn")).toBeNull();
+    expect(host.querySelector(".admin-notice")).toBeNull();
     expect(host.textContent).toContain("New tenant");
+    expect(host.querySelector(".admin-table")?.textContent).toContain("Acme Corp");
+  });
+});
+
+describe("the Tenants page where the installation asks for Enterprise notices", () => {
+  let host: HTMLDivElement;
+  let root: Root;
+  beforeEach(() => {
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+  });
+  afterEach(async () => {
+    await act(async () => root.unmount());
+    host.remove();
+  });
+
+  it("says tenants are Enterprise above the list, as the demo does", async () => {
+    signIn("enterprise", true);
+    const { hook } = memoryLocation({ path: "/admin/tenants" });
+    await act(async () => {
+      root.render(<Router hook={hook}><TenantsAdmin /></Router>);
+    });
+    await act(async () => {});
+    expect(host.querySelector(".admin-notice")?.textContent).toBe("Tenants are a Stalwart Enterprise feature.");
+    expect(host.querySelector(".admin-notice.warn")).toBeNull();
     expect(host.querySelector(".admin-table")?.textContent).toContain("Acme Corp");
   });
 });

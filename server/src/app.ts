@@ -896,7 +896,12 @@ function sessionExtras(session: LiveSession, info: AccountInfo = { locale: null,
        * session that may administer -- where the operator says its own
        * administration is.
        */
-      server: { edition: info.edition, adminUrl: administrationAllowed(config.administration, session.remember) ? adminUrlFor(session.username) : null },
+      server: {
+        edition: info.edition,
+        adminUrl: administrationAllowed(config.administration, session.remember) ? adminUrlFor(session.username) : null,
+        /** SHOW_ENTERPRISE_NOTICES: say "Enterprise feature" on Enterprise too, as the demo does. */
+        enterpriseNotices: config.showEnterpriseNotices,
+      },
       /**
        * Whether this session may administer: the installation offers it
        * (ADMINISTRATION) and the person signed in on a device marked as their own.

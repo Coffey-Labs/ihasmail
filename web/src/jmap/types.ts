@@ -40,6 +40,8 @@ export interface JmapSession {
       edition?: string | null;
       /** Where Stalwart's own administration is (STALWART_ADMIN_URL), for a session that may administer. */
       adminUrl?: string | null;
+      /** SHOW_ENTERPRISE_NOTICES: an Enterprise-only section says so even on Enterprise. */
+      enterpriseNotices?: boolean;
     };
     /**
      * False when this session may not administer: the operator turned it off,

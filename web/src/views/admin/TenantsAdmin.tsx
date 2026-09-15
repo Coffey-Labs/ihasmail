@@ -18,14 +18,17 @@ const PAGE_SIZE = 50;
  * Tenants: separate organisations on one server, each with its own people,
  * domains and limits.
  *
- * The section is offered to whoever may read tenants, but on a server that does
- * not report Enterprise the page is only the notice: tenants there hold nobody
- * to anything beyond an ordinary user's permissions, so there is nothing worth
- * creating or listing. A server that reports no edition at all counts as not
- * Enterprise.
+ * The section is offered to whoever may read tenants. On a server that does not
+ * report Enterprise -- or reports no edition -- the page is only a notice that
+ * tenants are an Enterprise feature: tenants there hold nobody to anything
+ * beyond an ordinary user's permissions, so there is nothing worth creating or
+ * listing. On Enterprise the notice is left out, unless the installation asks
+ * for it (SHOW_ENTERPRISE_NOTICES), as the public demo does so as not to
+ * suggest tenants come without the licence.
  */
 export function TenantsAdmin({ selectedId }: { selectedId?: string }) {
   const edition = useSession((s) => s.session?.ihasmail?.server?.edition ?? null);
+  const notices = useSession((s) => s.session?.ihasmail?.server?.enterpriseNotices === true);
   if (edition !== "enterprise") {
     return (
       <div>
@@ -35,14 +38,19 @@ export function TenantsAdmin({ selectedId }: { selectedId?: string }) {
             <p className="lead">{t("Separate organisations on one server, each with its own people, domains and limits.")}</p>
           </div>
         </div>
-        <p className="admin-notice warn">{t("Tenants are a Stalwart Enterprise feature.")}</p>
+        <EnterpriseNotice warn />
       </div>
     );
   }
-  return <EnterpriseTenants selectedId={selectedId} />;
+  return <EnterpriseTenants selectedId={selectedId} notice={notices} />;
 }
 
-function EnterpriseTenants({ selectedId }: { selectedId?: string }) {
+/** Said on every Tenants page, Enterprise or not. */
+function EnterpriseNotice({ warn }: { warn: boolean }) {
+  return <p className={`admin-notice${warn ? " warn" : ""}`}>{t("Tenants are a Stalwart Enterprise feature.")}</p>;
+}
+
+function EnterpriseTenants({ selectedId, notice }: { selectedId?: string; notice: boolean }) {
   const [, navigate] = useLocation();
   const perms = usePermissions();
   const [text, setText] = useState("");
@@ -118,6 +126,8 @@ function EnterpriseTenants({ selectedId }: { selectedId?: string }) {
           </button>
         )}
       </div>
+
+      {notice && <EnterpriseNotice warn={false} />}
 
       <div className="admin-toolbar">
         <label className="admin-search">
