@@ -27,7 +27,14 @@
  * delete them) or `user`.
  */
 
+import { readFileSync } from "node:fs";
+
 type Obj = Record<string, unknown>;
+
+/** Every permission Stalwart 0.16.22 knows, from the snapshot the translations are checked against. */
+const KNOWN_PERMISSIONS = new Set(
+  (JSON.parse(readFileSync(new URL("../../../web/src/locales/permissions/source.json", import.meta.url), "utf8")) as { permissions: Array<{ name: string }> }).permissions.map((p) => p.name),
+);
 
 export type MockRole = "admin" | "tenant-admin" | "helpdesk" | "user";
 
@@ -38,7 +45,7 @@ const all = (...objects: string[]) => objects.flatMap((o) => OPS.map((op) => `sy
 const READ_SERVER = ["sysQueuedMessageGet", "sysQueuedMessageQuery", "sysMetricGet", "sysMetricQuery"];
 
 /** A few of the ordinary ones, so the list looks like what a server sends. */
-const USER_PERMISSIONS = ["jmapEmailGet", "jmapEmailSet", "jmapMailboxGet", "sysAccountSettingsGet"];
+const USER_PERMISSIONS = ["jmapEmailGet", "jmapEmailUpdate", "jmapMailboxGet", "sysAccountSettingsGet"];
 
 export function permissionsFor(role: MockRole): string[] {
   switch (role) {
@@ -136,7 +143,7 @@ export function createDirectory(opts: Options) {
     { id: "r1", description: "User", enabledPermissions: flags(USER_PERMISSIONS), disabledPermissions: {}, roleIds: {}, memberTenantId: null },
     { id: "r2", description: "Helpdesk", enabledPermissions: flags(permissionsFor("helpdesk").filter((p) => p.startsWith("sys"))), disabledPermissions: {}, roleIds: { r1: true } },
     { id: "r3", description: "Directory manager", enabledPermissions: flags(all("Account")), disabledPermissions: {}, roleIds: { r1: true } },
-    { id: "r4", description: "Read-only auditor", enabledPermissions: flags(["sysAccountGet", "sysAccountQuery", "sysDomainGet", "sysDomainQuery", "sysLogGet"]), disabledPermissions: flags(["jmapEmailSet"]), roleIds: { r1: true } },
+    { id: "r4", description: "Read-only auditor", enabledPermissions: flags(["sysAccountGet", "sysAccountQuery", "sysDomainGet", "sysDomainQuery", "sysLogGet"]), disabledPermissions: flags(["jmapEmailUpdate"]), roleIds: { r1: true } },
   ];
   /** Stalwart's defaults: which roles an account gets when it is given no others. */
   const authentication: Record<string, Obj> = { defaultUserRoleIds: { r1: true }, defaultGroupRoleIds: {}, defaultTenantRoleIds: {}, defaultAdminRoleIds: {} };
@@ -549,6 +556,11 @@ export function createDirectory(opts: Options) {
           return !!r && Object.keys((r.roleIds as Obj) ?? {}).every(walk);
         };
         if (!Object.keys((o.roleIds as Obj) ?? {}).every(walk)) return setError("invalidProperties", "A role cannot inherit from itself or from a role that does not exist.", ["roleIds"]);
+        // A name that is not a permission fails the whole change, as the live server does.
+        for (const set of ["enabledPermissions", "disabledPermissions"]) {
+          const bad = Object.keys((o[set] as Obj) ?? {}).find((p) => !KNOWN_PERMISSIONS.has(p));
+          if (bad) return setError("invalidProperties", "Invalid value for object property", [`${set}/${bad}`]);
+        }
         const granted = new Set(Object.keys((o.enabledPermissions as Obj) ?? {}));
         for (const rid of seen) for (const p of Object.keys((roles_(rid)!.enabledPermissions as Obj) ?? {})) granted.add(p);
         const missing = [...granted].filter((p) => !permissions.has(p));

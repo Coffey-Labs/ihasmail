@@ -4,8 +4,8 @@ import { canBuildOn, effectivePermissions, inherited, roleOutranks, setPatch, ty
 
 const flags = (...n: string[]) => Object.fromEntries(n.map((x) => [x, true]));
 const roles = new Map<string, DirectoryRole>([
-  ["user", { id: "user", description: "User", enabledPermissions: flags("jmapEmailGet", "jmapEmailSet") }],
-  ["help", { id: "help", description: "Helpdesk", enabledPermissions: flags("sysAccountGet"), disabledPermissions: flags("jmapEmailSet"), roleIds: flags("user") }],
+  ["user", { id: "user", description: "User", enabledPermissions: flags("jmapEmailGet", "jmapEmailUpdate") }],
+  ["help", { id: "help", description: "Helpdesk", enabledPermissions: flags("sysAccountGet"), disabledPermissions: flags("jmapEmailUpdate"), roleIds: flags("user") }],
   ["lead", { id: "lead", description: "Lead", enabledPermissions: flags("sysAccountUpdate"), roleIds: flags("help") }],
 ]);
 
@@ -16,7 +16,7 @@ describe("what a role holds", () => {
     expect([...effectivePermissions(roles.get("lead")!, roles, "lead")].sort()).toEqual(["jmapEmailGet", "sysAccountGet", "sysAccountUpdate"]);
     const { granted, denied } = inherited(["help"], roles, "lead");
     expect(granted.get("jmapEmailGet")).toBe("help");
-    expect(denied.get("jmapEmailSet")).toBe("help");
+    expect(denied.get("jmapEmailUpdate")).toBe("help");
   });
 
   it("changes a set one pointer at a time", () => {
@@ -33,9 +33,9 @@ describe("what a role holds", () => {
 
   it("is read-only to a viewer missing anything enabled in its tree, denied or not", () => {
     const viewer = permissionSet(["jmapEmailGet", "sysAccountGet", "sysAccountUpdate"]);
-    // jmapEmailSet is denied on Helpdesk but enabled on User beneath it: a
+    // jmapEmailUpdate is denied on Helpdesk but enabled on User beneath it: a
     // grant Stalwart would check, and a delete it would not.
     expect(roleOutranks(viewer, roles.get("lead")!, roles)).toBe(true);
-    expect(roleOutranks(permissionSet([...viewer, "jmapEmailSet"]), roles.get("lead")!, roles)).toBe(false);
+    expect(roleOutranks(permissionSet([...viewer, "jmapEmailUpdate"]), roles.get("lead")!, roles)).toBe(false);
   });
 });

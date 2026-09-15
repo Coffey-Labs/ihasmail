@@ -248,3 +248,10 @@ test("the default roles are read from the authentication settings", () => {
   assert.deepEqual(list[0]!.defaultUserRoleIds, { r1: true });
   assert.throws(() => make("tenant-admin").handlers["x:Authentication/get"]!({}), (e: Refused) => e.type === "forbidden");
 });
+
+test("a permission name Stalwart does not know fails the whole change", () => {
+  const dir = make("admin");
+  const r = dir.handlers["x:Role/set"]!({ update: { r4: { "enabledPermissions/notARealPermission": true, description: "Renamed" } } }) as { notUpdated?: Record<string, { type: string; properties: string[] }> };
+  assert.equal(r.notUpdated?.r4?.type, "invalidPatch");
+  assert.deepEqual(r.notUpdated!.r4!.properties, ["enabledPermissions/notARealPermission"]);
+});
