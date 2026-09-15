@@ -1191,6 +1191,7 @@ export const catalog: Catalog = {
     "Full screen": "Tela cheia",
     "Resize panes": "Redimensionar os painéis",
     "Resize message list": "Redimensionar a lista de mensagens",
+    "Resize contact list": "Redimensionar a lista de contatos",
     "Resize sidebar": "Redimensionar a barra lateral",
     "Hide from list": "Ocultar da lista",
     "Show in list": "Mostrar na lista",

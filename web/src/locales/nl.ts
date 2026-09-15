@@ -1184,6 +1184,7 @@ export const catalog: Catalog = {
     "Full screen": "Volledig scherm",
     "Resize panes": "Vensterdelen verslepen",
     "Resize message list": "Grootte van de berichtenlijst wijzigen",
+    "Resize contact list": "Grootte van de contactenlijst wijzigen",
     "Resize sidebar": "Grootte van de zijbalk wijzigen",
     "Hide from list": "Verbergen in de lijst",
     "Show in list": "Tonen in de lijst",

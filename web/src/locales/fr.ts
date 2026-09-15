@@ -1193,6 +1193,7 @@ export const catalog: Catalog = {
     "Full screen": "Plein écran",
     "Resize panes": "Redimensionner les volets",
     "Resize message list": "Redimensionner la liste des messages",
+    "Resize contact list": "Redimensionner la liste des contacts",
     "Resize sidebar": "Redimensionner la barre latérale",
     "Hide from list": "Masquer de la liste",
     "Show in list": "Afficher dans la liste",

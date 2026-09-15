@@ -1195,6 +1195,7 @@ export const catalog: Catalog = {
     "Full screen": "全屏",
     "Resize panes": "调整窗格大小",
     "Resize message list": "调整邮件列表大小",
+    "Resize contact list": "调整联系人列表大小",
     "Resize sidebar": "调整侧边栏大小",
     "Hide from list": "从列表中隐藏",
     "Show in list": "在列表中显示",

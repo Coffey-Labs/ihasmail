@@ -1753,8 +1753,7 @@ select optgroup { background-color: var(--bg-elev); color: var(--fg); }
 /* ==========================================================================
    Contacts
    ========================================================================== */
-.contacts-layout { display: grid; grid-template-columns: 220px minmax(280px, 360px) 1fr; height: 100%; min-height: 0; flex: 1; }
-.contacts-books { border-right: 1px solid var(--border); padding: 12px 8px; overflow-y: auto; overflow-x: hidden; }
+.contacts-layout { display: grid; grid-template-columns: var(--list-size, 320px) auto minmax(0, 1fr); height: 100%; min-height: 0; flex: 1; }
 .contacts-list { border-right: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
 .contacts-list .list-search { padding: 10px 12px; border-bottom: 1px solid var(--border); }
 .contacts-scroll { flex: 1; overflow-y: auto; }
@@ -2015,7 +2014,6 @@ select optgroup { background-color: var(--bg-elev); color: var(--fg); }
 @media (max-width: 1100px) {
   :root { --list-w: 44%; }
   .msg-row .msg-from { width: 140px; }
-  .contacts-layout { grid-template-columns: 200px 300px 1fr; }
 }
 @media (max-width: 900px) {
   .mail-layout:not(.pane-off):not(.pane-bottom) { grid-template-columns: 1fr !important; }
@@ -2036,7 +2034,7 @@ select optgroup { background-color: var(--bg-elev); color: var(--fg); }
   .admin-table .hide-mobile { display: none; }
   .admin-sheet { width: 100%; border-left: 0; box-shadow: none; }
   .contacts-layout { grid-template-columns: 1fr; }
-  .contacts-books { display: none; }
+  .contacts-layout .splitter { display: none; }
   .contacts-layout.detail .contacts-list { display: none; }
   .contacts-layout:not(.detail) .contact-detail { display: none; }
   .cal-layout { grid-template-columns: 1fr; }
