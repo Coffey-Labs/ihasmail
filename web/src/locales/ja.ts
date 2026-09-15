@@ -998,6 +998,8 @@ export const catalog: Catalog = {
     "folder": "フォルダー",
     "“{name}” moved into “{parent}”": "「{name}」を「{parent}」に移動しました",
     "“{name}” moved to the top level": "「{name}」を最上位に移動しました",
+    "Move “{name}” to…": "「{name}」の移動先…",
+    "Top level": "最上位",
     "Could not move “{name}”: {reason}": "「{name}」を移動できませんでした: {reason}",
     "Delete “{name}”?": "「{name}」を削除しますか？",
     "Rename folder": "フォルダー名を変更",

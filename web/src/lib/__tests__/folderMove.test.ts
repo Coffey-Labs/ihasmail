@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canDropFolder, descendantIds, folderColor, movable } from "../folderMove";
+import { canDropFolder, canMoveFolderTo, descendantIds, folderColor, movable } from "../folderMove";
 import type { Id, Mailbox } from "@/jmap/types";
 
 const mb = (id: string, name: string, parentId: string | null, role: Mailbox["role"] = null): Mailbox =>
@@ -65,6 +65,30 @@ describe("canDropFolder", () => {
   it("refuses a target that does not exist", () => {
     expect(canDropFolder(tree, "news", "gone")).toBe(false);
     expect(canDropFolder(tree, "gone", "work")).toBe(false);
+  });
+});
+
+describe("canMoveFolderTo", () => {
+  const rights = (r: Partial<Mailbox["myRights"]>) => ({ mayRename: true, mayCreateChild: true, ...r }) as Mailbox["myRights"];
+  const owned: Record<Id, Mailbox> = Object.fromEntries(Object.values(tree).map((m) => [m.id, { ...m, myRights: rights({}) }]));
+
+  it("agrees with a drop when every right is granted", () => {
+    expect(canMoveFolderTo(owned, "news", "work")).toBe(true);
+    expect(canMoveFolderTo(owned, "eu", null)).toBe(true);
+    expect(canMoveFolderTo(owned, "work", "eu")).toBe(false);
+    expect(canMoveFolderTo(owned, "news", null)).toBe(false);
+  });
+
+  it("refuses a folder the user may not rename, top level included", () => {
+    const locked = { ...owned, eu: { ...owned.eu!, myRights: rights({ mayRename: false }) } };
+    expect(canMoveFolderTo(locked, "eu", "news")).toBe(false);
+    expect(canMoveFolderTo(locked, "eu", null)).toBe(false);
+  });
+
+  it("refuses a destination that may not hold new subfolders", () => {
+    const closed = { ...owned, work: { ...owned.work!, myRights: rights({ mayCreateChild: false }) } };
+    expect(canMoveFolderTo(closed, "news", "work")).toBe(false);
+    expect(canMoveFolderTo(closed, "eu", null)).toBe(true);
   });
 });
 

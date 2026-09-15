@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type DragEvent, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { AlertOctagon, Archive, ChevronDown, ChevronLeft, Clock, ChevronRight, File, Folder, FolderPlus, Inbox, Mail, MoreVertical, Palette, Send, Star, Tag, Trash2, Plus, Pencil, Eye, EyeOff, CheckCheck, Eraser, Share2, X } from "lucide-react";
+import { AlertOctagon, Archive, ChevronDown, ChevronLeft, Clock, ChevronRight, File, Folder, FolderPlus, Inbox, Mail, MoreVertical, Palette, Send, Star, Tag, Trash2, Plus, Pencil, Eye, EyeOff, CheckCheck, Eraser, Share2, X, FolderInput } from "lucide-react";
 import { useMail } from "@/store/mail";
 import { canEmpty, confirmAndEmpty, emptyLabel } from "@/lib/emptyFolder";
 import { labelTree, visibleLabels } from "@/lib/labelTree";
@@ -12,8 +12,9 @@ import { CALENDAR_COLORS, useIsMobile, useIsTouch } from "@/ui/misc";
 import { confirmDialog, promptDialog } from "@/ui/dialog";
 import { toast } from "@/ui/toast";
 import { ShareDialog } from "../settings/ShareDialog";
+import { MailboxPicker } from "./MailboxPicker";
 import { loadRaw, saveJson } from "@/lib/storage";
-import { canDropFolder, folderColor, movable } from "@/lib/folderMove";
+import { canDropFolder, canMoveFolderTo, folderColor, movable } from "@/lib/folderMove";
 import { haptic, useTouchRow } from "@/lib/touch";
 import { plural, t } from "@/lib/i18n";
 import { mailboxDisplayName } from "@/lib/mailboxName";
@@ -46,6 +47,8 @@ export function MailboxTree() {
   const menu = useMenu();
   const [menuTarget, setMenuTarget] = useState<Mailbox | null>(null);
   const [shareTarget, setShareTarget] = useState<Mailbox | null>(null);
+  /** The folder being moved from its menu -- the way to move one without a drag, and on touch the only way. */
+  const [moveTarget, setMoveTarget] = useState<Mailbox | null>(null);
   /**
    * The folder being dragged. Held here rather than read from the drag itself:
    * dataTransfer.getData is blocked during dragover, so a row cannot ask what
@@ -255,8 +258,21 @@ export function MailboxTree() {
         )}
       </nav>
       <Popover anchor={menu.anchor} onClose={menu.close} width={300}>
-        {menuTarget && <MailboxMenu mailbox={menuTarget} onClose={menu.close} onCreateChild={() => void createFolder(menuTarget.id)} onShare={() => setShareTarget(menuTarget)} />}
+        {menuTarget && <MailboxMenu mailbox={menuTarget} onClose={menu.close} onCreateChild={() => void createFolder(menuTarget.id)} onShare={() => setShareTarget(menuTarget)} onMove={() => { menu.close(); setMoveTarget(menuTarget); }} />}
       </Popover>
+      {moveTarget && (
+        <MailboxPicker
+          title={t("Move “{name}” to…", { name: mailboxDisplayName(moveTarget) })}
+          need="mayReadItems"
+          allow={(id) => canMoveFolderTo(mailboxes, moveTarget.id, id)}
+          root={canMoveFolderTo(mailboxes, moveTarget.id, null) ? { label: t("Top level"), onPick: () => { setMoveTarget(null); void moveFolder(moveTarget.id, null); } } : undefined}
+          onClose={() => setMoveTarget(null)}
+          onPick={(id) => {
+            setMoveTarget(null);
+            void moveFolder(moveTarget.id, id);
+          }}
+        />
+      )}
       {shareTarget && <ShareDialog kind="Mailbox" id={shareTarget.id} name={shareTarget.name} shareWith={shareTarget.shareWith ?? null} onClose={() => setShareTarget(null)} />}
     </>
   );
@@ -406,7 +422,7 @@ function FolderRow({ mailbox: m, label, depth, hasChildren, open, hiddenUnread, 
   );
 }
 
-function MailboxMenu({ mailbox: m, onClose, onCreateChild, onShare }: { mailbox: Mailbox; onClose: () => void; onCreateChild: () => void; onShare: () => void }) {
+function MailboxMenu({ mailbox: m, onClose, onCreateChild, onShare, onMove }: { mailbox: Mailbox; onClose: () => void; onCreateChild: () => void; onShare: () => void; onMove: () => void }) {
   const shared = Object.keys(m.shareWith ?? {}).length > 0;
   const [, navigate] = useLocation();
   const colors = useSettings((s) => s.settings.folderColors);
@@ -471,6 +487,7 @@ function MailboxMenu({ mailbox: m, onClose, onCreateChild, onShare }: { mailbox:
       )}
       <MenuItem icon={<FolderPlus size={16} />} label={t("New subfolder")} onClick={onCreateChild} disabled={!m.myRights.mayCreateChild} />
       <MenuItem icon={<Pencil size={16} />} label={t("Rename")} onClick={() => void rename()} disabled={isSpecial || !m.myRights.mayRename} />
+      <MenuItem icon={<FolderInput size={16} />} label={t("Move to…")} onClick={onMove} disabled={!movable(m) || !m.myRights.mayRename} />
       <MenuItem icon={m.isSubscribed ? <EyeOff size={16} /> : <Eye size={16} />} label={m.isSubscribed ? t("Hide from list") : t("Show in list")} onClick={() => void useMail.getState().updateMailbox(m.id, { isSubscribed: !m.isSubscribed })} disabled={m.role === "inbox"} />
       {/* Sharing a mail folder is withdrawn, not removed: Stalwart accepts and
           stores the share, and it never reaches the other account -- its own

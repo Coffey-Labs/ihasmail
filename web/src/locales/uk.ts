@@ -933,6 +933,8 @@ export const catalog: Catalog = {
     "folder": "тека",
     "“{name}” moved into “{parent}”": "«{name}» переміщено до «{parent}»",
     "“{name}” moved to the top level": "«{name}» переміщено на верхній рівень",
+    "Move “{name}” to…": "Перемістити «{name}» до…",
+    "Top level": "Верхній рівень",
     "Could not move “{name}”: {reason}": "Не вдалося перемістити «{name}»: {reason}",
     "Delete “{name}”?": "Видалити «{name}»?",
     "Rename folder": "Перейменувати теку",

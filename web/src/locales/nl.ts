@@ -933,6 +933,8 @@ export const catalog: Catalog = {
     "folder": "map",
     "“{name}” moved into “{parent}”": "“{name}” is verplaatst naar “{parent}”",
     "“{name}” moved to the top level": "“{name}” is naar het hoogste niveau verplaatst",
+    "Move “{name}” to…": "“{name}” verplaatsen naar…",
+    "Top level": "Hoogste niveau",
     "Could not move “{name}”: {reason}": "Kon “{name}” niet verplaatsen: {reason}",
     "Delete “{name}”?": "“{name}” verwijderen?",
     "Rename folder": "Map hernoemen",
