@@ -229,7 +229,7 @@ const VALIDATOR_MESSAGES: Record<string, () => string> = {
 };
 
 /** What kind of thing a refusal was about, where the wording has to differ. */
-export type DirectoryObject = "account" | "domain" | "group";
+export type DirectoryObject = "account" | "domain" | "group" | "list";
 
 /**
  * Say what went wrong in terms of the person's own action, in their language.
@@ -276,7 +276,9 @@ export function describeDirectoryError(err: unknown, object: DirectoryObject = "
         ? t("Your organisation has reached the number of domains it is allowed.")
         : object === "group"
           ? t("Your organisation has reached the number of groups it is allowed.")
-          : t("Your organisation has reached the number of accounts it is allowed.");
+          : object === "list"
+            ? t("Your organisation has reached the number of mailing lists it is allowed.")
+            : t("Your organisation has reached the number of accounts it is allowed.");
     case "objectIsLinked":
       return t("Something still depends on this, so the server kept it.");
     case "notFound":
@@ -284,7 +286,9 @@ export function describeDirectoryError(err: unknown, object: DirectoryObject = "
         ? t("This domain no longer exists. Someone may have removed it.")
         : object === "group"
           ? t("This group no longer exists. Someone may have deleted it.")
-          : t("This account no longer exists. Someone may have deleted it.");
+          : object === "list"
+            ? t("This mailing list no longer exists. Someone may have deleted it.")
+            : t("This account no longer exists. Someone may have deleted it.");
     case "rateLimit":
       return t("Too many attempts. Please wait a few minutes and try again.");
     case "tooLarge":

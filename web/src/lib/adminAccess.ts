@@ -27,7 +27,7 @@ export function can(perms: Permissions, object: AdminObject, op: AdminOp): boole
   return perms.has(`sys${object}${op}`);
 }
 
-export type AdminSection = "dashboard" | "accounts" | "groups" | "domains";
+export type AdminSection = "dashboard" | "accounts" | "groups" | "lists" | "domains";
 
 export type DashboardCard = "users" | "domains" | "pending" | "memory" | "received" | "sent";
 
@@ -62,6 +62,7 @@ export function adminSections(perms: Permissions): AdminSection[] {
   if (dashboardCards(perms).length) out.push("dashboard");
   // Groups are accounts to the server, behind the same two permissions.
   if (can(perms, "Account", "Query") && can(perms, "Account", "Get")) out.push("accounts", "groups");
+  if (can(perms, "MailingList", "Query") && can(perms, "MailingList", "Get")) out.push("lists");
   if (can(perms, "Domain", "Query") && can(perms, "Domain", "Get")) out.push("domains");
   return out;
 }

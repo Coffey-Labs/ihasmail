@@ -190,3 +190,31 @@ test("a group is created without a password, with Default roles", () => {
   assert.equal(list[0]!["@type"], "Group");
   assert.ok(!("memberGroupIds" in list[0]!));
 });
+
+/** Mailing lists: their own object, with a set of recipient addresses. */
+test("a list is created, found by text, and read back with its address", () => {
+  const dir = make("admin");
+  const r = dir.handlers["x:MailingList/set"]!({ create: { n: { name: "team", domainId: "d1", recipients: { "x@elsewhere.test": true }, aliases: {} } } }) as { created: Record<string, { id: string }> };
+  const id = r.created.n!.id;
+  const q = dir.handlers["x:MailingList/query"]!({ filter: { text: "team" }, calculateTotal: true }) as { ids: string[] };
+  assert.deepEqual(q.ids, [id]);
+  const { list } = dir.handlers["x:MailingList/get"]!({ ids: [id] }) as { list: Array<{ emailAddress: string; recipients: Record<string, boolean> }> };
+  assert.match(list[0]!.emailAddress, /^team@/);
+  assert.deepEqual(list[0]!.recipients, { "x@elsewhere.test": true });
+});
+
+test("a recipient pointer moves one address, and a bad one is refused", () => {
+  const dir = make("admin");
+  dir.handlers["x:MailingList/set"]!({ update: { l2: { "recipients/new@elsewhere.test": true, "recipients/ada@example.org": null } } });
+  const read = () => (dir.handlers["x:MailingList/get"]!({ ids: ["l2"] }) as { list: Array<{ recipients: Record<string, boolean> }> }).list[0]!.recipients;
+  assert.deepEqual(Object.keys(read()).sort(), ["chair@elsewhere.test", "new@elsewhere.test"]);
+  const bad = dir.handlers["x:MailingList/set"]!({ update: { l2: { "recipients/not-an-address": true } } }) as { notUpdated?: Record<string, { type: string }> };
+  assert.equal(bad.notUpdated?.l2?.type, "invalidPatch");
+});
+
+test("a list's address cannot be one an account already has, and a role without the permission is refused", () => {
+  const dir = make("admin");
+  const clash = dir.handlers["x:MailingList/set"]!({ create: { n: { name: "demo", domainId: "d1" } } }) as { notCreated?: Record<string, { type: string }> };
+  assert.equal(clash.notCreated?.n?.type, "primaryKeyViolation");
+  assert.throws(() => make("helpdesk").handlers["x:MailingList/query"]!({}), (e: Refused) => e.type === "forbidden");
+});
