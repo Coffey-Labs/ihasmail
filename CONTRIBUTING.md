@@ -1,6 +1,6 @@
 # Contributing to ihasmail
 
-Thanks for your interest in contributing to **ihasmail** — a Gmail-style, JMAP-only webmail client for [Stalwart Mail Server](https://stalw.art/). Contributions of all kinds are welcome: bug reports, feature requests, code, documentation, and testing.
+Thanks for your interest in contributing to **ihasmail** — an immutable, JMAP-only webmail client for [Stalwart Mail Server](https://stalw.art/). Contributions of all kinds are welcome: bug reports, feature requests, code, documentation, and testing.
 
 ## Code of Conduct
 
@@ -30,7 +30,7 @@ Before opening a new issue, please search [existing issues](https://github.com/C
 Open an issue describing:
 
 - The problem you're trying to solve (not just the solution)
-- How it fits with ihasmail's JMAP-only, Gmail-style design philosophy
+- How it fits with ihasmail's JMAP-only, nothing-to-persist design
 - Any relevant JMAP RFC references (RFC 8620, RFC 8621) if the feature touches protocol behavior
 
 For larger changes, please open an issue to discuss the approach **before** submitting a pull request — this saves everyone time if the direction needs adjusting.
@@ -122,9 +122,82 @@ examples in `web/src/views/*/__tests__/`.
    git clone https://github.com/YOUR-USERNAME/ihasmail.git
    cd ihasmail
    ```
-2. Point your local instance at a running Stalwart Mail Server (a test/dev instance is strongly recommended — do not develop against a production mailbox).
-3. Follow the setup instructions in the repository's `README.md` for installing dependencies and running the app locally.
+2. Point your local instance at a running Stalwart Mail Server (a test/dev instance is strongly recommended — do not develop against a production mailbox), or use the built-in mock below.
+3. Install and run, as below.
 4. Verify your changes don't break existing JMAP calls by exercising core flows: login, list/read mail, send, search, and folder/label operations.
+
+Requirements: Node ≥ 20.19 (26 recommended), npm ≥ 10.
+
+```bash
+npm install
+
+npm run dev            # real Stalwart (STALWART_URL in .env) — server :8080, Vite :5173
+npm run dev:mock       # built-in mock Stalwart (demo@example.com / demo), mock on :8788
+npm run dev:mock:no-future-release   # mock that advertises FUTURERELEASE and drops every hold
+
+npm run typecheck      # tsc for both packages
+npm test               # vitest (web) + node:test (server)
+npm run build          # web/dist + server/dist
+npm start              # serve the production build
+```
+
+Open http://localhost:5173 in dev, or http://localhost:8080 for the production
+build.
+
+#### Architecture
+
+```
+browser  ──(same-origin /api/*)──►  ihasmail server (Node + Hono)  ──(JMAP over HTTPS)──►  Stalwart
+  React SPA                           • session cookie ⇄ Basic auth
+  JMAP client + stores                • /api/jmap, /api/blob, /api/upload, /api/events (SSE), /api/image
+```
+
+- `web/` — Vite + React 19 + TypeScript SPA. `src/jmap` (client, push, types), `src/store` (zustand: session, mail, compose, contacts, calendar, files, sieve, settings), `src/views`, `src/lib` (sanitiser, search parser, Sieve codec, locale-aware dates, vCard, …).
+- `server/` — Node/Hono backend: authenticates against Stalwart's JMAP session endpoint, seals the credentials with a key derived from the cookie secret, proxies JMAP/blob/SSE, serves the SPA under a strict CSP. `src/mock/` is an in-memory fake Stalwart for development and demos.
+
+Capabilities used: `core`, `mail`, `submission`, `vacationresponse`, `sieve`,
+`contacts`(+`parse`), `calendars`(+`parse`), `principals`(+`availability`),
+`quota`, `blob`, `filenode`, EventSource push, plus Stalwart's own
+`urn:stalwart:jmap`. Features degrade gracefully when one is missing.
+
+#### The mock
+
+An in-memory fake Stalwart 0.16 — enough JMAP to develop and demo against
+without a real mailbox. It reproduces the things a naive fake would get wrong,
+because each cost a live debugging session: `urn:stalwart:jmap` advertised
+**per-account** rather than session-level, identity signatures capped at 2047
+**bytes**, and `CalendarEvent/set` speaking Stalwart's vocabulary rather than
+RFC 8984's.
+
+| Switch | What it does |
+| --- | --- |
+| `MOCK_NO_FUTURE_RELEASE=1` | Advertises FUTURERELEASE, then drops every hold |
+| `MOCK_NO_REGISTRY=1` | Omits the Stalwart capability, so the sign-in refusal can be tested |
+| `MOCK_NO_SCHEDULING_SEND=1` | Refuses a calendar write that asks for scheduling messages, as for an account without that permission |
+| `MOCK_ROLE` | Who the demo user is for Administration: `admin` (the default), `tenant-admin`, `helpdesk` or `user` |
+| `MOCK_METRICS=off` | Refuses the dashboard's metric history, as Community does |
+| `MOCK_EDITION=enterprise` | Reports Enterprise, which Tenants needs |
+
+It tracks the current Stalwart release rather than 0.16 in general, and each
+behaviour is confirmed against a real server before it is copied here — the
+comments say which version and on what date. Where a release changes something
+a client can see, the mock changes with it, and the test that pinned the old
+behaviour is rewritten rather than deleted, so the reversal stays on the record.
+
+#### Version numbers
+
+`2026.8.30+pr129` is the date of the commit a build came from and the pull
+request that commit arrived through; a commit that did not come through one
+carries its short SHA instead (`2026.8.30+g1fa6578`). It is worked out from git
+at build time — nothing writes a version into the tree, and `package.json` stays
+at `0.0.0`. `node scripts/version.mjs` prints it for the current checkout.
+
+The PR number sits after the `+` as build metadata because it records where a
+build came from, not how new it is. The version says nothing about Stalwart on
+purpose: what a build needs from the server is stated in the README badge and
+in [KNOWN-ISSUES.md](KNOWN-ISSUES.md). Building an image with the version on it,
+and the single-host `deploy.example.sh`, are covered in
+[Installing](https://docs.ihasmail.org/install/).
 
 ## Review Process
 
