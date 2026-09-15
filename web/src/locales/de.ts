@@ -1017,6 +1017,8 @@ export const catalog: Catalog = {
     "folder": "Ordner",
     "“{name}” moved into “{parent}”": "„{name}“ wurde nach „{parent}“ verschoben",
     "“{name}” moved to the top level": "„{name}“ wurde auf die oberste Ebene verschoben",
+    "Move “{name}” to…": "„{name}“ verschieben nach…",
+    "Top level": "Oberste Ebene",
     "Could not move “{name}”: {reason}": "„{name}“ konnte nicht verschoben werden: {reason}",
     "Delete “{name}”?": "„{name}“ löschen?",
     "Rename folder": "Ordner umbenennen",

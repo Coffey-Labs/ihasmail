@@ -51,6 +51,21 @@ export function canDropFolder(mailboxes: Record<Id, Mailbox>, draggedId: Id, tar
   return !descendantIds(mailboxes, draggedId).has(targetId);
 }
 
+/**
+ * Whether `id` may be moved under `targetId` (null: the top level) from the
+ * folder picker.
+ *
+ * Stricter than a drop, because the picker lists every folder at once rather
+ * than letting the server refuse one drag: moving needs `mayRename` on the
+ * folder itself -- RFC 8621 folds reparenting into that right -- and
+ * `mayCreateChild` on the destination. Both only ever say no on shared mail.
+ */
+export function canMoveFolderTo(mailboxes: Record<Id, Mailbox>, id: Id, targetId: Id | null): boolean {
+  if (!mailboxes[id]?.myRights.mayRename) return false;
+  if (!canDropFolder(mailboxes, id, targetId)) return false;
+  return targetId === null || Boolean(mailboxes[targetId]?.myRights.mayCreateChild);
+}
+
 /** The colour chosen for a folder, if any. Ids are used, so a rename keeps it. */
 export function folderColor(colors: Record<string, string>, id: Id): string | null {
   return colors[id] ?? null;

@@ -942,6 +942,8 @@ export const catalog: Catalog = {
     "folder": "dossier",
     "“{name}” moved into “{parent}”": "« {name} » a été déplacé dans « {parent} »",
     "“{name}” moved to the top level": "« {name} » a été déplacé au niveau supérieur",
+    "Move “{name}” to…": "Déplacer « {name} » vers…",
+    "Top level": "Niveau supérieur",
     "Could not move “{name}”: {reason}": "Impossible de déplacer « {name} » : {reason}",
     "Delete “{name}”?": "Supprimer « {name} » ?",
     "Rename folder": "Renommer le dossier",

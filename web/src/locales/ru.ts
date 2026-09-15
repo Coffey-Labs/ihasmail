@@ -939,6 +939,8 @@ export const catalog: Catalog = {
     "folder": "папка",
     "“{name}” moved into “{parent}”": "«{name}» перемещена в «{parent}»",
     "“{name}” moved to the top level": "«{name}» перемещена на верхний уровень",
+    "Move “{name}” to…": "Переместить «{name}» в…",
+    "Top level": "Верхний уровень",
     "Could not move “{name}”: {reason}": "Не удалось переместить «{name}»: {reason}",
     "Delete “{name}”?": "Удалить «{name}»?",
     "Rename folder": "Переименовать папку",

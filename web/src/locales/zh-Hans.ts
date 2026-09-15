@@ -997,6 +997,8 @@ export const catalog: Catalog = {
     "folder": "文件夹",
     "“{name}” moved into “{parent}”": "「{name}」已移入「{parent}」",
     "“{name}” moved to the top level": "「{name}」已移至顶层",
+    "Move “{name}” to…": "将「{name}」移动到…",
+    "Top level": "顶层",
     "Could not move “{name}”: {reason}": "无法移动「{name}」：{reason}",
     "Delete “{name}”?": "删除「{name}」？",
     "Rename folder": "重命名文件夹",

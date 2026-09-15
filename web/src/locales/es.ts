@@ -937,6 +937,8 @@ export const catalog: Catalog = {
     "folder": "carpeta",
     "“{name}” moved into “{parent}”": "«{name}» se ha movido a «{parent}»",
     "“{name}” moved to the top level": "«{name}» se ha movido al nivel superior",
+    "Move “{name}” to…": "Mover «{name}» a…",
+    "Top level": "Nivel superior",
     "Could not move “{name}”: {reason}": "No se ha podido mover «{name}»: {reason}",
     "Delete “{name}”?": "¿Eliminar «{name}»?",
     "Rename folder": "Cambiar el nombre de la carpeta",
