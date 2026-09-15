@@ -403,13 +403,14 @@ without a real mailbox. It reproduces the things a naive fake would get wrong,
 because each cost a live debugging session: `urn:stalwart:jmap` advertised
 **per-account** rather than session-level, identity signatures capped at 2047
 **bytes**, and `CalendarEvent/set` speaking Stalwart's vocabulary rather than
-RFC 8984's. Five switches: `MOCK_NO_FUTURE_RELEASE=1` advertises FUTURERELEASE
+RFC 8984's. Six switches: `MOCK_NO_FUTURE_RELEASE=1` advertises FUTURERELEASE
 and then drops every hold; `MOCK_NO_REGISTRY=1` omits the Stalwart capability so
 the sign-in refusal can be tested; and `MOCK_NO_SCHEDULING_SEND=1` refuses a
 calendar write that asks for scheduling messages, the way an account without
 that permission is refused; `MOCK_ROLE` decides who the demo user is for
 Administration — `admin` (the default), `tenant-admin`, `helpdesk` or `user`;
-and `MOCK_METRICS=off` refuses the dashboard's metric history, as Community does.
+`MOCK_METRICS=off` refuses the dashboard's metric history, as Community does;
+and `MOCK_EDITION=enterprise` reports Enterprise, which Tenants needs.
 
 It tracks the current release rather than 0.16 in general, and each behaviour
 is confirmed against a real server before it is copied here — the comments say

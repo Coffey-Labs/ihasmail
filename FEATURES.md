@@ -1264,9 +1264,11 @@ Stalwart shows the server's English until it is translated.
 
 A tenant is a separate organisation on the same server — its own people,
 domains and limits, and an administrator who manages only what is in it. It is
-a Stalwart Enterprise feature: on a server that does not report Enterprise the
-page says that anyone inside a tenant has only an ordinary user's permissions.
-For a role with `sysTenantQuery` and `sysTenantGet`, under Access:
+a Stalwart Enterprise feature. On a server that does not report Enterprise — or
+reports no edition at all — the page is only a notice that anyone inside a
+tenant has only an ordinary user's permissions: no list, no search, nothing to
+create. On Enterprise, for a role with `sysTenantQuery` and `sysTenantGet`,
+under Access:
 
 - **List and search** tenants, with each one's storage and account limit.
 - **Create and edit** a tenant's name, logo (an https address, drawn through the
@@ -1815,7 +1817,8 @@ demo user is: `admin` (the default), `tenant-admin` (the queue but not the
 history), `helpdesk` — a custom role that may view and edit accounts but not
 create or delete them, and read domains — or `user`, who is not offered the
 menu at all. `MOCK_METRICS=off` refuses the history the way a Community server
-does. Two mailing lists round it out.
+does, and `MOCK_EDITION=enterprise` reports Enterprise so Tenants can be
+worked on (the default, `oss`, shows only its notice). Two mailing lists round it out.
 
 ---
 

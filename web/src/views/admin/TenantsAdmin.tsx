@@ -18,14 +18,33 @@ const PAGE_SIZE = 50;
  * Tenants: separate organisations on one server, each with its own people,
  * domains and limits.
  *
- * Shown to whoever may read them, whatever the edition says -- the edition is a
- * licence claim, not an authority -- but on a server that does not report
- * Enterprise the page says what that means for the people inside one.
+ * The section is offered to whoever may read tenants, but on a server that does
+ * not report Enterprise the page is only the notice: tenants there hold nobody
+ * to anything beyond an ordinary user's permissions, so there is nothing worth
+ * creating or listing. A server that reports no edition at all counts as not
+ * Enterprise.
  */
 export function TenantsAdmin({ selectedId }: { selectedId?: string }) {
+  const edition = useSession((s) => s.session?.ihasmail?.server?.edition ?? null);
+  if (edition !== "enterprise") {
+    return (
+      <div>
+        <div className="admin-head">
+          <div className="grow">
+            <h1>{t("Tenants")}</h1>
+            <p className="lead">{t("Separate organisations on one server, each with its own people, domains and limits.")}</p>
+          </div>
+        </div>
+        <p className="admin-notice warn">{t("Tenants are a Stalwart Enterprise feature. This server does not report Enterprise, so anyone inside a tenant has only an ordinary user's permissions.")}</p>
+      </div>
+    );
+  }
+  return <EnterpriseTenants selectedId={selectedId} />;
+}
+
+function EnterpriseTenants({ selectedId }: { selectedId?: string }) {
   const [, navigate] = useLocation();
   const perms = usePermissions();
-  const edition = useSession((s) => s.session?.ihasmail?.server?.edition ?? null);
   const [text, setText] = useState("");
   const [query, setQuery] = useState("");
   const [position, setPosition] = useState(0);
@@ -99,10 +118,6 @@ export function TenantsAdmin({ selectedId }: { selectedId?: string }) {
           </button>
         )}
       </div>
-
-      {edition !== "enterprise" && (
-        <p className="admin-notice warn">{t("Tenants are a Stalwart Enterprise feature. This server does not report Enterprise, so anyone inside a tenant has only an ordinary user's permissions.")}</p>
-      )}
 
       <div className="admin-toolbar">
         <label className="admin-search">
