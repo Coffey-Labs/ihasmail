@@ -147,3 +147,46 @@ test("helpdesk may count domains, which is what the demo's helpdesk may do", () 
   assert.ok(permissionsFor("helpdesk").includes("sysDomainQuery"));
   assert.ok(!permissionsFor("helpdesk").includes("sysMetricQuery"));
 });
+
+/** Groups: accounts of type Group, whose members carry the membership. */
+test("a group's members are the users whose memberships name it", () => {
+  const dir = make("admin");
+  const r = dir.handlers["x:Account/query"]!({ filter: { "@type": "User", memberGroupIds: "g2" }, calculateTotal: true }) as { ids: string[]; total: number };
+  assert.ok(r.total >= 2);
+  const { list } = dir.handlers["x:Account/get"]!({ ids: r.ids, properties: ["memberGroupIds"] }) as { list: Array<{ memberGroupIds: Record<string, boolean> }> };
+  assert.ok(list.every((a) => a.memberGroupIds.g2));
+});
+
+test("a membership pointer moves only that membership, and a group cannot join one", () => {
+  const dir = make("admin");
+  const [ada] = (dir.handlers["x:Account/query"]!({ filter: { "@type": "User", text: "lovelace" } }) as { ids: string[] }).ids;
+  dir.handlers["x:Account/set"]!({ update: { [ada!]: { "memberGroupIds/g1": true } } });
+  const read = () => ((dir.handlers["x:Account/get"]!({ ids: [ada], properties: ["memberGroupIds"] }) as { list: Array<{ memberGroupIds: Record<string, boolean> }> }).list[0]!.memberGroupIds);
+  assert.deepEqual(Object.keys(read()).sort(), ["g1", "g2"]);
+  dir.handlers["x:Account/set"]!({ update: { [ada!]: { "memberGroupIds/g2": null } } });
+  assert.deepEqual(Object.keys(read()), ["g1"]);
+  const nested = dir.handlers["x:Account/set"]!({ update: { g1: { "memberGroupIds/g2": true } } }) as { notUpdated?: Record<string, { type: string }> };
+  assert.equal(nested.notUpdated?.g1?.type, "invalidProperties");
+  const bogus = dir.handlers["x:Account/set"]!({ update: { [ada!]: { "memberGroupIds/u1": true } } }) as { notUpdated?: Record<string, { type: string }> };
+  assert.equal(bogus.notUpdated?.[ada!]?.type, "invalidForeignKey");
+});
+
+test("a group is kept while members name it, and goes once they are out", () => {
+  const dir = make("admin");
+  const refused = dir.handlers["x:Account/set"]!({ destroy: ["g2"] }) as { notDestroyed?: Record<string, { type: string; linkedObjects: Array<{ object: string }> }> };
+  assert.equal(refused.notDestroyed?.g2?.type, "objectIsLinked");
+  assert.ok(refused.notDestroyed!.g2!.linkedObjects.every((l) => l.object === "Account"));
+  const members = (dir.handlers["x:Account/query"]!({ filter: { "@type": "User", memberGroupIds: "g2" } }) as { ids: string[] }).ids;
+  dir.handlers["x:Account/set"]!({ update: Object.fromEntries(members.map((id) => [id, { "memberGroupIds/g2": null }])) });
+  const done = dir.handlers["x:Account/set"]!({ destroy: ["g2"] }) as { destroyed: string[] };
+  assert.deepEqual(done.destroyed, ["g2"]);
+});
+
+test("a group is created without a password, with Default roles", () => {
+  const dir = make("admin");
+  const r = dir.handlers["x:Account/set"]!({ create: { n: { "@type": "Group", name: "sales", domainId: "d1", roles: { "@type": "Default" }, permissions: { "@type": "Inherit" }, quotas: {}, aliases: {} } } }) as { created: Record<string, { id: string }> };
+  const id = r.created.n!.id;
+  const { list } = dir.handlers["x:Account/get"]!({ ids: [id] }) as { list: Array<Record<string, unknown>> };
+  assert.equal(list[0]!["@type"], "Group");
+  assert.ok(!("memberGroupIds" in list[0]!));
+});

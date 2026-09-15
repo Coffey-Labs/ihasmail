@@ -1182,6 +1182,33 @@ in as it. ihasmail shows any account that outranks the viewer read-only, and
 counts a role it cannot read as outranking rather than not. Nobody can change
 their own role or delete the account they are signed in with.
 
+## Groups
+
+A group is a shared address and mailbox, and the people who share it. To
+Stalwart it is an account whose type is Group, so it takes the same
+permissions as Accounts (`sysAccountQuery`, `sysAccountGet`) and sits beside
+it in the menu.
+
+- **List and search** by name or address, with each group's member count.
+- **Create** a group on a domain, with a display name, a role and a storage
+  limit; **edit** those and its other addresses, which save together.
+- **Members** are added by searching for a person and removed one at a time,
+  and each change applies straight away. Stalwart keeps a membership on the
+  member rather than the group, so every change is a one-line update to that
+  person's account that leaves their other groups alone. Nobody can add or
+  remove themselves.
+- **What a group gives its members** is what has been shared with it — its
+  mailbox, a calendar — not its permissions: a person's permissions come from
+  their own role. The group's own role says what the group may do, and only
+  roles whose permissions the viewer holds are offered, as for accounts.
+- **Delete** asks for the address to be typed. Stalwart keeps anything that
+  something else still names, and every member's account names its groups, so
+  deleting takes the members out first and then deletes the group — the same
+  order a domain's keys go before the domain. A role that cannot change the
+  members' accounts is not offered a delete it could only half finish.
+
+Groups do not contain groups; Stalwart has no nesting.
+
 ## Domains
 
 For a role that can read domains (`sysDomainQuery`, `sysDomainGet`):
@@ -1240,8 +1267,8 @@ session information already kept for thirty minutes — so a role granted or
 taken away shows in the menu at the next sign-in or within half an hour, and in
 the meantime Stalwart refuses what is no longer allowed.
 
-The dashboard, accounts and domains are the first three sections. Groups,
-mailing lists, roles and tenants are Stalwart capabilities the same screen is
+The dashboard, accounts, groups and domains are the sections so far. Mailing
+lists, roles and tenants are Stalwart capabilities the same screen is
 laid out to take. Beyond the dashboard's counts, managing queues, logs and
 server settings is deliberately out of scope.
 

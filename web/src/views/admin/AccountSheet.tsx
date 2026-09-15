@@ -348,13 +348,15 @@ function PasswordReset({ account, disabled, onDone }: { account: DirectoryAccoun
   );
 }
 
-function Aliases({ aliases, setAliases, editable, domains, defaultDomain, domainName }: {
+export function Aliases({ aliases, setAliases, editable, domains, defaultDomain, domainName, hint }: {
   aliases: EmailAlias[];
   setAliases: (a: EmailAlias[]) => void;
   editable: boolean;
   domains: { id: string; name: string }[];
   defaultDomain: string;
   domainName: (id: string) => string;
+  /** What mail to these addresses does, when it is not reaching this account. */
+  hint?: string;
 }) {
   const [local, setLocal] = useState("");
   const [domain, setDomain] = useState(defaultDomain);
@@ -396,7 +398,7 @@ function Aliases({ aliases, setAliases, editable, domains, defaultDomain, domain
           </button>
         </div>
       )}
-      {editable && <p className="hint">{t("Mail to these addresses is delivered to this account. Changes apply when you save.")}</p>}
+      {editable && <p className="hint">{hint ?? t("Mail to these addresses is delivered to this account. Changes apply when you save.")}</p>}
     </div>
   );
 }

@@ -164,8 +164,9 @@ export function createDirectory(opts: Options) {
     accounts.push(row);
     return row;
   };
+  // A group's roles are Default or Custom, not a person's User or Admin.
   const group = (id: string, name: string, description: string) =>
-    accounts.push({ id, "@type": "Group", name, domainId: "d1", description, memberTenantId: null, roles: { "@type": "User" }, permissions: { "@type": "Inherit" }, quotas: {}, usedDiskQuota: 0, aliases: {} });
+    accounts.push({ id, "@type": "Group", name, domainId: "d1", description, memberTenantId: null, roles: { "@type": "Default" }, permissions: { "@type": "Inherit" }, quotas: {}, usedDiskQuota: 0, aliases: {}, createdAt: "2026-08-01T09:00:00Z" });
 
   group("g1", "support", "Support");
   group("g2", "office", "Office");
@@ -301,7 +302,8 @@ export function createDirectory(opts: Options) {
   const handlers: Record<string, (a: Obj) => Obj> = {
     "x:Account/get": get(accounts, "sysAccountGet"),
     "x:Account/query": query(() => accounts, "sysAccountQuery", ["text", "@type", "domainId", "externalId", "memberGroupIds", "memberTenantId", "name"], (o, f) =>
-      (f["@type"] === undefined || o["@type"] === f["@type"]) && (f.domainId === undefined || o.domainId === f.domainId) && matchText(o, f.text) && matchText(o, f.name)),
+      (f["@type"] === undefined || o["@type"] === f["@type"]) && (f.domainId === undefined || o.domainId === f.domainId) &&
+      (f.memberGroupIds === undefined || Boolean((o.memberGroupIds as Obj | undefined)?.[f.memberGroupIds as string])) && matchText(o, f.text) && matchText(o, f.name)),
     "x:Account/set": (a) => {
       const created: Obj = {};
       const notCreated: Obj = {};
@@ -321,7 +323,7 @@ export function createDirectory(opts: Options) {
         const weak = password ? weakPassword(password.secret) : null;
         if (weak) { notCreated[cid] = setError("invalidProperties", weak, ["secret"]); continue; }
         const id = `u${counter++}`;
-        accounts.push({ memberGroupIds: {}, aliases: {}, quotas: {}, permissions: { "@type": "Inherit" }, ...o, id, memberTenantId: null, usedDiskQuota: 0, createdAt: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"), locale: opts.locale, timeZone: null });
+        accounts.push({ ...(o["@type"] === "Group" ? {} : { memberGroupIds: {} }), aliases: {}, quotas: {}, permissions: { "@type": "Inherit" }, ...o, id, memberTenantId: null, usedDiskQuota: 0, createdAt: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"), locale: opts.locale, timeZone: null });
         created[cid] = { id, emailAddress: `${o.name}@${domainName(o.domainId)}` };
       }
       for (const [id, raw] of Object.entries((a.update as Obj) ?? {})) {
@@ -342,6 +344,11 @@ export function createDirectory(opts: Options) {
             if (weak) { failure = setError("invalidProperties", weak, ["secret"]); break; }
           }
           setPointer(next, path, value);
+        }
+        // Memberships name groups, and only a person has them: groups do not nest.
+        if (!failure && Object.keys(patch).some((p) => p === "memberGroupIds" || p.startsWith("memberGroupIds/"))) {
+          if (target["@type"] === "Group") failure = setError("invalidProperties", "Groups cannot be members of other groups.", ["memberGroupIds"]);
+          else if (Object.keys((next.memberGroupIds as Obj) ?? {}).some((g) => accounts.find((x) => x.id === g)?.["@type"] !== "Group")) failure = setError("invalidForeignKey", "Group does not exist.", ["memberGroupIds"]);
         }
         if (!failure && ("roles" in patch || "permissions" in patch)) {
           const refused = grantRefused(next.roles);
@@ -365,7 +372,10 @@ export function createDirectory(opts: Options) {
         const i = accounts.findIndex((x) => x.id === id);
         if (i < 0) { notDestroyed[id] = setError("notFound", "Account not found."); continue; }
         if (accounts[i]!["@type"] === "Group" && accounts.some((x) => (x.memberGroupIds as Obj | undefined)?.[id])) {
-          notDestroyed[id] = { ...setError("objectIsLinked", "Group still has members."), linkedObjects: {} };
+          // Every member's memberGroupIds names the group, which is a link the
+          // registry will not delete through; the shape is what a domain's
+          // DKIM keys produced on the live server.
+          notDestroyed[id] = { type: "objectIsLinked", objectId: id, linkedObjects: accounts.filter((x) => (x.memberGroupIds as Obj | undefined)?.[id]).map((x) => ({ object: "Account", id: x.id })) };
           continue;
         }
         accounts.splice(i, 1);
