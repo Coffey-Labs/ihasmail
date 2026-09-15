@@ -27,7 +27,7 @@
     "dev:mock:no-keyword-sort": "concurrently -n mock,server,web -c yellow,blue,magenta \"npm run mock:no-keyword-sort -w server\" \"STALWART_URL=http://127.0.0.1:8788 npm run dev -w server\" \"npm run dev -w web\""
   },
   "devDependencies": {
-    "concurrently": "^9.1.2",
+    "concurrently": "^10.0.5",
     "typescript": "^7.0.2",
     "typescript-ast": "npm:typescript@^5.9.3"
   }
