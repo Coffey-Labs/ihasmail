@@ -898,7 +898,7 @@ function sessionExtras(session: LiveSession, info: AccountInfo = { locale: null,
        */
       server: {
         edition: info.edition,
-        adminUrl: administrationAllowed(config.administration, session.remember) ? adminUrlFor(session.username) : null,
+        adminUrl: administrationAllowed(config.administration, session.remember) ? adminUrlFor(session.username, info.adminUrl ?? null) : null,
         /** SHOW_ENTERPRISE_NOTICES: say "Enterprise feature" on Enterprise too, as the demo does. */
         enterpriseNotices: config.showEnterpriseNotices,
       },

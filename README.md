@@ -215,11 +215,12 @@ installation that sets nothing else behaves exactly as it always has.
 ```
 
 [`stalwart-servers.example.json`](stalwart-servers.example.json) is that file
-with the rules written in it. A domain's value may also be an object that names
-where that server's own administration is, for the Administration dashboard's
-link — `{"url": "https://jmap.customer-b.test", "adminUrl": "https://admin.customer-b.test"}`.
-`STALWART_ADMIN_URL` is the same for the default server. A listed domain with no
-`adminUrl` gets no link rather than the default server's.
+with the rules written in it. The Administration dashboard links each administrator to
+their own server's administration, found from that server; a domain's value may
+also be an object that overrides it, for an administration that lives elsewhere —
+`{"url": "https://jmap.customer-b.test", "adminUrl": "https://admin.customer-b.test"}`.
+`STALWART_ADMIN_URL` is the same for the default server. A listed domain is never
+pointed at the default server's administration.
 
 A domain nobody listed — and a bare username, which Stalwart accepts and which
 has no domain at all — goes to `STALWART_URL`. **A listed domain never falls

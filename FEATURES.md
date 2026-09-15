@@ -1153,11 +1153,15 @@ so rows come out even: six are three over three, and fall to two and then one
 as the space narrows. **Refresh** reads everything again; nothing is polled.
 
 Below the cards, a line says where the rest is: detailed metrics, the delivery
-queue, logs and server settings are in Stalwart's own administration. It links
-there when the operator sets `STALWART_ADMIN_URL` — or, for a domain routed to
-another server, that server's `adminUrl` in the servers file — and is plain text
-otherwise, since the address ihasmail reaches Stalwart on is often not one a
-browser can open.
+queue, logs and server settings are in Stalwart's own administration, and it
+links there. The address is found rather than configured: the public host
+Stalwart advertises in its own session — the one people reach it at, even when
+ihasmail talks to it on a private address — and the prefix its web interface is
+installed under, read from its `x:Application` objects (`/admin` unless it was
+moved). A server whose web interface is disabled or moved away gets no link, and
+an administrator who may not read applications gets Stalwart's default `/admin`.
+`STALWART_ADMIN_URL`, or a servers file entry's `adminUrl`, overrides it for an
+administration that lives somewhere else.
 
 ## Accounts
 
@@ -1715,7 +1719,7 @@ wizard, because either would be state.
 | --- | --- | --- |
 | `STALWART_URL` | — | Where Stalwart is; the JMAP session is discovered at `/.well-known/jmap` |
 | `SHOW_ENTERPRISE_NOTICES` | `0` | Say an Enterprise-only section (Tenants) is Enterprise-only even when the server is Enterprise. For a demo that reports Enterprise to show those sections; a real installation leaves it off |
-| `STALWART_ADMIN_URL` | — | Where a browser opens Stalwart's own administration, linked from the Administration dashboard. Separate from `STALWART_URL`, which is often an address only this server can reach; unset, the dashboard names Stalwart's administration without a link |
+| `STALWART_ADMIN_URL` | found | Where a browser opens Stalwart's own administration, linked from the Administration dashboard. Unset, it is found: the host Stalwart advertises and its web interface's prefix. Set it only when the administration lives somewhere else |
 | `APP_SECRET` | — | Key material for sealing sessions. **Required in production** — the server refuses to start without it |
 | `HOST` / `PORT` | `0.0.0.0` / `8080` | Listen address |
 | `BASE_PATH` | — (the domain root) | Subpath to serve from, e.g. `/mail`. Must be set for the **build** as well as the run — see below |
