@@ -93,6 +93,11 @@ export function AccountSheet({ account, ctx, onClose, onChanged, onCreated, onDe
     if (!domainId && ctx.domains[0]) setDomainId(ctx.domains[0].id);
   }, [ctx.domains, domainId]);
 
+  // A new account starts in the tenant of the domain it is being made on.
+  useEffect(() => {
+    if (creating) setTenantId(ctx.domains.find((d) => d.id === domainId)?.memberTenantId ?? "");
+  }, [creating, domainId, ctx.domains]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape" && !document.querySelector(".dialog-backdrop")) onClose();
@@ -102,6 +107,13 @@ export function AccountSheet({ account, ctx, onClose, onChanged, onCreated, onDe
   }, [onClose]);
 
   const domainName = (id: string) => ctx.domains.find((d) => d.id === id)?.name ?? "";
+  /*
+   * Stalwart refuses an account in a tenant on a domain outside it (live,
+   * 2026-09-15: invalidForeignKey naming the domain), and allows one in no
+   * tenant on a tenant's domain. So the only tenant to offer is the domain's.
+   */
+  const domainTenant = ctx.domains.find((d) => d.id === (account?.domainId ?? domainId))?.memberTenantId ?? null;
+  const tenantName = (id: string) => ctx.tenants?.find((x) => x.id === id)?.name ?? id;
   const address = account?.emailAddress ?? `${name}@${domainName(domainId)}`;
 
   const roleOptions = useMemo(() => {
@@ -247,15 +259,19 @@ export function AccountSheet({ account, ctx, onClose, onChanged, onCreated, onDe
           {self ? t("You can't change your own role.") : t("Only roles whose permissions you hold yourself are offered. On an account inside a tenant, Administrator means administrator of that tenant.")}
         </p>
 
-        {ctx.tenants && (ctx.tenants.length > 0 || tenantId) && (
+        {ctx.tenants && (domainTenant || tenantId) && (
           <>
             <h3>{t("Tenant")}</h3>
             <select className="input admin-wide" aria-label={t("Tenant")} value={tenantId} disabled={!editable || self} onChange={(e) => setTenantId(e.target.value)}>
               <option value="">{t("No tenant")}</option>
-              {ctx.tenants.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}
-              {tenantId && !ctx.tenants.some((x) => x.id === tenantId) && <option value={tenantId}>{tenantId}</option>}
+              {domainTenant && <option value={domainTenant}>{tenantName(domainTenant)}</option>}
+              {tenantId && tenantId !== domainTenant && <option value={tenantId}>{tenantName(tenantId)}</option>}
             </select>
-            <p className="hint">{self ? t("You can't move your own account into a tenant.") : t("An account in a tenant is limited by the tenant's role and counts towards its limits, and Administrator means administrator of that tenant.")}</p>
+            <p className="hint">
+              {self
+                ? t("You can't move your own account into a tenant.")
+                : t("An account can be in the tenant its domain is in. In a tenant it is limited by the tenant's role and counts towards its limits, and Administrator means administrator of that tenant.")}
+            </p>
           </>
         )}
 

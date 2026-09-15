@@ -8,7 +8,8 @@ import type { DirectoryTenant } from "@/lib/adminTenants";
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const api = vi.hoisted(() => ({
-  counts: { accounts: 1, groups: 0, lists: 0, domains: 1, roles: 0 } as Record<string, number>,
+  counts: { accounts: 1, groups: 0, lists: 0, domains: 1, roles: 0, dkimKeys: 2 } as Record<string, number>,
+  onDomain: 0,
   updateTenant: vi.fn(async () => {}),
   setDomainTenant: vi.fn(async () => {}),
 }));
@@ -18,6 +19,7 @@ vi.mock("@/lib/adminTenants", async (original) => ({
   tenantDomains: vi.fn(async () => ({ inTenant: [{ id: "d3", name: "old-brand.example" }], unassigned: [{ id: "d4", name: "spare.example" }] })),
   updateTenant: api.updateTenant,
   setDomainTenant: api.setDomainTenant,
+  tenantAccountsOnDomain: vi.fn(async () => api.onDomain),
 }));
 
 const { TenantSheet } = await import("../TenantSheet");
@@ -49,7 +51,8 @@ describe("the tenant sheet", () => {
     root = createRoot(host);
     api.updateTenant.mockClear();
     api.setDomainTenant.mockClear();
-    api.counts = { accounts: 1, groups: 0, lists: 0, domains: 1, roles: 0 };
+    api.counts = { accounts: 1, groups: 0, lists: 0, domains: 1, roles: 0, dkimKeys: 2 };
+    api.onDomain = 0;
   });
   afterEach(async () => {
     await act(async () => root.unmount());
@@ -64,7 +67,7 @@ describe("the tenant sheet", () => {
   });
 
   it("offers the delete once it is empty", async () => {
-    api.counts = { accounts: 0, groups: 0, lists: 0, domains: 0, roles: 0 };
+    api.counts = { accounts: 0, groups: 0, lists: 0, domains: 0, roles: 0, dkimKeys: 0 };
     signIn(ALL);
     await render();
     expect(button(host, "Delete tenant…")?.disabled).toBe(false);
@@ -90,5 +93,32 @@ describe("the tenant sheet", () => {
     await render();
     expect(host.querySelector('select[aria-label="Domain to add"]')).toBeNull();
     expect(button(host, "Take old-brand.example out of the tenant")).toBeUndefined();
+  });
+});
+
+describe("taking a domain out of a tenant", () => {
+  let host: HTMLDivElement;
+  let root: Root;
+  beforeEach(() => {
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    api.setDomainTenant.mockClear();
+  });
+  afterEach(async () => {
+    await act(async () => root.unmount());
+    host.remove();
+  });
+
+  it("is refused while the tenant still has accounts on it, which Stalwart would strand", async () => {
+    api.onDomain = 2;
+    signIn(ALL);
+    await act(async () => {
+      root.render(<TenantSheet tenant={tenant} roles={new Map()} onClose={() => {}} onChanged={() => {}} onCreated={() => {}} onDeleted={() => {}} />);
+    });
+    await act(async () => {});
+    await act(async () => button(host, "Take old-brand.example out of the tenant")!.click());
+    expect(api.setDomainTenant).not.toHaveBeenCalled();
+    expect(host.querySelector(".admin-notice.error")?.textContent).toContain("2 accounts in this tenant are still on old-brand.example");
   });
 });

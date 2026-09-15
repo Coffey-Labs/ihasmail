@@ -231,6 +231,17 @@ export function createDirectory(opts: Options) {
     { id: "t1", name: "Acme Corp", logo: null, roles: { "@type": "Default" }, permissions: { "@type": "Inherit" }, quotas: { maxAccounts: 25, maxDomains: 2, maxDiskQuota: 50 * GIB }, createdAt: "2026-07-01T09:00:00Z" },
   ];
   const tenantUsage = (id: string) => accounts.filter((x) => x.memberTenantId === id).reduce((n, x) => n + Number(x.usedDiskQuota ?? 0), 0);
+  /**
+   * Something in a tenant has to be on a domain in that tenant; something in no
+   * tenant may be on anyone's domain. Both as the live server answered
+   * (2026-09-15), including the shape of the refusal.
+   */
+  const domainTenantRefused = (o: Obj): Obj | null => {
+    const tenant = o.memberTenantId ?? null;
+    const domain = domains.find((d) => d.id === o.domainId);
+    if (!tenant || !domain || (domain.memberTenantId ?? null) === tenant) return null;
+    return { type: "invalidForeignKey", objectId: { object: "Domain", id: domain.id } };
+  };
   /** Only an administrator outside every tenant may put things in one; Stalwart refuses anyone else. */
   const tenantRefused = (patch: Obj): Obj | null =>
     "memberTenantId" in patch && opts.role !== "admin" ? setError("invalidPatch", "Cannot modify memberTenantId property", ["memberTenantId"]) : null;
@@ -355,7 +366,7 @@ export function createDirectory(opts: Options) {
         const refused = grantRefused(o.roles);
         if (refused) { notCreated[cid] = setError("forbidden", refused); continue; }
         if (o.memberTenantId) {
-          const refusedTenant = tenantRefused(o);
+          const refusedTenant = tenantRefused(o) ?? domainTenantRefused(o);
           if (refusedTenant) { notCreated[cid] = refusedTenant; continue; }
         }
         const password = Object.values((o.credentials as Obj) ?? {})[0] as Obj | undefined;
@@ -389,6 +400,7 @@ export function createDirectory(opts: Options) {
           if (target["@type"] === "Group") failure = setError("invalidProperties", "Groups cannot be members of other groups.", ["memberGroupIds"]);
           else if (Object.keys((next.memberGroupIds as Obj) ?? {}).some((g) => accounts.find((x) => x.id === g)?.["@type"] !== "Group")) failure = setError("invalidForeignKey", "Group does not exist.", ["memberGroupIds"]);
         }
+        if (!failure && "memberTenantId" in patch) failure = domainTenantRefused(next);
         if (!failure && ("roles" in patch || "permissions" in patch)) {
           const refused = grantRefused(next.roles);
           if (refused) failure = setError("forbidden", refused);
@@ -477,7 +489,8 @@ export function createDirectory(opts: Options) {
       return { accountId: opts.accountId, oldState: "1", newState: "2", created, updated, destroyed, ...(Object.keys(notCreated).length ? { notCreated } : {}), ...(Object.keys(notUpdated).length ? { notUpdated } : {}), ...(Object.keys(notDestroyed).length ? { notDestroyed } : {}) };
     },
     "x:DkimSignature/get": get(dkimKeys, "sysDkimSignatureGet"),
-    "x:DkimSignature/query": query(() => dkimKeys, "sysDkimSignatureQuery", ["domainId", "memberTenantId"], (o, f) => f.domainId === undefined || o.domainId === f.domainId),
+    "x:DkimSignature/query": query(() => dkimKeys, "sysDkimSignatureQuery", ["domainId", "memberTenantId"], (o, f) =>
+      (f.domainId === undefined || o.domainId === f.domainId) && (f.memberTenantId === undefined || (o.memberTenantId ?? null) === f.memberTenantId)),
     "x:DkimSignature/set": (a) => {
       const destroyed: string[] = [];
       for (const id of (a.destroy as string[]) ?? []) {
@@ -526,10 +539,10 @@ export function createDirectory(opts: Options) {
       for (const [cid, raw] of Object.entries((a.create as Obj) ?? {})) {
         demand("sysMailingListCreate");
         const o: Obj = { recipients: {}, aliases: {}, description: null, ...(raw as Obj) };
-        const failure = check(o);
+        const failure = check(o) ?? (o.memberTenantId ? (tenantRefused(o) ?? domainTenantRefused(o)) : null);
         if (failure) { notCreated[cid] = failure; continue; }
         const id = `l${counter++}`;
-        lists.push({ ...o, id, memberTenantId: null });
+        lists.push({ memberTenantId: null, ...o, id });
         created[cid] = { id, emailAddress: `${o.name}@${domainName(o.domainId)}` };
       }
       for (const [id, raw] of Object.entries((a.update as Obj) ?? {})) {

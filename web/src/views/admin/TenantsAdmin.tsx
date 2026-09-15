@@ -35,7 +35,7 @@ export function TenantsAdmin({ selectedId }: { selectedId?: string }) {
             <p className="lead">{t("Separate organisations on one server, each with its own people, domains and limits.")}</p>
           </div>
         </div>
-        <p className="admin-notice warn">{t("Tenants are a Stalwart Enterprise feature. This server does not report Enterprise, so anyone inside a tenant has only an ordinary user's permissions.")}</p>
+        <p className="admin-notice warn">{t("Tenants are a Stalwart Enterprise feature.")}</p>
       </div>
     );
   }

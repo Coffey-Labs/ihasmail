@@ -47,6 +47,8 @@ export const TENANT_MEMBERS = [
   { key: "lists", method: "x:MailingList/query", filter: {}, quota: "maxMailingLists" },
   { key: "domains", method: "x:Domain/query", filter: {}, quota: "maxDomains" },
   { key: "roles", method: "x:Role/query", filter: {}, quota: "maxRoles" },
+  // A domain's keys join the tenant it was created in, and keep it there.
+  { key: "dkimKeys", method: "x:DkimSignature/query", filter: {}, quota: "maxDkimKeys" },
 ] as const;
 export type TenantMemberKind = (typeof TENANT_MEMBERS)[number]["key"];
 
@@ -116,6 +118,18 @@ export async function tenantDomains(tenantId: string): Promise<{ inTenant: Array
     inTenant: sorted.filter((d) => d.memberTenantId === tenantId).map(({ id, name }) => ({ id, name })),
     unassigned: sorted.filter((d) => !d.memberTenantId).map(({ id, name }) => ({ id, name })),
   };
+}
+
+/**
+ * How many of a tenant's accounts and groups are on a domain.
+ *
+ * Stalwart lets a domain leave a tenant while the tenant still has accounts on
+ * it (live, 2026-09-15), leaving them in a tenant on a domain outside it --
+ * which it refuses to create. The panel asks this before it offers the move.
+ */
+export async function tenantAccountsOnDomain(tenantId: string, domainId: string): Promise<number> {
+  const res = await client.call<{ total?: number }>("x:Account/query", { filter: { domainId, memberTenantId: tenantId }, limit: 0, calculateTotal: true });
+  return res.total ?? 0;
 }
 
 /** Put a domain in a tenant, or take it out with null. */

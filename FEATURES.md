@@ -1278,14 +1278,18 @@ under Access:
 - **The tenant's role** is the most anyone inside it can be allowed: their own
   roles are cut down to it.
 - **What it holds** is counted, each against its limit. Stalwart keeps no list
-  on the tenant; each account, group, domain, list and role names its tenant,
-  so the counts are queries for those.
+  on the tenant; each account, group, domain, list, role and DKIM key names its
+  tenant, so the counts are queries for those. A domain created in a tenant
+  brings its keys with it.
 - **Domains** are added to a tenant, or taken out, from its panel. Only a domain
   in no tenant can be added, and the accounts already on it stay where they
-  are.
+  are. A domain comes out only once none of the tenant's accounts are on it —
+  Stalwart would allow it, and strand them.
 - **An account's tenant** is chosen on the account's own panel, which is how a
   tenant gets its first administrator: an Administrator inside a tenant
-  administers that tenant.
+  administers that tenant. Stalwart puts something in a tenant only on a domain
+  in that tenant, so the choice is between no tenant and the domain's own, and
+  a new account starts in its domain's tenant.
 - **Delete** is offered once the tenant holds nothing.
 
 Only an administrator outside every tenant can put anything into one; Stalwart

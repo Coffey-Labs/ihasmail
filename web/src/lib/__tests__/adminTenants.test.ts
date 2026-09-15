@@ -21,7 +21,7 @@ describe("what a tenant holds", () => {
       if (method === "x:Role/query") throw new Error("forbidden");
       return { total: method === "x:Account/query" && f["@type"] === "Group" ? 2 : 1 };
     });
-    expect(await countTenantMembers("t1")).toEqual({ accounts: 1, groups: 2, lists: 1, domains: 1 });
+    expect(await countTenantMembers("t1")).toEqual({ accounts: 1, groups: 2, lists: 1, domains: 1, dkimKeys: 1 });
     expect(call).toHaveBeenCalledWith("x:Account/query", { filter: { "@type": "User", memberTenantId: "t1" }, limit: 0, calculateTotal: true });
     expect(call).toHaveBeenCalledWith("x:Domain/query", { filter: { memberTenantId: "t1" }, limit: 0, calculateTotal: true });
     call.mockRestore();

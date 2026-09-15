@@ -63,6 +63,8 @@ export interface DirectoryAccount {
 export interface DirectoryDomain {
   id: string;
   name: string;
+  /** The tenant the domain is in: an account can be in a tenant only on one of its domains. */
+  memberTenantId?: string | null;
 }
 
 const ACCOUNT_PROPERTIES = [
@@ -121,7 +123,7 @@ async function all<T>(object: "Domain" | "Role", properties: string[]): Promise<
   return res.list;
 }
 
-export const listDomains = () => all<DirectoryDomain>("Domain", ["name"]);
+export const listDomains = () => all<DirectoryDomain>("Domain", ["name", "memberTenantId"]);
 export const listRoles = () => all<RoleDef>("Role", ["description", "enabledPermissions", "roleIds"]);
 
 export async function listGroups(): Promise<DirectoryAccount[]> {

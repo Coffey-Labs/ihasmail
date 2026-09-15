@@ -92,3 +92,45 @@ describe("the account sheet", () => {
     expect(button(host, "Delete account")?.disabled).toBe(true);
   });
 });
+
+/**
+ * An account in a tenant has to be on a domain in that tenant -- the live
+ * server refuses anything else -- so the only tenant offered is the domain's.
+ */
+describe("an account's tenant", () => {
+  let host: HTMLDivElement;
+  let root: Root;
+  const tenantCtx: DirectoryContext = {
+    ...ctx,
+    domains: [{ id: "d1", name: "example.com", memberTenantId: null }, { id: "d3", name: "acme.example", memberTenantId: "t1" }],
+    tenants: [{ id: "t1", name: "Acme Corp" }, { id: "t2", name: "Globex" }],
+  };
+  const render = async (a: DirectoryAccount) => {
+    const { hook } = memoryLocation({ path: `/admin/accounts/${a.id}` });
+    await act(async () => {
+      root.render(<Router hook={hook}><AccountSheet account={a} ctx={tenantCtx} onClose={() => {}} onChanged={() => {}} onCreated={() => {}} onDeleted={() => {}} /></Router>);
+    });
+  };
+  beforeEach(() => {
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+  });
+  afterEach(async () => {
+    await act(async () => root.unmount());
+    host.remove();
+  });
+
+  it("offers only the tenant its domain is in", async () => {
+    signIn([...HELPDESK, "sysTenantGet", "sysTenantQuery"]);
+    await render(account({ domainId: "d3", memberTenantId: "t1", emailAddress: "wile@acme.example" }));
+    const options = [...host.querySelectorAll<HTMLOptionElement>('select[aria-label="Tenant"] option')].map((o) => o.textContent);
+    expect(options).toEqual(["No tenant", "Acme Corp"]);
+  });
+
+  it("offers no choice at all on a domain in no tenant", async () => {
+    signIn([...HELPDESK, "sysTenantGet", "sysTenantQuery"]);
+    await render(account({ domainId: "d1" }));
+    expect(host.querySelector('select[aria-label="Tenant"]')).toBeNull();
+  });
+});

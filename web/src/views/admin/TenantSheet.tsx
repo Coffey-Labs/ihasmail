@@ -10,6 +10,7 @@ import {
   drawableLogo,
   quotasPatch,
   setDomainTenant,
+  tenantAccountsOnDomain,
   tenantDomains,
   updateTenant,
   TENANT_MEMBERS,
@@ -21,7 +22,7 @@ import {
 } from "@/lib/adminTenants";
 import { formatSize } from "@/lib/format";
 import { proxiedImageUrl } from "@/lib/html";
-import { t } from "@/lib/i18n";
+import { plural, t } from "@/lib/i18n";
 import { Dialog } from "@/ui/dialog";
 import { Spinner } from "@/ui/misc";
 import { toast } from "@/ui/toast";
@@ -281,6 +282,16 @@ function TenantDomains({ tenant, canChange, onChanged }: { tenant: DirectoryTena
     setBusy(true);
     setError(null);
     try {
+      if (!into) {
+        const stranded = await tenantAccountsOnDomain(tenant.id, domain.id);
+        if (stranded > 0) {
+          setError(plural(stranded, {
+            one: "{n} account in this tenant is still on {domain}. Move it or delete it before taking the domain out.",
+            other: "{n} accounts in this tenant are still on {domain}. Move them or delete them before taking the domain out.",
+          }, { domain: domain.name }));
+          return;
+        }
+      }
       await setDomainTenant(domain.id, into ? tenant.id : null);
       toast.success(into ? t("Added {domain} to {tenant}", { domain: domain.name, tenant: tenant.name }) : t("Took {domain} out of {tenant}", { domain: domain.name, tenant: tenant.name }));
       setRevision((n) => n + 1);
@@ -323,7 +334,7 @@ function TenantDomains({ tenant, canChange, onChanged }: { tenant: DirectoryTena
         </div>
       )}
       {error && <p className="admin-notice error" role="alert">{error}</p>}
-      <p className="hint">{t("Only domains in no tenant can be added. The accounts already on a domain stay where they are; move each from its own panel.")}</p>
+      <p className="hint">{t("Only domains in no tenant can be added, and the accounts already on one stay where they are. A domain comes out only once none of this tenant's accounts are on it.")}</p>
     </div>
   );
 }

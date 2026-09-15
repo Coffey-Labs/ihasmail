@@ -286,3 +286,17 @@ test("a tenant administrator cannot move anything into a tenant", () => {
   assert.equal(r.notUpdated?.d4?.type, "invalidPatch");
   assert.match(r.notUpdated!.d4!.description, /memberTenantId/);
 });
+
+test("something in a tenant has to be on a domain in it, and something in none may be anywhere", () => {
+  const dir = make("admin");
+  const outside = dir.handlers["x:MailingList/set"]!({ create: { n: { name: "stray", domainId: "d1", memberTenantId: "t1" } } }) as { notCreated?: Record<string, { type: string; objectId: { object: string } }> };
+  assert.equal(outside.notCreated?.n?.type, "invalidForeignKey");
+  assert.equal(outside.notCreated!.n!.objectId.object, "Domain");
+  const inside = dir.handlers["x:MailingList/set"]!({ create: { n: { name: "team", domainId: "d3", memberTenantId: "t1" } } }) as { created?: Record<string, { id: string }> };
+  assert.ok(inside.created?.n?.id);
+  const none = dir.handlers["x:MailingList/set"]!({ create: { n: { name: "open", domainId: "d3" } } }) as { created?: Record<string, { id: string }> };
+  assert.ok(none.created?.n?.id);
+  const [someone] = (dir.handlers["x:Account/query"]!({ filter: { "@type": "User", domainId: "d1" } }) as { ids: string[] }).ids;
+  const move = dir.handlers["x:Account/set"]!({ update: { [someone!]: { memberTenantId: "t1" } } }) as { notUpdated?: Record<string, { type: string }> };
+  assert.equal(move.notUpdated?.[someone!]?.type, "invalidForeignKey");
+});
