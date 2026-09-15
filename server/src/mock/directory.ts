@@ -45,7 +45,7 @@ const OPS = ["Get", "Query", "Create", "Update", "Destroy"] as const;
 const all = (...objects: string[]) => objects.flatMap((o) => OPS.map((op) => `sys${o}${op}`));
 
 /** What the dashboard reads beyond the directory. */
-const READ_SERVER = ["sysQueuedMessageGet", "sysQueuedMessageQuery", "sysMetricGet", "sysMetricQuery"];
+const READ_SERVER = ["sysQueuedMessageGet", "sysQueuedMessageQuery", "sysMetricGet", "sysMetricQuery", "sysApplicationGet", "sysApplicationQuery"];
 
 /** A few of the ordinary ones, so the list looks like what a server sends. */
 const USER_PERMISSIONS = ["jmapEmailGet", "jmapEmailUpdate", "jmapMailboxGet", "sysAccountSettingsGet"];
@@ -226,6 +226,8 @@ export function createDirectory(opts: Options) {
       push(4, "Counter", "queue.report-queued", h % 4 === 1 ? 2 : 0);
     }
   }
+  const applications: Obj[] = [{ id: "app1", description: "Stalwart Web Interface", enabled: true, urlPrefix: { "/admin": true, "/account": true } }];
+
   /** Tenants: a name, limits, and whatever names them in its memberTenantId. */
   const tenants: Obj[] = [
     { id: "t1", name: "Acme Corp", logo: null, roles: { "@type": "Default" }, permissions: { "@type": "Inherit" }, quotas: { maxAccounts: 25, maxDomains: 2, maxDiskQuota: 50 * GIB }, createdAt: "2026-07-01T09:00:00Z" },
@@ -693,6 +695,10 @@ export function createDirectory(opts: Options) {
       }
       return { accountId: opts.accountId, oldState: "1", newState: "2", created, updated, destroyed, ...(Object.keys(notCreated).length ? { notCreated } : {}), ...(Object.keys(notUpdated).length ? { notUpdated } : {}), ...(Object.keys(notDestroyed).length ? { notDestroyed } : {}) };
     },
+    // Stalwart's web interface is an installed application; ihasmail reads its
+    // prefix to link the dashboard to it.
+    "x:Application/query": query(() => applications, "sysApplicationQuery", ["text"], () => true),
+    "x:Application/get": get(applications, "sysApplicationGet"),
     "x:Role/get": get(roles, "sysRoleGet"),
     "x:Role/query": query(() => roles, "sysRoleQuery", ["text", "description", "memberTenantId"], (o, f) => (f.memberTenantId === undefined || (o.memberTenantId ?? null) === f.memberTenantId) && matchText(o, f.description)),
   };
