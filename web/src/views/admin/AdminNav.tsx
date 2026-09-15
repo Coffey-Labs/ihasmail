@@ -1,11 +1,12 @@
 import type { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { Globe, User } from "lucide-react";
+import { Globe, LayoutDashboard, User } from "lucide-react";
 import { adminSections, type AdminSection } from "@/lib/adminAccess";
 import { t } from "@/lib/i18n";
 import { usePermissions } from "./usePermissions";
 
 export const ADMIN_SECTIONS: Record<AdminSection, { group: string; label: string; icon: ReactNode }> = {
+  dashboard: { group: "Overview", label: "Dashboard", icon: <LayoutDashboard size={20} /> },
   accounts: { group: "Directory", label: "Accounts", icon: <User size={20} /> },
   domains: { group: "Mail", label: "Domains", icon: <Globe size={20} /> },
 };

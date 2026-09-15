@@ -1745,6 +1745,22 @@ select optgroup { background-color: var(--bg-elev); color: var(--fg); }
 .admin-dns-type { flex: 0 0 48px; font-family: var(--font-mono); font-size: .78em; font-weight: 700; color: var(--accent-soft-fg); padding-top: 2px; }
 .admin-dns-name { font-size: .88em; font-weight: 550; word-break: break-all; }
 .admin-dns-value { display: block; font-family: var(--font-mono); font-size: .8em; color: var(--fg-muted); word-break: break-all; margin-top: 2px; max-height: 4.8em; overflow: hidden; }
+/* Column counts come from balancedColumns, so rows stay even; the widths
+   follow the space the grid actually has, not the window, since the folder
+   pane beside it can be any width. */
+.admin-dashboard { max-width: calc(var(--cols-wide, 3) * 300px + (var(--cols-wide, 3) - 1) * 12px); }
+.admin-cards-wrap { container: admin-cards / inline-size; margin-top: 8px; }
+.admin-cards { display: grid; gap: 12px; grid-template-columns: repeat(var(--cols-wide, 3), minmax(0, 1fr)); max-width: calc(var(--cols-wide, 3) * 300px + (var(--cols-wide, 3) - 1) * 12px); }
+@container admin-cards (max-width: 760px) { .admin-cards { grid-template-columns: repeat(var(--cols-mid, 2), minmax(0, 1fr)); max-width: calc(var(--cols-mid, 2) * 300px + (var(--cols-mid, 2) - 1) * 12px); } }
+@container admin-cards (max-width: 480px) { .admin-cards { grid-template-columns: minmax(0, 1fr); max-width: none; } }
+.admin-card { display: flex; flex-direction: column; gap: 6px; height: 100%; padding: 14px 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-elev); color: var(--fg); text-decoration: none; }
+.admin-card.link:hover { background: var(--bg-hover); }
+.admin-card.link:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.admin-card-top { display: flex; align-items: center; gap: 8px; color: var(--fg-muted); }
+.admin-card-icon { display: inline-flex; color: var(--accent-soft-fg); }
+.admin-card-label { font-size: .85em; font-weight: 650; text-transform: uppercase; letter-spacing: .05em; }
+.admin-card-value { font-size: 1.9em; font-weight: 650; line-height: 1.15; font-variant-numeric: tabular-nums; min-height: 1.15em; }
+.admin-card-placeholder { display: inline-block; width: 3.5ch; height: .9em; border-radius: var(--radius-sm); background: var(--bg-sunken); vertical-align: middle; }
 .admin-kv { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; align-items: center; margin: 0; font-size: .92em; }
 .admin-kv dt { color: var(--fg-muted); }
 .admin-kv dd { margin: 0; }

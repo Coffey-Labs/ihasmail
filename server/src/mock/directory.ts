@@ -13,6 +13,11 @@
  *   credential's own pointer, `credentials/<index>/secret`;
  * - `x:Account/query` understands AND and nothing else.
  *
+ * It also answers the two feeds Administration's dashboard reads: a short
+ * outbound queue (`x:QueuedMessage`) and a day and a bit of hourly metric
+ * history (`x:Metric`), dated from when the mock started. MOCK_METRICS=off
+ * refuses the history the way a Community server does.
+ *
  * What it does not reproduce is tenancy: every caller sees every record. The
  * real server scopes a tenant administrator's queries, and nothing in the client
  * relies on seeing more or less than it is given.
@@ -29,17 +34,22 @@ export type MockRole = "admin" | "tenant-admin" | "helpdesk" | "user";
 const OPS = ["Get", "Query", "Create", "Update", "Destroy"] as const;
 const all = (...objects: string[]) => objects.flatMap((o) => OPS.map((op) => `sys${o}${op}`));
 
+/** What the dashboard reads beyond the directory. */
+const READ_SERVER = ["sysQueuedMessageGet", "sysQueuedMessageQuery", "sysMetricGet", "sysMetricQuery"];
+
 /** A few of the ordinary ones, so the list looks like what a server sends. */
 const USER_PERMISSIONS = ["jmapEmailGet", "jmapEmailSet", "jmapMailboxGet", "sysAccountSettingsGet"];
 
 export function permissionsFor(role: MockRole): string[] {
   switch (role) {
     case "admin":
-      return [...USER_PERMISSIONS, ...all("Account", "Domain", "Role", "MailingList", "DkimSignature", "DnsServer", "Tenant"), "impersonate"];
+      return [...USER_PERMISSIONS, ...all("Account", "Domain", "Role", "MailingList", "DkimSignature", "DnsServer", "Tenant"), ...READ_SERVER, "impersonate"];
     case "tenant-admin":
-      return [...USER_PERMISSIONS, ...all("Account", "Domain", "Role", "MailingList", "DkimSignature", "DnsServer")];
+      // The queue but not the metric history: Stalwart scopes the one to a
+      // tenant's domains, and the other has no tenant to scope it by.
+      return [...USER_PERMISSIONS, ...all("Account", "Domain", "Role", "MailingList", "DkimSignature", "DnsServer"), "sysQueuedMessageGet", "sysQueuedMessageQuery"];
     case "helpdesk":
-      return [...USER_PERMISSIONS, "sysAccountGet", "sysAccountQuery", "sysAccountUpdate"];
+      return [...USER_PERMISSIONS, "sysAccountGet", "sysAccountQuery", "sysAccountUpdate", "sysDomainGet", "sysDomainQuery"];
     default:
       return USER_PERMISSIONS;
   }
@@ -61,6 +71,10 @@ interface Options {
   role: MockRole;
   /** Build the error a method fails with; the mock server owns the type. */
   fail: (type: string, description?: string) => Error;
+  /** Refuse the metric history, as a Community server does. */
+  metricsOff?: boolean;
+  /** When the history ends; the newest hour is the one this falls in. */
+  now?: Date;
 }
 
 export function createDirectory(opts: Options) {
@@ -167,6 +181,38 @@ export function createDirectory(opts: Options) {
     const name = description.toLowerCase().split(" ")[0]!.normalize("NFD").replace(/[^a-z]/g, "");
     user({ name, domain: i % 3 === 0 ? "d2" : "d1", description, used: (i % 7) * 0.6, quota: i % 4 === 0 ? 0 : 5 });
   });
+
+  // Nine messages waiting, which is what a small live server had queued on the
+  // day this was written: a few retries and the odd report.
+  const queue: Obj[] = Array.from({ length: 9 }, (_, i) => ({ id: `q${i + 1}`, createdAt: new Date(Date.UTC(2026, 8, 15, 6 + i)).toISOString(), size: 2400 + i * 310, priority: 0, flags: {} }));
+
+  /**
+   * Thirty hours of history ending in the current hour: a Counter per hour for
+   * what was queued, and a memory Gauge. Counters that would be zero are left
+   * out, as Stalwart leaves them out.
+   */
+  const metrics: Obj[] = [];
+  {
+    const hour = 3600_000;
+    const end = Math.floor((opts.now ?? new Date()).getTime() / hour) * hour;
+    for (let h = 29; h >= 0; h--) {
+      const at = end - h * hour;
+      const timestamp = new Date(at).toISOString().replace(/\.\d{3}Z$/, "Z");
+      const seq = (29 - h) * 10;
+      const push = (n: number, type: string, metric: string, count: number) => {
+        if (type === "Counter" && !count) return;
+        metrics.push({ id: `m${String(seq + n).padStart(4, "0")}`, "@type": type, metric, count, timestamp });
+      };
+      push(0, "Gauge", "server.memory", 360_000_000 + ((h * 7_919_000) % 40_000_000));
+      push(1, "Counter", "queue.message-queued", (h * 5 + 3) % 9);
+      push(2, "Counter", "queue.authenticated-message-queued", h % 3);
+      push(3, "Counter", "queue.dsn-queued", h % 11 === 0 ? 1 : 0);
+      push(4, "Counter", "queue.report-queued", h % 4 === 1 ? 2 : 0);
+    }
+  }
+  const refuseMetrics = () => {
+    if (opts.metricsOff) throw opts.fail("forbidden", "This feature is only available in the Enterprise edition of Stalwart.");
+  };
 
   const demand = (perm: string) => {
     if (!permissions.has(perm)) throw opts.fail("forbidden", `You do not have the ${perm} permission.`);
@@ -393,6 +439,21 @@ export function createDirectory(opts: Options) {
     "x:DnsServer/get": (a) => {
       demand("sysDnsServerGet");
       return { accountId: opts.accountId, state: "1", list: ((a.ids as string[]) ?? ["ns1"]).filter((id) => id === "ns1").map((id) => ({ id, "@type": "Cloudflare", description: "Cloudflare (main zone)" })), notFound: [] };
+    },
+    "x:QueuedMessage/get": get(queue, "sysQueuedMessageGet"),
+    "x:QueuedMessage/query": query(() => queue, "sysQueuedMessageQuery", [], () => true),
+    "x:Metric/get": (a) => {
+      refuseMetrics();
+      return get(metrics, "sysMetricGet")(a);
+    },
+    // Ids sort the way timestamps do, so the helper's newest-first order is the
+    // `timestamp` descending the dashboard asks for.
+    "x:Metric/query": (a) => {
+      refuseMetrics();
+      return query(() => metrics, "sysMetricQuery", ["timestampIsGreaterThanOrEqual", "timestampIsLessThanOrEqual", "metric"], (o, f) =>
+        (f.timestampIsGreaterThanOrEqual === undefined || String(o.timestamp) >= String(f.timestampIsGreaterThanOrEqual)) &&
+        (f.timestampIsLessThanOrEqual === undefined || String(o.timestamp) <= String(f.timestampIsLessThanOrEqual)) &&
+        (!Array.isArray(f.metric) || (f.metric as string[]).includes(o.metric as string)))(a);
     },
     "x:Role/get": get(roles, "sysRoleGet"),
     "x:Role/query": query(() => roles, "sysRoleQuery", ["text", "description", "memberTenantId"], (o, f) => matchText(o, f.description)),

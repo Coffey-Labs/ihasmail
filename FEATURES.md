@@ -1108,8 +1108,10 @@ redirects them to their mail if they type its address in.
 At sign-in the server already asks Stalwart's `GET /api/account` for the
 edition; it now keeps the account's **permissions** from the same answer and
 hands them to the browser with the session. The menu appears for an account
-that can query and read accounts (`sysAccountQuery`, `sysAccountGet`) or
-domains (`sysDomainQuery`, `sysDomainGet`), and each control inside is there only when the matching permission is:
+that can count something the dashboard shows — accounts (`sysAccountQuery`),
+domains (`sysDomainQuery`), the delivery queue (`sysQueuedMessageQuery`) or the
+metric history (`sysMetricQuery` with `sysMetricGet`) — and each section and
+control inside is there only when the matching permission is:
 **New account** with `sysAccountCreate`, editing with `sysAccountUpdate`,
 **Delete** with `sysAccountDestroy`. A system administrator, a tenant
 administrator and a custom helpdesk role each see the same screen shaped to
@@ -1120,6 +1122,35 @@ call through the ordinary `/api/jmap` proxy, authenticated as the signed-in
 account, and Stalwart decides each one — scoping a tenant administrator's
 queries to their own tenant and refusing anything the role does not allow.
 The client's gating only avoids offering what would fail.
+
+## Dashboard
+
+Administration opens on a grid of cards, one for each number the role can read:
+
+| Card | What it counts | Needs |
+|---|---|---|
+| **Users** | user accounts, not groups | `sysAccountQuery` |
+| **Domains** | mail domains | `sysDomainQuery` |
+| **Pending** | messages waiting in the delivery queue | `sysQueuedMessageQuery` |
+| **Server memory** | the latest reading, and when it was taken | `sysMetricQuery`, `sysMetricGet` |
+| **Received** | messages queued for delivery in the last 24 hours | the same |
+| **Sent** | authenticated submissions, bounces and reports queued in the last 24 hours | the same |
+
+Users and Domains open their sections when the role can. The counts are what
+Stalwart answers for the signed-in account, so a **tenant administrator sees
+their tenancy**: its accounts, its domains, and the queued messages that touch
+them. The last three come from Stalwart's metric history, which has no tenant
+in it and which the Tenant Administrator role Stalwart creates does not hold,
+so a tenant's dashboard is Users, Domains and Pending. A helpdesk role that can
+read accounts and domains sees those two cards.
+
+The history is an Enterprise feature that has to be switched on. A server that
+refuses it — Community does — leaves those three cards off rather than showing
+them broken, and one that records nothing says *Not recorded on this server*
+rather than showing a day of zeroes. Received and sent add up the same metric
+names Stalwart's own dashboard uses. The columns follow the number of cards,
+so rows come out even: six are three over three, and fall to two and then one
+as the space narrows. **Refresh** reads everything again; nothing is polled.
 
 ## Accounts
 
@@ -1202,9 +1233,10 @@ session information already kept for thirty minutes — so a role granted or
 taken away shows in the menu at the next sign-in or within half an hour, and in
 the meantime Stalwart refuses what is no longer allowed.
 
-Accounts and domains are the first two sections. Groups, mailing lists, roles
-and tenants are Stalwart capabilities the same screen is laid out to take;
-reporting, queues, logs and server settings are deliberately out of scope.
+The dashboard, accounts and domains are the first three sections. Groups,
+mailing lists, roles and tenants are Stalwart capabilities the same screen is
+laid out to take. Beyond the dashboard's counts, managing queues, logs and
+server settings is deliberately out of scope.
 
 ---
 
@@ -1662,11 +1694,14 @@ moves an occurrence renumbering the ids around it. Two switches:
 tested.
 
 Administration works against it too, with a directory of about thirty accounts,
-three domains with their DKIM keys and zone files, behind the same permission
-names Stalwart uses. `MOCK_ROLE` decides who the
-demo user is: `admin` (the default), `tenant-admin`, `helpdesk` — a custom role
-that may view and edit accounts but not create or delete them — or `user`, who
-is not offered the menu at all.
+three domains with their DKIM keys and zone files, nine queued messages and
+thirty hours of metric history ending in the current hour, behind the same
+permission names Stalwart uses. `MOCK_ROLE` decides who the
+demo user is: `admin` (the default), `tenant-admin` (the queue but not the
+history), `helpdesk` — a custom role that may view and edit accounts but not
+create or delete them, and read domains — or `user`, who is not offered the
+menu at all. `MOCK_METRICS=off` refuses the history the way a Community server
+does.
 
 ---
 

@@ -892,6 +892,7 @@ const directory = createDirectory({
   user: USER,
   locale: MOCK_LOCALE,
   role: mockRole(process.env.MOCK_ROLE),
+  metricsOff: process.env.MOCK_METRICS === "off",
   fail: (type, description) => new MethodError(type, description),
 });
 

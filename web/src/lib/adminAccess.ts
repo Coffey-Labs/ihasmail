@@ -14,7 +14,7 @@
  * for a check Stalwart does not make. See there.
  */
 
-export type AdminObject = "Account" | "Domain" | "Role" | "MailingList" | "DkimSignature" | "DnsServer" | "Tenant";
+export type AdminObject = "Account" | "Domain" | "Role" | "MailingList" | "DkimSignature" | "DnsServer" | "Tenant" | "QueuedMessage" | "Metric";
 export type AdminOp = "Get" | "Query" | "Create" | "Update" | "Destroy";
 
 export type Permissions = ReadonlySet<string>;
@@ -27,16 +27,39 @@ export function can(perms: Permissions, object: AdminObject, op: AdminOp): boole
   return perms.has(`sys${object}${op}`);
 }
 
-export type AdminSection = "accounts" | "domains";
+export type AdminSection = "dashboard" | "accounts" | "domains";
+
+export type DashboardCard = "users" | "domains" | "pending" | "memory" | "received" | "sent";
+
+/**
+ * The dashboard's cards an account may see.
+ *
+ * A count is a query with `calculateTotal`, so a query alone earns one. The
+ * three read from the metric history need the get as well, since the query
+ * only finds the records. Stalwart scopes the first three to a tenant
+ * administrator's own tenancy; the metric history has no tenant in it at all,
+ * and the Tenant Administrator role Stalwart creates does not hold it -- which
+ * is how a tenant's dashboard comes to show only what is theirs.
+ */
+export function dashboardCards(perms: Permissions): DashboardCard[] {
+  const out: DashboardCard[] = [];
+  if (can(perms, "Account", "Query")) out.push("users");
+  if (can(perms, "Domain", "Query")) out.push("domains");
+  if (can(perms, "QueuedMessage", "Query")) out.push("pending");
+  if (can(perms, "Metric", "Query") && can(perms, "Metric", "Get")) out.push("memory", "received", "sent");
+  return out;
+}
 
 /**
  * The sections an account may open, in the order they are listed.
  *
  * A list that cannot be read is not worth an entry, so each takes both halves
  * of reading one: the query that finds the objects and the get that shows them.
+ * The dashboard comes first, and is there whenever it has a card to show.
  */
 export function adminSections(perms: Permissions): AdminSection[] {
   const out: AdminSection[] = [];
+  if (dashboardCards(perms).length) out.push("dashboard");
   if (can(perms, "Account", "Query") && can(perms, "Account", "Get")) out.push("accounts");
   if (can(perms, "Domain", "Query") && can(perms, "Domain", "Get")) out.push("domains");
   return out;
