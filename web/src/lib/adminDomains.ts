@@ -227,6 +227,8 @@ export function describeLinked(linked: string[]): string {
     if (kind === "Account") parts.push(plural(n, { one: "{n} account", other: "{n} accounts" }));
     else if (kind === "MailingList") parts.push(plural(n, { one: "{n} mailing list", other: "{n} mailing lists" }));
     else if (kind === "DkimSignature") parts.push(plural(n, { one: "{n} DKIM key", other: "{n} DKIM keys" }));
+    else if (kind === "Role") parts.push(plural(n, { one: "{n} role", other: "{n} roles" }));
+    else if (kind === "Authentication") parts.push(t("the default roles"));
     else parts.push(plural(n, { one: "{n} other item", other: "{n} other items" }));
   }
   return parts.join(", ");

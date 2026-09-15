@@ -1230,6 +1230,36 @@ server or anywhere else. For a role with `sysMailingListQuery` and
 That is all a list is in Stalwart: there are no owners, moderators or posting
 rules to set.
 
+## Roles
+
+A role is a named set of permissions that accounts, groups and tenants are
+given. For a role with `sysRoleQuery` and `sysRoleGet`, under Access:
+
+- **List and search** every role, with the number of permissions each grants
+  once the roles it builds on are followed, what it builds on, and a note on the
+  ones Stalwart hands out by default.
+- **Builds on** other roles, and gets everything they grant. A role cannot build
+  on itself or on one already built on it.
+- **Permissions** come from Stalwart's own list — every permission the server
+  knows, grouped under its headings, searchable, and filterable to the ones
+  granted or set on this role. Each is not set, allowed or denied; one it
+  inherits says which role it comes from. A denial wins over anything allowed,
+  here or on any role underneath, as it does in Stalwart. Only permissions the
+  viewer holds can be allowed: Stalwart refuses the rest.
+- **Saving** sends only the permissions and roles that changed.
+- **A role that carries permissions the viewer lacks opens read-only**, with no
+  delete — Stalwart checks a grant but not a delete, so this stands in for it.
+- **A default role** — one Stalwart gives new users, groups, tenant
+  administrators or administrators — says so before anything is changed, and
+  cannot be deleted from here. A role still in use is kept by the server, and
+  the refusal names what uses it.
+
+The list of permissions is Stalwart's schema (`GET /api/schema`), fetched by
+ihasmail's server as the signed-in account and cut down to names and labels.
+Its labels are English only, so ihasmail ships its own translation of every one
+of them, loaded only when the Roles screen opens; a permission added by a later
+Stalwart shows the server's English until it is translated.
+
 ## Domains
 
 For a role that can read domains (`sysDomainQuery`, `sysDomainGet`):
@@ -1288,8 +1318,8 @@ session information already kept for thirty minutes — so a role granted or
 taken away shows in the menu at the next sign-in or within half an hour, and in
 the meantime Stalwart refuses what is no longer allowed.
 
-The dashboard, accounts, groups, mailing lists and domains are the sections so
-far. Roles and tenants are Stalwart capabilities the same screen is
+The dashboard, accounts, groups, mailing lists, roles and domains are the
+sections so far. Tenants are Stalwart capabilities the same screen is
 laid out to take. Beyond the dashboard's counts, managing queues, logs and
 server settings is deliberately out of scope.
 

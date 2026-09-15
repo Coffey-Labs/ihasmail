@@ -1773,6 +1773,21 @@ select optgroup { background-color: var(--bg-elev); color: var(--fg); }
 .admin-suggestions { margin-top: 6px; }
 .admin-recipients { max-height: 220px; overflow-y: auto; padding: 2px 0; }
 .admin-recipient-filter { display: block; max-width: none; margin-bottom: 8px; }
+.admin-sheet.admin-sheet-wide { width: min(620px, 100%); }
+.admin-checks { display: flex; flex-direction: column; gap: 2px; }
+.admin-check { display: flex; align-items: center; gap: 8px; padding: 4px 2px; cursor: pointer; }
+.admin-check.disabled { cursor: default; color: var(--fg-muted); }
+.admin-perms-tools { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.admin-perms-tools .admin-search { flex: 1; min-width: 180px; max-width: none; }
+.admin-perms-tools select { width: auto; }
+.admin-perm-group { border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 6px; overflow: hidden; }
+.admin-perm-head { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px; background: var(--bg-sunken); font-weight: 600; text-align: left; }
+.admin-perm-head:hover { background: var(--bg-hover); }
+.admin-perm-rows { list-style: none; margin: 0; padding: 0; }
+.admin-perm-rows li { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-top: 1px solid var(--border); font-size: .92em; }
+.admin-perm-rows li.granted { box-shadow: inset 3px 0 0 var(--accent); }
+.admin-perm-rows .mono { font-family: var(--font-mono); font-size: .8em; word-break: break-all; }
+.admin-perm-state { width: auto; min-width: 110px; flex: none; }
 .admin-kv { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; align-items: center; margin: 0; font-size: .92em; }
 .admin-kv dt { color: var(--fg-muted); }
 .admin-kv dd { margin: 0; }
