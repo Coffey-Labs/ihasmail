@@ -13,7 +13,8 @@ const roles = new Map<string, RoleDef>([
 
 describe("who is offered administration", () => {
   it("needs both halves of reading the account list to list accounts", () => {
-    expect(adminSections(set("sysAccountQuery", "sysAccountGet"))).toEqual(["dashboard", "accounts"]);
+    // Groups are accounts to the server, so they come with the same two permissions.
+    expect(adminSections(set("sysAccountQuery", "sysAccountGet"))).toEqual(["dashboard", "accounts", "groups"]);
     // A query alone is a count on the dashboard, not a list.
     expect(adminSections(set("sysAccountQuery"))).toEqual(["dashboard"]);
     expect(hasAdministration(set("sysAccountGet"))).toBe(false);
@@ -23,7 +24,7 @@ describe("who is offered administration", () => {
   it("offers each section only with both halves of reading it", () => {
     expect(adminSections(set("sysDomainQuery", "sysDomainGet"))).toEqual(["dashboard", "domains"]);
     expect(hasAdministration(set("sysDomainQuery", "sysDomainGet"))).toBe(true);
-    expect(adminSections(set("sysAccountQuery", "sysAccountGet", "sysDomainQuery"))).toEqual(["dashboard", "accounts"]);
+    expect(adminSections(set("sysAccountQuery", "sysAccountGet", "sysDomainQuery"))).toEqual(["dashboard", "accounts", "groups"]);
   });
 
   it("gives the dashboard a card for each number the role can read", () => {
