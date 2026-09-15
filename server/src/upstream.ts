@@ -54,6 +54,21 @@ export function upstreamFor(username: string): string {
   return config.stalwartServers[domain] ?? config.stalwartUrl;
 }
 
+/**
+ * Where the administrator signed in as `username` opens Stalwart's own
+ * administration, or null when the operator has not said.
+ *
+ * Follows the same routing as `upstreamFor`, and for the same reason never
+ * falls back: a domain routed to another server is not pointed at the default
+ * server's administration, where its accounts are not.
+ */
+export function adminUrlFor(username: string): string | null {
+  const at = username.lastIndexOf("@");
+  const domain = at < 0 ? "" : username.slice(at + 1).trim().toLowerCase().replace(/\.$/, "");
+  if (domain && domain in config.stalwartServers) return config.stalwartAdminUrls[domain] ?? null;
+  return config.stalwartAdminUrl || null;
+}
+
 export function wellKnownUrl(base: string = config.stalwartUrl): string {
   return `${base}/.well-known/jmap`;
 }

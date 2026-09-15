@@ -202,9 +202,9 @@ function readSettingsPolicy(): { defaults: Record<string, unknown>; enforced: Re
  * having an outage would take the other four down with it. What happens when
  * one is unreachable is a sign-in question, answered in #239.
  */
-function readStalwartServers(): Record<string, string> {
+function readStalwartServers(): { urls: Record<string, string>; adminUrls: Record<string, string> } {
   const file = process.env.STALWART_SERVERS_FILE;
-  if (!file) return {};
+  if (!file) return { urls: {}, adminUrls: {} };
   if (!existsSync(file)) throw new Error(`STALWART_SERVERS_FILE does not exist: ${file}`);
 
   let raw: unknown;
@@ -213,32 +213,54 @@ function readStalwartServers(): Record<string, string> {
   } catch (err) {
     throw new Error(`Invalid STALWART_SERVERS_FILE (${file}): ${(err as Error).message}`);
   }
+  return parseStalwartServers(raw, file);
+}
+
+/** The servers file's contents, checked. Exported so the shipped example is tested by the parser that reads it. */
+export function parseStalwartServers(raw: unknown, file: string): { urls: Record<string, string>; adminUrls: Record<string, string> } {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
     throw new Error(`Invalid STALWART_SERVERS_FILE (${file}): expected an object of domain to URL`);
   }
 
   const out: Record<string, string> = {};
-  for (const [rawDomain, rawUrl] of Object.entries(raw as Record<string, unknown>)) {
+  const adminUrls: Record<string, string> = {};
+  for (const [rawDomain, rawValue] of Object.entries(raw as Record<string, unknown>)) {
+    /* The example file explains itself in a `_comment` key, and a copy of it
+       used to stop the server as "not a URL". No mail domain starts with an
+       underscore, so a key that does is a note, not a mapping. */
+    if (rawDomain.startsWith("_")) continue;
     /* Lower-cased and stripped of the root dot, because that is how a domain
        taken off a username will arrive and comparing them any other way means
        a mapping that silently never matches. */
     const domain = rawDomain.trim().toLowerCase().replace(/\.$/, "");
     if (!domain) throw new Error(`Invalid STALWART_SERVERS_FILE (${file}): a domain key is empty`);
     if (domain in out) throw new Error(`Invalid STALWART_SERVERS_FILE (${file}): "${domain}" appears twice once normalised`);
-    if (typeof rawUrl !== "string") throw new Error(`Invalid STALWART_SERVERS_FILE (${file}): "${domain}" is not a URL`);
-    let parsed: URL;
-    try {
-      parsed = new URL(rawUrl);
-    } catch {
-      throw new Error(`Invalid STALWART_SERVERS_FILE (${file}): "${domain}" is not an absolute URL`);
+    /* A domain's value is its server's URL, or an object that also names where
+       that server's own administration is: `{"url": …, "adminUrl": …}`. */
+    const value = rawValue && typeof rawValue === "object" && !Array.isArray(rawValue) ? (rawValue as Record<string, unknown>) : { url: rawValue };
+    if (typeof value.url !== "string") throw new Error(`Invalid STALWART_SERVERS_FILE (${file}): "${domain}" is not a URL`);
+    out[domain] = httpUrl(value.url, `STALWART_SERVERS_FILE (${file}): "${domain}"`);
+    if (value.adminUrl !== undefined) {
+      if (typeof value.adminUrl !== "string") throw new Error(`Invalid STALWART_SERVERS_FILE (${file}): "${domain}" adminUrl is not a URL`);
+      adminUrls[domain] = httpUrl(value.adminUrl, `STALWART_SERVERS_FILE (${file}): "${domain}" adminUrl`);
     }
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-      throw new Error(`Invalid STALWART_SERVERS_FILE (${file}): "${domain}" must be http or https`);
-    }
-    out[domain] = rawUrl.replace(/\/+$/, "");
   }
-  return out;
+  return { urls: out, adminUrls };
 }
+
+/** An absolute http(s) URL without its trailing slash, or a startup error naming where it came from. */
+function httpUrl(raw: string, where: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    throw new Error(`Invalid ${where}: not an absolute URL`);
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") throw new Error(`Invalid ${where}: must be http or https`);
+  return raw.replace(/\/+$/, "");
+}
+
+const stalwartServers = readStalwartServers();
 
 export const config = {
   isProd,
@@ -275,7 +297,16 @@ export const config = {
    */
   basePath: normalizeBasePath(process.env.BASE_PATH),
   stalwartUrl,
-  stalwartServers: readStalwartServers(),
+  stalwartServers: stalwartServers.urls,
+  /**
+   * Where an administrator reaches Stalwart's own administration, for the
+   * pointer on ihasmail's dashboard. Optional, and separate from STALWART_URL,
+   * which is how *this server* reaches Stalwart -- often an address no browser
+   * can open. Unset, the dashboard names Stalwart's administration without a
+   * link. A domain routed elsewhere takes its server's `adminUrl` instead.
+   */
+  stalwartAdminUrl: process.env.STALWART_ADMIN_URL ? httpUrl(process.env.STALWART_ADMIN_URL, "STALWART_ADMIN_URL") : "",
+  stalwartAdminUrls: stalwartServers.adminUrls,
   appSecret,
   trustProxy: bool("TRUST_PROXY", true),
   /**

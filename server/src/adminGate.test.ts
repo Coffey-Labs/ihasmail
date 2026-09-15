@@ -57,7 +57,12 @@ test("administration needs both the installation and a device marked as the pers
 test("an account counts as an administrator by the same test the menu makes", () => {
   assert.equal(grantsAdministration(["sysAccountQuery", "sysAccountGet"]), true);
   assert.equal(grantsAdministration(["sysDomainQuery", "sysDomainGet"]), true);
-  assert.equal(grantsAdministration(["sysAccountQuery", "sysDomainGet"]), false);
+  // The dashboard opens on less than a list: a count is only a query.
+  assert.equal(grantsAdministration(["sysAccountQuery"]), true);
+  assert.equal(grantsAdministration(["sysQueuedMessageQuery"]), true);
+  assert.equal(grantsAdministration(["sysMetricQuery", "sysMetricGet"]), true);
+  assert.equal(grantsAdministration(["sysMetricQuery"]), false);
+  assert.equal(grantsAdministration(["sysAccountGet", "sysDomainGet"]), false);
   assert.equal(grantsAdministration(["jmapEmailGet", "sysAccountSettingsGet"]), false);
 });
 

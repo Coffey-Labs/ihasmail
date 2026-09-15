@@ -41,10 +41,15 @@ export function administrationAllowed(enabled: boolean, remember: boolean): bool
  * Whether an account's permissions would put Administration in its menu --
  * the same test the client makes, so the server can say why it is missing
  * without handing over the permissions themselves.
+ *
+ * The client's test is whether any section opens, and the dashboard opens on
+ * less than a list does: a count needs only the query, the metric history its
+ * query and get. The account and domain lists need more than their counts, so
+ * they add nothing here.
  */
 export function grantsAdministration(permissions: readonly string[]): boolean {
   const has = new Set(permissions);
-  return (has.has("sysAccountQuery") && has.has("sysAccountGet")) || (has.has("sysDomainQuery") && has.has("sysDomainGet"));
+  return has.has("sysAccountQuery") || has.has("sysDomainQuery") || has.has("sysQueuedMessageQuery") || (has.has("sysMetricQuery") && has.has("sysMetricGet"));
 }
 
 /**

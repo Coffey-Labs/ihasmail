@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ADMIN_BASELINE, adminSections, can, canGrantRole, generatePassword, hasAdministration, outranks, permissionSet, resolveRoles, type RoleDef } from "@/lib/adminAccess";
+import { ADMIN_BASELINE, adminSections, can, dashboardCards, canGrantRole, generatePassword, hasAdministration, outranks, permissionSet, resolveRoles, type RoleDef } from "@/lib/adminAccess";
 
 const set = (...p: string[]) => permissionSet(p);
 const everything = set(...ADMIN_BASELINE, "sysTenantGet", "jmapEmailGet", "impersonate");
@@ -12,17 +12,27 @@ const roles = new Map<string, RoleDef>([
 ]);
 
 describe("who is offered administration", () => {
-  it("needs both halves of reading the account list", () => {
-    expect(hasAdministration(set("sysAccountQuery", "sysAccountGet"))).toBe(true);
-    expect(hasAdministration(set("sysAccountQuery"))).toBe(false);
+  it("needs both halves of reading the account list to list accounts", () => {
+    expect(adminSections(set("sysAccountQuery", "sysAccountGet"))).toEqual(["dashboard", "accounts"]);
+    // A query alone is a count on the dashboard, not a list.
+    expect(adminSections(set("sysAccountQuery"))).toEqual(["dashboard"]);
     expect(hasAdministration(set("sysAccountGet"))).toBe(false);
     expect(hasAdministration(permissionSet(undefined))).toBe(false);
   });
 
   it("offers each section only with both halves of reading it", () => {
-    expect(adminSections(set("sysDomainQuery", "sysDomainGet"))).toEqual(["domains"]);
+    expect(adminSections(set("sysDomainQuery", "sysDomainGet"))).toEqual(["dashboard", "domains"]);
     expect(hasAdministration(set("sysDomainQuery", "sysDomainGet"))).toBe(true);
-    expect(adminSections(set("sysAccountQuery", "sysAccountGet", "sysDomainQuery"))).toEqual(["accounts"]);
+    expect(adminSections(set("sysAccountQuery", "sysAccountGet", "sysDomainQuery"))).toEqual(["dashboard", "accounts"]);
+  });
+
+  it("gives the dashboard a card for each number the role can read", () => {
+    expect(dashboardCards(set("sysAccountQuery", "sysAccountGet", "sysDomainQuery", "sysDomainGet"))).toEqual(["users", "domains"]);
+    expect(dashboardCards(set("sysQueuedMessageQuery"))).toEqual(["pending"]);
+    // The history takes its get as well: the query only finds the records.
+    expect(dashboardCards(set("sysMetricQuery"))).toEqual([]);
+    expect(dashboardCards(set("sysMetricQuery", "sysMetricGet"))).toEqual(["memory", "received", "sent"]);
+    expect(adminSections(set("jmapEmailGet"))).toEqual([]);
   });
 
   it("reads one permission per object and operation", () => {

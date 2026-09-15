@@ -35,20 +35,26 @@ describe("the Administration list in the folder pane", () => {
   it("lists each readable section under its group and marks the open one", async () => {
     signIn(["sysAccountQuery", "sysAccountGet", "sysDomainQuery", "sysDomainGet"]);
     await render("/admin/domains/d1");
-    expect([...host.querySelectorAll(".nav-section")].map((e) => e.textContent)).toEqual(["Directory", "Mail"]);
+    expect([...host.querySelectorAll(".nav-section")].map((e) => e.textContent)).toEqual(["Overview", "Directory", "Mail"]);
     expect(host.querySelector(".nav-item.active")?.textContent).toBe("Domains");
   });
 
-  it("treats a bare /admin as the first section, which is what the page opens", async () => {
+  it("treats a bare /admin as the dashboard, which is what the page opens", async () => {
     signIn(["sysAccountQuery", "sysAccountGet", "sysDomainQuery", "sysDomainGet"]);
     await render("/admin");
-    expect(host.querySelector(".nav-item.active")?.textContent).toBe("Accounts");
+    expect(host.querySelector(".nav-item.active")?.textContent).toBe("Dashboard");
   });
 
   it("leaves out what the role cannot read", async () => {
     signIn(["sysDomainQuery", "sysDomainGet"]);
-    await render("/admin");
+    await render("/admin/accounts");
     expect(host.textContent).not.toContain("Accounts");
-    expect(host.querySelector(".nav-item.active")?.textContent).toBe("Domains");
+    expect(host.querySelector(".nav-item.active")?.textContent).toBe("Dashboard");
+  });
+
+  it("offers the dashboard alone to a role that can only count", async () => {
+    signIn(["sysQueuedMessageQuery"]);
+    await render("/admin");
+    expect([...host.querySelectorAll(".nav-item")].map((e) => e.textContent)).toEqual(["Dashboard"]);
   });
 });

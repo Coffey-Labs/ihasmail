@@ -17,9 +17,15 @@
     "JSON, a duplicate domain, or a value that is not an http(s) URL stops the",
     "server at startup rather than failing quietly at somebody's sign-in.",
     "",
+    "A value may instead be an object that also says where that server's own",
+    "administration is, for the link on ihasmail's Administration dashboard:",
+    "{\"url\": ..., \"adminUrl\": ...}. STALWART_ADMIN_URL is the same for the",
+    "default server. A listed domain without adminUrl gets no link, never the",
+    "default server's.",
+    "",
     "Docs: https://docs.ihasmail.org/configure/#several-stalwart-servers"
   ],
 
   "example.com": "https://mail.example.com",
-  "customer-b.test": "https://jmap.customer-b.test"
+  "customer-b.test": { "url": "https://jmap.customer-b.test", "adminUrl": "https://admin.customer-b.test" }
 }

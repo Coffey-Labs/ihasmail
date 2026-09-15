@@ -6,7 +6,7 @@ class Refused extends Error {
   constructor(readonly type: string, description?: string) { super(description ?? type); }
 }
 
-const make = (role: MockRole) => createDirectory({ accountId: "a1", user: "demo@example.com", locale: "en_US", role, fail: (t, d) => new Refused(t, d) });
+const make = (role: MockRole, extra: { metricsOff?: boolean; now?: Date } = {}) => createDirectory({ accountId: "a1", user: "demo@example.com", locale: "en_US", role, fail: (t, d) => new Refused(t, d), ...extra });
 
 /**
  * The mock stands in for a server that decides what each account may do, so
@@ -108,4 +108,42 @@ test("the domain validators refuse what the live server refused, in its words", 
   assert.deepEqual([created.notCreated?.n?.type, created.notCreated?.n?.description], ["invalidPatch", "Invalid domain name"]);
   const updated = set({ update: { d2: { catchAllAddress: "postmaster" } } }) as { notUpdated?: Record<string, { type: string; description: string }> };
   assert.deepEqual([updated.notUpdated?.d2?.type, updated.notUpdated?.d2?.description], ["invalidPatch", "Invalid email address"]);
+});
+
+/** The dashboard's feeds: counts, the queue, and the metric history. */
+test("counts come back with no ids when the client asks for a total and no page", () => {
+  const dir = make("admin");
+  const r = dir.handlers["x:QueuedMessage/query"]!({ limit: 0, calculateTotal: true }) as { ids: string[]; total: number };
+  assert.deepEqual(r.ids, []);
+  assert.equal(r.total, 9);
+});
+
+test("the metric history answers the filter the dashboard sends, newest first", () => {
+  const dir = make("admin", { now: new Date("2026-09-15T14:25:00Z") });
+  const q = dir.handlers["x:Metric/query"]!({
+    filter: { timestampIsGreaterThanOrEqual: "2026-09-14T14:25:00Z", metric: ["server.memory"] },
+    sort: [{ property: "timestamp", isAscending: false }],
+  }) as { ids: string[] };
+  const { list } = dir.handlers["x:Metric/get"]!({ ids: q.ids }) as { list: Array<{ metric: string; timestamp: string }> };
+  assert.equal(list.length, 24);
+  assert.ok(list.every((m) => m.metric === "server.memory"));
+  const newest = (dir.handlers["x:Metric/get"]!({ ids: [q.ids[0]] }) as { list: Array<{ timestamp: string }> }).list[0]!;
+  const next = (dir.handlers["x:Metric/get"]!({ ids: [q.ids[1]] }) as { list: Array<{ timestamp: string }> }).list[0]!;
+  assert.equal(newest.timestamp, "2026-09-15T14:00:00Z");
+  assert.ok(newest.timestamp > next.timestamp);
+  // A bare timestamp is what a live server refuses.
+  assert.throws(() => dir.handlers["x:Metric/query"]!({ filter: { timestamp: "2026-09-15T00:00:00Z" } }), (e: Refused) => e.type === "unsupportedFilter");
+});
+
+test("a tenant administrator gets the queue but not the history, and Community refuses the history", () => {
+  const tenant = make("tenant-admin");
+  assert.equal((tenant.handlers["x:QueuedMessage/query"]!({ calculateTotal: true }) as { total: number }).total, 9);
+  assert.throws(() => tenant.handlers["x:Metric/query"]!({}), (e: Refused) => e.type === "forbidden");
+  const community = make("admin", { metricsOff: true });
+  assert.throws(() => community.handlers["x:Metric/query"]!({}), (e: Refused) => e.type === "forbidden" && /Enterprise/.test(e.message));
+});
+
+test("helpdesk may count domains, which is what the demo's helpdesk may do", () => {
+  assert.ok(permissionsFor("helpdesk").includes("sysDomainQuery"));
+  assert.ok(!permissionsFor("helpdesk").includes("sysMetricQuery"));
 });

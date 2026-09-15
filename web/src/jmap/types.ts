@@ -38,6 +38,8 @@ export interface JmapSession {
     server?: {
       /** "oss" | "community" | "enterprise". Stalwart publishes no version. */
       edition?: string | null;
+      /** Where Stalwart's own administration is (STALWART_ADMIN_URL), for a session that may administer. */
+      adminUrl?: string | null;
     };
     /**
      * False when this session may not administer: the operator turned it off,

@@ -74,9 +74,15 @@ test("every entry in the example mapping is a domain and an http(s) URL", () => 
     assert.ok(domain, "a domain key is empty");
     assert.ok(!seen.has(domain), `${domain} appears twice once normalised`);
     seen.add(domain);
-    assert.equal(typeof value, "string", `${domain} is not a string`);
-    const url = new URL(value as string);
-    assert.ok(url.protocol === "http:" || url.protocol === "https:", `${domain} must be http or https`);
+    // A URL, or an object naming the server's URL and its administration's.
+    const entry = value && typeof value === "object" ? (value as Record<string, unknown>) : { url: value };
+    for (const [field, v] of Object.entries(entry)) {
+      assert.ok(field === "url" || field === "adminUrl", `${domain} has an unknown field ${field}`);
+      assert.equal(typeof v, "string", `${domain} ${field} is not a string`);
+      const url = new URL(v as string);
+      assert.ok(url.protocol === "http:" || url.protocol === "https:", `${domain} ${field} must be http or https`);
+    }
+    assert.equal(typeof entry.url, "string", `${domain} has no url`);
   }
   assert.ok(seen.size > 0, "the example should show at least one mapping");
 });
