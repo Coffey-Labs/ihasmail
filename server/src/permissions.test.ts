@@ -12,7 +12,7 @@ test("the account's permissions are kept alongside the edition", () => {
 });
 
 test("permission names read the same whichever case the server uses", () => {
-  // The source serialises camelCase; the documentation shows kebab-case.
+  // The source serializes camelCase; the documentation shows kebab-case.
   assert.equal(normalizePermission("sys-account-get"), "sysAccountGet");
   assert.equal(normalizePermission("sysAccountGet"), "sysAccountGet");
   assert.equal(normalizePermission("sys-dkim-signature-create"), "sysDkimSignatureCreate");

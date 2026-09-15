@@ -181,7 +181,7 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
   /*
    * Everyone the event concerns, you first. Scheduling around the other people
    * and not around yourself is how two things end up at the same time, and the
-   * organiser's own calendar was the one row the panel never showed.
+   * organizer's own calendar was the one row the panel never showed.
    */
   const people = useMemo(() => {
     const seen = new Set<string>();
@@ -212,7 +212,7 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
       if (!contacts.principalsLoaded) void contacts.loadPrincipals();
       return;
     }
-    let cancelled = false;
+    let canceled = false;
     (async () => {
       const out: Record<string, BusyPeriod[] | null> = {};
       for (const person of people) {
@@ -235,10 +235,10 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
           out[person.email] = null;
         }
       }
-      if (!cancelled) setFb(out);
+      if (!canceled) setFb(out);
     })();
     return () => {
-      cancelled = true;
+      canceled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [people.map((p) => p.email).join(","), fbWindow.start.getTime(), fbWindow.end.getTime(), contacts.principalsLoaded, selfPrincipalId]);
@@ -538,7 +538,7 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
         {showMore && (
           <div className="mt-8">
             <div className="field-row">
-              <div className="field"><label>{translate("Status")}</label><select className="select" value={status} onChange={(e) => setStatus(e.target.value as typeof status)}><option value="confirmed">{translate("Confirmed")}</option><option value="tentative">{translate("Tentative")}</option><option value="cancelled">{translate("Cancelled")}</option></select></div>
+              <div className="field"><label>{translate("Status")}</label><select className="select" value={status} onChange={(e) => setStatus(e.target.value as typeof status)}><option value="confirmed">{translate("Confirmed")}</option><option value="tentative">{translate("Tentative")}</option><option value="cancelled">{translate("Canceled")}</option></select></div>
               <div className="field"><label>{translate("Show as")}</label><select className="select" value={freeBusy} onChange={(e) => setFreeBusy(e.target.value as typeof freeBusy)}><option value="busy">{translate("Busy")}</option><option value="free">{translate("Free")}</option></select></div>
               {!oneDate && <div className="field"><label>{translate("Visibility")}</label><select className="select" value={privacy} onChange={(e) => setPrivacy(e.target.value as typeof privacy)}><option value="public">{translate("Default")}</option><option value="private">{translate("Private")}</option><option value="secret">{translate("Secret")}</option></select></div>}
             </div>

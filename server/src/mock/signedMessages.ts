@@ -4,7 +4,7 @@
  * These are not hand-written. Each was produced by `openssl smime -sign` with a
  * generated certificate and is stored base64 so no editor, formatter or
  * checkout setting can touch a byte of it -- a signature is over exact octets,
- * and a stray line-ending normalisation would turn a working fixture into a
+ * and a stray line-ending normalization would turn a working fixture into a
  * broken one for reasons invisible in a diff.
  *
  * The same files back the unit tests, in web/src/lib/smime/__tests__/fixtures.

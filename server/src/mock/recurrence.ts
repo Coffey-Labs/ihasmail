@@ -171,7 +171,7 @@ const SERIES_ONLY = ["recurrenceRule", "recurrenceRules", "excludedRecurrenceRul
  * The object a `CalendarEvent/get` returns for one occurrence.
  *
  * The rule is stripped, `recurrenceId` is set, and `baseEventId` points at the
- * master — so an occurrence is recognisable by its `recurrenceId` and by
+ * master — so an occurrence is recognizable by its `recurrenceId` and by
  * nothing else, which is the shape `isRecurring` was written against.
  */
 export function occurrenceView(base: Obj, occ: Occurrence): Obj {

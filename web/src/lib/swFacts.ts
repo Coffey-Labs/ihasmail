@@ -2,7 +2,7 @@
  * What the service worker cannot work out for itself.
  *
  * The worker can act on mail — see the note on `jmap()` in sw.js — but it
- * cannot read a catalogue or a store. It is plain JavaScript copied into the
+ * cannot read a catalog or a store. It is plain JavaScript copied into the
  * build, outside the bundle, with no i18n and no idea which mailbox is the
  * archive. Both of those are things a tab knows and can simply write down.
  *

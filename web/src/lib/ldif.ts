@@ -109,7 +109,7 @@ export function parseLdif(text: string): LdifRecord[] {
 /**
  * An identity for an entry, derived from its distinguished name.
  *
- * Mozilla's schema has no UID, so a re-import had nothing to be recognised by
+ * Mozilla's schema has no UID, so a re-import had nothing to be recognized by
  * and duplicated everything (#223). The `dn` is what the file actually carries,
  * and it does not need to be a durable identity to answer the only question
  * being asked of it: have I imported this exact entry before? A migration is
@@ -123,7 +123,7 @@ export function parseLdif(text: string): LdifRecord[] {
  * *same* address book, are one contact afterwards. Matching is per book, so
  * filing two directories in two books keeps them apart.
  *
- * Normalised for case and for the spacing exporters differ in, which costs
+ * Normalized for case and for the spacing exporters differ in, which costs
  * nothing when a file is compared against itself and helps when it is compared
  * against a differently-produced export of the same directory.
  *
@@ -131,10 +131,10 @@ export function parseLdif(text: string): LdifRecord[] {
  * and duplicates on re-import, as everything did before.
  */
 export function uidFromDn(dn: string): string | null {
-  const normalised = dn
+  const normalized = dn
     .trim()
     .toLowerCase()
     .replace(/\s+/g, " ")
     .replace(/\s*([,=])\s*/g, "$1");
-  return normalised ? `urn:x-ihasmail:ldif:${encodeURIComponent(normalised)}` : null;
+  return normalized ? `urn:x-ihasmail:ldif:${encodeURIComponent(normalized)}` : null;
 }

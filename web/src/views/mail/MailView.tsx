@@ -101,7 +101,7 @@ export function MailView({ mailboxId, threadId, search }: { mailboxId?: string; 
   }, [listQuery, query, mailboxesLoaded]);
 
   // Nothing moves a message out of Scheduled when its hold expires, so settle
-  // the folder up on the way in: sent messages to Sent, cancelled ones back to
+  // the folder up on the way in: sent messages to Sent, canceled ones back to
   // Drafts, and refresh what is still waiting.
   useEffect(() => {
     if (mailboxesLoaded && mailboxId && mailboxId === scheduledId) void reconcile();

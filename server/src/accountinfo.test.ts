@@ -73,14 +73,14 @@ test("no capabilities at all is treated the same way", async () => {
 const STALWART = "urn:stalwart:jmap";
 const baseCaps = { "urn:ietf:params:jmap:core": {}, "urn:ietf:params:jmap:mail": {} };
 
-test("a 0.16 server is recognised from primaryAccounts, where it advertises itself", () => {
+test("a 0.16 server is recognized from primaryAccounts, where it advertises itself", () => {
   assert.equal(
     hasStalwartRegistry({ capabilities: baseCaps, accounts: {}, primaryAccounts: { [STALWART]: "a1" } }),
     true,
   );
 });
 
-test("a 0.16 server is recognised from an account's capabilities", () => {
+test("a 0.16 server is recognized from an account's capabilities", () => {
   assert.equal(
     hasStalwartRegistry({
       capabilities: baseCaps,
@@ -100,7 +100,7 @@ test("a server that advertises it nowhere is one we do not support", () => {
   assert.equal(hasStalwartRegistry(undefined), false);
 });
 
-test("a shared account carrying the capability is enough to recognise the server", () => {
+test("a shared account carrying the capability is enough to recognize the server", () => {
   assert.equal(
     hasStalwartRegistry({
       capabilities: baseCaps,

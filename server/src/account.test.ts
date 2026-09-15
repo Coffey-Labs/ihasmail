@@ -156,7 +156,7 @@ test("with 2FA on, a password change needs the current code too", async () => {
 test("2FA is switched off with the password and a current code", async () => {
   const state = await call("/api/account/security");
   assert.equal(state.body.otpEnabled, true);
-  // The enrolment secret is known only to the client, so disabling uses a code
+  // The enrollment secret is known only to the client, so disabling uses a code
   // from the authenticator - here, the one the mock stored.
   const stored = (mock as { account: { otpUrl: string | null } }).account.otpUrl;
   const params = parseOtpauthUrl(stored!);

@@ -75,7 +75,7 @@ export interface CreateSessionParams {
  * other sessions" button: `app.ts` also calls it when the password or the app
  * password changes, so it carries the guarantee that changing a credential
  * invalidates the sessions still holding the old one. A stateless backend
- * cannot honour that alone; the plan is for OAuth to hand the job to
+ * cannot honor that alone; the plan is for OAuth to hand the job to
  * Stalwart's own token registry, which can already answer both questions.
  */
 export interface SessionBackend {

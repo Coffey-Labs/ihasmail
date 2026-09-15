@@ -1,13 +1,13 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 /**
- * TOTP (RFC 6238) — just enough to enrol a second factor safely.
+ * TOTP (RFC 6238) — just enough to enroll a second factor safely.
  *
  * Stalwart stores the otpauth:// URL and checks codes at login, but it does
  * *not* check the new secret when 2FA is switched on: it verifies the
  * credentials that are already on the account. A user whose authenticator was
  * mistyped or whose clock has drifted would be locked out of their mailbox at
- * the next sign-in. So ihasmail proves the enrolment itself, before asking the
+ * the next sign-in. So ihasmail proves the enrollment itself, before asking the
  * server to store anything.
  */
 

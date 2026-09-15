@@ -62,7 +62,7 @@ describe("ComposerDock with a full-screen composer", () => {
     expect(dock().classList.contains("has-maximized")).toBe(false);
   });
 
-  it("does not count a full-screen composer that has since been minimised", () => {
+  it("does not count a full-screen composer that has since been minimized", () => {
     setWidth(1300);
     render([draft("a"), draft("b", { maximized: true, minimized: true })], "a");
     expect(dock().classList.contains("has-maximized")).toBe(false);

@@ -95,7 +95,7 @@ describe("telling somebody what an LDIF re-import duplicated", () => {
     expect(r.alike).toBe(0);
   });
 
-  it("recognises a match on a second address", async () => {
+  it("recognizes a match on a second address", async () => {
     server([card("c1", "Jane Doe", "old@example.com", "jane@example.com")]);
     const r = await useContacts.getState().importLdif(entry("Jane Doe", "jane@example.com"), "book1");
     expect(r.alike).toBe(1);

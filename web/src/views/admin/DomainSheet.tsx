@@ -12,7 +12,7 @@ import {
   listDkimKeys,
   looksLikeDomain,
   namesOf,
-  normaliseDomain,
+  normalizeDomain,
   parseZoneFile,
   updateDomain,
   type DirectoryDomainFull,
@@ -76,11 +76,11 @@ export function DomainSheet({ id, accountCount, onClose, onChanged, onCreated, o
 
   useEffect(() => {
     if (!id) return;
-    let cancelled = false;
+    let canceled = false;
     void (async () => {
       try {
         const [d] = await getDomains([id], { zoneFile: true });
-        if (cancelled) return;
+        if (canceled) return;
         if (!d) {
           setLoadError(t("This domain no longer exists. Someone may have removed it."));
           return;
@@ -91,18 +91,18 @@ export function DomainSheet({ id, accountCount, onClose, onChanged, onCreated, o
         setCatchAll(d.catchAllAddress ?? "");
         setPlus(d.subAddressing?.["@type"] ?? "Enabled");
         if (can(perms, "DkimSignature", "Query") && can(perms, "DkimSignature", "Get")) {
-          void listDkimKeys(id).then((k) => { if (!cancelled) setKeys(k); }, () => { if (!cancelled) setKeys(null); });
+          void listDkimKeys(id).then((k) => { if (!canceled) setKeys(k); }, () => { if (!canceled) setKeys(null); });
         }
         const serverId = d.dnsManagement?.["@type"] === "Automatic" ? d.dnsManagement.dnsServerId : undefined;
         if (serverId && can(perms, "DnsServer", "Get")) {
-          void namesOf("DnsServer", [serverId]).then((n) => { if (!cancelled) setProvider(n.get(serverId) ?? null); }, () => {});
+          void namesOf("DnsServer", [serverId]).then((n) => { if (!canceled) setProvider(n.get(serverId) ?? null); }, () => {});
         }
       } catch (err) {
-        if (!cancelled) setLoadError(describeDirectoryError(err, "domain"));
+        if (!canceled) setLoadError(describeDirectoryError(err, "domain"));
       }
     })();
     return () => {
-      cancelled = true;
+      canceled = true;
     };
   }, [id, perms, revision]);
 
@@ -126,14 +126,14 @@ export function DomainSheet({ id, accountCount, onClose, onChanged, onCreated, o
           return;
         }
         const newId = await createDomain({ name, description });
-        toast.success(t("Added {name}. Its DNS records are ready to copy.", { name: normaliseDomain(name) }));
+        toast.success(t("Added {name}. Its DNS records are ready to copy.", { name: normalizeDomain(name) }));
         onCreated(newId);
         return;
       }
       if (!domain) return;
       const patch: Record<string, unknown> = {};
       if ((domain.description ?? "") !== description) patch.description = description.trim() || null;
-      const nextAliases = [...new Set(aliases.map(normaliseDomain).filter(Boolean))];
+      const nextAliases = [...new Set(aliases.map(normalizeDomain).filter(Boolean))];
       if (JSON.stringify(Object.keys(domain.aliases ?? {}).sort()) !== JSON.stringify([...nextAliases].sort())) {
         patch.aliases = Object.fromEntries(nextAliases.map((a) => [a, true]));
       }
@@ -304,7 +304,7 @@ export function DomainSheet({ id, accountCount, onClose, onChanged, onCreated, o
 function AliasList({ aliases, setAliases, editable }: { aliases: string[]; setAliases: (a: string[]) => void; editable: boolean }) {
   const [value, setValue] = useState("");
   const add = () => {
-    const name = normaliseDomain(value);
+    const name = normalizeDomain(value);
     if (!looksLikeDomain(name) || aliases.includes(name)) return;
     setAliases([...aliases, name]);
     setValue("");
@@ -376,7 +376,7 @@ function RemoveDomain({ domain, accountCount, keys, canRemoveKeys, onDeleted }: 
             <button className="btn" onClick={() => setOpen(false)}>{t("Cancel")}</button>
             <button
               className="btn btn-danger"
-              disabled={busy || normaliseDomain(typed) !== domain.name}
+              disabled={busy || normalizeDomain(typed) !== domain.name}
               onClick={async () => {
                 setBusy(true);
                 setError(null);

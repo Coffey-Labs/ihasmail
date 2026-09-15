@@ -26,7 +26,7 @@ interface SessionState {
   logout(): Promise<void>;
   refresh(): Promise<void>;
   setAccount(id: Id): void;
-  /** The account to read and write for a capability, honouring the account switcher. */
+  /** The account to read and write for a capability, honoring the account switcher. */
   accountFor(cap: string): Id | null;
   /** The user's own account for a capability, whatever they are looking at. */
   ownAccountFor(cap: string): Id | null;

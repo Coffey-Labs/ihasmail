@@ -32,27 +32,27 @@ export function DomainsAdmin({ selectedId }: { selectedId?: string }) {
   }, [text]);
 
   useEffect(() => {
-    let cancelled = false;
+    let canceled = false;
     setError(null);
     void (async () => {
       try {
         const q = await queryDomains({ text: query, position, limit: PAGE_SIZE });
         const domains = await getDomains(q.ids);
-        if (cancelled) return;
+        if (canceled) return;
         setPage({ domains, total: q.total });
         // Both are extras on top of the list, and each needs a permission of its own.
-        if (can(perms, "Account", "Query")) void countAccounts(domains.map((d) => d.id)).then((c) => { if (!cancelled) setCounts(c); });
+        if (can(perms, "Account", "Query")) void countAccounts(domains.map((d) => d.id)).then((c) => { if (!canceled) setCounts(c); });
         const tenantIds = [...new Set(domains.map((d) => d.memberTenantId).filter((x): x is string => Boolean(x)))];
-        if (tenantIds.length && can(perms, "Tenant", "Get")) void namesOf("Tenant", tenantIds).then((n) => { if (!cancelled) setTenants(n); }, () => {});
+        if (tenantIds.length && can(perms, "Tenant", "Get")) void namesOf("Tenant", tenantIds).then((n) => { if (!canceled) setTenants(n); }, () => {});
       } catch (err) {
-        if (!cancelled) {
+        if (!canceled) {
           setPage({ domains: [], total: 0 });
           setError(describeDirectoryError(err, "domain"));
         }
       }
     })();
     return () => {
-      cancelled = true;
+      canceled = true;
     };
   }, [query, position, reload, perms]);
 

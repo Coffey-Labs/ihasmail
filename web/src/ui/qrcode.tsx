@@ -6,7 +6,7 @@ import { t } from "@/lib/i18n";
  * A QR code as inline SVG.
  *
  * Drawn as one path of square modules so it scales cleanly and inherits the
- * current colour, which keeps it legible in both themes without a second
+ * current color, which keeps it legible in both themes without a second
  * rendering path. Error correction is set to M: enough tolerance for a phone
  * camera pointed at a screen, without inflating the module count.
  */

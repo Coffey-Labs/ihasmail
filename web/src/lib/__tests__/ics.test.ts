@@ -111,7 +111,7 @@ describe("parseIcsDuration", () => {
 });
 
 describe("looksLikeCalendar", () => {
-  it("recognises a calendar and rejects an error page", () => {
+  it("recognizes a calendar and rejects an error page", () => {
     expect(looksLikeCalendar("BEGIN:VCALENDAR\r\nEND:VCALENDAR")).toBe(true);
     expect(looksLikeCalendar("<!doctype html><title>404</title>")).toBe(false);
   });

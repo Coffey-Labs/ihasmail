@@ -50,7 +50,7 @@ export function splitLabel(label: string): { categoryKey: string; action: string
 
 const loaded = new Map<string, Promise<PermissionCatalog | null>>();
 
-/** The catalogue for a language, or null for English and for a language without a file. */
+/** The catalog for a language, or null for English and for a language without a file. */
 export function loadPermissionCatalog(tag: string = currentLanguage()): Promise<PermissionCatalog | null> {
   if (tag === DEFAULT_UI_LANGUAGE) return Promise.resolve(null);
   let pending = loaded.get(tag);

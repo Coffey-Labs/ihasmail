@@ -138,7 +138,7 @@ describe("remembering the palette you were on", () => {
     expect(toggleTarget(away, false)).toEqual({ palette: "ihasmail", mode: "dark" });
   });
 
-  it("keeps the colours when the palette has both sides", () => {
+  it("keeps the colors when the palette has both sides", () => {
     const away = toggleTarget({ palette: "gruvbox", mode: "dark" }, false);
     expect(away.palette).toBe("gruvbox");
     expect(away.mode).toBe("light");

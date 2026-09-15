@@ -4,7 +4,7 @@
  * The theme used to be one enum — `system | light | dark | ihasmail` — where
  * "ihasmail" carried a whole palette and implied dark. That works for exactly
  * one palette. With several, the two questions come apart: **which palette**
- * (the colours) and **which mode** (light or dark), and they are chosen
+ * (the colors) and **which mode** (light or dark), and they are chosen
  * separately.
  *
  * Every palette here is taken from the project that publishes it, all MIT, and
@@ -32,7 +32,7 @@ export interface PaletteMeta {
    * the rest -- and are rendered translate="no" so a page translator leaves
    * them alone. "Classic" is not a name, it is an adjective describing the
    * theme, and a German reader should see "Klassisch". Reported by a native
-   * speaker reviewing the German catalogue (#247).
+   * speaker reviewing the German catalog (#247).
    */
   translatable?: boolean;
 }
@@ -49,7 +49,7 @@ export const PALETTES: PaletteMeta[] = [
   { id: "ayu", name: "Ayu", credit: "Ayu by Konstantin Pschera (MIT)" },
   { id: "kanagawa", name: "Kanagawa", credit: "Kanagawa by rebelot (MIT) — dark is Wave, light is Lotus" },
   { id: "everforest", name: "Everforest", credit: "Everforest by sainnhe (MIT)" },
-  // Named for the design system rather than for GitHub: the colours are MIT,
+  // Named for the design system rather than for GitHub: the colors are MIT,
   // the name and the logo are trademarks, and nothing here is endorsed.
   { id: "primer", name: "Primer", credit: "GitHub's Primer primitives (MIT); not affiliated with or endorsed by GitHub" },
 ];
@@ -67,7 +67,7 @@ export function paletteMeta(id: PaletteId | string | null | undefined): PaletteM
  * against the OS. That was not true while `ihasmail` was dark-only: the mode
  * then had to be overridden by the palette, and the toggle had to remember
  * which palette it had set aside on the way to light. Giving that palette a
- * light half removed the override, the memory and the greyed-out control in
+ * light half removed the override, the memory and the grayed-out control in
  * one go.
  */
 export function effectiveMode(mode: Mode, prefersDark: boolean): ResolvedMode {

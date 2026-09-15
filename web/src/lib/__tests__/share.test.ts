@@ -109,7 +109,7 @@ describe("sharing a file", () => {
     await expect(shareFile(aFile())).resolves.toBe("unsupported");
   });
 
-  it("raises anything it does not recognise, so a real fault is still reported", async () => {
+  it("raises anything it does not recognize, so a real fault is still reported", async () => {
     stubNavigator({
       share: vi.fn(async () => { throw new DOMException("boom", "DataError"); }),
       canShare: (() => true) as unknown as Navigator["canShare"],

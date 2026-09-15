@@ -30,7 +30,7 @@ const find = (e: JSCalendarEvent[], prefix: string) => eventLines(e).filter((l) 
 const one = (e: JSCalendarEvent, prefix: string) => find([e], prefix)[0];
 
 describe("the document around the events", () => {
-  it("is a calendar a reader will recognise", () => {
+  it("is a calendar a reader will recognize", () => {
     const l = lines([base]);
     expect(l[0]).toBe("BEGIN:VCALENDAR");
     expect(l).toContain("VERSION:2.0");
@@ -105,7 +105,7 @@ describe("recurrence", () => {
     expect(one(e, "RRULE")).toBe("RRULE:FREQ=MONTHLY;BYDAY=-1TH");
   });
 
-  it("turns a cancelled occurrence into an EXDATE", () => {
+  it("turns a canceled occurrence into an EXDATE", () => {
     const e = { ...weekly, recurrenceOverrides: { "2026-09-09T09:00:00": null } };
     expect(one(e, "EXDATE")).toBe("EXDATE;TZID=Europe/Berlin:20260909T090000");
     expect(find([e], "BEGIN:VEVENT")).toHaveLength(1);
@@ -166,7 +166,7 @@ describe("the rest of an event", () => {
     expect(one(e, "TRANSP")).toBe("TRANSP:TRANSPARENT");
   });
 
-  it("writes the organiser and the guests, with what each answered", () => {
+  it("writes the organizer and the guests, with what each answered", () => {
     const e = {
       ...base,
       organizerCalendarAddress: "mailto:chair@example.org",

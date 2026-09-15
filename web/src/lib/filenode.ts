@@ -54,7 +54,7 @@ export function isShared(node: Pick<FileNode, "shareWith">): boolean {
  * legal moves behind a disabled drop. The server refuses those with a message
  * of its own, which is a better answer than a silent one.
  */
-/** The MIME a dragged node is offered under, so a target can recognise it. */
+/** The MIME a dragged node is offered under, so a target can recognize it. */
 export const NODE_MIME = "application/x-ihasmail-filenode";
 
 /**

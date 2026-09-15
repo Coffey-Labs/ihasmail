@@ -34,7 +34,7 @@ describe("the span an availability bar covers", () => {
     expect(w.span).toBeGreaterThan(0);
   });
 
-  it("marks a single day every three hours, labelling every six", () => {
+  it("marks a single day every three hours, labeling every six", () => {
     const w = availabilityWindow(at("2026-09-02T09:00:00"), at("2026-09-02T10:00:00"));
     expect(w.scale).toBe("hours");
     expect(hours(w)).toEqual(["2@0", "2@3", "2@6", "2@9", "2@12", "2@15", "2@18", "2@21"]);

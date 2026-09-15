@@ -30,7 +30,7 @@ describe("permission labels", () => {
  * does not: a missing one would show English in the middle of a translated
  * picker, and a stale one would never be looked up.
  */
-describe("the permission catalogues", () => {
+describe("the permission catalogs", () => {
   const modules = import.meta.glob<{ permissionCatalog: PermissionCatalog }>("../../locales/permissions/*.ts");
   const tagOf = (path: string) => path.split("/").pop()!.replace(/\.ts$/, "");
   const languages = UI_LANGUAGES.map((l) => l.tag).filter((tag) => tag !== "en");

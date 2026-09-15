@@ -128,7 +128,7 @@ const waitFor = async (jsExpr, what, ms = 15000) => {
  * capture — twice, silently, producing a "light" screenshot of the dark theme.
  * A MutationObserver puts it back faster than anything can take it away.
  *
- * The check is the rendered background colour: the attribute is what lied.
+ * The check is the rendered background color: the attribute is what lied.
  */
 const themeTest = (want) => want === "light"
   ? "parseInt(getComputedStyle(document.body).backgroundColor.match(/\\d+/)[0], 10) > 200"

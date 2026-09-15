@@ -21,7 +21,7 @@
 export interface SpamRule {
   /** The rule's own name, as the filter wrote it. */
   name: string;
-  /** What it contributed. Negative moves the message towards clean. */
+  /** What it contributed. Negative moves the message toward clean. */
   score: number;
   /** Rspamd's bracketed note, where there is one. */
   detail?: string;

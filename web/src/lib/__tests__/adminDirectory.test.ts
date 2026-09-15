@@ -62,7 +62,7 @@ describe("the account query", () => {
  * live server gave, or one its source says it gives.
  */
 describe("refusals in the reader's language", () => {
-  it("recognises the registry's validators and says it again, without the server's words", () => {
+  it("recognizes the registry's validators and says it again, without the server's words", () => {
     // Live, 2026-09-13: a reserved TLD, and a catch-all without a domain.
     const domain = describeDirectoryError(new DirectoryError("invalidPatch", "Invalid domain name", ["name"]), "domain");
     expect(domain).toMatch(/isn't a valid domain name/);

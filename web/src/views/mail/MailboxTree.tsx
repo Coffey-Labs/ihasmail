@@ -290,9 +290,9 @@ function FolderRow({ mailbox: m, label, depth, hasChildren, open, hiddenUnread, 
   // Bold when this folder has unread mail, or any folder beneath it does (parent + child both bold).
   const unread = m.role !== "drafts" && m.role !== "trash" && m.role !== "junk" && m.role !== "sent" && !scheduled ? m.unreadEmails + childUnread > 0 : m.unreadEmails > 0 && m.role !== "drafts" && !scheduled;
   const icon = m.role && ROLE_ICONS[m.role] ? ROLE_ICONS[m.role] : scheduled ? <Clock size={20} /> : <Folder size={20} />;
-  // A chosen colour tints the icon only; the label keeps the tree's own
-  // contrast, which a dozen arbitrary colours would not reliably give it.
-  // Subscribed, not read once: picking a colour has to repaint the row.
+  // A chosen color tints the icon only; the label keeps the tree's own
+  // contrast, which a dozen arbitrary colors would not reliably give it.
+  // Subscribed, not read once: picking a color has to repaint the row.
   const tint = useSettings((s) => folderColor(s.settings.folderColors, m.id));
 
   const onDragOver = (e: DragEvent) => {
@@ -442,7 +442,7 @@ function MailboxMenu({ mailbox: m, onClose, onCreateChild, onShare, onMove }: { 
     return n;
   });
   const rename = async () => {
-    const name = await // The server's own name, never the localised one: this box writes
+    const name = await // The server's own name, never the localized one: this box writes
     // back whatever it is prefilled with.
     promptDialog({ title: t("Rename folder"), defaultValue: m.name });
     if (!name?.trim() || name.trim() === m.name) return;
@@ -497,7 +497,7 @@ function MailboxMenu({ mailbox: m, onClose, onCreateChild, onShare, onMove }: { 
           reason this entry survives at all. */}
       {shared && <MenuItem icon={<Share2 size={16} />} label={t("Stop sharing")} onClick={onShare} />}
       <MenuSep />
-      <MenuTitle><span className="row gap-4"><Palette size={12} />  {t("Colour")}</span></MenuTitle>
+      <MenuTitle><span className="row gap-4"><Palette size={12} />  {t("Color")}</span></MenuTitle>
       <div className="color-grid" style={{ gridTemplateColumns: "repeat(6, 26px)", padding: "4px 10px 8px" }}>
         {CALENDAR_COLORS.map((c) => (
           <button
@@ -509,7 +509,7 @@ function MailboxMenu({ mailbox: m, onClose, onCreateChild, onShare, onMove }: { 
           />
         ))}
       </div>
-      {color && <MenuItem icon={<X size={16} />} label={t("Use the default colour")} onClick={() => setColor(null)} />}
+      {color && <MenuItem icon={<X size={16} />} label={t("Use the default color")} onClick={() => setColor(null)} />}
       <MenuSep />
       {canEmpty(m.role) && <MenuItem icon={<Eraser size={16} />} label={emptyLabel(m)} onClick={() => void empty()} danger disabled={!m.totalEmails} />}
       <MenuItem icon={<Trash2 size={16} />} label={t("Delete folder")} onClick={() => void remove()} danger disabled={isSpecial || !m.myRights.mayDelete} />

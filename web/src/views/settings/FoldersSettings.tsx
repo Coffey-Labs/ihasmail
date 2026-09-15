@@ -12,12 +12,12 @@ import { mailboxDisplayPath } from "@/lib/mailboxName";
 /*
  * Roles a folder can be given here.
  *
- * These are the three that ihasmail's own behaviour depends on and that
+ * These are the three that ihasmail's own behavior depends on and that
  * Stalwart will let move. Inbox, Junk and Trash are absent on purpose: 0.16.20
  * refuses them outright -- "You are not allowed to change the role of Inbox,
  * Junk or Trash folders" -- so offering them would only produce an error.
  *
- * `label` rather than a bare string so the catalogue sees them: they are
+ * `label` rather than a bare string so the catalog sees them: they are
  * translated where they render.
  */
 const SETTABLE_ROLES: { value: Exclude<MailboxRole, null>; label: string }[] = [
@@ -110,7 +110,7 @@ export function FoldersSettings() {
               <td>{m.unreadEmails.toLocaleString()}</td>
               <td>
                 <div className="row" style={{ justifyContent: "flex-end", gap: 0 }}>
-                  <button className="icon-btn sm" title={t("Rename")} disabled={Boolean(m.role) && m.role !== "subscribed"} onClick={async () => { const n = await // The server's own name, never the localised one: this box writes
+                  <button className="icon-btn sm" title={t("Rename")} disabled={Boolean(m.role) && m.role !== "subscribed"} onClick={async () => { const n = await // The server's own name, never the localized one: this box writes
     // back whatever it is prefilled with.
     promptDialog({ title: t("Rename folder"), defaultValue: m.name }); if (n?.trim() && n !== m.name) { try { await useMail.getState().updateMailbox(m.id, { name: n.trim() }); } catch (err) { toast.error((err as Error).message); } } }}><Pencil size={16} /></button>
                   <button className="icon-btn sm" title={m.isSubscribed ? t("Hide") : t("Show")} disabled={m.role === "inbox"} onClick={() => void useMail.getState().updateMailbox(m.id, { isSubscribed: !m.isSubscribed })}>{m.isSubscribed ? <EyeOff size={16} /> : <Eye size={16} />}</button>

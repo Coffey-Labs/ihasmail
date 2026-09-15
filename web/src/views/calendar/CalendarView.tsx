@@ -26,7 +26,7 @@ type View = "month" | "week" | "day" | "agenda";
  * They used to be `v[0].toUpperCase() + v.slice(1)`, which is correct English
  * and untranslatable in every other language: the extractor cannot see a
  * string that is computed, so the four buttons stayed English even in a
- * catalogue that had all four words. Called rather than looked up, because a
+ * catalog that had all four words. Called rather than looked up, because a
  * module-level object would capture the labels for whichever language loaded
  * first.
  */

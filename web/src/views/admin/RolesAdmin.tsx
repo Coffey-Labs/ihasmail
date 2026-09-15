@@ -29,31 +29,31 @@ export function RolesAdmin({ selectedId }: { selectedId?: string }) {
   const [reload, setReload] = useState(0);
 
   useEffect(() => {
-    let cancelled = false;
+    let canceled = false;
     setError(null);
     listAllRoles().then(
-      (list) => !cancelled && setRoles(list),
+      (list) => !canceled && setRoles(list),
       (err) => {
-        if (cancelled) return;
+        if (canceled) return;
         setRoles([]);
         setError(describeDirectoryError(err, "role"));
       },
     );
-    void loadRoleDefaults().then((d) => !cancelled && setDefaults(d));
+    void loadRoleDefaults().then((d) => !canceled && setDefaults(d));
     return () => {
-      cancelled = true;
+      canceled = true;
     };
   }, [reload]);
 
   // The permission list changes only when Stalwart is upgraded; once per visit is plenty.
   useEffect(() => {
-    let cancelled = false;
+    let canceled = false;
     Promise.all([loadPermissionList(), loadPermissionCatalog()]).then(
-      ([list, catalog]) => !cancelled && setEntries(describePermissions(list, catalog, t("General"))),
-      (err) => !cancelled && setPermissionsError(t("Stalwart's list of permissions could not be loaded, so permissions can't be changed here. ({reason})", { reason: describeDirectoryError(err, "role") })),
+      ([list, catalog]) => !canceled && setEntries(describePermissions(list, catalog, t("General"))),
+      (err) => !canceled && setPermissionsError(t("Stalwart's list of permissions could not be loaded, so permissions can't be changed here. ({reason})", { reason: describeDirectoryError(err, "role") })),
     );
     return () => {
-      cancelled = true;
+      canceled = true;
     };
   }, []);
 

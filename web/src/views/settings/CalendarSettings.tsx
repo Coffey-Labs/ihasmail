@@ -47,7 +47,7 @@ export function CalendarSettings() {
           </select>
         </div>
       </div>
-      <h2>{t("Colour categories")}</h2>
+      <h2>{t("Color categories")}</h2>
       <p className="hint">{t("Outlook-style categories you can assign to events from the right-click menu or the event editor. The category name is stored on the event, so it syncs to other clients.")}</p>
       {s.eventCategories.map((c, i) => (
         <div key={c.name} className="card">

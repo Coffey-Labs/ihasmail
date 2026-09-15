@@ -74,11 +74,11 @@ failing, so an untranslated string is invisible until somebody reading that
 language finds it.
 
 **Any change that adds or alters a user-visible string adds work in all nine
-catalogues.** Say so explicitly in the PR — how many keys, and the fallback
+catalogs.** Say so explicitly in the PR — how many keys, and the fallback
 count before and after — and say so just as explicitly when a change adds none,
 so it is never left to be inferred.
 
-#### The catalogue key for a plural is the `other` form
+#### The catalog key for a plural is the `other` form
 
 `plural()` looks the entry up by `forms.other`, so a call site written as
 
@@ -86,13 +86,13 @@ so it is never left to be inferred.
 plural(n, { one: "Deleted {n} contact", other: "Deleted {n} contacts" })
 ```
 
-is keyed on **`"Deleted {n} contacts"`**. Keying the catalogue on the `one`
+is keyed on **`"Deleted {n} contacts"`**. Keying the catalog on the `one`
 form type-checks, builds, passes every test, and silently falls back to English
 in all nine languages. Nothing errors. The only signal is the fallback count
 going up, so read it:
 
 ```sh
-npm run i18n:check                    # literals wrapped, and catalogue health; exits 1 on a finding
+npm run i18n:check                    # literals wrapped, and catalog health; exits 1 on a finding
 node scripts/i18n-catalog-check.mjs   # per-language: translated / used / falling back
 ```
 
@@ -152,7 +152,7 @@ browser  ──(same-origin /api/*)──►  ihasmail server (Node + Hono)  ─
   JMAP client + stores                • /api/jmap, /api/blob, /api/upload, /api/events (SSE), /api/image
 ```
 
-- `web/` — Vite + React 19 + TypeScript SPA. `src/jmap` (client, push, types), `src/store` (zustand: session, mail, compose, contacts, calendar, files, sieve, settings), `src/views`, `src/lib` (sanitiser, search parser, Sieve codec, locale-aware dates, vCard, …).
+- `web/` — Vite + React 19 + TypeScript SPA. `src/jmap` (client, push, types), `src/store` (zustand: session, mail, compose, contacts, calendar, files, sieve, settings), `src/views`, `src/lib` (sanitizer, search parser, Sieve codec, locale-aware dates, vCard, …).
 - `server/` — Node/Hono backend: authenticates against Stalwart's JMAP session endpoint, seals the credentials with a key derived from the cookie secret, proxies JMAP/blob/SSE, serves the SPA under a strict CSP. `src/mock/` is an in-memory fake Stalwart for development and demos.
 
 Capabilities used: `core`, `mail`, `submission`, `vacationresponse`, `sieve`,
@@ -179,10 +179,10 @@ RFC 8984's.
 | `MOCK_EDITION=enterprise` | Reports Enterprise, which Tenants needs |
 
 It tracks the current Stalwart release rather than 0.16 in general, and each
-behaviour is confirmed against a real server before it is copied here — the
+behavior is confirmed against a real server before it is copied here — the
 comments say which version and on what date. Where a release changes something
 a client can see, the mock changes with it, and the test that pinned the old
-behaviour is rewritten rather than deleted, so the reversal stays on the record.
+behavior is rewritten rather than deleted, so the reversal stays on the record.
 
 #### Version numbers
 

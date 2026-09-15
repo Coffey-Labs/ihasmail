@@ -72,7 +72,7 @@ export async function loadRoleDefaults(): Promise<RoleDefaults | null> {
   }
 }
 
-/** Stalwart's labelled permission list, through ihasmail's server. */
+/** Stalwart's labeled permission list, through ihasmail's server. */
 export async function loadPermissionList(): Promise<PermissionInfo[]> {
   const res = await apiFetch<{ permissions: PermissionInfo[] }>("/api/admin/permissions");
   return res.permissions;

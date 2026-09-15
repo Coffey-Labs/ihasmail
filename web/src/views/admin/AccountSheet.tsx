@@ -270,7 +270,7 @@ export function AccountSheet({ account, ctx, onClose, onChanged, onCreated, onDe
             <p className="hint">
               {self
                 ? t("You can't move your own account into a tenant.")
-                : t("An account can be in the tenant its domain is in. In a tenant it is limited by the tenant's role and counts towards its limits, and Administrator means administrator of that tenant.")}
+                : t("An account can be in the tenant its domain is in. In a tenant it is limited by the tenant's role and counts toward its limits, and Administrator means administrator of that tenant.")}
             </p>
           </>
         )}

@@ -48,8 +48,8 @@ const ROLE_NAMES: Record<string, () => string> = {
 /** The folder's name as the reader should see it. */
 export function mailboxDisplayName(mailbox: { name: string; role?: string | null } | null | undefined): string {
   if (!mailbox) return "";
-  const localised = mailbox.role ? ROLE_NAMES[mailbox.role] : undefined;
-  return localised ? localised() : mailbox.name;
+  const localized = mailbox.role ? ROLE_NAMES[mailbox.role] : undefined;
+  return localized ? localized() : mailbox.name;
 }
 
 /**
@@ -61,7 +61,7 @@ export function mailboxDisplayName(mailbox: { name: string; role?: string | null
  * they were only looking at. Renaming a role folder is refused anyway, but
  * relying on that would be relying on a rule enforced somewhere else.
  */
-export function isLocalisedName(mailbox: { role?: string | null } | null | undefined): boolean {
+export function isLocalizedName(mailbox: { role?: string | null } | null | undefined): boolean {
   return Boolean(mailbox?.role && mailbox.role in ROLE_NAMES);
 }
 

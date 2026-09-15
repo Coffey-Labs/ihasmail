@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { describeLinked, dkimAlgorithm, looksLikeDomain, normaliseDomain, parseZoneFile } from "@/lib/adminDomains";
+import { describeLinked, dkimAlgorithm, looksLikeDomain, normalizeDomain, parseZoneFile } from "@/lib/adminDomains";
 
 /**
- * Written the way Stalwart's BIND serialiser writes it (dns-update's
+ * Written the way Stalwart's BIND serializer writes it (dns-update's
  * `BindSerializer`): `name IN TYPE value`, and a TXT over 255 bytes as a
- * parenthesised run of quoted chunks.
+ * parenthesized run of quoted chunks.
  */
 const long = "v=DKIM1; k=rsa; h=sha256; p=" + "A".repeat(400);
 const zone = [
@@ -46,7 +46,7 @@ describe("reading the zone file", () => {
 
 describe("domain names", () => {
   it("are written back lower-case without the root dot", () => {
-    expect(normaliseDomain(" Example.COM. ")).toBe("example.com");
+    expect(normalizeDomain(" Example.COM. ")).toBe("example.com");
   });
 
   it("are checked loosely before the server decides", () => {

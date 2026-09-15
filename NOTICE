@@ -3,10 +3,10 @@
 ihasmail is licensed under the AGPL-3.0; see LICENSE. This file records work by
 other people that ships inside it and the terms it comes under.
 
-## Colour palettes
+## Color palettes
 
 Ten of the palettes offered in Settings › Appearance are the work of their own
-projects and are used under the MIT license. Only the published colour values
+projects and are used under the MIT license. Only the published color values
 are used — no code, and nothing from anyone else's reimplementation of them.
 The values as fetched from each project are recorded in
 `.palette-sources/palettes-upstream.md`, and the shades between them are
@@ -50,7 +50,7 @@ share one set of accent values by design.
 ### Ayu
 
 Copyright (c) Konstantin Pschera — https://github.com/ayu-theme/ayu-colors
-Licensed under the MIT license. The two signature accent colours come from the
+Licensed under the MIT license. The two signature accent colors come from the
 same author's ayu-theme/vscode-ayu, also MIT.
 
 ### Kanagawa
@@ -68,7 +68,7 @@ the one used here.
 ### Primer
 
 Copyright (c) GitHub, Inc. — https://github.com/primer/primitives
-Licensed under the MIT license, which covers the colour values. "GitHub" and
+Licensed under the MIT license, which covers the color values. "GitHub" and
 the Invertocat logo are trademarks of GitHub, Inc.; this palette is named
 "Primer" after the design system and is neither affiliated with nor endorsed
 by GitHub.

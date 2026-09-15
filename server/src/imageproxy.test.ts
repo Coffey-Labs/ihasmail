@@ -15,7 +15,7 @@ const { createApp } = await import("./app.js");
  * it is pointed at.
  */
 
-test("addresses we must never reach are recognised", () => {
+test("addresses we must never reach are recognized", () => {
   for (const a of [
     "127.0.0.1", "10.1.2.3", "172.16.0.1", "172.31.255.255", "192.168.1.1",
     "169.254.169.254", // cloud metadata, the classic SSRF target

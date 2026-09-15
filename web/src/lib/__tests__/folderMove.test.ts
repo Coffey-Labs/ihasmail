@@ -93,14 +93,14 @@ describe("canMoveFolderTo", () => {
 });
 
 describe("folderColor", () => {
-  it("returns the colour chosen for that folder, and null for the rest", () => {
+  it("returns the color chosen for that folder, and null for the rest", () => {
     const colors = { work: "#7c3aed" };
     expect(folderColor(colors, "work")).toBe("#7c3aed");
     expect(folderColor(colors, "news")).toBeNull();
     expect(folderColor({}, "work")).toBeNull();
   });
 
-  it("is keyed by id, so a renamed folder keeps its colour", () => {
+  it("is keyed by id, so a renamed folder keeps its color", () => {
     // The id is stable across a rename; the name and path are not.
     expect(folderColor({ mb1: "#0f766e" }, "mb1")).toBe("#0f766e");
   });

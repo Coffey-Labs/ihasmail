@@ -83,7 +83,7 @@ async function scanBook(accountId: Id, addressBookId: Id): Promise<{ byUid: Map<
  * confusion rather than duplication, and being told costs nothing.
  *
  * One key per address, so a person whose second address matches is still
- * recognised.
+ * recognized.
  */
 function likenessKeys(c: Partial<ContactCard>): string[] {
   const name = contactDisplayName(c as ContactCard).trim().toLowerCase();
@@ -225,7 +225,7 @@ interface ContactsState {
   /**
    * Import an address book in LDIF, read against Mozilla's schema.
    *
-   * Mozilla's schema has no UID, so a re-import is recognised by the entry's
+   * Mozilla's schema has no UID, so a re-import is recognized by the entry's
    * `dn` instead -- the same update-rather-than-duplicate rule the vCard import
    * follows, on the only identity the file carries. `alike` is what is left
    * over: entries that were created and still look like somebody already here,

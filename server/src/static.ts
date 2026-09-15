@@ -88,7 +88,7 @@ export function staticHandler(root: string, basePath = ""): Handler {
    * already being read here, so checking what it asks for costs one substring
    * search per rebuild and turns a mystery into a line in the log.
    *
-   * A warning rather than a refusal: this reads a built artefact to guess at a
+   * A warning rather than a refusal: this reads a built artifact to guess at a
    * misconfiguration, and a wrong guess that stops the server from starting is
    * worse than the problem it is describing.
    */
@@ -128,7 +128,7 @@ export function staticHandler(root: string, basePath = ""): Handler {
      * comes off once, here. Anything outside it is a 404 and not the app
      * shell: under `/mail` this process shares a hostname with whatever else
      * the proxy serves, and answering `/` or `/other-app/thing` with our
-     * index would shadow a neighbour rather than let it 404 honestly.
+     * index would shadow a neighbor rather than let it 404 honestly.
      */
     const fullPath = decodeURIComponent(new URL(c.req.url).pathname);
     const urlPath = stripBasePath(basePath, fullPath);

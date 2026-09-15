@@ -3,7 +3,7 @@
  *
  * This works on bytes, not on a string, and that is the whole point. A
  * signature is over an octet sequence: decode it to text, re-encode it, or let
- * anything normalise a line ending on the way past, and the digest changes
+ * anything normalize a line ending on the way past, and the digest changes
  * while the message still looks identical on screen. Every part here keeps a
  * subarray of the original buffer rather than a rebuilt copy.
  *

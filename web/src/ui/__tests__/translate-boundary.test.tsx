@@ -12,7 +12,7 @@ import { TranslateBoundary, isDomMutationError } from "../TranslateBoundary";
  * (facebook/react#11538). The boundary's job is to put the subtree back
  * instead, and to leave everything that is not that alone.
  */
-describe("recognising the translator's damage", () => {
+describe("recognizing the translator's damage", () => {
   it("knows the DOM errors Chrome's rewriting produces", () => {
     const notFound = new Error("Failed to execute 'removeChild' on 'Node'");
     notFound.name = "NotFoundError";
@@ -21,11 +21,11 @@ describe("recognising the translator's damage", () => {
   });
 
   it("matches on the error name as well as the message", () => {
-    // The message is browser-specific and localised. Matching only on English
+    // The message is browser-specific and localized. Matching only on English
     // text would be a translation bug that only works in English.
-    const localised = new Error("Знайдений вузол не є дочірнім");
-    localised.name = "NotFoundError";
-    expect(isDomMutationError(localised)).toBe(true);
+    const localized = new Error("Знайдений вузол не є дочірнім");
+    localized.name = "NotFoundError";
+    expect(isDomMutationError(localized)).toBe(true);
   });
 
   it("does not claim an ordinary bug", () => {
@@ -84,7 +84,7 @@ describe("the boundary", () => {
   it("logs the recovery as information, not as an error", () => {
     // A reader translating the page is expected and recovered from. Logging it
     // as an error would file a bug report in every console-reading reporter,
-    // every time, for behaviour that worked.
+    // every time, for behavior that worked.
     const fails = { left: 2 };
     const info = vi.spyOn(console, "info").mockImplementation(() => {});
     const error = vi.spyOn(console, "error").mockImplementation(() => {});

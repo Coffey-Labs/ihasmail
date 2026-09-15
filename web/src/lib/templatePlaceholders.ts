@@ -12,7 +12,7 @@
  *    mistake to undo.
  *  - **A name that is not a placeholder is left alone too.** Templates are
  *    written by hand and `{{` is not reserved anywhere else, but a body that
- *    silently ate an unrecognised token would be worse than one that shows it.
+ *    silently ate an unrecognized token would be worse than one that shows it.
  *
  * Dates and times go through `datetime.ts` rather than `toLocaleDateString`,
  * so a template follows the same date order and clock the rest of the app was

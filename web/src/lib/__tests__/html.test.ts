@@ -34,7 +34,7 @@ describe("sanitizeEmailHtml", () => {
 });
 
 describe("htmlDeclaresColors", () => {
-  it("is false for mail that brings no colours", () => {
+  it("is false for mail that brings no colors", () => {
     expect(htmlDeclaresColors("<p>Hi there</p>")).toBe(false);
     expect(htmlDeclaresColors("<div><b>bold</b> and <i>italic</i></div>", "font-family:Arial")).toBe(false);
     expect(htmlDeclaresColors('<a href="https://x.io/?color=red">link</a>')).toBe(false);
@@ -54,9 +54,9 @@ describe("htmlDeclaresColors", () => {
 /**
  * Forcing the theme onto mail that styles itself — issue #290.
  *
- * The switch above it leaves nearly all HTML mail alone, because one colour
+ * The switch above it leaves nearly all HTML mail alone, because one color
  * anywhere opts a message out. What this half has to get right is telling a
- * sheet the design sits on from a surface painted on top of it: neutralise the
+ * sheet the design sits on from a surface painted on top of it: neutralize the
  * first and the white card goes away, keep the second and a button keeps a
  * label you can still read.
  */
@@ -70,15 +70,15 @@ describe("relativeLuminance", () => {
     expect(relativeLuminance("rgba(255,255,255,0.5)")).toBeCloseTo(1, 5);
   });
 
-  it("has nothing to say about a colour it cannot read", () => {
+  it("has nothing to say about a color it cannot read", () => {
     // Not a failure: the caller treats null as "no deliberate surface", which
-    // is the safe way round — an unreadable colour must not keep a white sheet.
+    // is the safe way round — an unreadable color must not keep a white sheet.
     expect(relativeLuminance("color-mix(in srgb, red, blue)")).toBeNull();
     expect(relativeLuminance("var(--brand)")).toBeNull();
     expect(relativeLuminance("")).toBeNull();
   });
 
-  it("treats a fully transparent colour as painting nothing", () => {
+  it("treats a fully transparent color as painting nothing", () => {
     expect(relativeLuminance("rgba(0,0,0,0)")).toBeNull();
     expect(relativeLuminance("transparent")).toBeNull();
   });
@@ -100,21 +100,21 @@ describe("markKeptSurfaces", () => {
    * Marking is only half of it — the other half is the rule in EMAIL_BASE_CSS
    * that reads the marks, and #310 was a bug in that half rather than in the
    * marking. So these assert what the reader actually sees: does the
-   * neutraliser hit this element? The selector is lifted out of the stylesheet
+   * neutralizer hit this element? The selector is lifted out of the stylesheet
    * rather than copied, so a test cannot quietly drift from the rule it checks.
    */
-  const NEUTRALISER = (() => {
+  const NEUTRALIZER = (() => {
     const m = EMAIL_BASE_CSS.match(
       /\.ihm-email-root\.forced\s+(\*:not\([^{]*?)\s*\{\s*color: inherit/,
     );
-    if (!m) throw new Error("could not find the neutraliser rule in EMAIL_BASE_CSS");
+    if (!m) throw new Error("could not find the neutralizer rule in EMAIL_BASE_CSS");
     return m[1]!.trim();
   })();
 
   /** True when the theme is forced onto this element rather than leaving it alone. */
-  const neutralised = (el: Element) => el.matches(NEUTRALISER);
+  const neutralized = (el: Element) => el.matches(NEUTRALIZER);
 
-  it("keeps a coloured button and drops the white sheet around it", () => {
+  it("keeps a colored button and drops the white sheet around it", () => {
     // The shape reported in #290: a Shopify/Klaviyo template whose outer 600px
     // wrapper carries bgcolor="#ffffff" and whose CTA carries bgcolor="#1155CC".
     const d = frag('<table bgcolor="#ffffff"><tr><td bgcolor="#1155CC"><a style="color:#FFFFFF">Buy</a></td></tr></table>');
@@ -127,7 +127,7 @@ describe("markKeptSurfaces", () => {
     expect(d.querySelector("a")!.hasAttribute("data-ihm-in-keep")).toBe(true);
   });
 
-  it("neutralises a light panel nested inside a dark painted card", () => {
+  it("neutralizes a light panel nested inside a dark painted card", () => {
     // The shape reported in #310: a dark Klaviyo campaign whose 600px cards
     // are dark enough to be marked, with light content tables inside them.
     // Those tables used to inherit the card's exemption and render as beige
@@ -153,11 +153,11 @@ describe("markKeptSurfaces", () => {
     // The fix, stated the way the reader experiences it: the nested sheet is
     // themed, and so is the copy inside it. Before #310 both were exempt for
     // being descendants of the card.
-    expect(neutralised(nested)).toBe(true);
-    expect(neutralised(d.querySelector("td")!)).toBe(true);
+    expect(neutralized(nested)).toBe(true);
+    expect(neutralized(d.querySelector("td")!)).toBe(true);
     // The card itself is still left alone, and the page surround still goes.
-    expect(neutralised(card)).toBe(false);
-    expect(neutralised(surround)).toBe(true);
+    expect(neutralized(card)).toBe(false);
+    expect(neutralized(surround)).toBe(true);
   });
 
   it("still keeps a button that sits inside a nested light panel", () => {
@@ -172,11 +172,11 @@ describe("markKeptSurfaces", () => {
       '</div>',
     );
     expect(markKeptSurfaces(d)).toBe(2);
-    expect(neutralised(d.querySelector("table")!)).toBe(true);
-    expect(neutralised(d.querySelector("td")!)).toBe(false);
+    expect(neutralized(d.querySelector("table")!)).toBe(true);
+    expect(neutralized(d.querySelector("td")!)).toBe(false);
     // The label keeps its white, which is the thing #294 bought and this must
     // not spend.
-    expect(neutralised(d.querySelector("a")!)).toBe(false);
+    expect(neutralized(d.querySelector("a")!)).toBe(false);
   });
 
   it("leaves no light panel exempt across the whole reported specimen", () => {
@@ -201,7 +201,7 @@ describe("markKeptSurfaces", () => {
     expect(panels.length).toBe(21);
 
     expect(markKeptSurfaces(d)).toBe(7);
-    expect(panels.filter((p) => !neutralised(p))).toHaveLength(0);
+    expect(panels.filter((p) => !neutralized(p))).toHaveLength(0);
   });
 
   it("reads an inline background as well as the attribute", () => {
@@ -233,7 +233,7 @@ describe("markKeptSurfaces", () => {
  * The control that actually stops it is layout containment on an ancestor of
  * the shadow host, which mail CSS has no selector for; that lives in app.css
  * and is asserted at the bottom of this file, because jsdom does no layout and
- * cannot prove it here. These cover the second line of defence.
+ * cannot prove it here. These cover the second line of defense.
  */
 describe("mail CSS cannot climb out of its card", () => {
   const render = (html: string) => sanitizeEmailHtml(html).html;
@@ -271,7 +271,7 @@ describe("mail CSS cannot climb out of its card", () => {
 describe("the containment that mail CSS cannot override", () => {
   it("is still applied to the message body container", async () => {
     // jsdom does no layout, so this asserts the control is present rather than
-    // that it works; the behaviour was verified in a real browser. Without it,
+    // that it works; the behavior was verified in a real browser. Without it,
     // a message can cover the viewport regardless of what the sanitizer does.
     const { readFile } = await import("node:fs/promises");
     const { join } = await import("node:path");

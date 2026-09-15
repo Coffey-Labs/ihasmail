@@ -65,7 +65,7 @@ const file = (name: string, body: string, extra: Attr[] = []): Attr[] => [
 const text = (a: Uint8Array) => new TextDecoder().decode(a);
 
 describe("isTnef", () => {
-  it("recognises the types and the filename", () => {
+  it("recognizes the types and the filename", () => {
     expect(isTnef("application/ms-tnef", null)).toBe(true);
     expect(isTnef("application/vnd.ms-tnef; name=winmail.dat", null)).toBe(true);
     expect(isTnef("application/octet-stream", "winmail.dat")).toBe(true);

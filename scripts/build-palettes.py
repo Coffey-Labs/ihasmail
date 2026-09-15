@@ -2,15 +2,15 @@
 """
 Generate the palette CSS blocks in web/src/styles/app.css.
 
-Every colour here comes from the palette's own project (all MIT); the values
+Every color here comes from the palette's own project (all MIT); the values
 are recorded in .palette-sources/palettes-upstream.md. What this script adds is
 the *derivation*: ihasmail needs thirty-odd tokens and these projects publish
 between twelve and twenty, so the tiers in between are computed rather than
-guessed, and every text colour is then checked against the surface it sits on.
+guessed, and every text color is then checked against the surface it sits on.
 
 The check is the reason this is a script and not a hand-written block. ihasmail
 claims WCAG AA, and several of these palettes do not meet it as published --
-Dracula's comment grey on its own background is about 3.0:1, well under the 4.5
+Dracula's comment gray on its own background is about 3.0:1, well under the 4.5
 that normal text needs. Lifting those tiers by eye is how a claim quietly stops
 being true; here it is arithmetic, and the script fails loudly if a token it
 emitted would not pass.
@@ -30,7 +30,7 @@ BEGIN = "/* === generated palettes: begin === */"
 END = "/* === generated palettes: end === */"
 
 
-# ---------------------------------------------------------------- colour maths
+# ---------------------------------------------------------------- color maths
 
 def parse(hex_: str) -> tuple[float, float, float]:
     h = hex_.lstrip("#")
@@ -66,18 +66,18 @@ def rgba(hex_: str, alpha: float) -> str:
     return f"rgba({r}, {g}, {b}, {alpha})"
 
 
-def toward_contrast(colour: str, bg: str, target: float, dark_ui: bool) -> str:
-    """Nudge `colour` away from `bg` until it clears `target`.
+def toward_contrast(color: str, bg: str, target: float, dark_ui: bool) -> str:
+    """Nudge `color` away from `bg` until it clears `target`.
 
-    Towards white on a dark background and towards black on a light one, so a
-    lifted tier keeps its hue instead of washing out to grey.
+    Toward white on a dark background and toward black on a light one, so a
+    lifted tier keeps its hue instead of washing out to gray.
     """
-    if contrast(colour, bg) >= target:
-        return colour
+    if contrast(color, bg) >= target:
+        return color
     anchor = "#ffffff" if dark_ui else "#000000"
-    best = colour
+    best = color
     for i in range(1, 101):
-        candidate = mix(colour, anchor, i / 100)
+        candidate = mix(color, anchor, i / 100)
         best = candidate
         if contrast(candidate, bg) >= target:
             return candidate
@@ -90,7 +90,7 @@ def toward_contrast(colour: str, bg: str, target: float, dark_ui: bool) -> str:
 
 # ihasmail's own palette has a hand-written dark block further up the file --
 # it is the identity this project is painted in, and regenerating it would
-# quietly move colours nobody asked to move. Only its light half is derived
+# quietly move colors nobody asked to move. Only its light half is derived
 # here, which is why it appears in LIGHT_ONLY.
 LIGHT_ONLY = {"ihasmail"}
 
@@ -261,17 +261,17 @@ def build(pid: str, mode: str, src: dict[str, str]) -> tuple[dict[str, str], lis
     bg, fg = src["bg"], src["fg"]
     notes: list[str] = []
 
-    def lift(name: str, colour: str, target: float) -> str:
-        out = toward_contrast(colour, bg, target, dark)
-        if out != colour:
-            notes.append(f"{name} {colour} -> {out} ({contrast(colour, bg):.2f} -> {contrast(out, bg):.2f})")
+    def lift(name: str, color: str, target: float) -> str:
+        out = toward_contrast(color, bg, target, dark)
+        if out != color:
+            notes.append(f"{name} {color} -> {out} ({contrast(color, bg):.2f} -> {contrast(out, bg):.2f})")
         return out
 
     # Body text is lifted like every other text tone rather than exempted.
-    # Most of these palettes publish a body colour around 4.5:1 -- their own
+    # Most of these palettes publish a body color around 4.5:1 -- their own
     # target -- and ihasmail asks 7:1 of the text a reader looks at all day.
     # Rejecting a palette over that would have cost five of the six added in
-    # 2026-09; nudging the published colour along its own hue costs nothing a
+    # 2026-09; nudging the published color along its own hue costs nothing a
     # reader can name, and the shift is recorded in the header of the
     # generated block like every other one.
     fg = lift("fg", fg, TEXT_ON_BG["fg"])
@@ -365,11 +365,11 @@ def main() -> int:
         "/*",
         " * Written by scripts/build-palettes.py -- edit the sources there, not here.",
         " *",
-        " * Every colour is from the palette's own project (all MIT); the published",
+        " * Every color is from the palette's own project (all MIT); the published",
         " * values are recorded in .palette-sources/palettes-upstream.md. The tiers",
-        " * between them are derived, and every text colour is checked against the",
+        " * between them are derived, and every text color is checked against the",
         " * surface it sits on: 4.5:1 for prose, 3:1 for borders and marks. Several",
-        " * of these palettes do not meet that as published -- Dracula's comment grey",
+        " * of these palettes do not meet that as published -- Dracula's comment gray",
         " * is about 3.0:1 on its own background -- so those tiers are lifted, which",
         " * is why this is arithmetic rather than a hand-written block.",
         " */",

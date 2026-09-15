@@ -133,7 +133,7 @@ describe("Privacy & safety", () => {
     expect(host.textContent).toContain("Open links to these domains without asking");
   });
 
-  it("normalises a typed domain, so the list holds something that can match", async () => {
+  it("normalizes a typed domain, so the list holds something that can match", async () => {
     await act(async () => {
       useSettings.setState({ settings: { ...DEFAULT_SETTINGS, externalLinkWarning: true } });
     });

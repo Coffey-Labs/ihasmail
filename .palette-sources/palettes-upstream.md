@@ -84,23 +84,23 @@ violet #6c71c4 · blue #268bd2 · cyan #2aa198 · green #859900
 The accents are shared by both modes by design. Two tiers are **derived**: the
 sunken dark surface #001f28 (below base03) and the raised light surface
 #fffdf6 (above base3), neither of which Solarized publishes, plus the two
-rule colours #0d4552 and #e6dfc8.
+rule colors #0d4552 and #e6dfc8.
 
 ## Everforest — sainnhe/everforest, MIT (palette.md), medium contrast
 ### Dark
 bg_dim #232a2e · bg0 #2d353b · bg1 #343f44 · bg3 #475258
-fg #d3c6aa · grey1 #859289
+fg #d3c6aa · gray1 #859289
 red #e67e80 · orange #e69875 · yellow #dbbc7f · green #a7c080 · aqua #83c092
 blue #7fbbb3 · purple #d699b6
 
 ### Light
 bg_dim #efebd4 · bg0 #fdf6e3 · bg3 #e6e2cc · bg5 #bdc3af
-fg #5c6a72 · grey1 #939f91
+fg #5c6a72 · gray1 #939f91
 red #f85552 · orange #f57d26 · yellow #dfa000 · green #8da101 · aqua #35a77c
 blue #3a94c5 · purple #df69ba
 
 Light uses bg_dim as the page and bg0 as the raised surface, so the card the
-reader looks at is the colour Everforest calls its background.
+reader looks at is the color Everforest calls its background.
 
 ## Kanagawa — rebelot/kanagawa.nvim, MIT (lua/kanagawa/colors.lua)
 ### Wave (dark)
@@ -118,7 +118,7 @@ lotusGreen #6f894e · lotusYellow #77713f · lotusPink #b35b79
 ## Ayu — ayu-theme/ayu-colors, MIT (themes/dark.yaml, themes/light.yaml)
 The YAMLs give the base palette and the surfaces as literals but express syntax
 roles as references (`$palette.indigo.l2`), and the resolved files are not
-committed. The two signature accents are taken from the same organisation's
+committed. The two signature accents are taken from the same organization's
 MIT-licensed ayu-theme/vscode-ayu build.
 
 ### Dark
@@ -134,7 +134,7 @@ red #F07171 · orange #FA8532 · yellow #EBA400 · green #86B300 · teal #4CBF99
 indigo #55B4D4 · blue #22A4E6 · purple #A37ACC · accent #F29718 (vscode-ayu)
 
 ## Primer — primer/primitives, MIT (src/tokens/base/color/{dark,light})
-Named "Primer" after the design system. The colour values are MIT; "GitHub"
+Named "Primer" after the design system. The color values are MIT; "GitHub"
 and the Invertocat are trademarks, and nothing here is endorsed by them.
 
 ### Dark

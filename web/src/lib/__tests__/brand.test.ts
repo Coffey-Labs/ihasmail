@@ -6,7 +6,7 @@ import { DEFAULT_APP_NAME } from "@/lib/brand";
  *
  * `APP_NAME` is a runtime variable, so every place showing the name has to ask
  * the server rather than have it written in. The sign-in page did not (#236's
- * neighbour): it fetched `/api/config`, received the name and used only
+ * neighbor): it fetched `/api/config`, received the name and used only
  * `sourceUrl`, so a rebranded instance still said "ihasmail" on the page a new
  * user meets first. These pin the shape of the answer rather than the name.
  */

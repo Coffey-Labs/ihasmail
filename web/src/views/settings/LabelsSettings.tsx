@@ -25,7 +25,7 @@ export function LabelsSettings() {
   return (
     <div>
       <h1>{t("Labels")}</h1>
-      <p className="lead">{t("Labels are IMAP keywords stored on your messages, so every other client sees them. Names, colours and nesting are ihasmail\u2019s own and follow your account. Nesting is display only \u2014 it rewrites nothing in the mailbox.")}</p>
+      <p className="lead">{t("Labels are IMAP keywords stored on your messages, so every other client sees them. Names, colors and nesting are ihasmail\u2019s own and follow your account. Nesting is display only \u2014 it rewrites nothing in the mailbox.")}</p>
       {labels.map((l) => (
         <div key={l.keyword} className="card">
           <div className="card-head">

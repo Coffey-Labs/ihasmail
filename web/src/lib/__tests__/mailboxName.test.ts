@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { isLocalisedName, mailboxDisplayName, mailboxDisplayPath } from "@/lib/mailboxName";
+import { isLocalizedName, mailboxDisplayName, mailboxDisplayPath } from "@/lib/mailboxName";
 import { setCatalog, type Catalog } from "@/lib/i18n";
 import type { Mailbox } from "@/jmap/types";
 
@@ -19,7 +19,7 @@ const mb = (id: string, name: string, role: string | null = null, parentId: stri
 afterEach(() => setCatalog("en", { strings: {}, plurals: {} }));
 
 describe("mailboxDisplayName", () => {
-  it("is the server's name until a catalogue says otherwise", () => {
+  it("is the server's name until a catalog says otherwise", () => {
     expect(mailboxDisplayName(mb("1", "Deleted Items", "trash"))).toBe("Deleted Items");
   });
 
@@ -43,18 +43,18 @@ describe("mailboxDisplayName", () => {
   });
 });
 
-describe("isLocalisedName", () => {
+describe("isLocalizedName", () => {
   it("tells an editor when the name on screen is not the server's", () => {
     // A rename box prefilled with "Papierkorb" would rename the folder to that
     // the moment somebody pressed Save — a real change made by accident.
-    expect(isLocalisedName(mb("1", "Deleted Items", "trash"))).toBe(true);
-    expect(isLocalisedName(mb("2", "Newsletters"))).toBe(false);
-    expect(isLocalisedName(mb("3", "Work", "subscribed"))).toBe(false);
+    expect(isLocalizedName(mb("1", "Deleted Items", "trash"))).toBe(true);
+    expect(isLocalizedName(mb("2", "Newsletters"))).toBe(false);
+    expect(isLocalizedName(mb("3", "Work", "subscribed"))).toBe(false);
   });
 });
 
 describe("mailboxDisplayPath", () => {
-  it("localises each part that has a role and leaves the rest", () => {
+  it("localizes each part that has a role and leaves the rest", () => {
     setCatalog("de", de);
     const all = { a: mb("a", "Inbox", "inbox"), b: mb("b", "Projects", null, "a") };
     expect(mailboxDisplayPath(all.b!, all)).toBe("Posteingang / Projects");

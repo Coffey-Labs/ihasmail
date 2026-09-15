@@ -29,7 +29,7 @@ import { AdminNav } from "./admin/AdminNav";
 /*
  * How far the sidebar edge can be dragged. Below about 228px the module bar
  * cuts "Calendar" and "Contacts" short in English; the floor sits a little
- * above that. Long folder names are allowed to ellipsise -- narrowing the pane
+ * above that. Long folder names are allowed to ellipsize -- narrowing the pane
  * is asking for that. The ceiling keeps a list and a reading pane beside it on
  * an ordinary laptop screen.
  */
@@ -399,7 +399,7 @@ function ThemeToggle() {
   const prefersDark = Boolean(window.matchMedia?.("(prefers-color-scheme: dark)").matches);
   const next = toggleTarget({ palette: settings.palette, mode: settings.mode }, prefersDark);
   // Name where it is going, and by the palette when the palette is changing --
-  // going back to ihasmail's own colours is not the same as "dark mode".
+  // going back to ihasmail's own colors is not the same as "dark mode".
   // The palette never changes now, so the label is only ever the side.
   const label = next.mode === "light" ? t("light mode") : t("dark mode");
   return (

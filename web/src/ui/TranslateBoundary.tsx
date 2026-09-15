@@ -33,7 +33,7 @@ export function isDomMutationError(err: unknown): boolean {
   // NotFoundError is what removeChild/insertBefore throw when the node they
   // were given is not where React last saw it. The name is checked first
   // because it is the reliable half -- the message is browser-specific and
-  // localised, so matching on it alone would work in English Chrome and
+  // localized, so matching on it alone would work in English Chrome and
   // nowhere else, which for a translation bug would be a poor joke.
   if (err.name === "NotFoundError" || err.name === "HierarchyRequestError") return true;
   return /removeChild|insertBefore|replaceChild|not a child of this node/i.test(err.message);
@@ -83,7 +83,7 @@ export class TranslateBoundary extends Component<Props, State> {
     /*
      * console.info, not console.error. A reader translating the page is not a
      * fault, and logging it as one would put an entry in every error reporter
-     * that reads the console, for behaviour that is expected and recovered
+     * that reads the console, for behavior that is expected and recovered
      * from. The marker is here to be counted, not alarmed at.
      */
     console.info(

@@ -333,11 +333,11 @@ function forImport(event: Partial<CalendarEvent>): Partial<CalendarEvent> {
 }
 
 /**
- * The events a calendar already holds, for recognising a re-import.
+ * The events a calendar already holds, for recognizing a re-import.
  *
  * A UID is what makes an event the same event across calendars, and the import
  * already keeps the file's own wherever there is one -- so the thing needed to
- * recognise a re-import was there all along and nothing looked at it. Asked for
+ * recognize a re-import was there all along and nothing looked at it. Asked for
  * once per import rather than once per event: `CalendarEvent/query` does take a
  * `uid` filter, but a file of two thousand events would be two thousand
  * queries.
@@ -618,7 +618,7 @@ export const useCalendar = create<CalendarState>((set, get) => ({
       for (const b of birthdaysInRange(Object.values(useContacts.getState().cards), start, end)) {
         birthdays.push({
           key: b.id,
-          event: synthesiseBirthdayEvent(b),
+          event: synthesizeBirthdayEvent(b),
           start: b.date,
           end: new Date(b.date.getTime() + DAY_MS),
           allDay: true,
@@ -639,7 +639,7 @@ export const useCalendar = create<CalendarState>((set, get) => ({
         if (e.end <= start || e.start >= end) continue;
         birthdays.push({
           key: `${calId}:${e.uid}:${e.start.getTime()}`,
-          event: synthesiseSubscriptionEvent(sub.id, e),
+          event: synthesizeSubscriptionEvent(sub.id, e),
           start: e.start,
           end: e.end,
           allDay: e.allDay,
@@ -821,7 +821,7 @@ export const useCalendar = create<CalendarState>((set, get) => ({
    *
    * The query deliberately omits `expandRecurrences`, so what comes back is the
    * stored event and `id` is a real id. Callers rely on that — `InviteCard`
-   * removes a cancelled event by handing this straight to `destroyEvent` — so
+   * removes a canceled event by handing this straight to `destroyEvent` — so
    * it is a property of this method, not an accident of the default.
    */
   async findByUid(uid) {
@@ -881,7 +881,7 @@ export const useCalendar = create<CalendarState>((set, get) => ({
    * the disagreement. Weighed on #279 and kept: an import is not the place to
    * start sending mail on somebody's behalf, and the alternative is a file
    * dropped into a calendar mailing a room full of people who never asked for
-   * it. Whoever is organising can send the update from the event itself.
+   * it. Whoever is organizing can send the update from the event itself.
    */
   async importIcs(text, calendarId) {
     const accountId = get().accountId!;
@@ -984,7 +984,7 @@ export const useCalendar = create<CalendarState>((set, get) => ({
    * flattened the rule would import somewhere else as an unmaintainable pile.
    *
    * Written in the browser, unlike the import, which hands the parsing to the
-   * server. There is no `CalendarEvent/serialise` to hand this to -- the JMAP
+   * server. There is no `CalendarEvent/serialize` to hand this to -- the JMAP
    * calendar drafts define parsing and nothing the other way -- so it is done
    * here from the objects the server already returns.
    */
@@ -1053,7 +1053,7 @@ function birthdayCalendar(): Calendar {
 }
 
 /** A CalendarEvent shaped enough for the views, and for nothing else. */
-function synthesiseBirthdayEvent(b: Birthday): CalendarEvent {
+function synthesizeBirthdayEvent(b: Birthday): CalendarEvent {
   const local = `${b.date.getFullYear()}-${String(b.date.getMonth() + 1).padStart(2, "0")}-${String(b.date.getDate()).padStart(2, "0")}T00:00:00`;
   return {
     id: b.id,
@@ -1088,7 +1088,7 @@ function subscriptionCalendar(sub: { id: string; name: string; color: string }):
   } as unknown as Calendar;
 }
 
-function synthesiseSubscriptionEvent(subId: string, e: IcsEvent): CalendarEvent {
+function synthesizeSubscriptionEvent(subId: string, e: IcsEvent): CalendarEvent {
   const local = `${e.start.getFullYear()}-${String(e.start.getMonth() + 1).padStart(2, "0")}-${String(e.start.getDate()).padStart(2, "0")}T${String(e.start.getHours()).padStart(2, "0")}:${String(e.start.getMinutes()).padStart(2, "0")}:00`;
   return {
     id: `${subscriptionCalendarId(subId)}:${e.uid}`,

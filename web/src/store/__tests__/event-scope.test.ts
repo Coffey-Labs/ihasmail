@@ -243,7 +243,7 @@ describe("updateEvent, per occurrence", () => {
 });
 
 describe("isThisAndFutureRefusal", () => {
-  it("recognises the refusal worth offering the series for", () => {
+  it("recognizes the refusal worth offering the series for", () => {
     expect(isThisAndFutureRefusal(new CalendarSetError({
       type: "invalidProperties",
       description: "Occurrences of a this-and-future change cannot be modified individually.",

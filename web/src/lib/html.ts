@@ -50,7 +50,7 @@ function ensureHooks() {
  * convincing fake over the whole app. The control that actually stops that is
  * layout containment on an ancestor of the shadow host (see `.message-body` in
  * app.css), which mail CSS has no selector for. This is the second line:
- * neutralise the declarations themselves, and defang `:host`, which is how mail
+ * neutralize the declarations themselves, and defang `:host`, which is how mail
  * CSS would otherwise reach the host element.
  */
 function hardenCss(css: string): string {
@@ -183,7 +183,7 @@ export const EMAIL_BASE_CSS = `
 .ihm-email-root * { max-width:100%; box-sizing:border-box; }
 .ihm-email-root [style*="position:fixed"], .ihm-email-root [style*="position: fixed"] { position:static !important; }
 
-/* "Follow the app theme" — only applied to mail that brings no colours of its
+/* "Follow the app theme" — only applied to mail that brings no colors of its
    own. The custom properties are inherited from the host document, so a theme
    switch repaints the message without re-rendering it. */
 .ihm-email-root.themed { color: var(--fg, #1f2937); background: var(--bg-elev, #fff); }
@@ -193,7 +193,7 @@ export const EMAIL_BASE_CSS = `
 .ihm-email-root.themed img[data-ihm-blocked] { background: var(--bg-sunken, #f1f5f9) repeating-linear-gradient(45deg, var(--bg-hover, #e2e8f0) 0 6px, transparent 6px 12px); border-color: var(--border-strong, #cbd5e1); }
 
 /* "Even mail that styles itself" — the second, opt-in switch, applied on top of
-   .themed. Everything the sender coloured is neutralised except the surfaces
+   .themed. Everything the sender colored is neutralized except the surfaces
    marked by markKeptSurfaces() and what it marked as sitting on them, so a
    white wrapper table
    stops being a bright card while a blue button keeps its white label. The
@@ -205,7 +205,7 @@ export const EMAIL_BASE_CSS = `
 `;
 
 /**
- * Does this message paint itself? Mail that sets a background or text colour
+ * Does this message paint itself? Mail that sets a background or text color
  * has a design of its own, and forcing a dark palette on half of it is worse
  * than leaving it alone — so those keep the light card they were built for.
  *
@@ -227,7 +227,7 @@ export function htmlDeclaresColors(html: string, bodyStyle = ""): boolean {
 /* ---------- forcing the theme onto mail that styles itself ---------- */
 
 /**
- * Relative luminance per WCAG 2.x, or `null` when the colour cannot be read.
+ * Relative luminance per WCAG 2.x, or `null` when the color cannot be read.
  *
  * Only what actually turns up in mail is parsed: hex in three, six or eight
  * digits, `rgb()`/`rgba()`, and the handful of names senders still write out.
@@ -263,7 +263,7 @@ export function relativeLuminance(color: string): number | null {
     if (m[4] !== undefined) a = m[4].endsWith("%") ? Number(m[4].slice(0, -1)) / 100 : Number(m[4]);
   }
   if ([r, g, b, a].some((n) => !Number.isFinite(n))) return null;
-  // A fully transparent colour paints nothing, whatever its channels say.
+  // A fully transparent color paints nothing, whatever its channels say.
   if (a === 0) return null;
   const lin = (c: number) => { const x = c / 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; };
   return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
@@ -272,7 +272,7 @@ export function relativeLuminance(color: string): number | null {
 /**
  * Above this, a background is a sheet the message is laid on rather than a
  * thing drawn on top of it. White wrappers sit at 1.0; the blue of a call to
- * action lands near 0.09, mid-grey near 0.22.
+ * action lands near 0.09, mid-gray near 0.22.
  */
 export const LIGHT_SURFACE_LUMINANCE = 0.5;
 
@@ -288,26 +288,26 @@ function declaredLuminance(el: HTMLElement): number | null {
  *
  * The reader has asked for their palette on mail that brings its own, which
  * cannot be done perfectly — this is the same bargain a dark-reader extension
- * makes. What it can do is tell the two kinds of colour apart: a **sheet** the
- * design sits on, which is what reads as a bright card and is neutralised, and
+ * makes. What it can do is tell the two kinds of color apart: a **sheet** the
+ * design sits on, which is what reads as a bright card and is neutralized, and
  * a **painted surface** — a button, a banner — which is kept whole so its
  * label stays legible on it.
  *
  * Two attributes come out of this. `data-ihm-keep` is a painted surface, which
- * keeps its own colours. `data-ihm-in-keep` is an element sitting on one with
- * no background of its own, whose colour is left alone so a white label on a
- * blue button stays readable. One rule in EMAIL_BASE_CSS neutralises
+ * keeps its own colors. `data-ihm-in-keep` is an element sitting on one with
+ * no background of its own, whose color is left alone so a white label on a
+ * blue button stays readable. One rule in EMAIL_BASE_CSS neutralizes
  * everything else.
  *
  * The distinction that matters is that being *inside* a painted surface is not
  * inherited past a sheet. A light table nested in a dark 600px card is still a
- * sheet and is still neutralised — that is issue #310, where a dark campaign
+ * sheet and is still neutralized — that is issue #310, where a dark campaign
  * rendered with beige cards inside it because the exemption used to be
  * `[data-ihm-keep] *` in CSS and could not see the difference. Paint resumes
  * below it: a dark button inside that nested table is kept as usual.
  *
  * Nothing the sender wrote is removed, so turning the switch off puts the
- * message back exactly as it was — and a colour that arrived from a `<style>`
+ * message back exactly as it was — and a color that arrived from a `<style>`
  * block rather than an attribute is covered too, which is most of them in
  * modern templates.
  */
@@ -336,11 +336,11 @@ export function markKeptSurfaces(root: ParentNode): number {
       kept++;
       childrenOnPaint = true;
     } else if (lum !== null) {
-      // A sheet, wherever it sits. Left unmarked so it neutralises, and it
+      // A sheet, wherever it sits. Left unmarked so it neutralizes, and it
       // ends the protection rather than passing it on.
       childrenOnPaint = false;
     } else if (onPaint) {
-      // No background of its own, sitting on paint: leave its colour alone.
+      // No background of its own, sitting on paint: leave its color alone.
       el.setAttribute("data-ihm-in-keep", "");
     }
 

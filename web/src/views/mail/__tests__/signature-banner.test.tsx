@@ -12,7 +12,7 @@ import type { SignatureReport } from "@/lib/smime/verify";
 /*
  * The wording is the feature here, so it is worth asserting rather than
  * eyeballing. The rule this pins down: ihasmail has no certificate authority to
- * ask, so a signature that merely verifies against the certificate travelling
+ * ask, so a signature that merely verifies against the certificate traveling
  * beside it must never be dressed as an endorsement. "Verified" full stop is
  * the word that would be a lie, and the tone must not be the reassuring one
  * until a previous sighting actually corroborates the signer.
@@ -71,7 +71,7 @@ describe("what the signature banner says", () => {
   it("does not congratulate a signer it has never seen before", async () => {
     await render(done({ crypto: { kind: "intact", cert: cert(), signer }, trust: "first-seen", warnings: [] }));
     expect(host.textContent).toContain("seen here for the first time");
-    // Grey, not green: an unknown certificate that verifies against itself has
+    // Gray, not green: an unknown certificate that verifies against itself has
     // established nothing worth a tick.
     expect(host.querySelector(".signature-banner")?.className).toContain("quiet");
     expect(host.textContent).not.toMatch(/\bverified\b/i);

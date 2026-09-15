@@ -42,22 +42,22 @@ export function ListsAdmin({ selectedId }: { selectedId?: string }) {
   }, [text]);
 
   useEffect(() => {
-    let cancelled = false;
+    let canceled = false;
     setError(null);
     void (async () => {
       try {
         const q = await queryLists({ text: query, position, limit: PAGE_SIZE });
         const lists = await getLists(q.ids);
-        if (!cancelled) setPage({ lists, total: q.total });
+        if (!canceled) setPage({ lists, total: q.total });
       } catch (err) {
-        if (!cancelled) {
+        if (!canceled) {
           setPage({ lists: [], total: 0 });
           setError(describeDirectoryError(err, "list"));
         }
       }
     })();
     return () => {
-      cancelled = true;
+      canceled = true;
     };
   }, [query, position, reload]);
 
@@ -70,13 +70,13 @@ export function ListsAdmin({ selectedId }: { selectedId?: string }) {
       setLoose(null);
       return;
     }
-    let cancelled = false;
+    let canceled = false;
     void getLists([selectedId]).then(
-      ([l]) => { if (!cancelled) setLoose(l ?? null); },
-      () => { if (!cancelled) setLoose(null); },
+      ([l]) => { if (!canceled) setLoose(l ?? null); },
+      () => { if (!canceled) setLoose(null); },
     );
     return () => {
-      cancelled = true;
+      canceled = true;
     };
   }, [selectedId, page]);
 

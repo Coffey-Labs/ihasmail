@@ -37,7 +37,7 @@ export function FilesView({ nodeId }: { nodeId?: string }) {
   const [editTarget, setEditTarget] = useState<{ id: Id; blobId: Id | null } | null>(null);
   const [startInEdit, setStartInEdit] = useState(false);
   /* Shared with the sidebar tree, so a row dragged onto a folder there is
-     recognised. See the note on `draggingId` in the store. */
+     recognized. See the note on `draggingId` in the store. */
   const draggingIds = files.draggingIds;
   const setDragging = files.setDragging;
   const inputRef = useRef<HTMLInputElement>(null);

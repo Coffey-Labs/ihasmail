@@ -35,7 +35,7 @@ describe("applyLang", () => {
     expect(document.documentElement.lang).toBe("en");
   });
 
-  it("serves every language whose catalogue is shipped", () => {
+  it("serves every language whose catalog is shipped", () => {
     for (const l of UI_LANGUAGES) {
       applyLang({ ...DEFAULT_SETTINGS, uiLanguage: l.tag });
       expect(document.documentElement.lang).toBe(l.tag);

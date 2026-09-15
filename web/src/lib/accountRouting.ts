@@ -42,7 +42,7 @@ const advertises = (account: AccountLike | undefined, cap: string): boolean =>
   Boolean(account && cap in (account.accountCapabilities ?? {}));
 
 /**
- * The account to read and write for this capability, honouring the switcher.
+ * The account to read and write for this capability, honoring the switcher.
  *
  * Use for anything the reader is looking at: their mail, a shared calendar,
  * somebody's files. Not for anything of the reader's own — see below.

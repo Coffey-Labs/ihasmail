@@ -44,7 +44,7 @@ export function App() {
    * knowing its strings just changed. Rather than make every one of the
    * thousand call sites a subscriber -- which would turn extracting a string
    * from "wrap it" into "wrap it and add a hook" -- the whole tree is thrown
-   * away and rebuilt when the catalogue changes. Picking a language is a
+   * away and rebuilt when the catalog changes. Picking a language is a
    * once-in-an-account event; paying for it there is far cheaper than paying
    * for it on every render everywhere.
    */
@@ -54,9 +54,9 @@ export function App() {
   }, [bootstrap]);
 
   /*
-   * Wait for the catalogue before the first paint.
+   * Wait for the catalog before the first paint.
    *
-   * The tree is rebuilt when a catalogue lands, so components recover on
+   * The tree is rebuilt when a catalog lands, so components recover on
    * their own -- but a string computed in an effect does not. A toast fired
    * in the gap is emitted in English and stays English, in an interface that
    * is otherwise not. The wait costs nothing visible: the session bootstrap
@@ -129,7 +129,7 @@ function AuthedApp() {
    * or the sign-out that every deploy causes -- the first frame is the
    * defaults, and the defaults are English. Rendering then means anything
    * computed before the settings land is computed in the wrong language: not
-   * the interface, which is rebuilt when the catalogue arrives, but a string
+   * the interface, which is rebuilt when the catalog arrives, but a string
    * emitted once, like a toast. That is why the stale-folder toast came out
    * in English on an otherwise German screen.
    *
@@ -148,14 +148,14 @@ function AuthedApp() {
       setReady(true);
       return;
     }
-    let cancelled = false;
+    let canceled = false;
     void (async () => {
       /* Before the account's own settings, so both the seeding below and the
          enforcement inside `hydrate` have something to apply. */
       await loadSettingsPolicy();
-      if (cancelled) return;
+      if (canceled) return;
       const remote = await loadRemoteSettings();
-      if (cancelled) return;
+      if (canceled) return;
       if (remote) useSettings.getState().hydrate(remote);
       // No settings file: this account has never had settings of its own, so
       // the installation's defaults are what it starts on rather than
@@ -174,10 +174,10 @@ function AuthedApp() {
           other: "Your administrator changed {n} settings",
         }), { action: { label: t("Settings"), onClick: () => { window.location.href = withBase("/settings/general"); } } });
       }
-      // The catalogue for whatever language that turned out to be. Hydrating
+      // The catalog for whatever language that turned out to be. Hydrating
       // asks for it; this is waiting for the answer.
       await whenLanguageReady();
-      if (cancelled) return;
+      if (canceled) return;
       setReady(true);
       // Pushes were held back until now so they could not race the load. A
       // change made while it was in flight was kept, and goes out here.
@@ -187,7 +187,7 @@ function AuthedApp() {
       if (!remote && settingsSyncAvailable()) queueSettingsPush(syncedPart(useSettings.getState().settings));
     })();
     return () => {
-      cancelled = true;
+      canceled = true;
     };
   }, [accountId]);
 

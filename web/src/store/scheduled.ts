@@ -177,7 +177,7 @@ export const useScheduled = create<ScheduledState>((set, get) => ({
    * Nothing moves a message out of Scheduled when its hold expires -- the
    * server sends it and updates the submission, but the message stays where we
    * filed it. So on the way into the folder, settle up: what went out belongs
-   * in Sent, what was cancelled elsewhere belongs back in Drafts.
+   * in Sent, what was canceled elsewhere belongs back in Drafts.
    */
   async reconcile() {
     const mail = useMail.getState();
@@ -215,7 +215,7 @@ export const useScheduled = create<ScheduledState>((set, get) => ({
           pending[emailId] = s;
           continue;
         }
-        // Cancelled goes back to Drafts; sent (or a submission the server no
+        // Canceled goes back to Drafts; sent (or a submission the server no
         // longer knows about) goes to Sent, which is where it actually is.
         const toDrafts = s?.undoStatus === "canceled";
         const dest = toDrafts ? draftsId : sentId;

@@ -35,7 +35,7 @@ describe("renderMarkdown", () => {
   /*
    * Markdown passes raw HTML through by design, and the file came from
    * somewhere else -- an upload, or a share from another account. Every one of
-   * these renders as a script tag without a sanitiser.
+   * these renders as a script tag without a sanitizer.
    */
   it("takes out anything that would execute", () => {
     const html = renderMarkdown("<script>alert(1)</script>\n\n<img src=x onerror=alert(1)>\n\n<iframe src='https://evil.example'></iframe>\n");

@@ -8,7 +8,7 @@
  * address book on it.
  *
  * Reads are gated as well as writes. A machine that was trusted once still has
- * the residue, and honouring it would let a previous session's data surface in
+ * the residue, and honoring it would let a previous session's data surface in
  * a later untrusted one.
  */
 const PREFIX = "ihasmail:";

@@ -53,8 +53,8 @@ function bodyText(email: Email): string {
  * Everyone the message was between, as guests: the sender and the people it
  * was addressed to.
  *
- * The reader's own addresses come out -- they are the organiser, and an
- * organiser listed among their own guests is an event that invites you to your
+ * The reader's own addresses come out -- they are the organizer, and an
+ * organizer listed among their own guests is an event that invites you to your
  * own appointment. Bcc stays out too, on a message the reader sent themselves:
  * a blind recipient added to a guest list is visible to every other guest, and
  * turning a hidden copy into a public one is not something a menu item should
