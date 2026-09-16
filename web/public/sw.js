@@ -26,9 +26,75 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== VERSION).map((k) => caches.delete(k)))).then(() => self.clients.claim())
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter((k) => k !== VERSION).map((k) => caches.delete(k))))
+      .then(() => tidy())
+      .catch(() => {})
+      .then(() => self.clients.claim())
   );
 });
+
+/*
+ * Keeping the cache to what the current build uses.
+ *
+ * Build assets are cached on first use and their names change with every
+ * build, and nothing used to take them out again: every deploy's chunks stayed
+ * in the browser for good. Worse, whatever the server answered was kept -- a
+ * 404 for a chunk asked for while a deploy was changing over became that
+ * chunk, from then on, in that browser.
+ *
+ * The rule now: only a successful response is cached, and whenever the app
+ * page changes, the assets it no longer names are dropped. A lazily loaded
+ * chunk the page does not name is dropped too, and fetched again the next time
+ * it is wanted -- a hash that did not change is still on the server.
+ *
+ * The cache name stays as it is. The same cache carries what the worker leaves
+ * for a tab to collect -- a push verification, a share, the facts it notifies
+ * from -- and a new name would throw those away along with the rubbish.
+ */
+const ASSETS = `${BASE}/assets/`;
+const SHELL_KEY = `${BASE}/`;
+
+function assetsNamedIn(html) {
+  const out = new Set();
+  for (const m of html.matchAll(/["']([^"']*\/assets\/[^"']+)["']/g)) {
+    try {
+      out.add(new URL(m[1], self.location).pathname);
+    } catch {
+      /* not a URL */
+    }
+  }
+  return out;
+}
+
+/** Drop failed responses, and assets the cached app page does not name. */
+async function tidy() {
+  const cache = await caches.open(VERSION);
+  const shell = await cache.match(SHELL_KEY);
+  // Without a page to go by, which assets are current is unknown; keep them.
+  const keep = shell ? assetsNamedIn(await shell.text()) : null;
+  for (const req of await cache.keys()) {
+    const path = new URL(req.url).pathname;
+    if (path.startsWith(ASSETS)) {
+      if (keep && !keep.has(path)) {
+        await cache.delete(req);
+        continue;
+      }
+    }
+    const res = await cache.match(req);
+    if (res && !res.ok) await cache.delete(req);
+  }
+}
+
+/** Keep the offline copy of the app page current, and tidy when it changes. */
+async function refreshShell(res) {
+  const html = await res.text();
+  const cache = await caches.open(VERSION);
+  const prev = await cache.match(SHELL_KEY);
+  if (prev && (await prev.text()) === html) return;
+  await cache.put(SHELL_KEY, new Response(html, { headers: { "content-type": "text/html; charset=utf-8" } }));
+  await tidy();
+}
 
 /*
  * Where a share from the operating system is left for a tab to collect.
@@ -103,12 +169,14 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
   if (url.pathname.startsWith(`${BASE}/api/`)) return;
 
-  // Hashed build assets: cache-first.
-  if (url.pathname.startsWith(`${BASE}/assets/`)) {
+  // Hashed build assets: cache-first, and only what actually arrived.
+  if (url.pathname.startsWith(ASSETS)) {
     event.respondWith(
       caches.match(req).then((hit) => hit || fetch(req).then((res) => {
-        const copy = res.clone();
-        caches.open(VERSION).then((c) => c.put(req, copy));
+        if (res.ok && res.type === "basic") {
+          const copy = res.clone();
+          event.waitUntil(caches.open(VERSION).then((c) => c.put(req, copy)).catch(() => {}));
+        }
         return res;
       }))
     );
@@ -117,7 +185,13 @@ self.addEventListener("fetch", (event) => {
 
   // Navigations & everything else: network-first, fall back to cached shell.
   if (req.mode === "navigate") {
-    event.respondWith(fetch(req).catch(() => caches.match(`${BASE}/`)));
+    event.respondWith(fetch(req).then((res) => {
+      // Every route is the same app page; a fresh one replaces the offline copy.
+      if (res.ok && (res.headers.get("content-type") || "").startsWith("text/html")) {
+        event.waitUntil(refreshShell(res.clone()).catch(() => {}));
+      }
+      return res;
+    }).catch(() => caches.match(SHELL_KEY)));
     return;
   }
   event.respondWith(fetch(req).catch(() => caches.match(req)));
