@@ -79,8 +79,25 @@ export function MailView({ mailboxId, threadId, search }: { mailboxId?: string; 
     [settings.listSortScope, settings.listSortPreset, settings.listSortLevels],
   );
 
+  /*
+   * What the list query reads from the folder map: names, roles and places in
+   * the tree. `mailboxes` itself is replaced on every reload -- every push that
+   * touches mail reloads it for the counts -- and depending on it directly made
+   * each reload build a new query, which `query()` answered with a second full
+   * refresh of the list.
+   */
+  const folderShape = useMemo(
+    () =>
+      Object.values(mailboxes)
+        .map((m) => `${m.id}\u0000${m.name}\u0000${m.role ?? ""}\u0000${m.parentId ?? ""}`)
+        .sort()
+        .join("\u0001"),
+    [mailboxes],
+  );
+
   // Build & run the list query
   const listQuery = useMemo<ListQuery | null>(() => {
+    const mailboxes = useMail.getState().mailboxes;
     if (search) {
       if (!q) return null;
       const parsed = parseQuery(q);
@@ -94,7 +111,7 @@ export function MailView({ mailboxId, threadId, search }: { mailboxId?: string; 
     // are outgoing, and collapsing them into their threads hides them.
     const isDraftsOrSent = mb?.role === "drafts" || mb?.role === "sent" || mailboxId === scheduledId;
     return { key: "", filter: { inMailbox: mailboxId }, sort: sortForFolder(mailboxId), collapseThreads: settings.conversationMode && !isDraftsOrSent, mailboxId };
-  }, [search, q, mailboxId, mailboxes, settings.conversationMode, scheduledId]);
+  }, [search, q, mailboxId, folderShape, settings.conversationMode, scheduledId]);
 
   useEffect(() => {
     if (listQuery && mailboxesLoaded) void query(listQuery);
