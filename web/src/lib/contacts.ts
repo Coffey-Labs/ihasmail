@@ -1,4 +1,4 @@
-import type { ContactCard, EmailAddress, JSContactName } from "@/jmap/types";
+import type { ContactCard, EmailAddress, JSContactMedia, JSContactName } from "@/jmap/types";
 import { withBase } from "@/lib/basePath";
 
 /** Best display name for a card. */
@@ -55,6 +55,22 @@ export function primaryEmail(c: ContactCard): string | null {
 export function contactEmails(c: ContactCard): EmailAddress[] {
   const name = contactDisplayName(c);
   return Object.values(c.emails ?? {}).map((e) => ({ name: name.includes("@") ? null : name, email: e.address }));
+}
+
+/**
+ * A card's `media` with its photo replaced by `photo`, or removed when that is
+ * null, and everything else in it -- a logo, a sound -- left as it was.
+ *
+ * The photo goes in as a `data:` URI. Stalwart (0.16.22, checked live on
+ * 2026-09-16) refuses a `blobId` in `media` outright -- "blobIds in media is
+ * not supported" -- which is RFC 9610's JMAP extension to JSContact, and
+ * accepts the plain RFC 9553 `uri` form, returning it unchanged (#376). The
+ * editor's photo is a 256px JPEG, tens of kilobytes; 134 KB was accepted.
+ */
+export function withPhoto(media: Record<string, JSContactMedia> | undefined | null, photo: { dataUrl: string; type: string } | null): Record<string, JSContactMedia> | null {
+  const rest: Record<string, JSContactMedia> = Object.fromEntries(Object.entries(media ?? {}).filter(([, m]) => m.kind !== "photo"));
+  if (photo) rest[newKey("p")] = { "@type": "Media", kind: "photo", uri: photo.dataUrl, mediaType: photo.type };
+  return Object.keys(rest).length ? rest : null;
 }
 
 export function contactPhoto(c: ContactCard, accountId: string): string | null {

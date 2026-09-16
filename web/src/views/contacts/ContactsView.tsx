@@ -301,7 +301,8 @@ export function ContactsView({ id }: { id?: string }) {
               <div className="contact-letter">{g.letter}</div>
               {g.items.map((c) => {
                 const email = contactEmails(c)[0]?.email;
-                const photo = contacts.accountId ? contactPhoto(c, contacts.accountId) : null;
+                const photoAccount = contacts.accountOfCard(c.id) ?? contacts.accountId;
+                const photo = photoAccount ? contactPhoto(c, photoAccount) : null;
                 return (
                   <div key={c.id} className={`contact-row ${id === c.id ? "active" : ""} ${picked[c.id] ? "picked" : ""}`} onClick={() => navigate(`/contacts/${c.id}`)}>
                     {!readOnly && (
@@ -343,7 +344,8 @@ export function ContactsView({ id }: { id?: string }) {
 function ContactDetail({ card: c, onBack, onEdit, narrow, onEmail }: { card: ContactCard; onBack: () => void; onEdit: () => void; narrow: boolean; onEmail: (addr: string) => void }) {
   const contacts = useContacts();
   const [, navigate] = useLocation();
-  const photo = contacts.accountId ? contactPhoto(c, contacts.accountId) : null;
+  const photoAccount = contacts.accountOfCard(c.id) ?? contacts.accountId;
+  const photo = photoAccount ? contactPhoto(c, photoAccount) : null;
   const name = contactDisplayName(c);
   const org = Object.values(c.organizations ?? {})[0];
   const title = Object.values(c.titles ?? {})[0];
