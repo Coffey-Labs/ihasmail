@@ -7,7 +7,7 @@ import { setServerLocale } from "@/lib/datetime";
 import { flushSettingsPush, stopSettingsSync } from "@/lib/settingsSync";
 import { reloadIfServerRebuilt } from "@/lib/sw/staleBuild";
 import { unsubscribeThisDevice } from "@/lib/notify/webpush";
-import { clearAllData, clearSignedInData, setDeviceTrusted } from "@/lib/storage";
+import { clearAllData, clearSignedInData, isDeviceTrusted, loadRaw, saveJson, setDeviceTrusted } from "@/lib/storage";
 import { startIdleLogout, stopIdleLogout } from "@/lib/idleLogout";
 
 export type AuthStatus = "loading" | "anonymous" | "authenticated";
@@ -33,6 +33,7 @@ interface SessionState {
 }
 
 let refreshing: Promise<void> | null = null;
+const SESSION_KEY = "session";
 
 export const useSession = create<SessionState>((set, get) => ({
   status: "loading",
@@ -43,12 +44,23 @@ export const useSession = create<SessionState>((set, get) => ({
   pushState: "disconnected",
 
   async bootstrap() {
+    /*
+     * A device marked as the reader's own starts from the session it kept, so
+     * the first requests for mail go out now rather than a round trip from now.
+     * The server's answer follows and replaces it; a session that has ended
+     * meanwhile -- a deploy, a sign-out elsewhere -- fails that answer and the
+     * first of those requests alike, and both land on the sign-in form.
+     */
+    const kept = isDeviceTrusted() ? loadRaw<JmapSession | null>(SESSION_KEY, null) : null;
+    const startedFromKept = Boolean(kept?.ihasmail?.remember && kept.primaryAccounts && kept.capabilities);
+    if (startedFromKept) applySession(kept!, set);
     try {
       const s = await apiFetch<JmapSession>("/api/auth/session");
       applySession(s, set);
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) set({ status: "anonymous", session: null, accountId: null });
-      else set({ status: "anonymous", error: (err as Error).message });
+      // Unreachable is not signed out: what was on screen stays there.
+      else if (!startedFromKept) set({ status: "anonymous", error: (err as Error).message });
     }
   },
 
@@ -109,6 +121,7 @@ export const useSession = create<SessionState>((set, get) => ({
         const s = await apiFetch<JmapSession>("/api/auth/session?refresh=1");
         client.session = s;
         setServerLocale(s.ihasmail?.userLocale);
+        if (s.ihasmail?.remember) saveJson(SESSION_KEY, s);
         set({ session: s });
       } catch {
         /* ignore */
@@ -141,6 +154,8 @@ function applySession(s: JmapSession, set: (p: Partial<SessionState>) => void) {
   const trusted = Boolean(s.ihasmail?.remember);
   setDeviceTrusted(trusted);
   if (trusted) {
+    // Only the public half of the session is in here; the secret is in the cookie, out of reach of script.
+    saveJson(SESSION_KEY, s);
     stopIdleLogout();
   } else {
     // Residue from an earlier trusted session on this machine is exactly what

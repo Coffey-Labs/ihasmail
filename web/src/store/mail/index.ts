@@ -27,6 +27,7 @@ import { useSession } from "../session";
 import { mailboxDisplayName } from "@/lib/mailbox/mailboxName";
 import { plural, t } from "@/lib/i18n";
 import { withBase } from "@/lib/basePath";
+import { isDeviceTrusted, loadRaw, saveJson } from "@/lib/storage";
 import { MAILBOX_PROPS, LIST_PROPS, FULL_PROPS, BODY_PROPS } from "./props";
 import { type ListQuery, type MailState } from "./types";
 import { playNewMailSound, showNotification } from "@/lib/notify/notify";
@@ -79,6 +80,7 @@ export const useMail = create<MailState>((set, get) => ({
   mailboxes: {},
   mailboxState: null,
   mailboxesLoaded: false,
+  mailboxesCached: false,
   emails: {},
   fullIds: {},
   emailState: null,
@@ -108,6 +110,7 @@ export const useMail = create<MailState>((set, get) => ({
       mailboxes: {},
       mailboxState: null,
       mailboxesLoaded: false,
+      mailboxesCached: false,
       emails: {},
       fullIds: {},
       emailState: null,
@@ -121,6 +124,7 @@ export const useMail = create<MailState>((set, get) => ({
       anchorId: null,
       lastSeenInboxEmailIds: null,
     });
+    if (accountId) restoreSnapshot(accountId);
   },
 
   async loadMailboxes() {
@@ -129,7 +133,7 @@ export const useMail = create<MailState>((set, get) => ({
     const res = await client.call<GetResponse<Mailbox>>("Mailbox/get", { accountId, ids: null, properties: MAILBOX_PROPS });
     const mailboxes: Record<Id, Mailbox> = {};
     for (const m of res.list) mailboxes[m.id] = m;
-    set({ mailboxes, mailboxState: res.state, mailboxesLoaded: true });
+    set({ mailboxes, mailboxState: res.state, mailboxesLoaded: true, mailboxesCached: false });
     // Label counts move for the same reasons folder counts do -- something was
     // read, moved or deleted -- so they are refreshed on the same beat rather
     // than on a timer of their own. Not awaited: the folder tree should not
@@ -1247,6 +1251,78 @@ function snapshotFor(key: string, filter: EmailFilter, emails: Record<Id, Email>
   return { ids, total: snap.total - (snap.ids.length - ids.length) };
 }
 
+/*
+ * What a device marked as the reader's own keeps between visits.
+ *
+ * Opening the app used to wait on the folder list before it could ask for a
+ * folder, and on that before anything showed: on a distant link, a second or
+ * so of skeleton on every start. A trusted device now keeps the folder list
+ * and the first page of the last few folders, list properties only -- no
+ * bodies -- and starts from them: the folders and the inbox paint at once,
+ * and the query for the open folder goes out without waiting for the folder
+ * list, which corrects both a round trip later.
+ *
+ * It is written through the same gated storage as the settings cache: nothing
+ * is kept on a device not marked as the reader's own, nothing is read there
+ * either, and signing out clears it with everything else.
+ */
+const SNAPSHOT_KEY = "mail-snapshot";
+const SNAPSHOT_LISTS = 4;
+const SNAPSHOT_ROWS = 50;
+const SNAPSHOT_MAX_CHARS = 400_000;
+
+export interface MailSnapshot {
+  v: 1;
+  accountId: Id;
+  mailboxes: Mailbox[];
+  lists: { key: string; ids: Id[]; total: number }[];
+  emails: Email[];
+}
+
+export function buildSnapshot(s: MailState): MailSnapshot | null {
+  if (!s.accountId || !s.mailboxesLoaded) return null;
+  const lists: MailSnapshot["lists"] = [];
+  const cur = s.list;
+  if (cur && !cur.loading && !cur.error && folderOf(cur.filter)) lists.push({ key: cur.key, ids: cur.ids, total: cur.total });
+  for (const [key, snap] of [...snapshots].reverse()) {
+    if (lists.length >= SNAPSHOT_LISTS) break;
+    if (!lists.some((l) => l.key === key)) lists.push({ key, ...snap });
+  }
+  const ids = new Set<Id>();
+  const kept = lists.map((l) => {
+    const rows = l.ids.filter((id) => s.emails[id]).slice(0, SNAPSHOT_ROWS);
+    rows.forEach((id) => ids.add(id));
+    return { key: l.key, ids: rows, total: l.total };
+  });
+  const emails = [...ids].map((id) => Object.fromEntries(Object.entries(s.emails[id]!).filter(([k]) => LIST_KEYS.has(k))) as unknown as Email);
+  return { v: 1, accountId: s.accountId, mailboxes: Object.values(s.mailboxes), lists: kept, emails };
+}
+
+let snapshotTimer: ReturnType<typeof setTimeout> | null = null;
+
+function saveSnapshot(): void {
+  if (snapshotTimer) clearTimeout(snapshotTimer);
+  snapshotTimer = null;
+  if (!isDeviceTrusted() || useSession.getState().status !== "authenticated") return;
+  const s = useMail.getState();
+  if (s.accountId !== useSession.getState().accountId) return;
+  const snap = buildSnapshot(s);
+  if (!snap) return;
+  if (JSON.stringify(snap).length > SNAPSHOT_MAX_CHARS) return;
+  saveJson(SNAPSHOT_KEY, snap);
+}
+
+function restoreSnapshot(accountId: Id): void {
+  const snap = loadRaw<MailSnapshot | null>(SNAPSHOT_KEY, null);
+  if (!snap || snap.v !== 1 || snap.accountId !== accountId || !Array.isArray(snap.mailboxes) || !snap.mailboxes.length) return;
+  const mailboxes: Record<Id, Mailbox> = {};
+  for (const m of snap.mailboxes) mailboxes[m.id] = m;
+  const emails: Record<Id, Email> = {};
+  for (const e of snap.emails ?? []) emails[e.id] = e;
+  for (const l of snap.lists ?? []) snapshots.set(l.key, { ids: l.ids, total: l.total });
+  useMail.setState({ mailboxes, mailboxesCached: true, emails });
+}
+
 let sortRefused = false;
 
 async function runQuery(accountId: Id, q: ListQuery, position: number, limit: number) {
@@ -1512,4 +1588,20 @@ async function followFolders(before: FolderRef[]): Promise<void> {
     const { toast } = await import("@/ui/toast");
     toast.error(t("Folder changed, but its filter rules could not be updated: {error}", { error: (err as Error).message }));
   }
+}
+
+/*
+ * Kept a few seconds after the folders or the list last changed, and when the
+ * page is being put away, which is the last chance a closing tab gets.
+ */
+useMail.subscribe((s, prev) => {
+  if (s.mailboxes === prev.mailboxes && s.list === prev.list) return;
+  if (!isDeviceTrusted()) return;
+  if (snapshotTimer) clearTimeout(snapshotTimer);
+  snapshotTimer = setTimeout(saveSnapshot, 3000);
+});
+if (typeof window !== "undefined") {
+  window.addEventListener("pagehide", () => {
+    if (snapshotTimer) saveSnapshot();
+  });
 }

@@ -36,6 +36,8 @@ export interface MailState {
   mailboxes: Record<Id, Mailbox>;
   mailboxState: string | null;
   mailboxesLoaded: boolean;
+  /** The folder list shown is the copy this device kept, not yet confirmed by the server. */
+  mailboxesCached: boolean;
   emails: Record<Id, Email>;
   fullIds: Record<Id, true>;
   emailState: string | null;
