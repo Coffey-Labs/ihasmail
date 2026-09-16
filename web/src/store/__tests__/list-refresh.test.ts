@@ -152,6 +152,30 @@ describe("refreshList", () => {
   });
 });
 
+describe("merging a refresh", () => {
+  it("keeps the object for a message that did not change, so its row need not render", async () => {
+    const { listed } = server(3);
+    await useMail.getState().query({ key: "", filter: { inMailbox: INBOX }, sort: [], collapseThreads: false, mailboxId: INBOX });
+    const before = { ...useMail.getState().emails };
+    await useMail.getState().refreshList();
+    const after = useMail.getState().emails;
+    for (const id of listed) expect(after[id]).toBe(before[id]);
+  });
+
+  it("replaces the object for a message that did change", async () => {
+    const { listed } = server(2);
+    await useMail.getState().query({ key: "", filter: { inMailbox: INBOX }, sort: [], collapseThreads: false, mailboxId: INBOX });
+    // Held as starred; the server says it is not.
+    useMail.setState((s) => ({ emails: { ...s.emails, [listed[0]!]: { ...s.emails[listed[0]!]!, keywords: { $flagged: true } } } }));
+    const held = useMail.getState().emails;
+    await useMail.getState().refreshList();
+    const after = useMail.getState().emails;
+    expect(after[listed[0]!]).not.toBe(held[listed[0]!]);
+    expect(after[listed[0]!]!.keywords).toEqual({});
+    expect(after[listed[1]!]).toBe(held[listed[1]!]);
+  });
+});
+
 describe("loadThread", () => {
   it("fetches no bodies for messages already held in full", async () => {
     const { calls } = server(1, 3);
