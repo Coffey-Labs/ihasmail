@@ -71,6 +71,8 @@ export interface MailState {
 
   getEmails(ids: Id[], full?: boolean): Promise<Email[]>;
   loadThread(threadId: Id): Promise<Email[]>;
+  /** Start loading a conversation that is likely to be opened next; quiet, and shared with a later loadThread. */
+  prefetchThread(threadId: Id): void;
   threadEmails(threadId: Id): Email[];
   threadIdsIn(threadId: Id, mailboxId: Id | null): Id[];
 

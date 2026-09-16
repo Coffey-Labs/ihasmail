@@ -67,7 +67,7 @@ function server(count: number, threadSize = 1) {
     return { ok: true, status: 200, json: async () => ({ methodResponses: responses, sessionState: "1" }) } as Response;
   });
   vi.stubGlobal("fetch", fetchMock);
-  return { calls, listed };
+  return { calls, listed, requests: () => fetchMock.mock.calls.length };
 }
 
 const getSizes = (calls: Call[]) => calls.filter(([n]) => n === "Email/get").map(([, a]) => (a.ids as string[]).length);
@@ -79,6 +79,7 @@ beforeEach(() => {
     primaryAccounts: {},
     state: "s1",
   } as unknown as JmapSession;
+  useMail.getState().setAccount("a1");
   useMail.setState({
     accountId: "a1",
     mailboxes: { [INBOX]: { id: INBOX, role: "inbox", name: "Inbox" } } as never,
@@ -177,8 +178,11 @@ describe("merging a refresh", () => {
 });
 
 describe("loadThread", () => {
+  const known = (t: string, emailIds: string[]) => useMail.setState({ threads: { [t]: { id: t, emailIds } } });
+
   it("fetches no bodies for messages already held in full", async () => {
     const { calls } = server(1, 3);
+    known("te0", ["e0", "e0m0", "e0m1"]);
     useMail.setState({
       emails: { e0: { id: "e0" }, e0m0: { id: "e0m0" }, e0m1: { id: "e0m1" } } as never,
       fullIds: { e0: true, e0m0: true, e0m1: true },
@@ -191,13 +195,15 @@ describe("loadThread", () => {
     expect(useMail.getState().emails.e0).toBe(before);
   });
 
-  it("fetches in full only the message it does not have", async () => {
-    const { calls } = server(1, 3);
+  it("fetches in full only the message it does not have, in the same request as the thread", async () => {
+    const { calls, requests } = server(1, 3);
+    known("te0", ["e0", "e0m0", "e0m1"]);
     useMail.setState({
       emails: { e0: { id: "e0" }, e0m0: { id: "e0m0" }, e0m1: { id: "e0m1" } } as never,
       fullIds: { e0: true, e0m0: true },
     });
     await useMail.getState().loadThread("te0");
+    expect(requests()).toBe(1);
     const gets = calls.filter(([n]) => n === "Email/get");
     expect(gets).toHaveLength(1);
     expect(gets[0]![1].ids).toEqual(["e0m1"]);
@@ -206,10 +212,90 @@ describe("loadThread", () => {
     expect(useMail.getState().loadingThreads).toEqual({});
   });
 
+  it("opens a thread it has never seen in one request", async () => {
+    const { calls, requests } = server(1, 3);
+    const got = await useMail.getState().loadThread("te0");
+    expect(requests()).toBe(1);
+    expect(calls.map(([n]) => n)).toEqual(["Thread/get", "Email/get"]);
+    expect(calls[1]![1].fetchHTMLBodyValues).toBe(true);
+    expect(got.map((e) => e.id)).toEqual(["e0", "e0m0", "e0m1"]);
+    expect(useMail.getState().fullIds).toEqual({ e0: true, e0m0: true, e0m1: true });
+    expect(useMail.getState().threads.te0?.emailIds).toEqual(["e0", "e0m0", "e0m1"]);
+  });
+
   it("splits a thread longer than one Email/get may carry", async () => {
     const { calls } = server(1, 1200);
+    known("te0", ["e0", ...Array.from({ length: 1199 }, (_, j) => `e0m${j}`)]);
     const got = await useMail.getState().loadThread("te0");
     expect(got).toHaveLength(1200);
     expect(getSizes(calls).every((n) => n <= MAX)).toBe(true);
+  });
+
+  it("falls back to parts when a thread it has never seen is too long for one request", async () => {
+    const { calls } = server(1, 1200);
+    const got = await useMail.getState().loadThread("te0");
+    expect(got).toHaveLength(1200);
+    // The refused call, then the members in parts the server takes.
+    expect(getSizes(calls)).toEqual([1200, 500, 500, 200]);
+  });
+});
+
+describe("prefetchThread", () => {
+  it("is the request a later open waits for", async () => {
+    const { requests } = server(1, 2);
+    useMail.getState().prefetchThread("te0");
+    const got = await useMail.getState().loadThread("te0");
+    expect(got.map((e) => e.id)).toEqual(["e0", "e0m0"]);
+    // The open waits for the prefetch and asks for nothing more.
+    expect(requests()).toBe(1);
+  });
+
+  it("does nothing for a conversation already held in full", async () => {
+    const { requests } = server(1, 1);
+    useMail.setState({ threads: { te0: { id: "te0", emailIds: ["e0"] } }, emails: { e0: { id: "e0" } } as never, fullIds: { e0: true } });
+    useMail.getState().prefetchThread("te0");
+    await Promise.resolve();
+    expect(requests()).toBe(0);
+  });
+
+  it("asks once however often it is asked", async () => {
+    const { requests } = server(1, 1);
+    useMail.getState().prefetchThread("te0");
+    useMail.getState().prefetchThread("te0");
+    useMail.getState().prefetchThread("te0");
+    await vi.waitFor(() => expect(useMail.getState().fullIds.e0).toBe(true));
+    expect(requests()).toBe(1);
+  });
+});
+
+describe("going back to a folder", () => {
+  const folder = (mailboxId: string) => ({ key: "", filter: { inMailbox: mailboxId }, sort: [], collapseThreads: false, mailboxId });
+
+  it("shows its last list while the query is on its way, less what has left it", async () => {
+    server(3);
+    await useMail.getState().query(folder(INBOX));
+    expect(useMail.getState().list!.ids).toEqual(["e0", "e1", "e2"]);
+    await useMail.getState().query(folder("mbOther"));
+    // e1 is moved away meanwhile.
+    useMail.setState((s) => ({ emails: { ...s.emails, e1: { ...s.emails.e1!, mailboxIds: { mbOther: true } } } }));
+    const back = useMail.getState().query(folder(INBOX));
+    const shown = useMail.getState().list!;
+    expect(shown.loading).toBe(true);
+    expect(shown.ids).toEqual(["e0", "e2"]);
+    expect(shown.total).toBe(2);
+    await back;
+    expect(useMail.getState().list!.loading).toBe(false);
+  });
+
+  it("starts empty for a folder not read before, and for a search", async () => {
+    server(3);
+    await useMail.getState().query(folder(INBOX));
+    void useMail.getState().query(folder("mbNever"));
+    expect(useMail.getState().list!.ids).toEqual([]);
+    const search = { filter: { inMailbox: INBOX, text: "x" }, sort: [], collapseThreads: false, mailboxId: INBOX };
+    await useMail.getState().query(search as never);
+    await useMail.getState().query(folder(INBOX));
+    void useMail.getState().query(search as never);
+    expect(useMail.getState().list!.ids).toEqual([]);
   });
 });

@@ -19,6 +19,7 @@ import type {
   VacationResponse,
   ChangesResponse,
   Invocation,
+  MethodError,
 } from "@/jmap/types";
 import { toast } from "@/ui/toast";
 import { settings, useSettings } from "../settings";
@@ -101,6 +102,7 @@ export const useMail = create<MailState>((set, get) => ({
   setAccount(accountId) {
     if (accountId === get().accountId) return;
     resetBodyOrder();
+    snapshots.clear();
     set({
       accountId,
       mailboxes: {},
@@ -169,8 +171,10 @@ export const useMail = create<MailState>((set, get) => ({
       void get().refreshList();
       return;
     }
+    if (cur && cur.key !== key) keepSnapshot(cur);
+    const shown = reuse ? { ids: cur.ids, total: cur.total } : snapshotFor(key, q.filter, get().emails);
     set({
-      list: { ...q, key, ids: reuse ? cur.ids : [], total: reuse ? cur.total : 0, queryState: null, loading: true, loadingMore: false, error: null, exhausted: false },
+      list: { ...q, key, ids: shown.ids, total: shown.total, queryState: null, loading: true, loadingMore: false, error: null, exhausted: false },
       selected: {},
       selectedAll: false,
       anchorId: null,
@@ -290,8 +294,7 @@ export const useMail = create<MailState>((set, get) => ({
        * held in full needs nothing more. getEmails also splits the fetch to
        * `maxObjectsInGet`, which a long thread could exceed.
        */
-      const res = await client.call<GetResponse<Thread>>("Thread/get", { accountId, ids: [threadId] });
-      const thread = res.list[0];
+      const thread = await fetchThread(accountId, threadId, get);
       if (!thread) {
         set((s) => {
           const { [threadId]: _drop, ...rest } = s.loadingThreads;
@@ -299,7 +302,6 @@ export const useMail = create<MailState>((set, get) => ({
         });
         return [];
       }
-      await get().getEmails(thread.emailIds, true);
       set((s) => {
         const { [threadId]: _drop, ...rest } = s.loadingThreads;
         return { threads: { ...s.threads, [threadId]: thread }, loadingThreads: rest };
@@ -312,6 +314,21 @@ export const useMail = create<MailState>((set, get) => ({
       });
       throw err;
     }
+  },
+
+  prefetchThread(threadId) {
+    const { accountId, threads, fullIds } = get();
+    if (!accountId || prefetched.has(threadId)) return;
+    const known = threads[threadId];
+    if (known && known.emailIds.every((id) => fullIds[id])) return;
+    const run = fetchThread(accountId, threadId, get)
+      .then((thread) => {
+        if (thread) set((s) => ({ threads: { ...s.threads, [threadId]: thread } }));
+        return thread;
+      })
+      .catch(() => null)
+      .finally(() => prefetched.delete(threadId));
+    prefetched.set(threadId, run);
   },
 
   threadEmails(threadId) {
@@ -1112,6 +1129,112 @@ export function releaseBodies(s: MailState): MailState | Partial<MailState> {
 /** Forget what is held; for tests, and for an account switch. */
 export function resetBodyOrder(): void {
   bodyOrder.length = 0;
+}
+
+/*
+ * Opening a conversation in one round trip.
+ *
+ * It used to take two: Thread/get, then the bodies once the ids came back --
+ * half a second on a 250 ms link before anything showed. When the list has
+ * already fetched the thread (it has, in conversation view), the missing
+ * bodies are asked for in the same tick as the Thread/get, and the client
+ * sends both in one request. When it has not, the two are chained with a
+ * back-reference, which is also one request. Either way a member the list did
+ * not know about is fetched afterwards, which is rare.
+ *
+ * Loads of the same thread share one request: a conversation fetched ahead of
+ * the click (`prefetchThread`) is the one the click then waits for, and what
+ * it brought back is not asked for again.
+ */
+const prefetched = new Map<Id, Promise<Thread | null>>();
+
+async function fetchThread(accountId: Id, threadId: Id, get: () => MailState): Promise<Thread | null> {
+  const ahead = prefetched.get(threadId);
+  if (ahead) {
+    const thread = await ahead;
+    if (thread && thread.emailIds.every((id) => get().fullIds[id])) return thread;
+  }
+  const { threads, fullIds } = get();
+  const known = threads[threadId];
+  let thread: Thread | undefined;
+  if (known) {
+    const missing = known.emailIds.filter((id) => !fullIds[id]);
+    const [res] = await Promise.all([
+      client.call<GetResponse<Thread>>("Thread/get", { accountId, ids: [threadId] }),
+      missing.length ? get().getEmails(missing, true) : Promise.resolve([]),
+    ]);
+    thread = res.list[0];
+  } else {
+    const res = await client.chain([
+      ["Thread/get", { accountId, ids: [threadId] }, "t"],
+      [
+        "Email/get",
+        {
+          accountId,
+          "#ids": { resultOf: "t", name: "Thread/get", path: "/list/*/emailIds" },
+          properties: FULL_PROPS,
+          fetchHTMLBodyValues: true,
+          fetchTextBodyValues: true,
+          maxBodyValueBytes: 2 * 1024 * 1024,
+          bodyProperties: BODY_PROPS,
+        },
+        "e",
+      ],
+    ], { allowErrors: true });
+    const threadRes = res.get("t")?.[0];
+    if (threadRes && "__error" in threadRes) throw new JmapMethodError("Thread/get", threadRes.__error as MethodError);
+    thread = (threadRes as unknown as GetResponse<Thread> | undefined)?.list[0];
+    // A thread longer than one Email/get may carry is refused whole; the members are fetched in parts below.
+    const got = (res.get("e")?.[0] as unknown as Partial<GetResponse<Email>> | undefined)?.list ?? [];
+    if (got.length) {
+      useMail.setState((s) => {
+        const emails = { ...s.emails };
+        const full = { ...s.fullIds };
+        for (const e of got) {
+          emails[e.id] = mergeEmail(emails[e.id], e);
+          full[e.id] = true;
+        }
+        return { emails, fullIds: full };
+      });
+      touchBodies(got.map((e) => e.id));
+      useMail.setState((s) => releaseBodies(s));
+    }
+  }
+  if (!thread) return null;
+  const late = thread.emailIds.filter((id) => !get().fullIds[id]);
+  if (late.length) await get().getEmails(late, true);
+  return thread;
+}
+
+/*
+ * The last few folders' lists, shown again while their query is on its way.
+ * Going back to a folder read a moment ago otherwise blanks the list for a
+ * round trip. Only plain folder views are kept: a message that has since left
+ * the folder is dropped here, and anything else that changed is corrected by
+ * the query a round trip later.
+ */
+const SNAPSHOTS_KEPT = 12;
+const SNAPSHOT_IDS = 200;
+const snapshots = new Map<string, { ids: Id[]; total: number }>();
+
+function folderOf(filter: EmailFilter): Id | null {
+  const keys = Object.keys(filter);
+  return keys.length === 1 && "inMailbox" in filter && typeof filter.inMailbox === "string" ? filter.inMailbox : null;
+}
+
+function keepSnapshot(list: NonNullable<MailState["list"]>): void {
+  if (list.loading || list.error || !folderOf(list.filter)) return;
+  snapshots.delete(list.key);
+  snapshots.set(list.key, { ids: list.ids.slice(0, SNAPSHOT_IDS), total: list.total });
+  while (snapshots.size > SNAPSHOTS_KEPT) snapshots.delete(snapshots.keys().next().value!);
+}
+
+function snapshotFor(key: string, filter: EmailFilter, emails: Record<Id, Email>): { ids: Id[]; total: number } {
+  const snap = snapshots.get(key);
+  const folder = folderOf(filter);
+  if (!snap || !folder) return { ids: [], total: 0 };
+  const ids = snap.ids.filter((id) => emails[id]?.mailboxIds[folder]);
+  return { ids, total: snap.total - (snap.ids.length - ids.length) };
 }
 
 let sortRefused = false;
