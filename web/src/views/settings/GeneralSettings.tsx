@@ -25,6 +25,7 @@ import {
   type DateFormat,
 } from "@/lib/datetime";
 import { isEnforced } from "@/lib/settingsPolicy";
+import { downloadFile } from "@/lib/download";
 
 /** Illustrative instant used for the format previews: 22 Nov 2025, 18:23. */
 const SAMPLE = new Date(2025, 10, 22, 18, 23);
@@ -236,7 +237,7 @@ export function GeneralSettings() {
 
       <h2>{t("Backup")}</h2>
       <div className="row wrap">
-        <button className="btn" onClick={() => { const blob = new Blob([exportJson()], { type: "application/json" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "ihasmail-settings.json"; a.click(); }}>{t("Export settings")}</button>
+        <button className="btn" onClick={() => downloadFile(exportJson(), "application/json", "ihasmail-settings.json")}>{t("Export settings")}</button>
         <label className="btn">
           {t("Import settings")}
           <input type="file" accept="application/json" hidden onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; const ok = importJson(await f.text()); toast[ok ? "success" : "error"](ok ? t("Settings imported") : t("Invalid settings file")); e.target.value = ""; }} />
