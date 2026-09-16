@@ -957,7 +957,11 @@ export const useMail = create<MailState>((set, get) => ({
   async applyChanges(types) {
     const accountId = get().accountId;
     if (!accountId) return;
-    if (types.has("Mailbox")) void get().loadMailboxes();
+    /*
+     * Folder counts move with mail, so one Mailbox/get serves both kinds of
+     * change. It goes out now, beside Email/changes, rather than again after.
+     */
+    if (types.has("Mailbox") || types.has("Email")) void get().loadMailboxes();
     if (types.has("Email")) {
       const state = get().emailState;
       if (state) {
@@ -967,12 +971,25 @@ export const useMail = create<MailState>((set, get) => ({
           const updated = new Set<Id>();
           const created = new Set<Id>();
           const destroyed = new Set<Id>();
-          // Page through Email/changes.
+          const fetched: Email[] = [];
+          /*
+           * Page through Email/changes, each page in one request with the
+           * list-level properties of what it names. Asking for those after the
+           * ids came back cost a second round trip on every push.
+           */
+          const maxChanges = Math.min(500, client.maxObjectsInGet);
           while (guard++ < 10) {
-            const ch = await client.call<ChangesResponse>("Email/changes", { accountId, sinceState: since, maxChanges: 500 });
+            const ref = (path: string) => ({ resultOf: "c", name: "Email/changes", path });
+            const res = await client.chain([
+              ["Email/changes", { accountId, sinceState: since, maxChanges }, "c"],
+              ["Email/get", { accountId, "#ids": ref("/updated"), properties: LIST_PROPS }, "u"],
+              ["Email/get", { accountId, "#ids": ref("/created"), properties: LIST_PROPS }, "n"],
+            ]);
+            const ch = res.get("c")![0] as unknown as ChangesResponse;
             ch.created.forEach((id) => created.add(id));
             ch.updated.forEach((id) => updated.add(id));
             ch.destroyed.forEach((id) => destroyed.add(id));
+            for (const key of ["u", "n"]) fetched.push(...((res.get(key)?.[0] as unknown as GetResponse<Email> | undefined)?.list ?? []));
             since = ch.newState;
             if (!ch.hasMoreChanges) break;
           }
@@ -982,6 +999,12 @@ export const useMail = create<MailState>((set, get) => ({
             for (const id of destroyed) {
               delete next[id];
               delete nextFull[id];
+            }
+            // An update merges over what is held; a message not held stays out,
+            // except new mail, which the notice below and the list both want.
+            for (const e of fetched) {
+              if (destroyed.has(e.id)) continue;
+              if (next[e.id] || created.has(e.id)) next[e.id] = mergeEmail(next[e.id], e);
             }
             /*
              * The full copy of an updated email is deliberately kept.
@@ -1006,18 +1029,6 @@ export const useMail = create<MailState>((set, get) => ({
              */
             return { emails: next, fullIds: nextFull, emailState: since };
           });
-          // Refresh the list-level props of updated/cached emails.
-          const cached = [...updated].filter((id) => get().emails[id]);
-          if (cached.length) {
-            const results = await Promise.all(
-              chunk(cached, client.maxObjectsInGet).map((part) => client.call<GetResponse<Email>>("Email/get", { accountId, ids: part, properties: LIST_PROPS })),
-            );
-            set((s) => {
-              const next = { ...s.emails };
-              for (const r of results) for (const e of r.list) next[e.id] = mergeEmail(next[e.id], e);
-              return { emails: next };
-            });
-          }
           if (created.size) await notifyNewMail([...created], get);
         } catch (err) {
           if (err instanceof JmapMethodError && err.type === "cannotCalculateChanges") {
@@ -1026,7 +1037,6 @@ export const useMail = create<MailState>((set, get) => ({
         }
       }
       void get().refreshList();
-      void get().loadMailboxes();
     }
     if (types.has("Thread") || types.has("Email")) {
       const open = get().openThreadId;

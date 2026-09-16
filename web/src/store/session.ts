@@ -32,6 +32,8 @@ interface SessionState {
   ownAccountFor(cap: string): Id | null;
 }
 
+let refreshing: Promise<void> | null = null;
+
 export const useSession = create<SessionState>((set, get) => ({
   status: "loading",
   session: null,
@@ -100,15 +102,21 @@ export const useSession = create<SessionState>((set, get) => ({
     set({ status: "anonymous", session: null, accountId: null });
   },
 
-  async refresh() {
-    try {
-      const s = await apiFetch<JmapSession>("/api/auth/session?refresh=1");
-      client.session = s;
-      setServerLocale(s.ihasmail?.userLocale);
-      set({ session: s });
-    } catch {
-      /* ignore */
-    }
+  refresh() {
+    // Callers arriving while a refresh is on its way share it.
+    refreshing ??= (async () => {
+      try {
+        const s = await apiFetch<JmapSession>("/api/auth/session?refresh=1");
+        client.session = s;
+        setServerLocale(s.ihasmail?.userLocale);
+        set({ session: s });
+      } catch {
+        /* ignore */
+      } finally {
+        refreshing = null;
+      }
+    })();
+    return refreshing;
   },
 
   setAccount(id) {

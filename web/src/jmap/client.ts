@@ -104,6 +104,8 @@ export class JmapClient {
   private callCounter = 0;
   private unauthHandlers = new Set<() => void>();
   private stateHandlers = new Set<(sessionState: string) => void>();
+  /** The last session state announced, so a burst of replies announces it once. */
+  private announcedState: string | null = null;
 
   get maxCallsInRequest(): number {
     const core = this.session?.capabilities[CAP.core] as { maxCallsInRequest?: number } | undefined;
@@ -255,7 +257,8 @@ export class JmapClient {
     const body: Record<string, unknown> = { using: this.supportedUsing(using), methodCalls };
     if (createdIds) body.createdIds = createdIds;
     const res = await apiFetch<JmapResponse>("/api/jmap", { method: "POST", body: JSON.stringify(body) });
-    if (res.sessionState && this.session && res.sessionState !== this.session.state) {
+    if (res.sessionState && this.session && res.sessionState !== this.session.state && res.sessionState !== this.announcedState) {
+      this.announcedState = res.sessionState;
       for (const fn of this.stateHandlers) fn(res.sessionState);
     }
     return res;
