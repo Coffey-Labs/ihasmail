@@ -206,8 +206,24 @@ export const useMail = create<MailState>((set, get) => ({
     const l = get().list;
     if (!accountId || !l) return;
     try {
-      const limit = Math.max(settings().pageSize, l.ids.length);
-      const { ids, total, queryState } = await runQuery(accountId, l, 0, limit);
+      /*
+       * Everything already on screen is fetched again, which past a few pages
+       * is more than one Email/get may carry: Stalwart refuses the whole call
+       * over `maxObjectsInGet`, and a refused refresh left the list silently
+       * stale. So it goes in pages the server will take.
+       */
+      const want = Math.max(settings().pageSize, l.ids.length);
+      const ids: Id[] = [];
+      const seen = new Set<Id>();
+      let total = 0;
+      let queryState = "";
+      while (ids.length < want) {
+        const page = await runQuery(accountId, l, ids.length, want - ids.length);
+        total = page.total;
+        queryState ||= page.queryState;
+        for (const id of page.ids) if (!seen.has(id)) { seen.add(id); ids.push(id); }
+        if (page.ids.length < page.limit || ids.length >= total) break;
+      }
       const cur = get().list;
       if (!cur || cur.key !== l.key) return;
       set({ list: { ...cur, ids, total, queryState, loading: false, error: null, exhausted: ids.length >= total } });
@@ -255,34 +271,31 @@ export const useMail = create<MailState>((set, get) => ({
     if (!accountId) return [];
     set((s) => ({ loadingThreads: { ...s.loadingThreads, [threadId]: true } }));
     try {
-      const res = await client.chain([
-        ["Thread/get", { accountId, ids: [threadId] }, "t"],
-        [
-          "Email/get",
-          {
-            accountId,
-            "#ids": { resultOf: "t", name: "Thread/get", path: "/list/*/emailIds" },
-            properties: FULL_PROPS,
-            fetchHTMLBodyValues: true,
-            fetchTextBodyValues: true,
-            maxBodyValueBytes: 2 * 1024 * 1024,
-            bodyProperties: BODY_PROPS,
-          },
-          "e",
-        ],
-      ]);
-      const thread = (res.get("t")?.[0] as unknown as GetResponse<Thread>).list[0];
-      const emailsRes = res.get("e")?.[0] as unknown as GetResponse<Email>;
-      if (!thread) return [];
+      /*
+       * Bodies are fetched only for messages not already held in full.
+       *
+       * This runs on every push that touches mail, the open thread's own
+       * mark-as-read included, and it used to fetch every message in the
+       * thread in full each time -- up to 2 MB of body apiece, and new
+       * attachment objects that made the reading pane rebuild what it had
+       * already rendered. A body cannot change under an id (RFC 8621), and
+       * keywords and mailboxes come in with the list refresh, so a message
+       * held in full needs nothing more. getEmails also splits the fetch to
+       * `maxObjectsInGet`, which a long thread could exceed.
+       */
+      const res = await client.call<GetResponse<Thread>>("Thread/get", { accountId, ids: [threadId] });
+      const thread = res.list[0];
+      if (!thread) {
+        set((s) => {
+          const { [threadId]: _drop, ...rest } = s.loadingThreads;
+          return { loadingThreads: rest };
+        });
+        return [];
+      }
+      await get().getEmails(thread.emailIds, true);
       set((s) => {
-        const next = { ...s.emails };
-        const nextFull = { ...s.fullIds };
-        for (const e of emailsRes.list) {
-          next[e.id] = { ...next[e.id], ...e };
-          nextFull[e.id] = true;
-        }
         const { [threadId]: _drop, ...rest } = s.loadingThreads;
-        return { emails: next, fullIds: nextFull, threads: { ...s.threads, [threadId]: thread }, loadingThreads: rest };
+        return { threads: { ...s.threads, [threadId]: thread }, loadingThreads: rest };
       });
       return get().threadEmails(threadId);
     } catch (err) {
@@ -1057,29 +1070,54 @@ function isUnsupportedSort(err: unknown): boolean {
   return type === "unsupportedSort" || /unsupportedSort/i.test(message);
 }
 
-async function runQueryOnce(accountId: Id, q: ListQuery, position: number, limit: number) {
+async function runQueryOnce(accountId: Id, q: ListQuery, position: number, requested: number) {
+  // The ids are back-referenced into Email/get, which may carry no more than this.
+  const limit = Math.min(requested, client.maxObjectsInGet);
   const calls: Array<[string, Record<string, unknown>, string]> = [
     ["Email/query", { accountId, filter: q.filter, sort: q.sort, collapseThreads: q.collapseThreads, position, limit, calculateTotal: true }, "q"],
     ["Email/get", { accountId, "#ids": { resultOf: "q", name: "Email/query", path: "/ids" }, properties: LIST_PROPS }, "e"],
   ];
   if (q.collapseThreads) {
     calls.push(["Thread/get", { accountId, "#ids": { resultOf: "e", name: "Email/get", path: "/list/*/threadId" } }, "t"]);
-    calls.push(["Email/get", { accountId, "#ids": { resultOf: "t", name: "Thread/get", path: "/list/*/emailIds" }, properties: LIST_PROPS }, "te"]);
   }
   const res = await client.chain(calls);
   const query = res.get("q")?.[0] as unknown as QueryResponse;
   const emailsRes = res.get("e")?.[0] as unknown as GetResponse<Email>;
   const threadsRes = res.get("t")?.[0] as unknown as GetResponse<Thread> | undefined;
-  const threadEmails = res.get("te")?.[0] as unknown as GetResponse<Email> | undefined;
+  /*
+   * The other messages in each listed thread, for its count and unread state.
+   * These used to come back-referenced from Thread/get in the same request,
+   * with no bound: fifty long conversations could carry more ids than one
+   * Email/get may, and the server refused the whole page. Fetched separately
+   * instead, split to the limit, and only those not already held -- a cached
+   * one is kept current by Email/changes. When there is no state to follow
+   * changes from, every member is fetched, since nothing else will update it.
+   */
+  const following = useMail.getState().emailState !== null;
   useMail.setState((s) => {
     const emails = { ...s.emails };
     for (const e of emailsRes.list) emails[e.id] = { ...emails[e.id], ...e };
-    for (const e of threadEmails?.list ?? []) emails[e.id] = { ...emails[e.id], ...e };
     const threads = { ...s.threads };
     for (const t of threadsRes?.list ?? []) threads[t.id] = t;
     return { emails, threads, emailState: s.emailState ?? emailsRes.state };
   });
-  return { ids: query.ids, total: query.total ?? query.ids.length, queryState: query.queryState };
+  const members = (threadsRes?.list ?? []).flatMap((t) => t.emailIds);
+  if (members.length) await refreshEmails(accountId, following ? members.filter((id) => !useMail.getState().emails[id]) : members);
+  return { ids: query.ids, total: query.total ?? query.ids.length, queryState: query.queryState, limit };
+}
+
+/** Fetch list properties for `ids`, split to `maxObjectsInGet`, and merge them in. */
+async function refreshEmails(accountId: Id, ids: Id[]): Promise<void> {
+  const unique = [...new Set(ids)];
+  if (!unique.length) return;
+  const results = await Promise.all(
+    chunk(unique, client.maxObjectsInGet).map((part) => client.call<GetResponse<Email>>("Email/get", { accountId, ids: part, properties: LIST_PROPS })),
+  );
+  useMail.setState((s) => {
+    const emails = { ...s.emails };
+    for (const r of results) for (const e of r.list) emails[e.id] = { ...emails[e.id], ...e };
+    return { emails };
+  });
 }
 
 /**
