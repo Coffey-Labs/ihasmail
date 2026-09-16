@@ -8,6 +8,12 @@ export interface SanitizeOptions {
   allowRemote?: boolean;
   /** Route remote images through the privacy proxy. */
   proxyRemote?: boolean;
+  /**
+   * Drop `<style>` blocks. For HTML headed into the composer, which lives in
+   * the app document rather than a shadow root, so a sender's stylesheet
+   * would style the whole app.
+   */
+  dropStyleBlocks?: boolean;
 }
 
 export interface SanitizeResult {
@@ -17,21 +23,14 @@ export interface SanitizeResult {
 }
 
 const REMOTE_URL_RE = /^(https?:)?\/\//i;
-const CSS_URL_RE = /url\(\s*(['"]?)([^'")]+)\1\s*\)/gi;
 
 let hooked = false;
 function ensureHooks() {
   if (hooked) return;
   hooked = true;
-  DOMPurify.addHook("uponSanitizeElement", (node, data) => {
-    // Strip <style> in dark-mode-unfriendly cases? No - keep styles, we scope them in a shadow root.
-    if (data.tagName === "style" && node.textContent) {
-      // Remove @import and remote url() references; they're handled later in processRemote().
-      node.textContent = node.textContent.replace(/@import[^;]+;?/gi, "");
-    }
-  });
   DOMPurify.addHook("afterSanitizeAttributes", (node) => {
-    if (node.tagName === "A") {
+    // An image map's <area> is a link too, and must not be able to navigate the app's tab.
+    if (node.tagName === "A" || node.tagName === "AREA") {
       node.setAttribute("target", "_blank");
       node.setAttribute("rel", "noopener noreferrer nofollow");
     }
@@ -59,6 +58,100 @@ function hardenCss(css: string): string {
     // they took an argument the rule is left invalid, and so dropped.
     .replace(/:host(-context)?/gi, ":not(*)")
     .replace(/position\s*:\s*(fixed|sticky)/gi, "position:static");
+}
+
+/*
+ * Mail CSS is rewritten as text, so one rule holds throughout: nothing is ever
+ * cut out of it. Deleting a substring joins what was either side of it, and a
+ * sender can arrange for the join to spell `</style>` -- which is how an
+ * `@import` strip that ran after DOMPurify let markup out of a style block.
+ * Everything below replaces in place instead, and `<` is escaped last, so
+ * whatever the text says, it cannot close its element.
+ */
+
+const IDENT_CHAR = /[\w\-\u0080-\uFFFF]/;
+
+/**
+ * Decode escapes that stand for letters or `-`, and write every other hex
+ * escape in the form that always ends with one space.
+ *
+ * `\75rl(` is a `url(` to a browser, and `position:\66ixed` is fixed, so the
+ * checks below have to see the letters. Decoding only letters keeps the
+ * meaning: an escaped letter is that letter in an identifier or a string
+ * alike. The canonical space stops a decoded letter being read as more hex
+ * digits of the escape before it (`\31\61` would otherwise become `\31a`).
+ */
+function decodeCssLetters(css: string): string {
+  return css.replace(/\\(?:([0-9a-fA-F]{1,6})(?:\r\n|[ \t\n\r\f])?|([^0-9a-fA-F\n\r\f]))/g, (m, hex: string | undefined, ch: string | undefined) => {
+    if (hex !== undefined) {
+      const cp = parseInt(hex, 16);
+      const c = cp > 0 && cp <= 0x10ffff ? String.fromCodePoint(cp) : "";
+      return /^[A-Za-z-]$/.test(c) ? c : `\\${hex} `;
+    }
+    return /^[A-Za-z-]$/.test(ch!) ? ch! : m;
+  });
+}
+
+/** Functions that load an image from a bare string, with no url() to rewrite. */
+const STRING_IMAGE_FN = /(?<![\w\-\\\u0080-\uFFFF])(-webkit-image-set|image-set|-webkit-cross-fade|cross-fade|image|src)(\s*\()/gi;
+
+/**
+ * Rewrite every `url(...)` through `rewrite`, or return null when one cannot
+ * be parsed, in which case the caller drops the CSS rather than guess.
+ */
+function rewriteCssUrls(css: string, rewrite: (url: string) => string | null): string | null {
+  const re = /url\(/gi;
+  let out = "";
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(css))) {
+    if (m.index > 0 && IDENT_CHAR.test(css[m.index - 1]!)) continue;
+    let i = m.index + 4;
+    while (i < css.length && /\s/.test(css[i]!)) i++;
+    let value = "";
+    const q = css[i];
+    if (q === '"' || q === "'") {
+      i++;
+      for (;;) {
+        if (i >= css.length || css[i] === "\n") return null;
+        if (css[i] === "\\") { value += css.slice(i, i + 2); i += 2; continue; }
+        if (css[i] === q) { i++; break; }
+        value += css[i++];
+      }
+      while (i < css.length && /\s/.test(css[i]!)) i++;
+      if (css[i] !== ")") return null;
+    } else {
+      const end = css.indexOf(")", i);
+      if (end < 0) return null;
+      value = css.slice(i, end).trim();
+      if (/["'(\s]/.test(value)) return null;
+      i = end;
+    }
+    // A backslash in a URL is an escape we would have to decode to judge; no
+    // image mail really needs one, so it is simply not loaded.
+    const r = value.includes("\\") ? null : rewrite(value);
+    out += css.slice(last, m.index) + (r ? `url("${r.replace(/[\\"]/g, (c) => (c === '"' ? "\\22 " : "\\5c ")).replace(/[\r\n\f]/g, "")}")` : "none");
+    last = i + 1;
+    re.lastIndex = last;
+  }
+  return out + css.slice(last);
+}
+
+/**
+ * Make mail CSS safe to place in the page: urls rewritten, imports and
+ * string-image functions disabled, positioning hardened, and `<` escaped.
+ * Null means the CSS could not be read and should be dropped whole.
+ */
+function sanitizeCss(css: string, rewrite: (url: string) => string | null): string | null {
+  let s = decodeCssLetters(css).replace(/\/\*[\s\S]*?(\*\/|$)/g, " ");
+  const urls = rewriteCssUrls(s, rewrite);
+  if (urls === null) return null;
+  s = urls
+    // Renamed rather than removed: an unknown at-rule or function is dropped
+    // by the browser, and a rename cannot join anything together.
+    .replace(/@import/gi, "@ihm-blocked-import")
+    .replace(STRING_IMAGE_FN, "ihm-blocked$2");
+  return hardenCss(s).replace(/</g, "\\3c ");
 }
 
 export function proxiedImageUrl(url: string): string {
@@ -136,24 +229,28 @@ export function sanitizeEmailHtml(input: string, opts: SanitizeOptions = {}): Sa
     }
   });
 
-  // CSS url() in style attributes and <style> blocks
-  const rewriteCss = (css: string): string =>
-    css.replace(CSS_URL_RE, (_m, q: string, u: string) => {
-      const r = rewriteUrl(u);
-      return r.keep ? `url(${q}${r.url}${q})` : "none";
-    });
+  // CSS in style attributes and <style> blocks
+  const cssUrl = (u: string): string | null => {
+    const r = rewriteUrl(u);
+    return r.keep ? r.url : null;
+  };
   clean.querySelectorAll<HTMLElement>("[style]").forEach((el) => {
     const s = el.getAttribute("style");
     if (!s) return;
-    const out = hardenCss(/url\(/i.test(s) ? rewriteCss(s) : s);
-    if (out !== s) el.setAttribute("style", out);
+    const out = sanitizeCss(s, cssUrl);
+    if (out === null) el.removeAttribute("style");
+    else if (out !== s) el.setAttribute("style", out);
   });
   clean.querySelectorAll("style").forEach((st) => {
+    if (opts.dropStyleBlocks) {
+      st.remove();
+      return;
+    }
     const css = st.textContent ?? "";
     if (!css) return;
-    st.textContent = hardenCss(rewriteCss(css.replace(/@import[^;]+;?/gi, "")));
+    st.textContent = sanitizeCss(css, cssUrl) ?? "";
   });
-  if (bodyStyle && /url\(/i.test(bodyStyle)) bodyStyle = rewriteCss(bodyStyle);
+  if (bodyStyle) bodyStyle = sanitizeCss(bodyStyle, cssUrl) ?? "";
 
   return { html: clean.innerHTML, remoteCount, bodyStyle };
 }
