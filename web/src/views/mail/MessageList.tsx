@@ -16,7 +16,7 @@ import { rowClick } from "@/lib/listSelection";
 import { MenuItem, MenuSep, MenuTitle, Popover, useMenu } from "@/ui/popover";
 import { useCompose } from "@/store/compose";
 import { useCalendar } from "@/store/calendar";
-import { startAppointment } from "@/lib/appointment";
+import { startAppointment } from "@/lib/calendar/appointment";
 import { toast } from "@/ui/toast";
 import { haptic, usePullToRefresh, useTouchRow, PULL_TRIGGER } from "@/lib/touch";
 import { describeSwipe, type SwipeAction, type SwipeDescriptor, type SwipeIcon } from "@/lib/swipe";

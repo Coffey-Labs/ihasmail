@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ADMIN_BASELINE, adminSections, can, dashboardCards, canGrantRole, generatePassword, hasAdministration, outranks, permissionSet, resolveRoles, type RoleDef } from "@/lib/adminAccess";
+import { ADMIN_BASELINE, adminSections, can, dashboardCards, canGrantRole, generatePassword, hasAdministration, outranks, permissionSet, resolveRoles, type RoleDef } from "@/lib/admin/adminAccess";
 
 const set = (...p: string[]) => permissionSet(p);
 const everything = set(...ADMIN_BASELINE, "sysTenantGet", "jmapEmailGet", "impersonate");

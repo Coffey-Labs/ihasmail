@@ -1,8 +1,8 @@
 import { apiFetch, client } from "@/jmap/client";
 import { t } from "@/lib/i18n";
-import type { Permissions, RoleDef } from "@/lib/adminAccess";
-import { DirectoryError } from "@/lib/adminDirectory";
-import { DomainError } from "@/lib/adminDomains";
+import type { Permissions, RoleDef } from "@/lib/admin/adminAccess";
+import { DirectoryError } from "@/lib/admin/adminDirectory";
+import { DomainError } from "@/lib/admin/adminDomains";
 import type { PermissionInfo } from "@/lib/permissionLabels";
 
 /**

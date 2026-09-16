@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeLinked, dkimAlgorithm, looksLikeDomain, normalizeDomain, parseZoneFile } from "@/lib/adminDomains";
+import { describeLinked, dkimAlgorithm, looksLikeDomain, normalizeDomain, parseZoneFile } from "@/lib/admin/adminDomains";
 
 /**
  * Written the way Stalwart's BIND serializer writes it (dns-update's

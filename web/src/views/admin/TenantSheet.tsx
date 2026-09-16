@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Globe, Plus, Trash2, X } from "lucide-react";
-import { can, canGrantRole, type RoleDef } from "@/lib/adminAccess";
-import { describeDirectoryError } from "@/lib/adminDirectory";
-import { describeLinked, DomainError } from "@/lib/adminDomains";
+import { can, canGrantRole, type RoleDef } from "@/lib/admin/adminAccess";
+import { describeDirectoryError } from "@/lib/admin/adminDirectory";
+import { describeLinked, DomainError } from "@/lib/admin/adminDomains";
 import {
   countTenantMembers,
   createTenant,
@@ -19,7 +19,7 @@ import {
   type TenantMemberKind,
   type TenantQuota,
   type TenantRoles,
-} from "@/lib/adminTenants";
+} from "@/lib/admin/adminTenants";
 import { formatSize } from "@/lib/format";
 import { proxiedImageUrl } from "@/lib/html";
 import { plural, t } from "@/lib/i18n";

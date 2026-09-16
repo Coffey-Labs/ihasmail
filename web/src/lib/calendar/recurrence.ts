@@ -1,5 +1,5 @@
 import type { JSCalendarRecurrenceRule, JSCalendarNDay } from "@/jmap/types";
-import { formatList, weekdayName, weekdayNames } from "./datetime";
+import { formatList, weekdayName, weekdayNames } from "../datetime";
 import { plural, t } from "@/lib/i18n";
 
 /**

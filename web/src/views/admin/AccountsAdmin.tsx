@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { ChevronLeft, ChevronRight, Search, UserPlus, Users } from "lucide-react";
 import { useSession } from "@/store/session";
 import { STALWART_CAP } from "@/jmap/client";
-import { can, type RoleDef } from "@/lib/adminAccess";
+import { can, type RoleDef } from "@/lib/admin/adminAccess";
 import {
   describeDirectoryError,
   getAccounts,
@@ -14,14 +14,14 @@ import {
   DISK_QUOTA,
   type DirectoryAccount,
   type DirectoryDomain,
-} from "@/lib/adminDirectory";
+} from "@/lib/admin/adminDirectory";
 import { formatSize } from "@/lib/format";
 import { plural, t } from "@/lib/i18n";
 import { Avatar, Empty, Spinner } from "@/ui/misc";
 import { usePermissions } from "./usePermissions";
 import { isSelf, roleName, type DirectoryContext } from "./directoryContext";
 import { AccountSheet } from "./AccountSheet";
-import { listTenantNames } from "@/lib/adminTenants";
+import { listTenantNames } from "@/lib/admin/adminTenants";
 
 const PAGE_SIZE = 50;
 

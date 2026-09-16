@@ -5,7 +5,7 @@ import { toUTCDate, toLocalDateTime, zonedToDate, parseDuration, DAY_MS, browser
 import { t } from "@/lib/i18n";
 import { useContacts } from "./contacts";
 import { BIRTHDAY_CALENDAR_ID, birthdaysInRange, isBirthdayEvent, type Birthday } from "@/lib/birthdays";
-import { looksLikeCalendar, parseIcs, toIcs, type IcsEvent } from "@/lib/ics";
+import { looksLikeCalendar, parseIcs, toIcs, type IcsEvent } from "@/lib/calendar/ics";
 import { withBase } from "@/lib/basePath";
 import { settings, useSettings } from "./settings";
 import { useSession } from "./session";

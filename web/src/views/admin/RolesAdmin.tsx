@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { Plus, Search, ShieldCheck } from "lucide-react";
-import { can } from "@/lib/adminAccess";
-import { describeDirectoryError } from "@/lib/adminDirectory";
-import { effectivePermissions, listAllRoles, loadPermissionList, loadRoleDefaults, type DirectoryRole, type RoleDefaults } from "@/lib/adminRoles";
+import { can } from "@/lib/admin/adminAccess";
+import { describeDirectoryError } from "@/lib/admin/adminDirectory";
+import { effectivePermissions, listAllRoles, loadPermissionList, loadRoleDefaults, type DirectoryRole, type RoleDefaults } from "@/lib/admin/adminRoles";
 import { describePermissions, loadPermissionCatalog, type PermissionEntry } from "@/lib/permissionLabels";
 import { plural, t } from "@/lib/i18n";
 import { Empty, Spinner } from "@/ui/misc";

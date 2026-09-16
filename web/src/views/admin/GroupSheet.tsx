@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Search, Trash2, UserMinus, UserPlus, X } from "lucide-react";
-import { can, canGrantRole } from "@/lib/adminAccess";
-import { aliasList, describeDirectoryError, quotasWithDisk, updateAccount, DISK_QUOTA, type EmailAlias } from "@/lib/adminDirectory";
+import { can, canGrantRole } from "@/lib/admin/adminAccess";
+import { aliasList, describeDirectoryError, quotasWithDisk, updateAccount, DISK_QUOTA, type EmailAlias } from "@/lib/admin/adminDirectory";
 import {
   createGroup,
   destroyGroup,
@@ -12,7 +12,7 @@ import {
   setMembership,
   type DirectoryGroup,
   type GroupMember,
-} from "@/lib/adminGroups";
+} from "@/lib/admin/adminGroups";
 import { formatSize } from "@/lib/format";
 import { plural, t } from "@/lib/i18n";
 import { Avatar, Spinner } from "@/ui/misc";

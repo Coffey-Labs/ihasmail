@@ -1,6 +1,6 @@
 import { client } from "@/jmap/client";
 import { plural, t } from "@/lib/i18n";
-import { DirectoryError } from "@/lib/adminDirectory";
+import { DirectoryError } from "@/lib/admin/adminDirectory";
 
 /**
  * Stalwart 0.16's domains, over the same proxy as accounts.

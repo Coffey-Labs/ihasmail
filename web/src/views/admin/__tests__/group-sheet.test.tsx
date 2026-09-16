@@ -3,7 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useSession } from "@/store/session";
 import type { JmapSession } from "@/jmap/types";
-import type { DirectoryGroup } from "@/lib/adminGroups";
+import type { DirectoryGroup } from "@/lib/admin/adminGroups";
 import type { DirectoryContext } from "../directoryContext";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -17,8 +17,8 @@ const api = vi.hoisted(() => ({
   destroyGroup: vi.fn(async () => {}),
 }));
 
-vi.mock("@/lib/adminGroups", async (original) => ({
-  ...(await original<typeof import("@/lib/adminGroups")>()),
+vi.mock("@/lib/admin/adminGroups", async (original) => ({
+  ...(await original<typeof import("@/lib/admin/adminGroups")>()),
   listMembers: vi.fn(async () => ({ members: api.members, total: api.members.length })),
   searchUsers: vi.fn(async () => []),
   setMembership: api.setMembership,

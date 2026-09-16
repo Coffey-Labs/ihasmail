@@ -36,9 +36,9 @@ settings included, belongs to Stalwart, so the container is disposable.
 
 | | |
 | --- | --- |
-| **Inbox & conversation (dark)** ![Inbox, dark theme](docs/screenshots/inbox-dark.jpg) | **Inbox & conversation (light)** ![Inbox, light theme](docs/screenshots/inbox-light.jpg) |
-| **Composer** ![Composer](docs/screenshots/compose.jpg) | **Calendar** ![Calendar](docs/screenshots/calendar.jpg) |
-| **Contacts** ![Contacts](docs/screenshots/contacts.jpg) | **Sieve filter builder** ![Filters](docs/screenshots/filters.jpg) |
+| **Inbox & conversation (dark)** ![Inbox, dark theme](screenshots/inbox-dark.jpg) | **Inbox & conversation (light)** ![Inbox, light theme](screenshots/inbox-light.jpg) |
+| **Composer** ![Composer](screenshots/compose.jpg) | **Calendar** ![Calendar](screenshots/calendar.jpg) |
+| **Contacts** ![Contacts](screenshots/contacts.jpg) | **Sieve filter builder** ![Filters](screenshots/filters.jpg) |
 
 Taken against the built-in mock with sample data. More, including the phone
 layout, on [ihasmail.org](https://ihasmail.org/#screenshots).

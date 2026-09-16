@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { looksLikeCalendar, parseIcs, parseIcsDuration, parseDateValue, parseLine, unescapeText, unfold } from "@/lib/ics";
+import { looksLikeCalendar, parseIcs, parseIcsDuration, parseDateValue, parseLine, unescapeText, unfold } from "@/lib/calendar/ics";
 
 const cal = (body: string) => `BEGIN:VCALENDAR\r\nVERSION:2.0\r\n${body}\r\nEND:VCALENDAR\r\n`;
 const event = (props: string) => `BEGIN:VEVENT\r\n${props}\r\nEND:VEVENT`;

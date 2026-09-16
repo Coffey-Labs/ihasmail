@@ -15,7 +15,7 @@ import type { Anchor } from "@/ui/popover";
 import { CalendarContextMenu, eventColor, type CalendarContext } from "./CalendarContextMenu";
 import { toast } from "@/ui/toast";
 import { askEditScope, droppedMessage, runScoped } from "./scope";
-import { canDragEvent, dayDelta, moveByDaysPatch, movePatch, pixelsToMinutes, resizePatch, snap, type DragPatch } from "@/lib/eventDrag";
+import { canDragEvent, dayDelta, moveByDaysPatch, movePatch, pixelsToMinutes, resizePatch, snap, type DragPatch } from "@/lib/calendar/eventDrag";
 import { t as translate } from "@/lib/i18n";
 
 type View = "month" | "week" | "day" | "agenda";

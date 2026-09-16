@@ -8,7 +8,7 @@ import { useSettings } from "@/store/settings";
 import { draftFromMailto, useCompose } from "@/store/compose";
 import { useContacts } from "@/store/contacts";
 import { useCalendar } from "@/store/calendar";
-import { startAppointment } from "@/lib/appointment";
+import { startAppointment } from "@/lib/calendar/appointment";
 import { client } from "@/jmap/client";
 import { SignatureBanner } from "./SignatureBanner";
 import { useSignature } from "@/lib/smime/useSignature";

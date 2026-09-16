@@ -9,8 +9,8 @@ import type { JmapSession } from "@/jmap/types";
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const api = vi.hoisted(() => ({ queryTenants: vi.fn(async () => ({ ids: ["t1"], total: 1 })) }));
-vi.mock("@/lib/adminTenants", async (original) => ({
-  ...(await original<typeof import("@/lib/adminTenants")>()),
+vi.mock("@/lib/admin/adminTenants", async (original) => ({
+  ...(await original<typeof import("@/lib/admin/adminTenants")>()),
   queryTenants: api.queryTenants,
   getTenants: vi.fn(async () => [{ id: "t1", name: "Acme Corp", quotas: {}, usedDiskQuota: 0 }]),
 }));

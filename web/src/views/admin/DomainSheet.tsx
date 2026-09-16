@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Copy, Globe, Plus, Trash2, X } from "lucide-react";
-import { can } from "@/lib/adminAccess";
-import { describeDirectoryError } from "@/lib/adminDirectory";
+import { can } from "@/lib/admin/adminAccess";
+import { describeDirectoryError } from "@/lib/admin/adminDirectory";
 import {
   createDomain,
   describeLinked,
@@ -18,7 +18,7 @@ import {
   type DirectoryDomainFull,
   type DkimKey,
   type Managed,
-} from "@/lib/adminDomains";
+} from "@/lib/admin/adminDomains";
 import { formatFullDate } from "@/lib/format";
 import { plural, t } from "@/lib/i18n";
 import { Dialog } from "@/ui/dialog";

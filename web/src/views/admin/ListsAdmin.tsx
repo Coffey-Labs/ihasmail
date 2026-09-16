@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { ChevronLeft, ChevronRight, List, Plus, Search } from "lucide-react";
-import { can } from "@/lib/adminAccess";
-import { describeDirectoryError, listDomains, type DirectoryDomain } from "@/lib/adminDirectory";
-import { getLists, queryLists, type DirectoryList } from "@/lib/adminLists";
+import { can } from "@/lib/admin/adminAccess";
+import { describeDirectoryError, listDomains, type DirectoryDomain } from "@/lib/admin/adminDirectory";
+import { getLists, queryLists, type DirectoryList } from "@/lib/admin/adminLists";
 import { plural, t } from "@/lib/i18n";
 import { Empty, Spinner } from "@/ui/misc";
 import { useSession } from "@/store/session";

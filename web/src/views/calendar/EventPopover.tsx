@@ -6,7 +6,7 @@ import { confirmDialog } from "@/ui/dialog";
 import { toast } from "@/ui/toast";
 import { askDeleteScope, runScoped } from "./scope";
 import { formatTimeRange, humanDuration, parseDuration } from "@/lib/dates";
-import { describeRule } from "@/lib/recurrence";
+import { describeRule } from "@/lib/calendar/recurrence";
 import { useCompose } from "@/store/compose";
 import { useSettings } from "@/store/settings";
 import { categoryOf, eventColor } from "./CalendarContextMenu";

@@ -1,6 +1,6 @@
 import { client } from "@/jmap/client";
 import { t } from "@/lib/i18n";
-import type { PermissionsMode, RoleDef, UserRoles } from "@/lib/adminAccess";
+import type { PermissionsMode, RoleDef, UserRoles } from "@/lib/admin/adminAccess";
 
 /**
  * Stalwart 0.16's directory, over the ordinary JMAP proxy.

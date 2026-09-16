@@ -1,8 +1,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "wouter";
 import { ArrowDownToLine, ArrowUpFromLine, ExternalLink, Globe, Hourglass, LayoutDashboard, MemoryStick, RefreshCw, Users } from "lucide-react";
-import { adminSections, dashboardCards, type DashboardCard } from "@/lib/adminAccess";
-import { balancedColumns, countObjects, DASHBOARD_WINDOW_MS, isRefused, loadMetrics, summarizeMetrics, type MessageStats } from "@/lib/adminDashboard";
+import { adminSections, dashboardCards, type DashboardCard } from "@/lib/admin/adminAccess";
+import { balancedColumns, countObjects, DASHBOARD_WINDOW_MS, isRefused, loadMetrics, summarizeMetrics, type MessageStats } from "@/lib/admin/adminDashboard";
 import { formatDayMonthTime, resolvedLocale } from "@/lib/datetime";
 import { formatSize } from "@/lib/format";
 import { t } from "@/lib/i18n";

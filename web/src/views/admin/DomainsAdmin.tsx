@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { ChevronLeft, ChevronRight, Globe, Plus, Search } from "lucide-react";
-import { can } from "@/lib/adminAccess";
-import { describeDirectoryError } from "@/lib/adminDirectory";
-import { countAccounts, getDomains, namesOf, queryDomains, type DirectoryDomainFull } from "@/lib/adminDomains";
+import { can } from "@/lib/admin/adminAccess";
+import { describeDirectoryError } from "@/lib/admin/adminDirectory";
+import { countAccounts, getDomains, namesOf, queryDomains, type DirectoryDomainFull } from "@/lib/admin/adminDomains";
 import { plural, t } from "@/lib/i18n";
 import { Empty, Spinner } from "@/ui/misc";
 import { usePermissions } from "./usePermissions";

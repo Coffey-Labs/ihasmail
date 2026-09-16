@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { client } from "@/jmap/client";
-import { countTenantMembers, drawableLogo, quotasPatch, setDomainTenant } from "@/lib/adminTenants";
+import { countTenantMembers, drawableLogo, quotasPatch, setDomainTenant } from "@/lib/admin/adminTenants";
 
 describe("a tenant's limits", () => {
   it("change one pointer each, leaving the quotas ihasmail does not offer alone", () => {
