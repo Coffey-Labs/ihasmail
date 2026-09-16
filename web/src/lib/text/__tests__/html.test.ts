@@ -268,6 +268,112 @@ describe("mail CSS cannot climb out of its card", () => {
   });
 });
 
+describe("mail CSS cannot smuggle markup or remote loads", () => {
+  const TRACKER = "/api/image?url=https%3A%2F%2Ftrk.example%2Fo";
+  // Parse the output the way the reading pane does, and look at what came out.
+  const parse = (html: string) => {
+    const host = document.createElement("div");
+    host.innerHTML = html;
+    return host;
+  };
+
+  it("cannot close its style block, however an @import strip would join", () => {
+    const payload = "<p>hi</p><style>p{}<@im@import a;port b;/style><@im@import a;port b;img src=x onerror=alert(1)></style>";
+    const out = sanitizeEmailHtml(payload).html;
+    const dom = parse(out);
+    expect(dom.querySelector("img")).toBeNull();
+    expect(dom.querySelectorAll("style")).toHaveLength(1);
+    expect(out).not.toMatch(/<\/style>\s*<img/i);
+  });
+
+  it("escapes every < left in a style block", () => {
+    const out = sanitizeEmailHtml("<div><style>p{color:red} q::before{content:'< b'}</style><p>x</p></div>").html;
+    const css = parse(out).querySelector("style")!.textContent!;
+    expect(css).toContain("p{color:red}");
+    expect(css).toContain("content:'\\3c  b'");
+  });
+
+  it("disables @import in every spelling, even with remote content allowed", () => {
+    for (const css of ['@import "https://t.example/a.css";', "@import url(https://t.example/a.css);", '@\\69mport "https://t.example/a.css";', '@IM\\PORT "https://t.example/a.css";']) {
+      const out = sanitizeEmailHtml(`<div><style>${css}</style><p>x</p></div>`, { allowRemote: true }).html;
+      expect(out, css).not.toMatch(/@import/i);
+      expect(out, css).toContain("@ihm-blocked-import");
+    }
+  });
+
+  it("blocks image-set and other string-image functions", () => {
+    const out = sanitizeEmailHtml(`<p style="background-image:image-set('${TRACKER}' 1x)">x</p><p style="background:-webkit-image-set('${TRACKER}' 1x)">y</p>`).html;
+    expect(out).not.toMatch(/image-set\(/i);
+  });
+
+  it("rewrites escaped and awkwardly quoted url()", () => {
+    const cases = [
+      `<p style="background:\\75rl(${TRACKER})">x</p>`,
+      `<p style="background:url('${TRACKER}&a=&quot;b')">x</p>`,
+      `<div><style>p{background:u\\RL( "https://t.example/p.gif" )}</style><p>x</p></div>`,
+    ];
+    for (const html of cases) {
+      const r = sanitizeEmailHtml(html);
+      expect(r.html, html).not.toContain("trk.example");
+      expect(r.html, html).not.toContain("t.example");
+    }
+  });
+
+  it("drops relative urls, which would reach the app's own image proxy", () => {
+    const out = sanitizeEmailHtml(`<p style="background:url(${TRACKER})">x</p>`).html;
+    expect(out).not.toContain("/api/image");
+  });
+
+  it("drops a style attribute it cannot parse", () => {
+    const out = sanitizeEmailHtml(`<p style="color:red;background:url('https://t.example/p.gif">x</p>`).html;
+    expect(out).not.toContain("t.example");
+  });
+
+  it("sees escaped fixed positioning and :host", () => {
+    const out = sanitizeEmailHtml(`<div><style>:\\68ost{color:red}.x{position:\\66ixed}</style><p style="position:\\000066ixed">x</p></div>`).html;
+    expect(out).not.toMatch(/:host/i);
+    expect(out).not.toMatch(/fixed/i);
+  });
+
+  it("does not let decoded letters merge into the escape before them", () => {
+    const out = sanitizeEmailHtml("<div><style>.\\31\\61 {color:red}</style><p>x</p></div>").html;
+    expect(out).toContain(".\\31 a{color:red}");
+  });
+
+  it("keeps non-letter escapes, such as CJK font names", () => {
+    const out = sanitizeEmailHtml(`<p style="font-family:'\\5FAE\\8F6F\\96C5\\9ED1'">x</p>`).html;
+    expect(out).toContain("\\5FAE \\8F6F \\96C5 \\9ED1 ");
+  });
+
+  it("sanitizes the body element's style too", () => {
+    const r = sanitizeEmailHtml(`<html><body style="background:image-set('${TRACKER}' 1x);position:fixed"><p>x</p></body></html>`);
+    expect(r.bodyStyle).not.toMatch(/image-set\(/i);
+    expect(r.bodyStyle).not.toMatch(/fixed/i);
+  });
+
+  it("still maps cid and allowed remote images in CSS", () => {
+    const r = sanitizeEmailHtml(`<div><style>p{background:url(cid:bg@x)}</style></div><p style="background:url('https://t.example/b.png')">x</p>`, { cidMap: { "bg@x": "/api/blob/a/b/bg.png" }, allowRemote: true, proxyRemote: true });
+    expect(r.html).toContain('url("/api/blob/a/b/bg.png")');
+    expect(r.html).toContain("/api/image?url=https%3A%2F%2Ft.example%2Fb.png");
+    expect(r.remoteCount).toBe(1);
+  });
+
+  it("drops style blocks for the composer", () => {
+    const out = sanitizeEmailHtml("<div><style>body *{visibility:hidden}</style><p>x</p></div>", { dropStyleBlocks: true }).html;
+    expect(out).not.toContain("<style");
+    expect(out).toContain("<p>x</p>");
+  });
+});
+
+describe("image map links", () => {
+  it("cannot target the app's tab", () => {
+    const out = sanitizeEmailHtml('<img src="cid:x" usemap="#m"><map name="m"><area coords="0,0,9,9" href="https://evil.test/" target="_top"></map>').html;
+    const area = new DOMParser().parseFromString(out, "text/html").querySelector("area");
+    expect(area?.getAttribute("target")).toBe("_blank");
+    expect(area?.getAttribute("rel")).toContain("noopener");
+  });
+});
+
 describe("the containment that mail CSS cannot override", () => {
   it("is still applied to the message body container", async () => {
     // jsdom does no layout, so this asserts the control is present rather than

@@ -531,7 +531,7 @@ function HtmlBody({ html, bodyStyle, themed, forced, onShowImages, onFollowLink 
   const onClick = useCallback(
     (ev: Event) => {
       const t = ev.target as HTMLElement;
-      const a = t.closest("a");
+      const a = t.closest("a, area");
       if (a) {
         const href = a.getAttribute("href") ?? "";
         if (href.startsWith("mailto:")) {

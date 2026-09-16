@@ -240,7 +240,7 @@ export const useCompose = create<ComposeState>((set, get) => ({
       showCc: Boolean(full.cc?.length),
       showBcc: Boolean(full.bcc?.length),
       subject: full.subject ?? "",
-      html: html ? sanitizeEmailHtml(html, { cidMap, allowRemote: true }).html : textToHtml(text).replace(/\n/g, "<br>"),
+      html: html ? sanitizeEmailHtml(html, { cidMap, allowRemote: true, dropStyleBlocks: true }).html : textToHtml(text).replace(/\n/g, "<br>"),
       text: text || (html ? htmlToText(html) : ""),
       format: html ? "html" : settings().composeFormat,
       attachments,
@@ -306,7 +306,7 @@ export const useCompose = create<ComposeState>((set, get) => ({
       showCc: Boolean(full.cc?.length),
       showBcc: Boolean(full.bcc?.length),
       subject: full.subject ?? "",
-      html: html ? sanitizeEmailHtml(html, { cidMap, allowRemote: true }).html : textToHtml(text).replace(/\n/g, "<br>"),
+      html: html ? sanitizeEmailHtml(html, { cidMap, allowRemote: true, dropStyleBlocks: true }).html : textToHtml(text).replace(/\n/g, "<br>"),
       text: text || (html ? htmlToText(html) : ""),
       format: html ? "html" : settings().composeFormat,
       attachments,
@@ -388,7 +388,7 @@ export const useCompose = create<ComposeState>((set, get) => ({
     }
     // Inline images are shown via their blob URLs in the editor and converted back to cid: at send time.
     const quotedHtmlBody = origHtml
-      ? sanitizeEmailHtml(origHtml, { cidMap, allowRemote: true, proxyRemote: false }).html
+      ? sanitizeEmailHtml(origHtml, { cidMap, allowRemote: true, proxyRemote: false, dropStyleBlocks: true }).html
       : textToHtml(origText).replace(/\n/g, "<br>");
     const fromStr = escapeHtml((full.from ?? []).map(formatAddress).join(", "));
     const date = formatFullDate(full.receivedAt);
