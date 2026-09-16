@@ -1,14 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CAP, client } from "@/jmap/client";
+import { CAP } from "@/jmap/client";
 import type { JmapSession } from "@/jmap/types";
 import { buildSnapshot, useMail } from "@/store/mail";
 import { useSession } from "@/store/session";
 import { clearSignedInData, setDeviceTrusted } from "@/lib/storage";
 
 /**
- * Starting from what a trusted device kept: the session, the folder list and
- * the first page of recent folders. On a distant link each of those was a
- * round trip before the inbox could show.
+ * Starting from what a trusted device kept: the folder list and the first page
+ * of recent folders, applied once the server has confirmed the session. On a
+ * distant link each of those was a round trip before the inbox could show.
  */
 
 const INBOX = "mbInbox";
@@ -159,40 +159,35 @@ describe("the kept mail snapshot", () => {
   });
 });
 
-describe("the kept session", () => {
-  it("lets a trusted device start before the server answers, then takes the server's", async () => {
+describe("before the server has confirmed the session", () => {
+  it("shows nothing kept: the spinner stays until the answer, and the kept folders arrive with it", async () => {
     setDeviceTrusted(true);
-    localStorage.setItem("ihasmail:session", JSON.stringify(session(true)));
-    const boot = useSession.getState().bootstrap();
-    expect(useSession.getState().status).toBe("authenticated");
-    expect(useSession.getState().accountId).toBe("a1");
-    expect(client.session?.username).toBe("me");
-    const fresh = { ...session(true), username: "me-fresh" };
-    pending!({ ok: true, status: 200, json: async () => fresh } as Response);
-    await boot;
-    expect(client.session?.username).toBe("me-fresh");
-    expect(JSON.parse(localStorage.getItem("ihasmail:session")!).username).toBe("me-fresh");
-  });
+    useSession.setState({ status: "authenticated", accountId: "a1" });
+    signedInWithList();
+    useMail.setState((s) => ({ list: { ...s.list!, total: 8 } }));
+    vi.advanceTimersByTime(3500);
+    // Next start.
+    useMail.getState().setAccount(null);
+    useSession.setState({ status: "loading", session: null, accountId: null });
 
-  it("is not used on a device not marked as the reader's own", () => {
-    localStorage.setItem("ihasmail:session", JSON.stringify(session(true)));
-    void useSession.getState().bootstrap();
+    const boot = useSession.getState().bootstrap();
     expect(useSession.getState().status).toBe("loading");
-  });
+    expect(useMail.getState().accountId).toBeNull();
+    expect(useMail.getState().mailboxes).toEqual({});
+    expect(useMail.getState().emails).toEqual({});
 
-  it("is not kept for a session that did not ask to be remembered", async () => {
-    const boot = useSession.getState().bootstrap();
-    pending!({ ok: true, status: 200, json: async () => session(false) } as Response);
+    pending!({ ok: true, status: 200, json: async () => session(true) } as Response);
     await boot;
     expect(useSession.getState().status).toBe("authenticated");
-    expect(localStorage.getItem("ihasmail:session")).toBeNull();
+    expect(useMail.getState().mailboxesCached).toBe(true);
+    expect(useMail.getState().mailboxes[INBOX]?.name).toBe("Inbox");
   });
 
-  it("stays on screen when the server cannot be reached", async () => {
+  it("keeps no session of its own", async () => {
     setDeviceTrusted(true);
-    localStorage.setItem("ihasmail:session", JSON.stringify(session(true)));
-    vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("offline"); }));
-    await useSession.getState().bootstrap();
-    expect(useSession.getState().status).toBe("authenticated");
+    const boot = useSession.getState().bootstrap();
+    pending!({ ok: true, status: 200, json: async () => session(true) } as Response);
+    await boot;
+    expect(localStorage.getItem("ihasmail:session")).toBeNull();
   });
 });

@@ -1258,9 +1258,14 @@ function snapshotFor(key: string, filter: EmailFilter, emails: Record<Id, Email>
  * folder, and on that before anything showed: on a distant link, a second or
  * so of skeleton on every start. A trusted device now keeps the folder list
  * and the first page of the last few folders, list properties only -- no
- * bodies -- and starts from them: the folders and the inbox paint at once,
- * and the query for the open folder goes out without waiting for the folder
- * list, which corrects both a round trip later.
+ * bodies -- and starts from them: the folders and the inbox paint as soon as
+ * the server has confirmed the session, and the query for the open folder goes
+ * out then without waiting for the folder list, which corrects both a round
+ * trip later.
+ *
+ * Never sooner. This is applied from `setAccount`, which runs only once the
+ * session is confirmed, so a session that has ended shows the spinner and then
+ * the sign-in form, and none of this in between.
  *
  * It is written through the same gated storage as the settings cache: nothing
  * is kept on a device not marked as the reader's own, nothing is read there

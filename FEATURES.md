@@ -1550,22 +1550,23 @@ costs something to get wrong is the one that assumes the machine is yours.
 | --- | --- | --- |
 | Stays signed in | until the browser closes | up to 30 days (`SESSION_REMEMBER_TTL`) |
 | Idle sign-out | after 5 minutes | none |
-| Kept on the computer | nothing | settings cache, recent addresses, username, the session's public details, and the folder list with the first page of recently read folders (list rows only: sender, subject, preview, flags — no message bodies) |
+| Kept on the computer | nothing | settings cache, recent addresses, username, and the folder list with the first page of recently read folders (list rows only: sender, subject, preview, flags — no message bodies) |
 | Background notifications | refused | available |
 | Administration | unavailable | available, if the role allows it |
 
 Local storage is gated on that answer for **reads** as well as writes — a
 machine trusted once still has residue, and honoring it would let a previous
 session's data surface in a later untrusted one. Signing out clears the settings
-cache, recent addresses, kept session and folder list, and tears down the push
+cache, recent addresses and kept folder list, and tears down the push
 subscription, whichever answer was given.
 
-What a ticked device keeps is what makes it **start at once on a distant
-link**: the folders and the inbox paint from the kept copy before the server
-has answered, and the requests for the open folder go out immediately instead
-of waiting on the session and the folder list first. The server's answers
-replace the copy a round trip later. The session secret itself is never in
-there — it stays in an `HttpOnly` cookie that script cannot read.
+What a ticked device keeps is what makes it **start quickly on a distant
+link**: once the server has confirmed the session, the folders and the inbox
+paint from the kept copy straight away, and the request for the open folder
+goes out without waiting on the folder list first. The server's answers
+replace the copy a round trip later. **Nothing kept is shown before the session
+is confirmed** — until then the app shows a spinner, so a session that has
+ended goes from the spinner to the sign-in form and never past a mailbox.
 
 The idle timer exists because the alternative does not work: `beforeunload` text
 was removed from browsers years ago, and **no event fires at all** for walking
