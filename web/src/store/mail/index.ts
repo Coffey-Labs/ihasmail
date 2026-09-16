@@ -1,7 +1,6 @@
 import { create } from "zustand";
 import type { FolderRef } from "@/lib/sieveFolders";
-import { SPAM_HEADER_PROPS } from "@/lib/spamScore";
-import { groupByArchivePath, archivePath, type ArchiveGranularity } from "@/lib/archiveDate";
+import { groupByArchivePath, archivePath } from "@/lib/archiveDate";
 import { isOptionalSort, withoutOptionalSorts } from "@/lib/listSort";
 import { JmapMethodError, chunk, client, setErrorMessage } from "@/jmap/client";
 import type {
@@ -12,7 +11,6 @@ import type {
   Id,
   Identity,
   Mailbox,
-  MailboxRole,
   QueryResponse,
   Quota,
   SetError,
@@ -23,197 +21,27 @@ import type {
   Invocation,
 } from "@/jmap/types";
 import { toast } from "@/ui/toast";
-import { settings, useSettings } from "./settings";
-import { useSession } from "./session";
+import { settings, useSettings } from "../settings";
+import { useSession } from "../session";
 import { mailboxDisplayName } from "@/lib/mailboxName";
 import { plural, t } from "@/lib/i18n";
 import { withBase } from "@/lib/basePath";
+import { MAILBOX_PROPS, LIST_PROPS, FULL_PROPS, BODY_PROPS } from "./props";
+import { type ListQuery, type MailState } from "./types";
 
 /*
- * Named explicitly so `shareWith` comes back, which it does not otherwise --
- * see the note on CALENDAR_PROPS and the KNOWN-ISSUES entry. Mailboxes were the
- * third and last store fetching everything by asking for nothing.
- *
- * It matters here for one narrow but real case. Sharing a mail folder is
- * withdrawn because Stalwart stores the share and never delivers it, and the
- * only way left to clear one already made is the "Stop sharing" entry, which
- * appears only when a folder looks shared. Without this it never looked shared,
- * so the escape hatch for the exact situation it was built for was invisible.
+ * `@/store/mail` stays the one public entry. The split below is about file
+ * size -- 1,463 lines in a single module -- not about asking the 36 call sites
+ * that import `useMail` to learn which half of the store a symbol moved to.
+ * Anything exported before is still exported from here.
  */
-export const MAILBOX_PROPS = [
-  "id",
-  "name",
-  "parentId",
-  "role",
-  "sortOrder",
-  "totalEmails",
-  "unreadEmails",
-  "totalThreads",
-  "unreadThreads",
-  "myRights",
-  "isSubscribed",
-  "shareWith",
-];
-
-export const LIST_PROPS = [
-  "id",
-  "blobId",
-  "threadId",
-  "mailboxIds",
-  "keywords",
-  "hasAttachment",
-  "from",
-  "to",
-  "subject",
-  "receivedAt",
-  "sentAt",
-  "size",
-  "preview",
-];
-
-export const FULL_PROPS = [
-  ...LIST_PROPS,
-  "messageId",
-  "inReplyTo",
-  "references",
-  "sender",
-  "cc",
-  "bcc",
-  "replyTo",
-  "bodyStructure",
-  "bodyValues",
-  "textBody",
-  "htmlBody",
-  "attachments",
-  "header:List-Unsubscribe:asText",
-  "header:List-Unsubscribe-Post:asText",
-  "header:List-Id:asText",
-  "header:Disposition-Notification-To:asAddresses",
-  "header:X-Priority:asText",
-  "header:Importance:asText",
-  "header:Auto-Submitted:asText",
-  "header:Precedence:asText",
-  "header:Authentication-Results:asText",
-  ...SPAM_HEADER_PROPS,
-];
-
-export const BODY_PROPS = ["partId", "blobId", "size", "name", "type", "charset", "disposition", "cid", "language", "location", "subParts", "headers"];
-
-export interface ListQuery {
-  key: string;
-  filter: EmailFilter;
-  sort: Comparator[];
-  collapseThreads: boolean;
-  mailboxId: string | null;
-  label?: string;
-}
-
-export interface ListState extends ListQuery {
-  ids: Id[];
-  total: number;
-  queryState: string | null;
-  loading: boolean;
-  loadingMore: boolean;
-  error: string | null;
-  exhausted: boolean;
-}
-
-export interface MailState {
-  accountId: Id | null;
-  mailboxes: Record<Id, Mailbox>;
-  mailboxState: string | null;
-  mailboxesLoaded: boolean;
-  emails: Record<Id, Email>;
-  fullIds: Record<Id, true>;
-  emailState: string | null;
-  threads: Record<Id, Thread>;
-  identities: Identity[];
-  quotas: Quota[];
-  vacation: VacationResponse | null;
-  list: ListState | null;
-  selected: Record<Id, true>;
-  /** Unread messages per label keyword, for the sidebar. */
-  labelCounts: Record<string, number>;
-  /**
-   * The selection means "everything the current query matches", not the rows
-   * that happen to be loaded. Ticking the header box selects the loaded page;
-   * this is the deliberate second step past it.
-   */
-  selectedAll: boolean;
-  anchorId: Id | null;
-  loadingThreads: Record<Id, true>;
-  lastSeenInboxEmailIds: Id[] | null;
-  openThreadId: Id | null;
-  setOpenThread(id: Id | null): void;
-
-  setAccount(accountId: Id | null): void;
-  loadMailboxes(): Promise<void>;
-  roleId(role: MailboxRole): Id | null;
-  mailboxPath(id: Id): string;
-  childrenOf(parentId: Id | null): Mailbox[];
-
-  query(q: ListQuery, opts?: { reset?: boolean }): Promise<void>;
-  loadMore(): Promise<void>;
-  refreshList(): Promise<void>;
-
-  getEmails(ids: Id[], full?: boolean): Promise<Email[]>;
-  loadThread(threadId: Id): Promise<Email[]>;
-  threadEmails(threadId: Id): Email[];
-  threadIdsIn(threadId: Id, mailboxId: Id | null): Id[];
-
-  setKeyword(ids: Id[], keyword: string, value: boolean): Promise<void>;
-  markRead(ids: Id[], read: boolean): Promise<void>;
-  star(ids: Id[], on: boolean): Promise<void>;
-  move(ids: Id[], toMailboxId: Id, opts?: { fromMailboxId?: Id | null; silent?: boolean; label?: string }): Promise<void>;
-  addToMailbox(ids: Id[], mailboxId: Id, add: boolean): Promise<void>;
-  trash(ids: Id[]): Promise<void>;
-  destroy(ids: Id[]): Promise<void>;
-  archive(ids: Id[]): Promise<void>;
-  /** Archive into a dated subfolder of Archive, creating the folders as needed. */
-  archiveByDate(ids: Id[], granularity: ArchiveGranularity): Promise<void>;
-  spam(ids: Id[], isSpam: boolean): Promise<void>;
-  emptyMailbox(mailboxId: Id): Promise<void>;
-  /** Mark every unread message in a mailbox read; optionally its subfolders too. */
-  markMailboxRead(mailboxId: Id, includeChildren?: boolean): Promise<void>;
-  /** The mailbox plus all of its descendants. */
-  descendantMailboxIds(mailboxId: Id): Id[];
-
-  createMailbox(name: string, parentId: Id | null, role?: MailboxRole): Promise<Id>;
-  /** Give something the Archive role -- adopting a folder already named for it, or making one. */
-  ensureArchiveFolder(): Promise<Id>;
-  updateMailbox(id: Id, patch: Partial<Mailbox>): Promise<void>;
-  destroyMailbox(id: Id, removeEmails?: boolean): Promise<void>;
-
-  loadIdentities(): Promise<Identity[]>;
-  /** The user's preferred identity (falls back to the first one). */
-  defaultIdentity(): Identity | undefined;
-  setDefaultIdentity(id: Id): void;
-  saveIdentity(id: Id | null, patch: Partial<Identity>): Promise<void>;
-  destroyIdentity(id: Id): Promise<void>;
-  loadVacation(): Promise<void>;
-  saveVacation(patch: Partial<VacationResponse>): Promise<void>;
-  loadQuota(): Promise<void>;
-
-  select(ids: Id[], on: boolean): void;
-  clearSelection(): void;
-  /** Refresh the per-label unread counts, in one request. */
-  loadLabelCounts(): Promise<void>;
-  selectAll(): void;
-  /** Extend the selection from the loaded rows to everything the query matches. */
-  selectAllMatching(): void;
-  /** Every id the current query matches, walked a page at a time. */
-  queryAllIds(): Promise<Id[]>;
-  setAnchor(id: Id | null): void;
-
-  applyChanges(types: Set<string>): Promise<void>;
-  importEml(blobId: Id, mailboxId: Id, keywords?: Record<string, boolean>): Promise<Id | null>;
-}
+export { MAILBOX_PROPS, LIST_PROPS, FULL_PROPS, BODY_PROPS } from "./props";
+export { DEFAULT_SORT, type ListQuery, type ListState, type MailState } from "./types";
+export { mailboxIcon, ROLE_ORDER } from "./mailboxes";
 
 function listKey(q: { filter: EmailFilter; sort: Comparator[]; collapseThreads: boolean }): string {
   return JSON.stringify([q.filter, q.sort, q.collapseThreads]);
 }
-
-export const DEFAULT_SORT: Comparator[] = [{ property: "receivedAt", isAscending: false }];
 
 /**
  * Nothing carries the Archive role, so offer to fix it rather than explain it.
@@ -1346,32 +1174,7 @@ useSession.subscribe((s) => {
   useMail.getState().setAccount(s.status === "authenticated" ? s.accountId : null);
 });
 
-export function mailboxIcon(role: MailboxRole): string {
-  switch (role) {
-    case "inbox":
-      return "inbox";
-    case "drafts":
-      return "file";
-    case "sent":
-      return "send";
-    case "trash":
-      return "trash";
-    case "junk":
-      return "alert";
-    case "archive":
-      return "archive";
-    case "all":
-      return "mail";
-    case "flagged":
-      return "star";
-    case "important":
-      return "tag";
-    default:
-      return "folder";
-  }
-}
 
-export const ROLE_ORDER: Record<string, number> = { inbox: 0, flagged: 1, important: 2, drafts: 3, sent: 4, archive: 5, all: 6, junk: 7, trash: 8 };
 
 /**
  * Resolve `parentId/segments...` to a mailbox id, creating what is missing.
@@ -1426,7 +1229,7 @@ function folderRefs(state: MailState, id: Id): FolderRef[] {
  */
 async function followFolders(before: FolderRef[]): Promise<void> {
   try {
-    const { useSieve } = await import("./sieve");
+    const { useSieve } = await import("../sieve");
     const sieve = useSieve.getState();
     if (!sieve.available) return;
     if (!sieve.scripts.length) await sieve.load();
