@@ -24,15 +24,34 @@ import { isDeviceTrusted } from "@/lib/storage";
 export const VAPID_CAP = "urn:ietf:params:jmap:webpush-vapid";
 export const EMAILPUSH_CAP = "urn:ietf:params:jmap:emailpush";
 
-/** Which Email properties to put in the payload, best first. */
-const PAYLOAD_PROPS = ["from", "subject", "preview", "receivedAt"];
+/**
+ * Which Email properties to put in the payload, best first.
+ *
+ * `id` and `threadId` have to be asked for: Stalwart sends only what is named
+ * (0.16.22 source). Without them a notification could not be tagged by
+ * message, carried no Archive or Mark-read button, and opened the inbox rather
+ * than the message.
+ */
+const PAYLOAD_PROPS = ["id", "threadId", "from", "subject", "preview", "receivedAt"];
 
 export interface JmapPushSubscription {
   id: Id;
   deviceClientId: string;
-  url: string;
+  /** Write-only: Stalwart never returns it, so a subscription cannot be matched by endpoint. */
+  url?: string;
   expires: string | null;
   verificationCode?: string | null;
+}
+
+/** A `PushSubscription/set` refusal, with the server's type kept for deciding what to do. */
+export class PushSetError extends Error {
+  constructor(
+    readonly type: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = "PushSetError";
+  }
 }
 
 /** The VAPID key this server signs with, or null if it does not do Web Push. */
@@ -126,9 +145,19 @@ export function subscriptionPayload(sub: PushSubscription, accountId: Id | null,
     deviceClientId: deviceClientId(),
     url: sub.endpoint,
     keys: { p256dh: json.keys?.p256dh ?? encodeKey(sub.getKey("p256dh")), auth: json.keys?.auth ?? encodeKey(sub.getKey("auth")) },
-    // StateChange notifications are not wanted: the app already has EventSource
-    // while it is open, and this channel exists for when it is not.
-    types: ["Email"],
+    /*
+     * New mail, and nothing else.
+     *
+     * `EmailDelivery` changes only when a message is delivered; `Email` changes
+     * on every read, flag and move, from any client, and each of those arrived
+     * here as a push the worker could only show as "New mail" (#375). With an
+     * `emailPush` filter, Stalwart sends a delivery as an EmailPush alone; a
+     * server without emailpush turns it into a StateChange naming
+     * `EmailDelivery`, which is then a true "New mail". An empty or null list
+     * is not "none": Stalwart takes it as every type there is (checked live on
+     * 0.16.22, 2026-09-16).
+     */
+    types: ["EmailDelivery"],
   };
   if (accountId && supportsEmailPush()) {
     body.emailPush = {
@@ -185,9 +214,51 @@ export function setPushEnabledHere(on: boolean): void {
  */
 export const RENEW_WITHIN_MS = 2 * 24 * 60 * 60 * 1000;
 
+/**
+ * This browser's registered subscriptions, the one with the most time left
+ * first.
+ *
+ * Plural because Stalwart keeps every create: a second subscription with the
+ * same `deviceClientId` sits beside the first rather than replacing it
+ * (checked live on 0.16.22, 2026-09-16), so an account holds as many as were
+ * ever registered until each one expires.
+ */
+export function mySubscriptions(subs: JmapPushSubscription[], deviceId: string): JmapPushSubscription[] {
+  const left = (s: JmapPushSubscription) => (s.expires ? Date.parse(s.expires) || 0 : Number.MAX_SAFE_INTEGER);
+  return subs.filter((s) => s.deviceClientId === deviceId).sort((a, b) => left(b) - left(a));
+}
+
 /** This browser's registered subscription, out of everything the account has. */
 export function findSubscription(subs: JmapPushSubscription[], deviceId: string): JmapPushSubscription | null {
-  return subs.find((s) => s.deviceClientId === deviceId) ?? null;
+  return mySubscriptions(subs, deviceId)[0] ?? null;
+}
+
+/**
+ * Whether a subscription was registered by a browser running ihasmail, rather
+ * than by the ihasmail server (`ihasmail-proxy-`, or the older eight-character
+ * form) or by another client altogether.
+ */
+export function isBrowserSubscription(s: JmapPushSubscription): boolean {
+  return /^ihasmail-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.deviceClientId);
+}
+
+/**
+ * Which subscriptions to let go of when the account is at its limit.
+ *
+ * Stalwart allows fifteen per account and refuses the sixteenth with
+ * `overQuota` (checked live on 0.16.22, 2026-09-16). Only browser
+ * subscriptions are candidates, never this browser's and never the server's:
+ * one that never verified first, then the one closest to expiring. A device
+ * that loses its subscription this way registers again the next time the app
+ * is opened there, because it no longer finds its own.
+ */
+export function roomToMake(subs: JmapPushSubscription[], deviceId: string, count = 1): Id[] {
+  const expiry = (s: JmapPushSubscription) => (s.expires ? Date.parse(s.expires) || 0 : Number.MAX_SAFE_INTEGER);
+  return subs
+    .filter((s) => s.deviceClientId !== deviceId && isBrowserSubscription(s))
+    .sort((a, b) => Number(Boolean(a.verificationCode)) - Number(Boolean(b.verificationCode)) || expiry(a) - expiry(b))
+    .slice(0, count)
+    .map((s) => s.id);
 }
 
 /**
@@ -225,8 +296,53 @@ export async function createSubscription(body: Record<string, unknown>): Promise
     { create: { s: body } },
     [CAP.core, VAPID_CAP, EMAILPUSH_CAP],
   );
-  if (res.notCreated?.s) throw new Error(String(res.notCreated.s.description ?? res.notCreated.s.type));
+  const refused = res.notCreated?.s;
+  if (refused) throw new PushSetError(String(refused.type), String(refused.description ?? refused.type));
   return (res.created?.s as { id?: Id } | undefined)?.id ?? null;
+}
+
+/**
+ * Give a registered subscription more time, rather than registering another.
+ *
+ * Seven days is JMAP's ceiling and what Stalwart grants a new one; the server
+ * may shorten what is asked for, and whatever it keeps is what counts.
+ */
+export async function extendSubscription(id: Id, now: number = Date.now()): Promise<void> {
+  const expires = new Date(now + 7 * 24 * 60 * 60 * 1000).toISOString().replace(/\.\d+Z$/, "Z");
+  const res = await client.call<SetResponse<JmapPushSubscription>>("PushSubscription/set", { update: { [id]: { expires } } }, [CAP.core, VAPID_CAP]);
+  const err = res.notUpdated?.[id];
+  if (err) throw new PushSetError(String(err.type), String(err.description ?? err.type));
+}
+
+export async function destroySubscriptions(ids: Id[]): Promise<void> {
+  if (!ids.length) return;
+  await client.call<SetResponse<JmapPushSubscription>>("PushSubscription/set", { destroy: ids }, [CAP.core, VAPID_CAP]);
+}
+
+/**
+ * The push endpoint this browser last registered with the server.
+ *
+ * The server never returns a subscription's URL, so this is the only way to
+ * tell a subscription that still points at this browser's endpoint from one
+ * made for an endpoint the browser has since replaced.
+ */
+const ENDPOINT_KEY = "ihasmail:pushEndpoint";
+
+export function registeredEndpoint(): string | null {
+  try {
+    return localStorage.getItem(ENDPOINT_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function rememberEndpoint(endpoint: string | null): void {
+  try {
+    if (endpoint) localStorage.setItem(ENDPOINT_KEY, endpoint);
+    else localStorage.removeItem(ENDPOINT_KEY);
+  } catch {
+    /* private mode: every start is then a fresh registration, which still works */
+  }
 }
 
 /**
@@ -262,10 +378,10 @@ export async function unsubscribeThisDevice(): Promise<void> {
     /* the browser end is gone or was never there; still clear the server end */
   }
   try {
-    const subs = await listSubscriptions();
-    for (const s of subs) if (s.deviceClientId === mine) await destroySubscription(s.id);
+    await destroySubscriptions(mySubscriptions(await listSubscriptions(), mine).map((s) => s.id));
   } catch {
     /* signing out must not fail over this */
   }
+  rememberEndpoint(null);
   setPushEnabledHere(false);
 }

@@ -82,14 +82,30 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
   }
 }
 
+/**
+ * Show a notification from the page, for a tab that is open but not in front.
+ *
+ * Through the service worker's registration where there is one: Android's
+ * Chrome refuses `new Notification()` outright, so notifications from an open
+ * tab never appeared there at all. The tag is the one the service worker uses
+ * for the same message (`ihasmail-<id>`), so if both ever show it, the second
+ * replaces the first instead of stacking beside it.
+ */
 export function showNotification(title: string, opts: NotificationOptions & { onClick?: () => void } = {}): void {
   if (!("Notification" in window) || Notification.permission !== "granted") return;
   if (document.visibilityState === "visible" && document.hasFocus()) return;
+  const { onClick, ...options } = opts;
+  const full = { icon: withBase("/img/icon-192.png"), badge: withBase("/img/favicon-64.png"), ...options };
+  const viaWorker = navigator.serviceWorker?.controller ? navigator.serviceWorker.ready : null;
+  if (viaWorker) {
+    void viaWorker.then((reg) => reg.showNotification(title, full)).catch(() => undefined);
+    return;
+  }
   try {
-    const n = new Notification(title, { icon: withBase("/img/icon-192.png"), badge: withBase("/img/favicon-64.png"), ...opts });
+    const n = new Notification(title, full);
     n.onclick = () => {
       window.focus();
-      opts.onClick?.();
+      onClick?.();
       n.close();
     };
     setTimeout(() => n.close(), 8000);

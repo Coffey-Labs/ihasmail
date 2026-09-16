@@ -346,6 +346,14 @@ self.addEventListener("push", (event) => {
 
   const emails = (data && data["@type"] === "EmailPush" && Array.isArray(data.emails)) ? data.emails : [];
   event.waitUntil((async () => {
+    /*
+     * Someone reading the app already knows. A focused, visible window of this
+     * app gets its new mail from its own event stream, so a notification on
+     * top of it is a second telling of the same thing (#375). Chrome does not
+     * require one while the site is in the foreground.
+     */
+    const windows = await self.clients.matchAll({ type: "window" });
+    if (windows.some((w) => w.focused && w.visibilityState === "visible")) return;
     const facts = await readFacts();
     const strings = facts?.strings ?? { newMail: "New mail", newMessage: "New message", noSubject: "(no subject)" };
     /*
@@ -361,8 +369,10 @@ self.addEventListener("push", (event) => {
     if ("setAppBadge" in self.navigator) await self.navigator.setAppBadge().catch(() => {});
 
     if (!emails.length) {
-      // A StateChange, or a payload too large to carry the message. Say
-      // something true rather than inventing a sender.
+      // A delivery from a server that sends StateChange rather than EmailPush
+      // -- the subscription asks for `EmailDelivery` only, so it is new mail --
+      // or a payload too large to carry the message. Say something true
+      // rather than inventing a sender.
       await self.registration.showNotification(strings.newMail, {
         icon: `${BASE}/img/icon-192.png`, badge: `${BASE}/img/favicon-64.png`, tag: "ihasmail-mail", data: { url: `${BASE}/mail` },
       });
@@ -382,7 +392,8 @@ self.addEventListener("push", (event) => {
         // be drawn.
         actions: email.id ? actionsFor(facts) : [],
         data: {
-          url: email.id ? `${BASE}/mail/inbox/${email.id}` : `${BASE}/mail`,
+          // The route names a conversation, and `m` the message in it.
+          url: email.id && email.threadId ? `${BASE}/mail/inbox/${email.threadId}?m=${encodeURIComponent(email.id)}` : `${BASE}/mail`,
           id: email.id || null,
           title,
           accountId: facts?.accountId ?? null,

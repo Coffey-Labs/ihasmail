@@ -29,6 +29,7 @@ import { withBase } from "@/lib/basePath";
 import { MAILBOX_PROPS, LIST_PROPS, FULL_PROPS, BODY_PROPS } from "./props";
 import { type ListQuery, type MailState } from "./types";
 import { playNewMailSound, showNotification } from "@/lib/notify/notify";
+import { pushEnabledHere } from "@/lib/notify/webpush";
 
 /*
  * `@/store/mail` stays the one public entry. The split below is about file
@@ -1262,12 +1263,15 @@ async function notifyNewMail(created: Id[], get: () => MailState) {
   const fresh = emails.filter((e) => e.mailboxIds[inbox] && !e.keywords.$seen && !e.keywords.$draft);
   if (!fresh.length) return;
   if (s.notificationSound) playNewMailSound();
-  if (s.desktopNotifications) {
+  // Where background notifications are on in this browser, the service worker
+  // shows these already; showing them here too was the duplicate in #375.
+  if (s.desktopNotifications && !pushEnabledHere()) {
     for (const e of fresh.slice(0, 3)) {
       const from = e.from?.[0];
       showNotification(from?.name || from?.email || "New message", {
         body: `${e.subject || "(no subject)"}\n${e.preview ?? ""}`.trim(),
-        tag: e.id,
+        tag: `ihasmail-${e.id}`,
+        data: { url: withBase(`/mail/${inbox}/${e.threadId}?m=${encodeURIComponent(e.id)}`) },
         onClick: () => {
           window.location.hash = "";
           // The one navigation that does not go through wouter -- it is
