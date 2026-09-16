@@ -7,7 +7,7 @@ import { useSettings } from "@/store/settings";
 import { withBase } from "@/lib/basePath";
 import { useCompose } from "@/store/compose";
 import { buildFilter, describeFilter, parseQuery } from "@/lib/search";
-import { keyboard } from "@/lib/keyboard";
+import { keyboard } from "@/lib/input/keyboard";
 import { useIsNarrow } from "@/ui/misc";
 import { Splitter } from "@/ui/Splitter";
 import { MessageList } from "./MessageList";
@@ -17,10 +17,10 @@ import { LabelPicker } from "./LabelPicker";
 import type { Id } from "@/jmap/types";
 import { confirmDialog } from "@/ui/dialog";
 import { toast } from "@/ui/toast";
-import { isUnknownMailbox } from "@/lib/mailboxRoute";
+import { isUnknownMailbox } from "@/lib/mailbox/mailboxRoute";
 import { scheduledMailboxIdFrom, useScheduled } from "@/store/scheduled";
 import { plural, t as translate, tNode } from "@/lib/i18n";
-import { mailboxDisplayName } from "@/lib/mailboxName";
+import { mailboxDisplayName } from "@/lib/mailbox/mailboxName";
 
 export function MailView({ mailboxId, threadId, search }: { mailboxId?: string; threadId?: string; search?: boolean }) {
   const [, navigate] = useLocation();

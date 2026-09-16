@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { useSettings } from "@/store/settings";
 import { Switch } from "@/ui/misc";
-import { requestNotificationPermission, showNotification, playNewMailSound } from "@/lib/notify";
+import { requestNotificationPermission, showNotification, playNewMailSound } from "@/lib/notify/notify";
 import { useSession } from "@/store/session";
-import { disableWebPush, enableWebPush, webPushActive } from "@/lib/webpushEnable";
-import { supportsEmailPush, webPushAvailable } from "@/lib/webpush";
+import { disableWebPush, enableWebPush, webPushActive } from "@/lib/notify/webpushEnable";
+import { supportsEmailPush, webPushAvailable } from "@/lib/notify/webpush";
 import { toast } from "@/ui/toast";
 import { t } from "@/lib/i18n";
 import { isEnforced } from "@/lib/settingsPolicy";

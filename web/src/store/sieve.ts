@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { CAP, client, setErrorMessage } from "@/jmap/client";
 import type { GetResponse, Id, SetResponse, SieveScript } from "@/jmap/types";
-import { rulesToSieve, scriptDamage, sieveToRules, type SieveRule } from "@/lib/sieve";
+import { rulesToSieve, scriptDamage, sieveToRules, type SieveRule } from "@/lib/sieve/sieve";
 import { useSession } from "./session";
 
 export const IHASMAIL_SCRIPT = "ihasmail";

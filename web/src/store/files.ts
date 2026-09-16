@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { CAP, client, setErrorMessage } from "@/jmap/client";
 import { directoryCreate, fileCreate, fileNodeProps } from "@/lib/filenode";
-import { foldersNeeded, type PlannedUpload } from "@/lib/dropUpload";
+import { foldersNeeded, type PlannedUpload } from "@/lib/input/dropUpload";
 import { isAppFolder } from "@/lib/appFolder";
 import type { FileNode, GetResponse, Id, QueryResponse, SetResponse } from "@/jmap/types";
 import { useSession } from "./session";

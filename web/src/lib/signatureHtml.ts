@@ -4,7 +4,7 @@
  *  - marker signatures: when still too big, the full HTML lives in Files and the
  *    identity only stores `<!--ihasmail:sig=<blobId>-->` + a plain-text fallback.
  */
-import { escapeHtml, htmlToText } from "./text";
+import { escapeHtml, htmlToText } from "./text/text";
 
 /**
  * Stalwart accepts a signature of `value.len() < 2048` — and that is Rust's

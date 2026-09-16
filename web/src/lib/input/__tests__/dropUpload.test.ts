@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { foldersNeeded, hasDirectory, planUpload } from "@/lib/dropUpload";
+import { foldersNeeded, hasDirectory, planUpload } from "@/lib/input/dropUpload";
 
 /**
  * Dropping a folder in, reduced to the two things the DataTransfer entry API

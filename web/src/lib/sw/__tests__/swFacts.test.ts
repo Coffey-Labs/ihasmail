@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { publishWorkerFacts, FACTS_KEY, type WorkerFacts } from "@/lib/swFacts";
-import { SW_CACHE_NAME } from "@/lib/swCache";
+import { publishWorkerFacts, FACTS_KEY, type WorkerFacts } from "@/lib/sw/swFacts";
+import { SW_CACHE_NAME } from "@/lib/sw/swCache";
 import { setCatalog } from "@/lib/i18n";
 import { catalog as de } from "@/locales/de";
 

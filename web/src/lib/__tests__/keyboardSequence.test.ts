@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { keyboard } from "@/lib/keyboard";
+import { keyboard } from "@/lib/input/keyboard";
 
 /*
  * Two-key sequences against the single keys they start with.

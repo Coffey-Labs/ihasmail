@@ -1,7 +1,7 @@
 import { useSettings } from "@/store/settings";
 import { PALETTES, effectiveMode, type Mode, type PaletteId } from "@/lib/palette";
 import { Switch, useIsTouch } from "@/ui/misc";
-import { SWIPE_CHOICES, type SwipeAction } from "@/lib/swipe";
+import { SWIPE_CHOICES, type SwipeAction } from "@/lib/input/swipe";
 import { TRANSLATION_ISSUE_URL, UI_LANGUAGES } from "@/lib/languages";
 import { t as translate, tNode } from "@/lib/i18n";
 import { isEnforced } from "@/lib/settingsPolicy";

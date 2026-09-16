@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import type { FolderRef } from "@/lib/sieveFolders";
-import { groupByArchivePath, archivePath } from "@/lib/archiveDate";
+import type { FolderRef } from "@/lib/sieve/sieveFolders";
+import { groupByArchivePath, archivePath } from "@/lib/mailbox/archiveDate";
 import { isOptionalSort, withoutOptionalSorts } from "@/lib/listSort";
 import { JmapMethodError, chunk, client, setErrorMessage } from "@/jmap/client";
 import type {
@@ -23,7 +23,7 @@ import type {
 import { toast } from "@/ui/toast";
 import { settings, useSettings } from "../settings";
 import { useSession } from "../session";
-import { mailboxDisplayName } from "@/lib/mailboxName";
+import { mailboxDisplayName } from "@/lib/mailbox/mailboxName";
 import { plural, t } from "@/lib/i18n";
 import { withBase } from "@/lib/basePath";
 import { MAILBOX_PROPS, LIST_PROPS, FULL_PROPS, BODY_PROPS } from "./props";
@@ -1148,7 +1148,7 @@ async function notifyNewMail(created: Id[], get: () => MailState) {
   const emails = await get().getEmails(created);
   const fresh = emails.filter((e) => e.mailboxIds[inbox] && !e.keywords.$seen && !e.keywords.$draft);
   if (!fresh.length) return;
-  const { showNotification, playNewMailSound } = await import("@/lib/notify");
+  const { showNotification, playNewMailSound } = await import("@/lib/notify/notify");
   if (s.notificationSound) playNewMailSound();
   if (s.desktopNotifications) {
     for (const e of fresh.slice(0, 3)) {
@@ -1246,7 +1246,7 @@ async function followFolders(before: FolderRef[]): Promise<void> {
       else gone.push(ref);
     }
 
-    const { retargetRules, detachFolders } = await import("@/lib/sieveFolders");
+    const { retargetRules, detachFolders } = await import("@/lib/sieve/sieveFolders");
     const retargeted = retargetRules(rules, moves);
     const detached = detachFolders(retargeted.rules, gone);
     if (!retargeted.changed && !detached.edited.length && !detached.removed.length) return;

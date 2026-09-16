@@ -4,7 +4,7 @@ import { useMail } from "@/store/mail";
 import { Dialog } from "@/ui/dialog";
 import type { Id, Mailbox } from "@/jmap/types";
 import { t } from "@/lib/i18n";
-import { mailboxDisplayPath } from "@/lib/mailboxName";
+import { mailboxDisplayPath } from "@/lib/mailbox/mailboxName";
 
 /**
  * @param need which right a folder has to grant to be worth offering.

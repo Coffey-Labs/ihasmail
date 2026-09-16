@@ -7,7 +7,7 @@ import type { FileNode, Id } from "@/jmap/types";
 import { formatSize, formatListDate } from "@/lib/format";
 import { canDropFileNodes, isShared, NODE_MIME, readDraggedIds } from "@/lib/filenode";
 import { previewKind } from "@/lib/preview";
-import { entriesFromDrop, hasDirectory, planUpload } from "@/lib/dropUpload";
+import { entriesFromDrop, hasDirectory, planUpload } from "@/lib/input/dropUpload";
 import { ShareDialog } from "../settings/ShareDialog";
 import { Empty, Spinner } from "@/ui/misc";
 import { MenuItem, MenuSep, Popover, useMenu } from "@/ui/popover";

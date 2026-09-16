@@ -3,7 +3,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { useSettings, type Template } from "@/store/settings";
 import { Dialog } from "@/ui/dialog";
 import { RichEditor } from "../compose/RichEditor";
-import { htmlToText } from "@/lib/text";
+import { htmlToText } from "@/lib/text/text";
 import { t as translate } from "@/lib/i18n";
 import { PLACEHOLDER_NAMES } from "@/lib/templatePlaceholders";
 

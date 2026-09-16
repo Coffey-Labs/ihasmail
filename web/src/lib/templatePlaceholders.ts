@@ -18,7 +18,7 @@
  * so a template follows the same date order and clock the rest of the app was
  * told to use.
  */
-import { escapeHtml } from "./text";
+import { escapeHtml } from "./text/text";
 import { formatDate, formatClock } from "./datetime";
 import type { EmailAddress } from "@/jmap/types";
 

@@ -12,7 +12,7 @@
  * has to find the payload lying somewhere.
  */
 import { withBase } from "./basePath";
-import { SW_CACHE_NAME } from "./swCache";
+import { SW_CACHE_NAME } from "./sw/swCache";
 
 export interface SharedContent {
   title: string;

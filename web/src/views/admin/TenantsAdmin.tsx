@@ -5,7 +5,7 @@ import { can, type RoleDef } from "@/lib/admin/adminAccess";
 import { describeDirectoryError, listRoles } from "@/lib/admin/adminDirectory";
 import { drawableLogo, getTenants, queryTenants, type DirectoryTenant } from "@/lib/admin/adminTenants";
 import { formatSize } from "@/lib/format";
-import { proxiedImageUrl } from "@/lib/html";
+import { proxiedImageUrl } from "@/lib/text/html";
 import { plural, t } from "@/lib/i18n";
 import { useSession } from "@/store/session";
 import { Empty, Spinner } from "@/ui/misc";

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { comboOf, keyboard } from "@/lib/keyboard";
+import { comboOf, keyboard } from "@/lib/input/keyboard";
 
 /*
  * A "keydown" that carries no key. Chrome's password autofill dispatches one

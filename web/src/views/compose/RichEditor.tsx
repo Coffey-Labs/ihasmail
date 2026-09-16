@@ -1,6 +1,6 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type ClipboardEvent, type ReactNode } from "react";
 import { AlignCenter, AlignLeft, AlignRight, Bold, Code, Eraser, Image as ImageIcon, Indent, Italic, Link as LinkIcon, List, ListOrdered, Outdent, Quote, Redo, Smile, Strikethrough, Underline, Undo, Palette, Highlighter, Type } from "lucide-react";
-import { sanitizeEditorHtml } from "@/lib/html";
+import { sanitizeEditorHtml } from "@/lib/text/html";
 import { Popover, useMenu } from "@/ui/popover";
 import { t as translate } from "@/lib/i18n";
 

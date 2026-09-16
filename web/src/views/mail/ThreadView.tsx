@@ -12,7 +12,7 @@ import { Spinner, useIsNarrow, useIsTouch } from "@/ui/misc";
 import { client } from "@/jmap/client";
 import { LabelPicker } from "./LabelPicker";
 import { threadScrollTarget } from "@/lib/threadScroll";
-import { useEdgeBack } from "@/lib/touch";
+import { useEdgeBack } from "@/lib/input/touch";
 import { plural, t } from "@/lib/i18n";
 
 /** How long the opening scroll keeps its place while bodies and images land. */

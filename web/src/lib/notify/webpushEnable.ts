@@ -6,8 +6,8 @@
  * permission prompt, none of which exists under a test runner.
  */
 import { CAP } from "@/jmap/client";
-import { withBase } from "./basePath";
-import { SW_CACHE_NAME } from "./swCache";
+import { withBase } from "../basePath";
+import { SW_CACHE_NAME } from "../sw/swCache";
 import { isDeviceTrusted } from "@/lib/storage";
 import { useSession } from "@/store/session";
 import { useMail } from "@/store/mail";
@@ -25,7 +25,7 @@ import {
   unsubscribeThisDevice,
   verifySubscription,
   webPushAvailable,
-} from "@/lib/webpush";
+} from "@/lib/notify/webpush";
 
 let listening = false;
 

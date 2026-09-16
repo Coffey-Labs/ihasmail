@@ -16,9 +16,9 @@
  * was installed, which is the same condition background notifications already
  * carry — a push subscription has to be renewed from a tab too.
  */
-import { withBase } from "./basePath";
+import { withBase } from "../basePath";
 import { SW_CACHE_NAME } from "./swCache";
-import { t } from "./i18n";
+import { t } from "../i18n";
 
 export const FACTS_KEY = "/ihasmail-worker-facts";
 

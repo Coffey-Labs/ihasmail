@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { collectShare, shareBody, SHARE_MAX_AGE_MS } from "@/lib/shareTarget";
-import { SW_CACHE_NAME } from "@/lib/swCache";
+import { SW_CACHE_NAME } from "@/lib/sw/swCache";
 
 /**
  * The handoff, from the tab's side. The worker's half cannot be exercised here

@@ -6,7 +6,7 @@ import type { SortLevel, SortPreset } from "@/lib/listSort";
 import { pendingSettingsKeys, queueSettingsPush } from "@/lib/settingsSync";
 import { policyChanges, policyDefaults, policyEnforced, type PolicyChange } from "@/lib/settingsPolicy";
 import { setDateTimePrefs, setUiLanguageForFormatting, type DateFormat, type TimeFormat } from "@/lib/datetime";
-import type { SwipeAction } from "@/lib/swipe";
+import type { SwipeAction } from "@/lib/input/swipe";
 import { resolveUiLanguage } from "@/lib/languages";
 import { loadLanguage } from "@/lib/i18n";
 

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { useMail } from "@/store/mail";
-import { HEADER_CHOICES, HEADER_OPS, type SieveAction, type SieveRule, type SieveTest } from "@/lib/sieve";
+import { HEADER_CHOICES, HEADER_OPS, type SieveAction, type SieveRule, type SieveTest } from "@/lib/sieve/sieve";
 import { Dialog, promptDialog } from "@/ui/dialog";
 import { toast } from "@/ui/toast";
 import type { Id } from "@/jmap/types";

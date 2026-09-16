@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hasHtmlAlternative } from "../html";
+import { hasHtmlAlternative } from "../text/html";
 
 /*
  * The rule: `htmlBody` is derived, so its presence proves nothing. Only the

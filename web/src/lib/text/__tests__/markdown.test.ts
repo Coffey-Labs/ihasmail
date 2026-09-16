@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isMarkdown, renderMarkdown } from "@/lib/markdown";
+import { isMarkdown, renderMarkdown } from "@/lib/text/markdown";
 
 describe("isMarkdown", () => {
   it("takes the type when there is one", () => {

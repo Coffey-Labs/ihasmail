@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canEmpty, emptyLabel } from "@/lib/emptyFolder";
+import { canEmpty, emptyLabel } from "@/lib/mailbox/emptyFolder";
 import type { MailboxRole } from "@/jmap/types";
 
 /**

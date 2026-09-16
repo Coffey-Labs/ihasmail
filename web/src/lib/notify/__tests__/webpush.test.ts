@@ -14,7 +14,7 @@ import {
   unsubscribeThisDevice,
   webPushAvailable,
   type JmapPushSubscription,
-} from "@/lib/webpush";
+} from "@/lib/notify/webpush";
 import { setDeviceTrusted } from "@/lib/storage";
 import type { JmapSession } from "@/jmap/types";
 

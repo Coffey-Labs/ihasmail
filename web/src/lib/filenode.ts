@@ -9,7 +9,7 @@
  * so a node has one shape and there is nothing left to detect.
  */
 import type { FileNode, Id } from "@/jmap/types";
-import { descendantIds } from "./folderMove";
+import { descendantIds } from "./mailbox/folderMove";
 
 /** Properties to request for a node. */
 export function fileNodeProps(): string[] {
