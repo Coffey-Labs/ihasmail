@@ -116,6 +116,34 @@ test("attachments are kept out of the disk cache of a device that is not the per
   await res.arrayBuffer();
 });
 
+test("a download passes a byte range through, for viewers that read in pieces", async () => {
+  const up = await app.request("/api/upload/a1", { method: "POST", headers: { "x-requested-with": "ihasmail", "content-type": "text/plain", cookie }, body: "hello world" });
+  const { blobId } = (await up.json()) as { blobId: string };
+  const url = `/api/blob/a1/${blobId}/greeting.txt?accept=text/plain`;
+  const part = await app.request(url, { headers: { cookie, range: "bytes=0-4" } });
+  assert.equal(part.status, 206);
+  assert.equal(part.headers.get("content-range"), "bytes 0-4/11");
+  assert.equal(part.headers.get("accept-ranges"), "bytes");
+  assert.equal(await part.text(), "hello");
+  const whole = await app.request(url, { headers: { cookie } });
+  assert.equal(whole.status, 200);
+  assert.equal(await whole.text(), "hello world");
+  const beyond = await app.request(url, { headers: { cookie, range: "bytes=50-60" } });
+  assert.equal(beyond.status, 416);
+  // Anything that is not a plain byte range is not passed on.
+  const odd = await app.request(url, { headers: { cookie, range: "items=0-4" } });
+  assert.equal(odd.status, 200);
+  await odd.arrayBuffer();
+});
+
+test("upstream caches let go of sessions that have aged out", async () => {
+  const { sweepUpstreamCaches, upstreamCacheSizes } = await import("./upstream.js");
+  // Signed in above, so this session has an entry.
+  assert.ok(upstreamCacheSizes().sessions >= 1);
+  sweepUpstreamCaches(Date.now() + 60 * 60_000);
+  assert.deepEqual(upstreamCacheSizes(), { sessions: 0, info: 0 });
+});
+
 test("an app password needs a name", async () => {
   const res = await post("/api/account/app-passwords", { description: "   ", current: "demo-password" });
   assert.equal(res.status, 400);
