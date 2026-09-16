@@ -1,4 +1,5 @@
 import type { EmailAddress } from "@/jmap/types";
+import { withoutBidiControls } from "@/lib/text/text";
 
 const EMAIL_RE = /^[^\s@<>"',;]+@[^\s@<>"',;]+\.[^\s@<>"',;]+$/;
 
@@ -48,9 +49,10 @@ export function parseOne(raw: string): EmailAddress | null {
 
 export function formatAddress(a: EmailAddress | null | undefined): string {
   if (!a) return "";
-  if (!a.name) return a.email;
-  const needsQuote = /[,;<>"()\\]/.test(a.name);
-  const name = needsQuote ? `"${a.name.replace(/(["\\])/g, "\\$1")}"` : a.name;
+  const clean = a.name ? withoutBidiControls(a.name) : "";
+  if (!clean) return a.email;
+  const needsQuote = /[,;<>"()\\]/.test(clean);
+  const name = needsQuote ? `"${clean.replace(/(["\\])/g, "\\$1")}"` : clean;
   return `${name} <${a.email}>`;
 }
 
@@ -60,7 +62,8 @@ export function formatAddressList(list: EmailAddress[] | null | undefined): stri
 
 export function displayName(a: EmailAddress | null | undefined, fallback = "(unknown)"): string {
   if (!a) return fallback;
-  if (a.name?.trim()) return a.name.trim();
+  const name = a.name ? withoutBidiControls(a.name).trim() : "";
+  if (name) return name;
   return a.email || fallback;
 }
 

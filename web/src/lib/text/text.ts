@@ -1,3 +1,12 @@
+/**
+ * Remove the characters that reorder text around them: direction overrides,
+ * embeddings, isolates and marks. A sender-supplied name has no honest use for
+ * them, and `Invoice_\u202Efdp.exe` displays as "Invoice_exe.pdf".
+ */
+export function withoutBidiControls(s: string): string {
+  return s.replace(/[\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/g, "");
+}
+
 export function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }

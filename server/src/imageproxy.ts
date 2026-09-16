@@ -217,7 +217,8 @@ export async function imageProxyHandler(c: Context) {
   res.on("close", done);
   const headers = new Headers({
     "Content-Type": type,
-    "Cache-Control": "private, max-age=86400",
+    // As for attachments: nothing left in the disk cache of a device that is not the person's own.
+    "Cache-Control": (c.get("session") as { remember?: boolean } | undefined)?.remember ? "private, max-age=86400" : "no-store",
     "X-Content-Type-Options": "nosniff",
     "Content-Security-Policy": "sandbox; default-src 'none'",
     "Cross-Origin-Resource-Policy": "same-origin",

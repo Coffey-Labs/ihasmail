@@ -13,6 +13,8 @@ export interface StoredSession {
   /** sealed JSON {username, password} */
   sealedCredentials: string;
   username: string;
+  /** Which account this is; see `accountKey`. Absent on sessions saved before it existed. */
+  account?: string;
   createdAt: number;
   lastSeenAt: number;
   expiresAt: number;
@@ -24,6 +26,8 @@ export interface StoredSession {
 export interface LiveSession {
   id: string;
   username: string;
+  /** See `accountKey`. */
+  account: string;
   /** Basic Authorization header value for upstream calls. */
   authorization: string;
   remember: boolean;
@@ -46,8 +50,27 @@ export interface SessionSummary {
   ip: string;
 }
 
+/**
+ * The key sessions are grouped by for "sign out everywhere else".
+ *
+ * Not the username as typed: Stalwart takes `Alice@example.com` and a bare
+ * `alice` as the same account, and a session opened either way was missing
+ * from the list and survived the sign-out. The server's own name for the
+ * account, lower-cased, and the server it lives on -- the same name on two
+ * configured servers is two accounts.
+ */
+export function accountKey(upstream: string, canonicalUsername: string): string {
+  return `${upstream}|${canonicalUsername.trim().toLowerCase()}`;
+}
+
+function accountOf(s: StoredSession): string {
+  return s.account ?? s.username.trim().toLowerCase();
+}
+
 export interface CreateSessionParams {
   username: string;
+  /** From `accountKey`; defaults to the lower-cased username. */
+  account?: string;
   password: string;
   remember: boolean;
   userAgent: string;
@@ -85,8 +108,9 @@ export interface SessionBackend {
   resolve(cookie: string | undefined): LiveSession | null;
   reseal(cookie: string | undefined, password: string): boolean;
   destroy(id: string): void;
-  destroyAllForUser(username: string, exceptId?: string): number;
-  listForUser(username: string): SessionSummary[];
+  /** `account` is an `accountKey`, as carried on `LiveSession.account`. */
+  destroyAllForUser(account: string, exceptId?: string): number;
+  listForUser(account: string): SessionSummary[];
 }
 
 const COOKIE_SEP = ".";
@@ -172,6 +196,7 @@ export class SessionStore implements SessionBackend {
       salt: salt.toString("base64"),
       sealedCredentials: seal(JSON.stringify({ u: params.username, p: params.password }), key),
       username: params.username,
+      account: params.account ?? params.username.trim().toLowerCase(),
       createdAt: now,
       lastSeenAt: now,
       expiresAt: now + ttl,
@@ -248,10 +273,10 @@ export class SessionStore implements SessionBackend {
     if (this.sessions.delete(id)) this.scheduleSave();
   }
 
-  destroyAllForUser(username: string, exceptId?: string): number {
+  destroyAllForUser(account: string, exceptId?: string): number {
     let n = 0;
     for (const [id, s] of this.sessions) {
-      if (s.username === username && id !== exceptId) {
+      if (accountOf(s) === account && id !== exceptId) {
         this.sessions.delete(id);
         n++;
       }
@@ -260,11 +285,11 @@ export class SessionStore implements SessionBackend {
     return n;
   }
 
-  listForUser(username: string): SessionSummary[] {
+  listForUser(account: string): SessionSummary[] {
     const out = [];
     for (const s of this.sessions.values()) {
-      if (s.username !== username) continue;
-      const { secretHash: _h, salt: _s, sealedCredentials: _c, ...rest } = s;
+      if (accountOf(s) !== account) continue;
+      const { secretHash: _h, salt: _s, sealedCredentials: _c, account: _a, ...rest } = s;
       out.push(rest);
     }
     return out;
@@ -274,6 +299,7 @@ export class SessionStore implements SessionBackend {
     return {
       id: s.id,
       username,
+      account: accountOf(s),
       authorization: `Basic ${Buffer.from(`${username}:${password}`, "utf8").toString("base64")}`,
       remember: s.remember,
       createdAt: s.createdAt,

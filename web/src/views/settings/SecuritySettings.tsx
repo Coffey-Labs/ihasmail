@@ -231,6 +231,7 @@ function TwoFactorOff({ reload }: { reload: () => Promise<void> }) {
 
 function AppPasswords({ state, reload }: { state: SecurityState | null; reload: () => Promise<void> }) {
   const [name, setName] = useState("");
+  const [current, setCurrent] = useState("");
   const [busy, setBusy] = useState(false);
   const [issued, setIssued] = useState<{ description: string; secret: string } | null>(null);
 
@@ -242,10 +243,11 @@ function AppPasswords({ state, reload }: { state: SecurityState | null; reload: 
     try {
       const res = await apiFetch<{ id: string; secret: string }>("/api/account/app-passwords", {
         method: "POST",
-        body: JSON.stringify({ description: name }),
+        body: JSON.stringify({ description: name, current }),
       });
       setIssued({ description: name, secret: res.secret });
       setName("");
+      setCurrent("");
       await reload();
     } catch (err) {
       toast.error((err as Error).message);
@@ -296,7 +298,12 @@ function AppPasswords({ state, reload }: { state: SecurityState | null; reload: 
           <label htmlFor="ap-name">{t("New app password for")}</label>
           <input id="ap-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("Thunderbird on my laptop")} required />
         </div>
-        <button className="btn" disabled={busy || !name.trim()}>{busy ? "Creating…" : "Create"}</button>
+        {/* A credential that outlives this session: the server asks for the password first. */}
+        <div className="field" style={{ marginBottom: 0, minWidth: 200 }}>
+          <label htmlFor="ap-current">{t("Current password")}</label>
+          <input id="ap-current" type="password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} required />
+        </div>
+        <button className="btn" disabled={busy || !name.trim() || !current}>{busy ? "Creating…" : "Create"}</button>
       </form>
 
       <Dialog open={Boolean(issued)} onClose={() => setIssued(null)} title={t("Your new app password")} size="sm"

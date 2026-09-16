@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatAddress, initials, isValidEmail, parseAddressList, parseMailto } from "../address";
+import { displayName, formatAddress, initials, isValidEmail, parseAddressList, parseMailto } from "../address";
 
 describe("address parsing", () => {
   it("parses mixed lists", () => {
@@ -53,5 +53,16 @@ describe("mailto URLs", () => {
     const m = parseMailto("mailto:ann@example.com?x-random=1&subject=Hi");
     expect(m.subject).toBe("Hi");
     expect(m.to).toHaveLength(1);
+  });
+});
+
+describe("names that reorder themselves", () => {
+  const spoof = { name: "support@bank.example\u202E", email: "x@evil.example" };
+  it("lose their direction controls when displayed", () => {
+    expect(displayName({ name: "\u202Egnp.exe\u202C Ann", email: "a@x.io" })).toBe("gnp.exe Ann");
+    expect(formatAddress(spoof)).toBe("support@bank.example <x@evil.example>");
+  });
+  it("fall back to the address when nothing else is left", () => {
+    expect(displayName({ name: "\u200F\u202E", email: "a@x.io" })).toBe("a@x.io");
   });
 });

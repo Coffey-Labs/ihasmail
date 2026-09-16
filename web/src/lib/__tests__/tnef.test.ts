@@ -79,6 +79,12 @@ describe("isTnef", () => {
 });
 
 describe("parseTnef", () => {
+  it("takes the direction overrides out of a name", () => {
+    const out = parseTnef(tnef(file("x.bin", "MZ", [
+      { id: ATT.attachment, data: mapi([{ id: 0x3707, type: 0x001f, value: "Invoice_\u202Efdp.exe" }]) },
+    ])));
+    expect(out[0]!.name).toBe("Invoice_fdp.exe");
+  });
   it("pulls one attachment out, with its name and bytes", () => {
     const out = parseTnef(tnef(file("report.pdf", "hello")));
     expect(out).toHaveLength(1);

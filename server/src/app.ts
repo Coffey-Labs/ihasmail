@@ -11,9 +11,10 @@ import { getConnInfo } from "@hono/node-server/conninfo";
 import { config } from "./config.js";
 import { fetchPermissions } from "./permissionSchema.js";
 import { administrationAllowed, gateAdministration, grantsAdministration } from "./adminGate.js";
-import { SessionStore, type SessionBackend, type LiveSession } from "./sessions.js";
+import { SessionStore, accountKey, type SessionBackend, type LiveSession } from "./sessions.js";
 import { RateLimiter } from "./ratelimit.js";
 import { rateLimitKey, resolveClientIp } from "./clientip.js";
+import { safeEqual } from "./crypto.js";
 import {
   type AccountInfo,
   UpstreamError,
@@ -385,6 +386,7 @@ export function createApp(basePath = config.basePath): Hono<Env> {
       loginLimiter.reset(limitKey);
       const { cookie, session } = sessions.create({
         username,
+        account: accountKey(upstreamFor(username), upstream.username || username),
         password: effectivePassword,
         remember: Boolean(body.remember),
         userAgent: c.req.header("user-agent") ?? "",
@@ -466,12 +468,12 @@ export function createApp(basePath = config.basePath): Hono<Env> {
 
   api.get("/auth/sessions", requireSession, (c) => {
     const session = c.get("session");
-    return c.json({ current: session.id, sessions: sessions.listForUser(session.username) });
+    return c.json({ current: session.id, sessions: sessions.listForUser(session.account) });
   });
 
   api.post("/auth/sessions/revoke-others", requireSession, (c) => {
     const session = c.get("session");
-    const n = sessions.destroyAllForUser(session.username, session.id);
+    const n = sessions.destroyAllForUser(session.account, session.id);
     return c.json({ revoked: n });
   });
 
@@ -499,8 +501,8 @@ export function createApp(basePath = config.basePath): Hono<Env> {
   };
 
   /** Guard the endpoints that check a password against brute-forcing. */
-  const guarded = (c: Context<Env>): Response | null => {
-    const key = `account|${c.get("session").username.toLowerCase()}`;
+  const guarded = (c: Context<Env>, scope = "account"): Response | null => {
+    const key = `${scope}|${c.get("session").username.toLowerCase()}`;
     if (accountLimiter.check(key)) return null;
     c.header("Retry-After", String(accountLimiter.retryAfterSeconds(key)));
     return c.json({ error: "rate_limited", message: "Too many attempts. Please wait and try again." }, 429);
@@ -538,7 +540,7 @@ export function createApp(basePath = config.basePath): Hono<Env> {
     const otpCode = body.otpCode?.trim();
     sessions.reseal(getCookie(c, config.cookieName), otpCode ? `${next}$${otpCode}` : next);
     forgetUpstreamSession(session.id);
-    const revoked = sessions.destroyAllForUser(session.username, session.id);
+    const revoked = sessions.destroyAllForUser(session.account, session.id);
     return c.json({ ok: true, revokedSessions: revoked });
   });
 
@@ -552,12 +554,26 @@ export function createApp(basePath = config.basePath): Hono<Env> {
     }
   });
 
+  /*
+   * An app password is a credential that outlives this session, a password
+   * change and a sign-out -- so minting one asks for the account password, as
+   * changing the password does. Otherwise a session left open on somebody
+   * else's machine is enough to take a permanent key away from it.
+   */
   api.post("/account/app-passwords", requireSession, async (c) => {
+    // A budget of its own: guessing here never reaches Stalwart (see confirmsPassword).
+    const limited = guarded(c, "app-password");
+    if (limited) return limited;
     const session = c.get("session");
-    const body = await readJson<{ description?: string }>(c);
+    const body = await readJson<{ description?: string; current?: string }>(c);
     if (!body) return c.json({ error: "bad_request" }, 400);
     const description = (body.description ?? "").trim().slice(0, 120);
     if (!description) return c.json({ error: "missing_fields", message: "Give the app password a name." }, 400);
+    const current = body.current ?? "";
+    if (!current || current.length > 1024) return c.json({ error: "missing_fields", message: "Enter your current password." }, 400);
+    if (!(await confirmsPassword(session, current))) {
+      return c.json({ error: "invalid_credentials", message: "That password is not correct." }, 403);
+    }
     try {
       return c.json(await createAppPassword(await accountCtx(c), { description }));
     } catch (err) {
@@ -632,7 +648,7 @@ export function createApp(basePath = config.basePath): Hono<Env> {
       if (sessionKept) forgetUpstreamSession(session.id);
     }
     // Other sessions still hold the bare password and will be refused.
-    const revoked = sessions.destroyAllForUser(session.username, session.id);
+    const revoked = sessions.destroyAllForUser(session.account, session.id);
     return c.json({ ok: true, sessionKept, revokedSessions: revoked });
   });
 
@@ -803,7 +819,7 @@ export function createApp(basePath = config.basePath): Hono<Env> {
       const safeInline = inline && isInlineSafe(type);
       headers.set(
         "Content-Disposition",
-        `${safeInline ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(name)}`,
+        `${safeInline ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(withoutBidiControls(name))}`,
       );
       headers.set("X-Content-Type-Options", "nosniff");
       // Sandbox everything except the browser's built-in PDF viewer (which needs scripts to render).
@@ -822,7 +838,9 @@ export function createApp(basePath = config.basePath): Hono<Env> {
       } else {
         headers.set("Content-Security-Policy", "sandbox; default-src 'none'; style-src 'unsafe-inline'; img-src data:");
       }
-      headers.set("Cache-Control", "private, max-age=3600");
+      // Kept out of the browser's disk cache on a device that is not the
+      // person's own: signing out wipes what the app stores, not that.
+      headers.set("Cache-Control", session.remember ? "private, max-age=3600" : "no-store");
       return new Response(res.body, { status: 200, headers });
     } catch (err) {
       return upstreamFailure(c, err);
@@ -906,6 +924,43 @@ async function readJson<T>(c: Context): Promise<T | null> {
   } catch {
     return null;
   }
+}
+
+/**
+ * Is `candidate` the password of the account this session is signed in to?
+ *
+ * Compared with the credential the session holds first, which costs nothing
+ * and tells Stalwart nothing -- its auto-ban counts failures against the
+ * proxy's address, which every user shares. That credential is the password,
+ * with a TOTP code after a `$` when one was given at sign-in. A session that
+ * turning on 2FA moved onto an app password (Stalwart's secrets start
+ * `$app$`) holds something else, and only then is the candidate put to the
+ * server.
+ */
+async function confirmsPassword(session: LiveSession, candidate: string): Promise<boolean> {
+  const decoded = Buffer.from(session.authorization.replace(/^Basic /, ""), "base64").toString("utf8");
+  const held = decoded.slice(decoded.indexOf(":") + 1);
+  if (safeEqual(held, candidate)) return true;
+  const withoutCode = held.replace(/\$\d{6,8}$/, "");
+  if (withoutCode !== held && safeEqual(withoutCode, candidate)) return true;
+  // Holding the password, the comparison above is the answer, and a wrong
+  // guess never reaches the server's auto-ban.
+  if (!held.startsWith("$app$")) return false;
+  try {
+    const authorization = `Basic ${Buffer.from(`${session.username}:${candidate}`, "utf8").toString("base64")}`;
+    await fetchUpstreamSession(authorization, upstreamFor(session.username));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Direction overrides and isolates, which can make `Invoice_\u202Efdp.exe`
+ * read as a PDF in the downloads list. A filename has no use for them.
+ */
+function withoutBidiControls(name: string): string {
+  return name.replace(/[\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/g, "");
 }
 
 /** Name the app password after the browser it will live in. */
