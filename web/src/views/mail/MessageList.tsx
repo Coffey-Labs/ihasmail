@@ -1,4 +1,4 @@
-import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent, type ReactNode } from "react";
+import { Fragment, lazy, memo, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent, type ReactNode } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useShallow } from "zustand/react/shallow";
 import { Archive, ArrowLeft, CalendarDays, CalendarRange, CalendarPlus, CheckSquare, FolderInput, PanelRight, PanelBottom, PanelTop, Filter, Inbox, Mail, MailOpen, MailPlus, MoreVertical, Paperclip, RefreshCw, Reply, Search, Star, Tag, Trash2, AlertOctagon, Forward, Eraser, ShieldCheck, X } from "lucide-react";
@@ -21,8 +21,10 @@ import { startAppointment } from "@/lib/calendar/appointment";
 import { toast } from "@/ui/toast";
 import { haptic, usePullToRefresh, useTouchRow, PULL_TRIGGER } from "@/lib/input/touch";
 import { describeSwipe, type SwipeAction, type SwipeDescriptor, type SwipeIcon } from "@/lib/input/swipe";
-import { FilterFromMessageDialog } from "./FilterFromMessage";
 import { plural, t } from "@/lib/i18n";
+
+// Loaded when first opened: it is not needed to show mail, and it is not small.
+const FilterFromMessageDialog = lazy(() => import("./FilterFromMessage").then((m) => ({ default: m.FilterFromMessageDialog })));
 
 /**
  * The glyph on the strip a swipe reveals. Sized larger than the toolbar's
@@ -560,7 +562,7 @@ export function MessageList({ title, list, openThreadId, openMessageId, focusId,
         <MenuItem icon={<Filter size={16} />} label={t("Filter messages like this…")} onClick={() => { const e = ctxRow ? emails[ctxRow] : undefined; if (e) setFilterFrom(e); }} />
         {hasCalendar && <MenuItem icon={<CalendarPlus size={16} />} label={t("Create event…")} onClick={() => { const e = ctxRow ? emails[ctxRow] : undefined; if (e) void startAppointment(e, navigate).catch((err: unknown) => toast.error((err as Error).message)); }} />}
       </Popover>
-      {filterFrom && <FilterFromMessageDialog email={filterFrom} mailboxId={mailboxId} onClose={() => setFilterFrom(null)} />}
+      {filterFrom && <Suspense fallback={null}><FilterFromMessageDialog email={filterFrom} mailboxId={mailboxId} onClose={() => setFilterFrom(null)} /></Suspense>}
     </div>
   );
 }

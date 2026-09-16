@@ -1,7 +1,6 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronUp, Download, ExternalLink, Forward, MailPlus, MoreVertical, Printer, Reply, ReplyAll, Star, Trash2, Code, FileText, Image as ImageIcon, File as FileIcon, Eye, Calendar, CalendarPlus, UserPlus, ShieldAlert, Mail, Ban, Clock, CheckCheck, Paperclip, FileArchive, FileSpreadsheet, Film, Music, Filter, Share2 } from "lucide-react";
 import { useLocation } from "wouter";
-import { FilterFromMessageDialog } from "./FilterFromMessage";
 import type { Email, EmailAddress, EmailBodyPart, Id } from "@/jmap/types";
 import { useMail } from "@/store/mail";
 import { useSettings } from "@/store/settings";
@@ -20,7 +19,10 @@ import { formatFullDate, formatListDate, formatSize } from "@/lib/format";
 import { displayName, domainOf, formatAddress } from "@/lib/address";
 import { EMAIL_BASE_CSS, TEXT_EMAIL_CSS, hasHtmlAlternative, htmlDeclaresColors, markKeptSurfaces, sanitizeEmailHtml } from "@/lib/text/html";
 import { openableInTab, previewKind } from "@/lib/preview";
-import { FilePreviewDialog } from "@/ui/filepreview";
+// Loaded when first opened: it is not needed to show mail, and it is not small.
+const FilterFromMessageDialog = lazy(() => import("./FilterFromMessage").then((m) => ({ default: m.FilterFromMessageDialog })));
+// The preview carries a Markdown renderer, which is most of its weight.
+const FilePreviewDialog = lazy(() => import("@/ui/filepreview").then((m) => ({ default: m.FilePreviewDialog })));
 import { findQuoteStart, htmlToText, textToHtml, withoutBidiControls } from "@/lib/text/text";
 import { canShare, canShareFiles, shareFile, shareText } from "@/lib/share";
 import { Avatar } from "@/ui/misc";
@@ -456,7 +458,7 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
         </>
       )}
       {addrMenu.node}
-      {filterOpen && <FilterFromMessageDialog email={e} mailboxId={Object.keys(e.mailboxIds)[0] ?? null} onClose={() => setFilterOpen(false)} />}
+      {filterOpen && <Suspense fallback={null}><FilterFromMessageDialog email={e} mailboxId={Object.keys(e.mailboxIds)[0] ?? null} onClose={() => setFilterOpen(false)} /></Suspense>}
       <Dialog open={showSource} onClose={() => setShowSource(false)} title={translate("Original message")} size="xl">
         {source === null ? <div className="center"><span className="spinner" /></div> : <pre className="code notranslate" translate="no" style={{ minHeight: 300, maxHeight: "65vh" }}>{source}</pre>}
       </Dialog>
@@ -915,8 +917,10 @@ function AttachmentList({ attachments, accountId, email }: { attachments: EmailB
           </button>
         )}
       </div>
+      {preview && (
+      <Suspense fallback={null}>
       <FilePreviewDialog
-        file={preview && preview.blobId ? {
+        file={preview.blobId ? {
           name: preview.name ?? translate("file"),
           type: preview.type,
           size: preview.size,
@@ -926,6 +930,8 @@ function AttachmentList({ attachments, accountId, email }: { attachments: EmailB
         onClose={() => setPreview(null)}
         caption={<p className="hint" style={{ marginTop: 8 }}>{translate("From: {sender}", { sender: displayName(email.from?.[0]) })}</p>}
       />
+      </Suspense>
+      )}
     </>
   );
 }

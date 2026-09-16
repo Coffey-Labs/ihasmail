@@ -28,6 +28,7 @@ import { plural, t } from "@/lib/i18n";
 import { withBase } from "@/lib/basePath";
 import { MAILBOX_PROPS, LIST_PROPS, FULL_PROPS, BODY_PROPS } from "./props";
 import { type ListQuery, type MailState } from "./types";
+import { playNewMailSound, showNotification } from "@/lib/notify/notify";
 
 /*
  * `@/store/mail` stays the one public entry. The split below is about file
@@ -1206,7 +1207,6 @@ async function notifyNewMail(created: Id[], get: () => MailState) {
   const emails = await get().getEmails(created);
   const fresh = emails.filter((e) => e.mailboxIds[inbox] && !e.keywords.$seen && !e.keywords.$draft);
   if (!fresh.length) return;
-  const { showNotification, playNewMailSound } = await import("@/lib/notify/notify");
   if (s.notificationSound) playNewMailSound();
   if (s.desktopNotifications) {
     for (const e of fresh.slice(0, 3)) {
