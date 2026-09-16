@@ -16,6 +16,7 @@ import type { Calendar, Id } from "@/jmap/types";
 import { CalendarDialog } from "./CalendarDialog";
 import { ShareDialog } from "../settings/ShareDialog";
 import { plural, t } from "@/lib/i18n";
+import { downloadFile } from "@/lib/download";
 
 export function CalendarSidebar() {
   const [location, navigate] = useLocation();
@@ -42,19 +43,14 @@ export function CalendarSidebar() {
   const importInto = useRef<Id | null>(null);
 
   /*
-   * Handing the file over, which the browser only does from a click. The
-   * revoke below is what keeps a calendar's worth of text from sitting in
-   * memory after the download has started.
+   * Handing the file over, which the browser only does from a click.
+   * `downloadFile` releases it once started, so a calendar's worth of text
+   * does not sit in memory afterwards.
    */
   const exportFile = async (c: Calendar) => {
     try {
       const { text, count } = await cal.exportIcs(c.id);
-      const url = URL.createObjectURL(new Blob([text], { type: "text/calendar" }));
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${c.name.replace(/[^\w.-]+/g, "_") || "calendar"}.ics`;
-      a.click();
-      URL.revokeObjectURL(url);
+      downloadFile(text, "text/calendar", `${c.name.replace(/[^\w.-]+/g, "_") || "calendar"}.ics`);
       toast.success(plural(count, { one: "Exported {n} event", other: "Exported {n} events" }));
     } catch (err) {
       toast.error(t("Could not export this calendar: {error}", { error: (err as Error).message }));
