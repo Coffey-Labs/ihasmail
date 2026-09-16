@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { client, JmapMethodError } from "@/jmap/client";
-import { balancedColumns, countObjects, isRefused, loadMetrics, summarizeMetrics, type MetricRecord } from "@/lib/adminDashboard";
+import { balancedColumns, countObjects, isRefused, loadMetrics, summarizeMetrics, type MetricRecord } from "@/lib/admin/adminDashboard";
 
 const counter = (metric: string, count: number, timestamp = "2026-09-15T14:00:00Z"): MetricRecord => ({ "@type": "Counter", metric, count, timestamp });
 

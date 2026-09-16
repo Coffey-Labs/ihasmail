@@ -1,7 +1,7 @@
 import { client } from "@/jmap/client";
 import { t } from "@/lib/i18n";
-import { DirectoryError } from "@/lib/adminDirectory";
-import { DomainError } from "@/lib/adminDomains";
+import { DirectoryError } from "@/lib/admin/adminDirectory";
+import { DomainError } from "@/lib/admin/adminDomains";
 
 /**
  * Tenants, from Stalwart 0.16's directory.

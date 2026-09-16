@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { client } from "@/jmap/client";
-import { aliasList, describeDirectoryError, DirectoryError, hasPassword, passwordPatch, queryAccounts, quotasWithDisk } from "@/lib/adminDirectory";
+import { aliasList, describeDirectoryError, DirectoryError, hasPassword, passwordPatch, queryAccounts, quotasWithDisk } from "@/lib/admin/adminDirectory";
 
 describe("setting a password", () => {
   it("writes into the existing password credential, keeping its place", () => {

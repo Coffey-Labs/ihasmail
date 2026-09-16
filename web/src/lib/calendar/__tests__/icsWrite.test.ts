@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toIcs, parseIcs } from "@/lib/ics";
+import { toIcs, parseIcs } from "@/lib/calendar/ics";
 import type { JSCalendarEvent } from "@/jmap/types";
 
 /*

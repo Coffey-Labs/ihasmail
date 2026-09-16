@@ -5,7 +5,7 @@ import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 import { useSession } from "@/store/session";
 import type { JmapSession } from "@/jmap/types";
-import type { DirectoryAccount } from "@/lib/adminDirectory";
+import type { DirectoryAccount } from "@/lib/admin/adminDirectory";
 import { AccountSheet } from "../AccountSheet";
 import type { DirectoryContext } from "../directoryContext";
 

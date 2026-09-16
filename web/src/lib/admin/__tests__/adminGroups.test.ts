@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { client } from "@/jmap/client";
-import { countMembers, createGroup, destroyGroup, groupRoleKey, groupRolesFromKey, membershipPatch } from "@/lib/adminGroups";
+import { countMembers, createGroup, destroyGroup, groupRoleKey, groupRolesFromKey, membershipPatch } from "@/lib/admin/adminGroups";
 
 describe("group membership", () => {
   it("is a patch to each member, one pointer each, so no other membership moves", () => {

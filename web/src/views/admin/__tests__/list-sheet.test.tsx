@@ -3,13 +3,13 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useSession } from "@/store/session";
 import type { JmapSession } from "@/jmap/types";
-import type { DirectoryList } from "@/lib/adminLists";
+import type { DirectoryList } from "@/lib/admin/adminLists";
 import type { DirectoryContext } from "../directoryContext";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const api = vi.hoisted(() => ({ updateList: vi.fn(async () => {}) }));
-vi.mock("@/lib/adminLists", async (original) => ({ ...(await original<typeof import("@/lib/adminLists")>()), updateList: api.updateList }));
+vi.mock("@/lib/admin/adminLists", async (original) => ({ ...(await original<typeof import("@/lib/admin/adminLists")>()), updateList: api.updateList }));
 
 const { ListSheet } = await import("../ListSheet");
 

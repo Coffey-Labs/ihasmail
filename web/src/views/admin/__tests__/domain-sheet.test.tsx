@@ -17,8 +17,8 @@ const domain = {
   dnsZoneFile: 'example.com. IN MX 10 mail.example.com.\nexample.com. IN TXT "v=spf1 mx -all"\n',
 };
 
-vi.mock("@/lib/adminDomains", async (original) => ({
-  ...(await original<typeof import("@/lib/adminDomains")>()),
+vi.mock("@/lib/admin/adminDomains", async (original) => ({
+  ...(await original<typeof import("@/lib/admin/adminDomains")>()),
   getDomains: vi.fn(async () => [domain]),
   listDkimKeys: vi.fn(async () => [{ id: "k1", "@type": "Dkim1Ed25519Sha256", selector: "v1-ed25519", stage: "active" }]),
 }));

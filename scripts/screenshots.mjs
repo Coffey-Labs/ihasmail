@@ -5,8 +5,8 @@
  * images already use rather than whatever a window happens to be.
  *
  *   npm run dev:mock                       # in another terminal
- *   node docs/screenshots.mjs docs/screenshots
- *   node docs/screenshots-light.mjs docs/screenshots
+ *   node scripts/screenshots.mjs screenshots
+ *   node scripts/screenshots-light.mjs screenshots
  *
  * Restart the mock before a run. The filters shot creates rules, so a second
  * run against the same mock shows them twice.
@@ -30,7 +30,7 @@
  *   flip --bg to #f6f8fa. The compositor simply does not repaint everything a
  *   CSS-variable change touches while metrics are overridden. Launching Chrome
  *   at --window-size and never calling setDeviceMetricsOverride renders it
- *   correctly, which is what docs/screenshots-light.mjs does.
+ *   correctly, which is what scripts/screenshots-light.mjs does.
  *
  * assertTheme() stays either way: without it this script wrote a dark
  * screenshot under a light caption and reported success, and that is how the
@@ -226,7 +226,7 @@ try {
   await evaluate(`(() => { const c = [...document.querySelectorAll('button')].find(b => /close|discard/i.test(b.getAttribute('aria-label')||'')); if (c) c.click(); })()`);
   await sleep(800);
 
-  // (inbox-light is captured by docs/screenshots-light.mjs -- see the header)
+  // (inbox-light is captured by scripts/screenshots-light.mjs -- see the header)
 
 
   // --- calendar ---

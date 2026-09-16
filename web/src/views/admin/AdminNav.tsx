@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { Building2, Globe, LayoutDashboard, List, ShieldCheck, User, UsersRound } from "lucide-react";
-import { adminSections, type AdminSection } from "@/lib/adminAccess";
+import { adminSections, type AdminSection } from "@/lib/admin/adminAccess";
 import { t } from "@/lib/i18n";
 import { usePermissions } from "./usePermissions";
 

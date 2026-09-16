@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { Building2, ChevronLeft, ChevronRight, Plus, Search } from "lucide-react";
-import { can, type RoleDef } from "@/lib/adminAccess";
-import { describeDirectoryError, listRoles } from "@/lib/adminDirectory";
-import { drawableLogo, getTenants, queryTenants, type DirectoryTenant } from "@/lib/adminTenants";
+import { can, type RoleDef } from "@/lib/admin/adminAccess";
+import { describeDirectoryError, listRoles } from "@/lib/admin/adminDirectory";
+import { drawableLogo, getTenants, queryTenants, type DirectoryTenant } from "@/lib/admin/adminTenants";
 import { formatSize } from "@/lib/format";
 import { proxiedImageUrl } from "@/lib/html";
 import { plural, t } from "@/lib/i18n";

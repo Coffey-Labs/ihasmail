@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { permissionSet } from "@/lib/adminAccess";
-import { canBuildOn, effectivePermissions, inherited, roleOutranks, setPatch, type DirectoryRole } from "@/lib/adminRoles";
+import { permissionSet } from "@/lib/admin/adminAccess";
+import { canBuildOn, effectivePermissions, inherited, roleOutranks, setPatch, type DirectoryRole } from "@/lib/admin/adminRoles";
 
 const flags = (...n: string[]) => Object.fromEntries(n.map((x) => [x, true]));
 const roles = new Map<string, DirectoryRole>([

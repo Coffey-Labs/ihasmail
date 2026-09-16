@@ -3,7 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useSession } from "@/store/session";
 import type { JmapSession } from "@/jmap/types";
-import type { DirectoryTenant } from "@/lib/adminTenants";
+import type { DirectoryTenant } from "@/lib/admin/adminTenants";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -13,8 +13,8 @@ const api = vi.hoisted(() => ({
   updateTenant: vi.fn(async () => {}),
   setDomainTenant: vi.fn(async () => {}),
 }));
-vi.mock("@/lib/adminTenants", async (original) => ({
-  ...(await original<typeof import("@/lib/adminTenants")>()),
+vi.mock("@/lib/admin/adminTenants", async (original) => ({
+  ...(await original<typeof import("@/lib/admin/adminTenants")>()),
   countTenantMembers: vi.fn(async () => api.counts),
   tenantDomains: vi.fn(async () => ({ inTenant: [{ id: "d3", name: "old-brand.example" }], unassigned: [{ id: "d4", name: "spare.example" }] })),
   updateTenant: api.updateTenant,

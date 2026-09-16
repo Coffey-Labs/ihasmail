@@ -7,7 +7,7 @@ import {
   generatePassword,
   outranks,
   type UserRoles,
-} from "@/lib/adminAccess";
+} from "@/lib/admin/adminAccess";
 import {
   aliasList,
   createAccount,
@@ -20,7 +20,7 @@ import {
   DISK_QUOTA,
   type DirectoryAccount,
   type EmailAlias,
-} from "@/lib/adminDirectory";
+} from "@/lib/admin/adminDirectory";
 import { formatSize } from "@/lib/format";
 import { t, tNode } from "@/lib/i18n";
 import { Link } from "wouter";

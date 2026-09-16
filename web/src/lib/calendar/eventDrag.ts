@@ -10,8 +10,8 @@
  * question — given an event and a gesture, what are the new start and end —
  * and the caller decides whether it is allowed to save that.
  */
-import { addMinutes } from "./dates";
-import { isBirthdayEvent } from "./birthdays";
+import { addMinutes } from "../dates";
+import { isBirthdayEvent } from "../birthdays";
 import type { CalendarEvent } from "@/jmap/types";
 
 /**

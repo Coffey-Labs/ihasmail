@@ -1,9 +1,9 @@
 import type { Email, EmailAddress } from "@/jmap/types";
 import { useCalendar, type EventDraft } from "@/store/calendar";
 import { useMail } from "@/store/mail";
-import { uniqueAddresses } from "./address";
-import { toLocalDateOnly } from "./dates";
-import { htmlToText } from "./text";
+import { uniqueAddresses } from "../address";
+import { toLocalDateOnly } from "../dates";
+import { htmlToText } from "../text";
 
 /**
  * How much of a message body is copied into an event description.

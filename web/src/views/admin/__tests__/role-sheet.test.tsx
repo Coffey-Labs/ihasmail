@@ -3,13 +3,13 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useSession } from "@/store/session";
 import type { JmapSession } from "@/jmap/types";
-import type { DirectoryRole } from "@/lib/adminRoles";
+import type { DirectoryRole } from "@/lib/admin/adminRoles";
 import type { PermissionEntry } from "@/lib/permissionLabels";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const api = vi.hoisted(() => ({ updateRole: vi.fn(async () => {}) }));
-vi.mock("@/lib/adminRoles", async (original) => ({ ...(await original<typeof import("@/lib/adminRoles")>()), updateRole: api.updateRole }));
+vi.mock("@/lib/admin/adminRoles", async (original) => ({ ...(await original<typeof import("@/lib/admin/adminRoles")>()), updateRole: api.updateRole }));
 
 const { RoleSheet } = await import("../RoleSheet");
 

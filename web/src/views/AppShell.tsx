@@ -22,7 +22,7 @@ import { formatSize } from "@/lib/format";
 import { collectShare } from "@/lib/shareTarget";
 import { TranslateBoundary } from "@/ui/TranslateBoundary";
 import { t } from "@/lib/i18n";
-import { hasAdministration } from "@/lib/adminAccess";
+import { hasAdministration } from "@/lib/admin/adminAccess";
 import { usePermissions } from "./admin/usePermissions";
 import { AdminNav } from "./admin/AdminNav";
 

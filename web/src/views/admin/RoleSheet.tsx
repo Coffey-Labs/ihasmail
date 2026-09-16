@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Lock, Search, Trash2, X } from "lucide-react";
-import { can, canGrantRole } from "@/lib/adminAccess";
-import { describeDirectoryError } from "@/lib/adminDirectory";
-import { describeLinked, DomainError } from "@/lib/adminDomains";
+import { can, canGrantRole } from "@/lib/admin/adminAccess";
+import { describeDirectoryError } from "@/lib/admin/adminDirectory";
+import { describeLinked, DomainError } from "@/lib/admin/adminDomains";
 import {
   canBuildOn,
   createRole,
@@ -15,7 +15,7 @@ import {
   type DirectoryRole,
   type PermissionState,
   type RoleDefaults,
-} from "@/lib/adminRoles";
+} from "@/lib/admin/adminRoles";
 import type { PermissionEntry } from "@/lib/permissionLabels";
 import { plural, t } from "@/lib/i18n";
 import { Dialog } from "@/ui/dialog";

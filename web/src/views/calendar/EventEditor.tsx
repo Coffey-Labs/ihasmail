@@ -13,9 +13,9 @@ import { RecipientInput } from "../compose/RecipientInput";
 import { DateField, DateTimeField } from "@/ui/datefield";
 import { browserTimeZone, dateToZonedLocal, formatDuration, fromInputDateTime, listTimeZones, parseDuration, toInputDateTime, toLocalDateOnly, zonedToDate, DAY_MS, humanDuration } from "@/lib/dates";
 import { formatClock, formatNumericDate, formatWeekday, formatWeekdayDate } from "@/lib/datetime";
-import { WEEKDAY_KEYS, weekdayOptions, describeRule, presetFor, ruleFromPreset, type RecurrencePreset } from "@/lib/recurrence";
+import { WEEKDAY_KEYS, weekdayOptions, describeRule, presetFor, ruleFromPreset, type RecurrencePreset } from "@/lib/calendar/recurrence";
 import { newKey } from "@/lib/contacts";
-import { availabilityWindow } from "@/lib/availabilityWindow";
+import { availabilityWindow } from "@/lib/calendar/availabilityWindow";
 import { askEditScope, droppedMessage, runScoped } from "./scope";
 import { plural, t as translate } from "@/lib/i18n";
 

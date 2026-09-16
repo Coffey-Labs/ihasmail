@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Redirect } from "wouter";
-import { adminSections, type AdminSection } from "@/lib/adminAccess";
+import { adminSections, type AdminSection } from "@/lib/admin/adminAccess";
 import { AccountsAdmin } from "./AccountsAdmin";
 import { AdminDashboard } from "./AdminDashboard";
 import { DomainsAdmin } from "./DomainsAdmin";

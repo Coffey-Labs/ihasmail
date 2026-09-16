@@ -1,6 +1,6 @@
 import { client } from "@/jmap/client";
 import { t } from "@/lib/i18n";
-import { DirectoryError, type EmailAlias } from "@/lib/adminDirectory";
+import { DirectoryError, type EmailAlias } from "@/lib/admin/adminDirectory";
 
 /**
  * Mailing lists, from Stalwart 0.16's directory.

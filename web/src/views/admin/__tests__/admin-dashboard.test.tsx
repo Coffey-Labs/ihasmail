@@ -6,7 +6,7 @@ import { memoryLocation } from "wouter/memory-location";
 import { JmapMethodError } from "@/jmap/client";
 import { useSession } from "@/store/session";
 import type { JmapSession } from "@/jmap/types";
-import type { MetricRecord } from "@/lib/adminDashboard";
+import type { MetricRecord } from "@/lib/admin/adminDashboard";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -15,8 +15,8 @@ const feeds = vi.hoisted(() => ({
   metrics: (): Promise<MetricRecord[]> => Promise.resolve([]),
 }));
 
-vi.mock("@/lib/adminDashboard", async (original) => ({
-  ...(await original<typeof import("@/lib/adminDashboard")>()),
+vi.mock("@/lib/admin/adminDashboard", async (original) => ({
+  ...(await original<typeof import("@/lib/admin/adminDashboard")>()),
   countObjects: vi.fn(async (object: string) => feeds.counts[object]),
   loadMetrics: vi.fn(() => feeds.metrics()),
 }));

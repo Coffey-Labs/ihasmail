@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { appointmentDraft, nextHalfHour } from "@/lib/appointment";
+import { appointmentDraft, nextHalfHour } from "@/lib/calendar/appointment";
 import type { Email, EmailBodyPart } from "@/jmap/types";
 
 /**

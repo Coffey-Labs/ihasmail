@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { client } from "@/jmap/client";
-import { createList, parseAddresses, queryLists, recipientsPatch } from "@/lib/adminLists";
+import { createList, parseAddresses, queryLists, recipientsPatch } from "@/lib/admin/adminLists";
 
 describe("a mailing list's recipients", () => {
   it("are saved as what was added and removed, one pointer each", () => {

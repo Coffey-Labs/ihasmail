@@ -1,5 +1,5 @@
-import type { RoleDef } from "@/lib/adminAccess";
-import type { DirectoryAccount, DirectoryDomain } from "@/lib/adminDirectory";
+import type { RoleDef } from "@/lib/admin/adminAccess";
+import type { DirectoryAccount, DirectoryDomain } from "@/lib/admin/adminDirectory";
 import { t } from "@/lib/i18n";
 
 export interface DirectoryContext {

@@ -13,7 +13,7 @@ import {
   dayDelta,
   resizePatch,
   SNAP_MINUTES,
-} from "@/lib/eventDrag";
+} from "@/lib/calendar/eventDrag";
 import { BIRTHDAY_ID_PREFIX } from "@/lib/birthdays";
 import type { CalendarEvent } from "@/jmap/types";
 

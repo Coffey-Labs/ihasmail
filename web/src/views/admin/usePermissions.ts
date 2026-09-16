@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useSession } from "@/store/session";
-import { permissionSet, type Permissions } from "@/lib/adminAccess";
+import { permissionSet, type Permissions } from "@/lib/admin/adminAccess";
 
 /**
  * The signed-in account's permissions, as a set, stable between renders.

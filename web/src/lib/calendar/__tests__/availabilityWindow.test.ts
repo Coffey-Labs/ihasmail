@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { availabilityWindow } from "@/lib/availabilityWindow";
+import { availabilityWindow } from "@/lib/calendar/availabilityWindow";
 
 const at = (s: string) => new Date(s);
 const hours = (w: { ticks: { time: Date }[] }) => w.ticks.map((t) => `${t.time.getDate()}@${t.time.getHours()}`);
