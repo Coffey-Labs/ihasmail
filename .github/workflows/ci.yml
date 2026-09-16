@@ -15,8 +15,19 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      # Every `uses:` in this repository is pinned to a full commit SHA, with
+      # the release it belongs to in the trailing comment, and the repository
+      # requires it -- an unpinned ref fails the run rather than quietly
+      # resolving. A tag is a mutable pointer: `@v7` is whatever the publisher
+      # last moved it to, so trusting one is trusting every future version of
+      # that action, including the one pushed by whoever compromises the
+      # account. Read the comment for the version; the SHA is what runs.
+      #
+      # Dependabot updates both halves together on its weekly github-actions
+      # run, so this costs nothing to keep current -- do not "simplify" a pin
+      # back to a tag.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 26
           cache: npm
