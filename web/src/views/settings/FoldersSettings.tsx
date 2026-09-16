@@ -7,7 +7,7 @@ import { formatSize } from "@/lib/format";
 import { ShareDialog } from "./ShareDialog";
 import type { Mailbox, MailboxRole } from "@/jmap/types";
 import { plural, t } from "@/lib/i18n";
-import { mailboxDisplayPath } from "@/lib/mailboxName";
+import { mailboxDisplayPath } from "@/lib/mailbox/mailboxName";
 
 /*
  * Roles a folder can be given here.

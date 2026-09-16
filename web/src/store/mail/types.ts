@@ -1,4 +1,4 @@
-import type { ArchiveGranularity } from "@/lib/archiveDate";
+import type { ArchiveGranularity } from "@/lib/mailbox/archiveDate";
 import type {
   Comparator,
   Email,

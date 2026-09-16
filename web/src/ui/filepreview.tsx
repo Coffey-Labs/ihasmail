@@ -3,7 +3,7 @@ import { Code2, Download, Eye, Pencil, Printer, Save, Share2, X } from "lucide-r
 import { confirmDialog, Dialog } from "./dialog";
 import { formatSize } from "@/lib/format";
 import { previewKind, TEXT_PREVIEW_CHARS, TEXT_PREVIEW_MAX } from "@/lib/preview";
-import { isMarkdown, renderMarkdown } from "@/lib/markdown";
+import { isMarkdown, renderMarkdown } from "@/lib/text/markdown";
 import { canShareFiles, shareFile } from "@/lib/share";
 import { t, tc } from "@/lib/i18n";
 

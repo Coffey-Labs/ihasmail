@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { useSieve } from "@/store/sieve";
-import { newRule, rulesToSieve } from "@/lib/sieve";
+import { newRule, rulesToSieve } from "@/lib/sieve/sieve";
 import type { SieveScript } from "@/jmap/types";
 
 /**

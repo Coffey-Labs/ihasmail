@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
-import { keyboard } from "@/lib/keyboard";
+import { keyboard } from "@/lib/input/keyboard";
 import { useMail } from "@/store/mail";
 import { useCompose } from "@/store/compose";
 import { Dialog } from "@/ui/dialog";

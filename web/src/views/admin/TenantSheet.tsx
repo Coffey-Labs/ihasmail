@@ -21,7 +21,7 @@ import {
   type TenantRoles,
 } from "@/lib/admin/adminTenants";
 import { formatSize } from "@/lib/format";
-import { proxiedImageUrl } from "@/lib/html";
+import { proxiedImageUrl } from "@/lib/text/html";
 import { plural, t } from "@/lib/i18n";
 import { Dialog } from "@/ui/dialog";
 import { Spinner } from "@/ui/misc";

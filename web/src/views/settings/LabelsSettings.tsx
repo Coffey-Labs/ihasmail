@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { useSettings, type LabelVisibility } from "@/store/settings";
-import { labelTree, descendantKeywords } from "@/lib/labelTree";
+import { labelTree, descendantKeywords } from "@/lib/mailbox/labelTree";
 import { useMemo } from "react";
 import { CALENDAR_COLORS, ColorSwatches } from "@/ui/misc";
 import { promptDialog } from "@/ui/dialog";

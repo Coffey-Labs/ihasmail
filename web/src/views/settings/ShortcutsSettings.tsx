@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { keyboard } from "@/lib/keyboard";
+import { keyboard } from "@/lib/input/keyboard";
 import { Kbd } from "@/ui/misc";
 import { t, tNode } from "@/lib/i18n";
 

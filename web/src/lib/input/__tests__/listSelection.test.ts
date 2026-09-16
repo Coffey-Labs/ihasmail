@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rowClick, type RowClick } from "@/lib/listSelection";
+import { rowClick, type RowClick } from "@/lib/input/listSelection";
 
 const IDS = ["a", "b", "c", "d", "e"];
 const click = (over: Partial<Parameters<typeof rowClick>[0]> = {}): RowClick =>

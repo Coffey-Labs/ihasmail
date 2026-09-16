@@ -5,7 +5,7 @@ import { useFiles } from "@/store/files";
 import { useSession } from "@/store/session";
 import type { FileNode, Id } from "@/jmap/types";
 import { canDropFileNodes, NODE_MIME, readDraggedIds, isShared } from "@/lib/filenode";
-import { entriesFromDrop, hasDirectory, planUpload } from "@/lib/dropUpload";
+import { entriesFromDrop, hasDirectory, planUpload } from "@/lib/input/dropUpload";
 import { MenuItem, MenuSep, Popover, useMenu } from "@/ui/popover";
 import { confirmDialog, promptDialog } from "@/ui/dialog";
 import { toast } from "@/ui/toast";

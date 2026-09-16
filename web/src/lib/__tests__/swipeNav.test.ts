@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { navSwipeThreshold, swipeNavDirection, swipeThreshold, lockAxis } from "@/lib/touch";
+import { navSwipeThreshold, swipeNavDirection, swipeThreshold, lockAxis } from "@/lib/input/touch";
 
 describe("navSwipeThreshold", () => {
   it("asks for more travel than a row swipe does, at every width", () => {

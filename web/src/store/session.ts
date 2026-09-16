@@ -5,8 +5,8 @@ import { push, type PushState } from "@/jmap/push";
 import { accountForCapability, ownAccountForCapability } from "@/lib/accountRouting";
 import { setServerLocale } from "@/lib/datetime";
 import { flushSettingsPush, stopSettingsSync } from "@/lib/settingsSync";
-import { reloadIfServerRebuilt } from "@/lib/staleBuild";
-import { unsubscribeThisDevice } from "@/lib/webpush";
+import { reloadIfServerRebuilt } from "@/lib/sw/staleBuild";
+import { unsubscribeThisDevice } from "@/lib/notify/webpush";
 import { clearAllData, clearSignedInData, setDeviceTrusted } from "@/lib/storage";
 import { startIdleLogout, stopIdleLogout } from "@/lib/idleLogout";
 

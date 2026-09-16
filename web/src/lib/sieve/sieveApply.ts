@@ -7,7 +7,7 @@ import { client, chunk } from "@/jmap/client";
 import type { Email, GetResponse, Id, QueryResponse } from "@/jmap/types";
 import { LIST_PROPS, useMail } from "@/store/mail";
 import type { SieveRule, SieveTest } from "./sieve";
-import { domainOf } from "./address";
+import { domainOf } from "../address";
 
 function headerValues(e: Email, header: string): string[] {
   const h = header.toLowerCase();

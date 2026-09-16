@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { isTextEntry, keyboard } from "@/lib/keyboard";
+import { isTextEntry, keyboard } from "@/lib/input/keyboard";
 
 /*
  * Shortcuts after a click on a checkbox (#260).

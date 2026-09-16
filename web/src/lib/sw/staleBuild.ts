@@ -1,5 +1,5 @@
-import { APP_VERSION } from "./version";
-import { withBase } from "./basePath";
+import { APP_VERSION } from "../version";
+import { withBase } from "../basePath";
 import { push, type PushState } from "@/jmap/push";
 
 /**

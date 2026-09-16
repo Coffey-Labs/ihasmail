@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Code, GripVertical, Plus, Trash2, Wand2, Play, AlertTriangle, Power } from "lucide-react";
 import { useSieve } from "@/store/sieve";
 import { useMail } from "@/store/mail";
-import { describeRule, newRule, reorderRules, rulesToSieve, upsertRule, type SieveRule } from "@/lib/sieve";
+import { describeRule, newRule, reorderRules, rulesToSieve, upsertRule, type SieveRule } from "@/lib/sieve/sieve";
 import { RuleDialog } from "./RuleDialog";
 import { saveAndApply } from "../mail/FilterFromMessage";
 import { confirmDialog, promptDialog } from "@/ui/dialog";

@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState, type DragEvent, type ReactNode } from "re
 import { Link, useLocation } from "wouter";
 import { AlertOctagon, Archive, ChevronDown, ChevronLeft, Clock, ChevronRight, File, Folder, FolderPlus, Inbox, Mail, MoreVertical, Palette, Send, Star, Tag, Trash2, Plus, Pencil, Eye, EyeOff, CheckCheck, Eraser, Share2, X, FolderInput } from "lucide-react";
 import { useMail } from "@/store/mail";
-import { canEmpty, confirmAndEmpty, emptyLabel } from "@/lib/emptyFolder";
-import { labelTree, visibleLabels } from "@/lib/labelTree";
+import { canEmpty, confirmAndEmpty, emptyLabel } from "@/lib/mailbox/emptyFolder";
+import { labelTree, visibleLabels } from "@/lib/mailbox/labelTree";
 import { isScheduledMailbox } from "@/store/scheduled";
 import { useSettings } from "@/store/settings";
 import type { Id, Mailbox } from "@/jmap/types";
@@ -14,10 +14,10 @@ import { toast } from "@/ui/toast";
 import { ShareDialog } from "../settings/ShareDialog";
 import { MailboxPicker } from "./MailboxPicker";
 import { loadRaw, saveJson } from "@/lib/storage";
-import { canDropFolder, canMoveFolderTo, folderColor, movable } from "@/lib/folderMove";
-import { haptic, useTouchRow } from "@/lib/touch";
+import { canDropFolder, canMoveFolderTo, folderColor, movable } from "@/lib/mailbox/folderMove";
+import { haptic, useTouchRow } from "@/lib/input/touch";
 import { plural, t } from "@/lib/i18n";
-import { mailboxDisplayName } from "@/lib/mailboxName";
+import { mailboxDisplayName } from "@/lib/mailbox/mailboxName";
 
 const ROLE_ICONS: Record<string, ReactNode> = {
   inbox: <Inbox size={20} />,

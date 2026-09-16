@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { isLocalizedName, mailboxDisplayName, mailboxDisplayPath } from "@/lib/mailboxName";
+import { isLocalizedName, mailboxDisplayName, mailboxDisplayPath } from "@/lib/mailbox/mailboxName";
 import { setCatalog, type Catalog } from "@/lib/i18n";
 import type { Mailbox } from "@/jmap/types";
 

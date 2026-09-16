@@ -6,7 +6,7 @@
  * Sieve below each comment is what the server actually runs.
  */
 
-import { formatList } from "./datetime";
+import { formatList } from "../datetime";
 import { t } from "@/lib/i18n";
 
 export type HeaderOp = "contains" | "notcontains" | "is" | "notis" | "matches" | "notmatches" | "regex" | "notregex" | "exists" | "notexists";

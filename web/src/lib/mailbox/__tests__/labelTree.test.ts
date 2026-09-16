@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { labelTree, visibleLabels, descendantKeywords } from "@/lib/labelTree";
+import { labelTree, visibleLabels, descendantKeywords } from "@/lib/mailbox/labelTree";
 import type { Label } from "@/store/settings";
 
 const L = (keyword: string, over: Partial<Label> = {}): Label => ({ keyword, name: keyword, color: "#000", ...over });

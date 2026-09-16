@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isUnknownMailbox } from "@/lib/mailboxRoute";
+import { isUnknownMailbox } from "@/lib/mailbox/mailboxRoute";
 import type { Mailbox } from "@/jmap/types";
 
 /**

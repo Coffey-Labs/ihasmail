@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { emlFilename, sanitizeFilename } from "@/lib/emlName";
+import { emlFilename, sanitizeFilename } from "@/lib/text/emlName";
 
 describe("emlFilename", () => {
   it("keeps an ordinary subject, with spaces as underscores", () => {

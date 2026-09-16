@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useLocation, useSearch } from "wouter";
 import { Search, SlidersHorizontal, X } from "lucide-react";
 import { useMail } from "@/store/mail";
-import { keyboard } from "@/lib/keyboard";
+import { keyboard } from "@/lib/input/keyboard";
 import { DateField } from "@/ui/datefield";
 import { t } from "@/lib/i18n";
 

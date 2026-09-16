@@ -4,11 +4,11 @@ import { ChevronLeft, ChevronRight, Plus, Calendar as CalIcon } from "lucide-rea
 import { useCalendar, participantAddresses, type EventInstance } from "@/store/calendar";
 import { useSettings } from "@/store/settings";
 import { addDays, addMonths, DAY_MS, endOfDay, isSameDay, isToday, monthGrid, roundToNext, startOfDay, startOfWeek, toLocalDateOnly, weekDays} from "@/lib/dates";
-import { useSwipeNav } from "@/lib/touch";
+import { useSwipeNav } from "@/lib/input/touch";
 import { formatMonthYear, formatTime } from "@/lib/format";
 import { formatDate, formatDateLong, formatDayMonth, formatHourLabel, formatWeekday, formatWeekdayDate } from "@/lib/datetime";
 import { Empty, useIsMobile, useIsTouch } from "@/ui/misc";
-import { keyboard } from "@/lib/keyboard";
+import { keyboard } from "@/lib/input/keyboard";
 import { EventPopover } from "./EventPopover";
 import { EventEditor, type EditorInit } from "./EventEditor";
 import type { Anchor } from "@/ui/popover";

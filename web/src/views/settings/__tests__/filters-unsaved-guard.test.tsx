@@ -5,7 +5,7 @@ import { FiltersSettings } from "../FiltersSettings";
 import { ConfirmHost } from "@/ui/dialog";
 import { useSieve } from "@/store/sieve";
 import { hasUnsavedChanges } from "@/lib/unsavedChanges";
-import { newRule, rulesToSieve } from "@/lib/sieve";
+import { newRule, rulesToSieve } from "@/lib/sieve/sieve";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 

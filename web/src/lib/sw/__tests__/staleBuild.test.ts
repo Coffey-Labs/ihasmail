@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { reloadIfServerRebuilt, makeConnectionWatcher, startBuildWatch } from "@/lib/staleBuild";
+import { reloadIfServerRebuilt, makeConnectionWatcher, startBuildWatch } from "@/lib/sw/staleBuild";
 import { APP_VERSION } from "@/lib/version";
 
 function healthReplies(body: unknown, ok = true) {

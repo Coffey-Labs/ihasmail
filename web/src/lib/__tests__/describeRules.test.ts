@@ -6,7 +6,7 @@
  * the joining is Intl's rather than a hardcoded " and ".
  */
 import { describe, expect, it } from "vitest";
-import { describeRule as describeSieve } from "../sieve";
+import { describeRule as describeSieve } from "../sieve/sieve";
 import { describeRule as describeRecurrence, weekdayOptions } from "../calendar/recurrence";
 import { setUiLanguageForFormatting } from "../datetime";
 import { setCatalog } from "../i18n";

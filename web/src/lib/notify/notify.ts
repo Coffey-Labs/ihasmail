@@ -1,4 +1,4 @@
-import { withBase } from "./basePath";
+import { withBase } from "../basePath";
 
 let baseTitle = "ihasmail";
 let faviconCanvas: HTMLCanvasElement | null = null;
