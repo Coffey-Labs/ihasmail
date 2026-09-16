@@ -2418,3 +2418,7 @@ button.dp-open:disabled { cursor: default; opacity: .5; }
 .ev-resize { position: absolute; left: 0; right: 0; bottom: 0; height: 8px; cursor: ns-resize; touch-action: none; }
 .ev-resize::after { content: ""; position: absolute; left: 50%; bottom: 2px; width: 18px; height: 2px; margin-left: -9px; border-radius: 2px; background: currentColor; opacity: 0; }
 .ev-block:hover .ev-resize::after { opacity: .5; }
+
+/* What arrived from the operating system's share sheet, shown before it is opened. */
+.share-summary { margin: 0 0 8px; padding-left: 1ex; border-left: 2px solid var(--border-strong); color: var(--fg-muted); overflow-wrap: anywhere; }
+.share-summary-files { margin: 0 0 8px; padding-left: 1.2em; color: var(--fg-muted); overflow-wrap: anywhere; }

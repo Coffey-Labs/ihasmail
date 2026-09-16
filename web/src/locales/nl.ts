@@ -1161,6 +1161,9 @@ export const catalog: Catalog = {
 
     // ── Composer status, calendar title ────────────────────────────────
     "New message": "Nieuw bericht",
+    "Start a new message with what was shared?": "Een nieuw bericht beginnen met wat is gedeeld?",
+    "Something was shared with ihasmail. Nothing is sent until you choose Send. If you didn't just share this, discard it.": "Er is iets met ihasmail gedeeld. Er wordt niets verzonden totdat u Verzenden kiest. Hebt u dit niet zelf zojuist gedeeld, gooi het dan weg.",
+    "Start a message": "Bericht beginnen",
     "New mail": "Nieuwe e-mail",
     "Could not do that — open ihasmail and try again": "Dat lukte niet — open ihasmail en probeer het opnieuw",
     "Sending…": "Bezig met verzenden…",

@@ -1171,6 +1171,9 @@ export const catalog: Catalog = {
 
     // ── Composer status, calendar title ────────────────────────────────
     "New message": "新規メール",
+    "Start a new message with what was shared?": "共有された内容で新規メールを作成しますか？",
+    "Something was shared with ihasmail. Nothing is sent until you choose Send. If you didn't just share this, discard it.": "ihasmail に何かが共有されました。「送信」を選ぶまで何も送信されません。共有した覚えがない場合は破棄してください。",
+    "Start a message": "メールを作成",
     "New mail": "新着メール",
     "Could not do that — open ihasmail and try again": "実行できませんでした - ihasmail を開いてやり直してください",
     "Sending…": "送信中…",

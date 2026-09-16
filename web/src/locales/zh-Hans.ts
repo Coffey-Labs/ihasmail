@@ -1170,6 +1170,9 @@ export const catalog: Catalog = {
 
     // ── Composer status, calendar title ────────────────────────────────
     "New message": "新邮件",
+    "Start a new message with what was shared?": "用共享的内容新建邮件吗？",
+    "Something was shared with ihasmail. Nothing is sent until you choose Send. If you didn't just share this, discard it.": "有内容被共享到 ihasmail。在您选择“发送”之前不会发送任何内容。如果不是您刚才共享的，请放弃。",
+    "Start a message": "新建邮件",
     "New mail": "新邮件",
     "Could not do that — open ihasmail and try again": "无法执行 — 请打开 ihasmail 后重试",
     "Sending…": "正在发送…",
