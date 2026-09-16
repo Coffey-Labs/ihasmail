@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { collectShare, shareBody, SHARE_MAX_AGE_MS } from "@/lib/shareTarget";
+import { shareSummary, collectShare, shareBody, SHARE_MAX_AGE_MS } from "@/lib/shareTarget";
 import { SW_CACHE_NAME } from "@/lib/sw/swCache";
 
 /**
@@ -110,5 +110,21 @@ describe("the body a share turns into", () => {
 
   it("is just the text when there was no link", () => {
     expect(shareBody({ text: "a thought", url: "" })).toBe("a thought");
+  });
+});
+
+describe("shareSummary", () => {
+  const file = (name: string) => new File(["x"], name);
+  it("gives the title, the text and link together, and the file names", () => {
+    expect(shareSummary({ title: " Trip ", text: "See this", url: "https://example.com", files: [file("a.jpg")] })).toEqual({
+      title: "Trip",
+      preview: "See this https://example.com",
+      files: ["a.jpg"],
+    });
+  });
+  it("shortens a long text rather than showing all of it", () => {
+    const { preview } = shareSummary({ title: "", text: "word ".repeat(100), url: "", files: [] });
+    expect(preview.length).toBeLessThanOrEqual(160);
+    expect(preview.endsWith("…")).toBe(true);
   });
 });

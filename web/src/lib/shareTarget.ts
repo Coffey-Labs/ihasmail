@@ -117,3 +117,17 @@ export function shareBody(share: Pick<SharedContent, "text" | "url">): string {
   if (!url || text.includes(url)) return text;
   return text ? `${text}\n\n${url}` : url;
 }
+
+/**
+ * What a share holds, in the few words the confirmation shows.
+ *
+ * Only what the reader needs to recognize it as theirs: the title, the start
+ * of the text or link, and the names of the files. It is shown before any of
+ * it goes near a message, because the page cannot tell a share the reader
+ * made from one a website posted at the same address (#375 review).
+ */
+export function shareSummary(share: SharedContent): { title: string; preview: string; files: string[] } {
+  const body = [share.text, share.url].map((s) => s.trim()).filter(Boolean).join(" ");
+  const preview = body.length > 160 ? `${body.slice(0, 157).trimEnd()}…` : body;
+  return { title: share.title.trim(), preview, files: share.files.map((f) => f.name) };
+}

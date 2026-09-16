@@ -17,6 +17,7 @@ import { ShortcutsDialog, useGlobalShortcuts } from "./Shortcuts";
 import { MailboxPicker } from "./mail/MailboxPicker";
 import { formatSize } from "@/lib/format";
 import { collectShare } from "@/lib/shareTarget";
+import { offerShare } from "./ShareOffer";
 import { TranslateBoundary } from "@/ui/TranslateBoundary";
 import { t } from "@/lib/i18n";
 import { hasAdministration } from "@/lib/admin/adminAccess";
@@ -119,11 +120,12 @@ export function AppShell({ children }: { children: ReactNode }) {
    * `addFiles` uploads as it goes, and there is nothing to upload to until the
    * session is in place. AppShell only exists once there is one.
    */
+  // Asked about first, not opened straight away: see `offerShare`.
   useEffect(() => {
-    void collectShare().then((share) => {
+    void collectShare().then(async (share) => {
       if (!share) return;
-      openShare(share);
       if (new URLSearchParams(window.location.search).has("share")) navigate("/mail", { replace: true });
+      await offerShare(share, openShare);
     });
   }, [openShare, navigate]);
 
