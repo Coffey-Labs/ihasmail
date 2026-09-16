@@ -42,35 +42,39 @@ describe("ComposerDock with a full-screen composer", () => {
     useCompose.setState({ drafts: [], activeKey: null });
   });
 
-  const render = (drafts: Draft[], activeKey: string) => {
+  // The composer is loaded on demand, so rendering waits for it to arrive.
+  const render = async (drafts: Draft[], activeKey: string) => {
     useCompose.setState({ drafts, activeKey });
-    act(() => root.render(<ComposerDock />));
+    await act(async () => {
+      root.render(<ComposerDock />);
+      await import("../Composer");
+    });
   };
   const dock = () => host.querySelector(".composer-dock")!;
 
-  it("marks the dock so the other composers are hidden behind it", () => {
+  it("marks the dock so the other composers are hidden behind it", async () => {
     setWidth(1300);
-    render([draft("a"), draft("b", { maximized: true }), draft("c")], "b");
+    await render([draft("a"), draft("b", { maximized: true }), draft("c")], "b");
     expect(dock().classList.contains("has-maximized")).toBe(true);
     // Every composer stays mounted: the hiding is the stylesheet's, so nothing being typed elsewhere is lost.
     expect(host.querySelectorAll(".composer").length).toBe(3);
   });
 
-  it("leaves the dock alone while nobody is full screen", () => {
+  it("leaves the dock alone while nobody is full screen", async () => {
     setWidth(1300);
-    render([draft("a"), draft("b")], "b");
+    await render([draft("a"), draft("b")], "b");
     expect(dock().classList.contains("has-maximized")).toBe(false);
   });
 
-  it("does not count a full-screen composer that has since been minimized", () => {
+  it("does not count a full-screen composer that has since been minimized", async () => {
     setWidth(1300);
-    render([draft("a"), draft("b", { maximized: true, minimized: true })], "a");
+    await render([draft("a"), draft("b", { maximized: true, minimized: true })], "a");
     expect(dock().classList.contains("has-maximized")).toBe(false);
   });
 
-  it("is not a phone concern: there the active composer is already the only one open", () => {
+  it("is not a phone concern: there the active composer is already the only one open", async () => {
     setWidth(400);
-    render([draft("a"), draft("b", { maximized: true })], "b");
+    await render([draft("a"), draft("b", { maximized: true })], "b");
     expect(dock().classList.contains("has-maximized")).toBe(false);
   });
 });

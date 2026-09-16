@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type DragEvent, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState, type DragEvent, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { AlertOctagon, Archive, ChevronDown, ChevronLeft, Clock, ChevronRight, File, Folder, FolderPlus, Inbox, Mail, MoreVertical, Palette, Send, Star, Tag, Trash2, Plus, Pencil, Eye, EyeOff, CheckCheck, Eraser, Share2, X, FolderInput } from "lucide-react";
 import { useMail } from "@/store/mail";
@@ -11,13 +11,15 @@ import { MenuItem, MenuSep, MenuTitle, Popover, useMenu } from "@/ui/popover";
 import { CALENDAR_COLORS, useIsMobile, useIsTouch } from "@/ui/misc";
 import { confirmDialog, promptDialog } from "@/ui/dialog";
 import { toast } from "@/ui/toast";
-import { ShareDialog } from "../settings/ShareDialog";
 import { MailboxPicker } from "./MailboxPicker";
 import { loadRaw, saveJson } from "@/lib/storage";
 import { canDropFolder, canMoveFolderTo, folderColor, movable } from "@/lib/mailbox/folderMove";
 import { haptic, useTouchRow } from "@/lib/input/touch";
 import { plural, t } from "@/lib/i18n";
 import { mailboxDisplayName } from "@/lib/mailbox/mailboxName";
+
+// Loaded when first opened: it is not needed to show mail, and it is not small.
+const ShareDialog = lazy(() => import("../settings/ShareDialog").then((m) => ({ default: m.ShareDialog })));
 
 const ROLE_ICONS: Record<string, ReactNode> = {
   inbox: <Inbox size={20} />,
@@ -273,7 +275,7 @@ export function MailboxTree() {
           }}
         />
       )}
-      {shareTarget && <ShareDialog kind="Mailbox" id={shareTarget.id} name={shareTarget.name} shareWith={shareTarget.shareWith ?? null} onClose={() => setShareTarget(null)} />}
+      {shareTarget && <Suspense fallback={null}><ShareDialog kind="Mailbox" id={shareTarget.id} name={shareTarget.name} shareWith={shareTarget.shareWith ?? null} onClose={() => setShareTarget(null)} /></Suspense>}
     </>
   );
 }

@@ -1,4 +1,4 @@
-import { useCallback, useState, type MouseEvent, type ReactNode } from "react";
+import { lazy, Suspense, useCallback, useState, type MouseEvent, type ReactNode } from "react";
 import { Copy, Mail, Pencil, UserPlus } from "lucide-react";
 import type { EmailAddress } from "@/jmap/types";
 import { useContacts } from "@/store/contacts";
@@ -7,8 +7,10 @@ import { contactFromAddress } from "@/lib/contacts";
 import { formatAddress } from "@/lib/address";
 import { MenuItem, MenuSep, Popover, type Anchor } from "@/ui/popover";
 import { toast } from "@/ui/toast";
-import { ContactEditor } from "../contacts/ContactEditor";
 import { t } from "@/lib/i18n";
+
+// Loaded when first opened: it is not needed to show mail, and it is not small.
+const ContactEditor = lazy(() => import("../contacts/ContactEditor").then((m) => ({ default: m.ContactEditor })));
 
 /**
  * Right-click on anyone named in a message — sender, recipients, Reply-To — to
@@ -65,12 +67,14 @@ export function useAddressMenu() {
         </Popover>
       )}
       {editing && (
+        <Suspense fallback={null}>
         <ContactEditor
           card={editing}
           defaultBookId={defaultBookId}
           onClose={() => setEditing(null)}
           onSaved={() => setEditing(null)}
         />
+        </Suspense>
       )}
     </>
   );

@@ -16,7 +16,7 @@ import { LoginPage } from "@/views/Login";
 import { AppShell } from "@/views/AppShell";
 import { MailView } from "@/views/mail/MailView";
 import { ComposerDock } from "@/views/compose/ComposerDock";
-import { setUnreadBadge } from "@/lib/notify/notify";
+import { requestNotificationPermission, setBaseTitle, setUnreadBadge } from "@/lib/notify/notify";
 import { publishWorkerFacts } from "@/lib/sw/swFacts";
 import { PAINTED_FROM_CACHE, useSettings, syncedPart } from "@/store/settings";
 import { armSettingsSync, loadRemoteSettings, queueSettingsPush, settingsAlreadyLoadedFor, settingsSyncAvailable } from "@/lib/settingsSync";
@@ -260,10 +260,8 @@ function AuthedApp() {
   });
   const appName = useSession((s) => s.session?.ihasmail?.appName) || DEFAULT_APP_NAME;
   useEffect(() => {
-    void import("@/lib/notify/notify").then((m) => {
-      m.setBaseTitle(appName);
-      setUnreadBadge(inboxUnread);
-    });
+    setBaseTitle(appName);
+    setUnreadBadge(inboxUnread);
   }, [inboxUnread, appName]);
 
   /*
@@ -284,7 +282,7 @@ function AuthedApp() {
   // Request notification permission lazily when enabled
   const notif = useSettings((s) => s.settings.desktopNotifications);
   useEffect(() => {
-    if (notif) void import("@/lib/notify/notify").then((m) => m.requestNotificationPermission());
+    if (notif) void requestNotificationPermission();
   }, [notif]);
 
   // Nothing worth painting until the account's settings are in force; see the

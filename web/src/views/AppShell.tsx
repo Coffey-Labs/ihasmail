@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { BookOpen, Calendar, ChevronsUpDown, FolderOpen, Globe, HelpCircle, LogOut, Mail, Menu as MenuIcon, Moon, PenSquare, Plus, RefreshCw, Settings, ShieldCheck, Sun, Upload, Users, X } from "lucide-react";
 import { useSession } from "@/store/session";
@@ -13,9 +13,6 @@ import { MenuItem, MenuSep, Popover, useMenu } from "@/ui/popover";
 import { Splitter } from "@/ui/Splitter";
 import { SearchBar } from "./SearchBar";
 import { MailboxTree } from "./mail/MailboxTree";
-import { FilesTree } from "./files/FilesTree";
-import { ContactsSidebar } from "./contacts/ContactsSidebar";
-import { CalendarSidebar } from "./calendar/CalendarSidebar";
 import { ShortcutsDialog, useGlobalShortcuts } from "./Shortcuts";
 import { MailboxPicker } from "./mail/MailboxPicker";
 import { formatSize } from "@/lib/format";
@@ -25,6 +22,11 @@ import { t } from "@/lib/i18n";
 import { hasAdministration } from "@/lib/admin/adminAccess";
 import { usePermissions } from "./admin/usePermissions";
 import { AdminNav } from "./admin/AdminNav";
+
+// The other sections' sidebars load with the section, as their views already do.
+const FilesTree = lazy(() => import("./files/FilesTree").then((m) => ({ default: m.FilesTree })));
+const ContactsSidebar = lazy(() => import("./contacts/ContactsSidebar").then((m) => ({ default: m.ContactsSidebar })));
+const CalendarSidebar = lazy(() => import("./calendar/CalendarSidebar").then((m) => ({ default: m.CalendarSidebar })));
 
 /*
  * How far the sidebar edge can be dragged. Below about 228px the module bar
@@ -252,9 +254,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           </button>
           <div className="sidebar-scroll">
             {(section === "mail" || section === "search") && <MailboxTree />}
-            {section === "calendar" && <CalendarSidebar />}
-            {section === "contacts" && <ContactsSidebar />}
-            {section === "files" && <FilesTree />}
+            <Suspense fallback={null}>
+              {section === "calendar" && <CalendarSidebar />}
+              {section === "contacts" && <ContactsSidebar />}
+              {section === "files" && <FilesTree />}
+            </Suspense>
             {section === "settings" && <div className="nav-section"><span>{t("Settings")}</span></div>}
             {section === "admin" && <AdminNav />}
           </div>
