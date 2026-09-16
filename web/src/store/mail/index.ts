@@ -255,7 +255,7 @@ export const useMail = create<MailState>((set, get) => ({
         for (const r of results) {
           state = r.state;
           for (const e of r.list) {
-            next[e.id] = { ...next[e.id], ...e };
+            next[e.id] = mergeEmail(next[e.id], e);
             if (full) nextFull[e.id] = true;
           }
         }
@@ -990,7 +990,7 @@ export const useMail = create<MailState>((set, get) => ({
             );
             set((s) => {
               const next = { ...s.emails };
-              for (const r of results) for (const e of r.list) next[e.id] = { ...next[e.id], ...e };
+              for (const r of results) for (const e of r.list) next[e.id] = mergeEmail(next[e.id], e);
               return { emails: next };
             });
           }
@@ -1038,6 +1038,26 @@ function sortIdentities(list: Identity[], accountId: Id): Identity[] {
  *
  * Keyed by nothing: a refusal is about the server, and there is only one.
  */
+/**
+ * Fold freshly fetched properties into the copy already held.
+ *
+ * Returns the held object itself when nothing in `next` differs from it. A
+ * refresh fetches every listed message again, and a new object for each one
+ * -- the same data, a new identity -- made every row of the list render
+ * again after any change at all.
+ */
+function mergeEmail(prev: Email | undefined, next: Email): Email {
+  if (!prev) return next;
+  for (const key of Object.keys(next) as (keyof Email)[]) {
+    const a = prev[key];
+    const b = next[key];
+    if (a === b) continue;
+    if (a && b && typeof a === "object" && JSON.stringify(a) === JSON.stringify(b)) continue;
+    return { ...prev, ...next };
+  }
+  return prev;
+}
+
 let sortRefused = false;
 
 async function runQuery(accountId: Id, q: ListQuery, position: number, limit: number) {
@@ -1096,7 +1116,7 @@ async function runQueryOnce(accountId: Id, q: ListQuery, position: number, reque
   const following = useMail.getState().emailState !== null;
   useMail.setState((s) => {
     const emails = { ...s.emails };
-    for (const e of emailsRes.list) emails[e.id] = { ...emails[e.id], ...e };
+    for (const e of emailsRes.list) emails[e.id] = mergeEmail(emails[e.id], e);
     const threads = { ...s.threads };
     for (const t of threadsRes?.list ?? []) threads[t.id] = t;
     return { emails, threads, emailState: s.emailState ?? emailsRes.state };
@@ -1115,7 +1135,7 @@ async function refreshEmails(accountId: Id, ids: Id[]): Promise<void> {
   );
   useMail.setState((s) => {
     const emails = { ...s.emails };
-    for (const r of results) for (const e of r.list) emails[e.id] = { ...emails[e.id], ...e };
+    for (const r of results) for (const e of r.list) emails[e.id] = mergeEmail(emails[e.id], e);
     return { emails };
   });
 }
