@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { Context, MiddlewareHandler } from "hono";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
+import { bodyLimit } from "hono/body-limit";
 import { compress } from "hono/compress";
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
@@ -12,7 +13,7 @@ import { fetchPermissions } from "./permissionSchema.js";
 import { administrationAllowed, gateAdministration, grantsAdministration } from "./adminGate.js";
 import { SessionStore, type SessionBackend, type LiveSession } from "./sessions.js";
 import { RateLimiter } from "./ratelimit.js";
-import { resolveClientIp } from "./clientip.js";
+import { rateLimitKey, resolveClientIp } from "./clientip.js";
 import {
   type AccountInfo,
   UpstreamError,
@@ -209,6 +210,22 @@ const csrfGuard: MiddlewareHandler = async (c, next) => {
   await next();
 };
 
+/**
+ * The largest body an API route that reads JSON will take.
+ *
+ * Hono reads a JSON body whole, and before this nothing bounded it: a few
+ * unauthenticated sign-in attempts carrying hundreds of megabytes each could
+ * run the process out of memory, and a restart signs everybody out. What
+ * these routes actually receive is a username and password, or a code.
+ *
+ * JMAP and uploads carry real payloads and bound themselves as they stream;
+ * the push callback has its own limit ahead of this one.
+ */
+const MAX_SMALL_BODY = 64 * 1024;
+const LARGE_BODY_ROUTE = /\/api\/(jmap$|upload\/)/;
+const limitSmallBody = bodyLimit({ maxSize: MAX_SMALL_BODY, onError: (c) => c.json({ error: "too_large" }, 413) });
+const smallBodies: MiddlewareHandler = (c, next) => (LARGE_BODY_ROUTE.test(c.req.path) ? next() : limitSmallBody(c, next));
+
 const requireSession: MiddlewareHandler<Env> = async (c, next) => {
   const cookie = getCookie(c, config.cookieName);
   const session = sessions.resolve(cookie);
@@ -269,6 +286,7 @@ export function createApp(basePath = config.basePath): Hono<Env> {
 
   const api = new Hono<Env>();
   api.use("*", csrfGuard);
+  api.use("*", smallBodies);
 
   api.get("/health", (c) => c.json({ ok: true, name: config.appName, version: config.version, push: pushStatus() }));
 
@@ -303,6 +321,13 @@ export function createApp(basePath = config.basePath): Hono<Env> {
   // ---------- Auth ----------
   api.post("/auth/login", async (c) => {
     const ip = clientIp(c);
+    // What the limits count under: the address, or its /64 for IPv6.
+    const rateIp = rateLimitKey(ip);
+    // The flood ceiling needs nothing from the body, so it goes before reading one.
+    if (!loginFloodLimiter.check(rateIp)) {
+      c.header("Retry-After", String(loginFloodLimiter.retryAfterSeconds(rateIp)));
+      return c.json({ error: "rate_limited", message: "Too many login attempts. Please wait and try again." }, 429);
+    }
     let body: { username?: string; password?: string; totp?: string; remember?: boolean };
     try {
       body = await c.req.json();
@@ -318,7 +343,7 @@ export function createApp(basePath = config.basePath): Hono<Env> {
     /*
      * Three checks, answering different questions.
      *
-     * `limitKey` is this username from this address, and `ip` is any username
+     * `limitKey` is this username from this address, and `rateIp` is any username
      * from it -- both guard guessing, and both are given back when the upstream
      * never got as far as judging the password. Refunding only the first would
      * not fix #239: ten retries through an outage would still spend the address
@@ -328,12 +353,8 @@ export function createApp(basePath = config.basePath): Hono<Env> {
      * The flood ceiling is the one that is never refunded, and it is the reason
      * the other two safely can be.
      */
-    const limitKey = `${ip}|${username.toLowerCase()}`;
-    if (!loginFloodLimiter.check(ip)) {
-      c.header("Retry-After", String(loginFloodLimiter.retryAfterSeconds(ip)));
-      return c.json({ error: "rate_limited", message: "Too many login attempts. Please wait and try again." }, 429);
-    }
-    if (!loginLimiter.check(limitKey) || !loginLimiter.check(ip)) {
+    const limitKey = `${rateIp}|${username.toLowerCase()}`;
+    if (!loginLimiter.check(limitKey) || !loginLimiter.check(rateIp)) {
       c.header("Retry-After", String(loginLimiter.retryAfterSeconds(limitKey)));
       return c.json({ error: "rate_limited", message: "Too many login attempts. Please wait and try again." }, 429);
     }
@@ -351,7 +372,7 @@ export function createApp(basePath = config.basePath): Hono<Env> {
         // The credentials were accepted; only the server is too old. Not an
         // attempt worth counting against them.
         loginLimiter.refund(limitKey);
-        loginLimiter.refund(ip);
+        loginLimiter.refund(rateIp);
         return c.json(
           {
             error: "unsupported_server",
@@ -411,7 +432,7 @@ export function createApp(basePath = config.basePath): Hono<Env> {
        */
       if (!(err instanceof UpstreamError && err.status === 401)) {
         loginLimiter.refund(limitKey);
-        loginLimiter.refund(ip);
+        loginLimiter.refund(rateIp);
       }
       return upstreamFailure(c, err);
     }
@@ -648,12 +669,27 @@ export function createApp(basePath = config.basePath): Hono<Env> {
      */
     let body: ReadableStream<Uint8Array> | string | null = c.req.raw.body;
     if (!administrationAllowed(config.administration, session.remember)) {
+      const held = gatedReads.get(session.id) ?? 0;
+      if (held >= MAX_GATED_PER_SESSION) {
+        c.header("Retry-After", "1");
+        return c.json({ error: "rate_limited" }, 429);
+      }
+      gatedReads.set(session.id, held + 1);
       let raw: string;
       try {
+        if (Number(c.req.header("content-length") ?? "0") > MAX_GATED_REQUEST) return c.json({ error: "too_large" }, 413);
         // Counted as it arrives: a chunked body carries no length to refuse up front.
-        raw = c.req.raw.body ? await new Response(c.req.raw.body.pipeThrough(byteCap(MAX_GATED_REQUEST))).text() : "";
-      } catch {
+        raw = c.req.raw.body ? await readGated(c.req.raw.body) : "";
+      } catch (err) {
+        if (err instanceof GatedBudgetError) {
+          c.header("Retry-After", "1");
+          return c.json({ error: "busy" }, 503);
+        }
         return c.json({ error: "too_large" }, 413);
+      } finally {
+        const left = (gatedReads.get(session.id) ?? 1) - 1;
+        if (left > 0) gatedReads.set(session.id, left);
+        else gatedReads.delete(session.id);
       }
       const gate = gateAdministration(raw);
       if (!gate.ok) {
@@ -931,9 +967,50 @@ function sessionExtras(session: LiveSession, info: AccountInfo = { locale: null,
  */
 /**
  * The largest JMAP request read into memory for the administration check.
- * Stalwart's own default `maxSizeRequest` is 10 MB; uploads never come this way.
+ *
+ * Only sessions that may not administer come this way, and what the client
+ * sends is small: attachments and pasted images go through `/upload`, and the
+ * composer turns inline images into uploads before a draft is saved. Stalwart
+ * would take up to its `maxSizeRequest` (10 MB by default), but a request is
+ * held here as a string, parsed and serialized again, so each one costs
+ * several times its size; 4 MB is far past anything the client sends.
  */
-const MAX_GATED_REQUEST = 16 * 1024 * 1024;
+const MAX_GATED_REQUEST = 4 * 1024 * 1024;
+/**
+ * How many checked requests one session may have in flight at once. Matches
+ * the `maxConcurrentRequests` Stalwart advertises by default, which the client
+ * already stays within.
+ */
+const MAX_GATED_PER_SESSION = 4;
+/**
+ * The bytes all checked requests together may hold at once. Counted as they
+ * arrive rather than reserved up front, so a slow body that has sent little
+ * holds little, and a burst of large ones is turned away with a 503 instead of
+ * taking the process down.
+ */
+const GATED_BUDGET = 32 * 1024 * 1024;
+const gatedReads = new Map<string, number>();
+let gatedBytes = 0;
+
+class GatedBudgetError extends Error {}
+
+async function readGated(stream: ReadableStream<Uint8Array>): Promise<string> {
+  let mine = 0;
+  const counted = new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      mine += chunk.byteLength;
+      gatedBytes += chunk.byteLength;
+      if (mine > MAX_GATED_REQUEST) controller.error(new Error("request too large"));
+      else if (gatedBytes > GATED_BUDGET) controller.error(new GatedBudgetError("gated read budget spent"));
+      else controller.enqueue(chunk);
+    },
+  });
+  try {
+    return await new Response(stream.pipeThrough(counted)).text();
+  } finally {
+    gatedBytes -= mine;
+  }
+}
 
 const PASSTHROUGH_HEADERS = new Set(["content-type", "content-disposition", "content-language", "etag", "last-modified", "retry-after"]);
 

@@ -3,4 +3,7 @@ node_modules
 **/dist
 .git
 .env
+# deploy.example.sh keeps its settings in .env.production; any .env.* holds APP_SECRET.
+.env.*
+!.env.example
 server/data

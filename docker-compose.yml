@@ -9,8 +9,21 @@ services:
         BASE_PATH: ${BASE_PATH:-}
     image: ihasmail:2
     restart: unless-stopped
+    # Loopback only: ihasmail expects a TLS reverse proxy in front of it. On
+    # every interface the app is reachable over plain HTTP, passwords and all,
+    # and with TRUST_PROXY any machine on a private network can set its own
+    # X-Forwarded-For. A proxy running in Docker can reach the service by name
+    # on the compose network and needs no published port at all.
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
+    # The app needs no privileges and writes only to /data and /tmp.
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     environment:
       STALWART_URL: ${STALWART_URL:?set STALWART_URL in .env}
       APP_SECRET: ${APP_SECRET:?set APP_SECRET in .env (openssl rand -base64 48)}
