@@ -822,7 +822,14 @@ export function createApp(basePath = config.basePath): Hono<Env> {
       if (cl) headers.set("Content-Length", cl);
       const partial = res.status === 206 && res.headers.get("content-range");
       if (partial) headers.set("Content-Range", partial);
-      if (res.headers.get("accept-ranges") === "bytes") headers.set("Accept-Ranges", "bytes");
+      /*
+       * Said here because Stalwart does not say it. It honors a single byte
+       * range but sends no `Accept-Ranges` (0.16.22, checked live on
+       * 2026-09-16), and Chrome's PDF viewer only reads a file in pieces when
+       * the first response advertises it. A server that ignores a range sends
+       * the whole file, which the browser takes just as well.
+       */
+      headers.set("Accept-Ranges", "bytes");
       const safeInline = inline && isInlineSafe(type);
       headers.set(
         "Content-Disposition",
