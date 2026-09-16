@@ -127,9 +127,12 @@ test("a download passes a byte range through, for viewers that read in pieces", 
   assert.equal(await part.text(), "hello");
   const whole = await app.request(url, { headers: { cookie } });
   assert.equal(whole.status, 200);
+  assert.equal(whole.headers.get("accept-ranges"), "bytes", "advertised even though Stalwart does not, so a PDF viewer asks");
   assert.equal(await whole.text(), "hello world");
+  // Past the end, Stalwart sends the whole file rather than a 416.
   const beyond = await app.request(url, { headers: { cookie, range: "bytes=50-60" } });
-  assert.equal(beyond.status, 416);
+  assert.equal(beyond.status, 200);
+  assert.equal(await beyond.text(), "hello world");
   // Anything that is not a plain byte range is not passed on.
   const odd = await app.request(url, { headers: { cookie, range: "items=0-4" } });
   assert.equal(odd.status, 200);
