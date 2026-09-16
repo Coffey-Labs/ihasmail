@@ -7,6 +7,11 @@ import { ACCOUNT, MASKED, MAX_DELAYED_SEND, MOCK_LOCALE, NO_FUTURE_RELEASE, Obj,
 import { NO_KEYWORD_SORT, abRights, blobs, booksFor, calendarsFor, cards, compareBy, emails, eventsFor, fileNodes, fr, identities, mailboxes, mb, nodesFor, participantIdentities, principals, pushSubscriptions, putBlob, recount, rightsCal, seq, sharedCards, sieveScripts, vacationBox } from "./data.js";
 import { Handler, MethodError, applyPatch, calendarEventParse, calendarEventSet, directory, genericGet, genericSet, hideShareWithUnlessAsked, matchFilter, matchSubmissionFilter, pick, resolveEvent, setResp, submissionView, submissions } from "./engine.js";
 
+/** Stalwart's limit per account (0.16.22). */
+const MAX_PUSH_SUBSCRIPTIONS = 15;
+/** What an empty or missing `types` list is taken to mean: everything. */
+const ALL_PUSH_TYPES = ["Email", "EmailDelivery", "Mailbox", "Thread", "Identity", "EmailSubmission", "VacationResponse", "CalendarEvent", "Calendar", "ContactCard", "AddressBook", "FileNode", "Quota", "SieveScript", "PushSubscription"];
+
 export const handlers: Record<string, Handler> = {
   // 0.16 exposes the account locale here, under a permission ordinary users
   // actually have (unlike x:Account below, which needs sysAccountGet).
@@ -197,10 +202,17 @@ export const handlers: Record<string, Handler> = {
         notCreated[cid] = { type: "invalidArguments", properties: ["emailPush"], description: "Invalid filter." };
         continue;
       }
-      // One per device: re-subscribing replaces rather than accumulates.
+      /*
+       * As Stalwart does (checked live on 0.16.22, 2026-09-16): a repeated
+       * deviceClientId is a second subscription, not a replacement -- this mock
+       * used to replace, which is how the client's pile-up never showed here
+       * (#375) -- and an account holds at most fifteen.
+       */
       const deviceId = String(o.deviceClientId ?? "");
-      const clash = pushSubscriptions.findIndex((s) => s.deviceClientId === deviceId);
-      if (clash >= 0) pushSubscriptions.splice(clash, 1);
+      if (pushSubscriptions.length >= MAX_PUSH_SUBSCRIPTIONS) {
+        notCreated[cid] = { type: "overQuota", description: "There are too many subscriptions, please delete some before adding a new one." };
+        continue;
+      }
       const id = `ps${randomUUID().slice(0, 6)}`;
       /*
        * A subscription expires, and this used to hand back `expires: null`.
@@ -212,7 +224,9 @@ export const handlers: Record<string, Handler> = {
        * so "does this client renew?" is a question the mock can answer.
        */
       const expires = new Date(Date.now() + PUSH_TTL_MS).toISOString();
-      pushSubscriptions.push({ id, deviceClientId: deviceId, url: o.url, types: o.types ?? null, emailPush: o.emailPush ?? null, expires, keys, verified: false, code: `v${randomUUID().slice(0, 8)}` });
+      // An empty or missing list means every type, not none.
+      const types = Array.isArray(o.types) && o.types.length ? o.types : ALL_PUSH_TYPES;
+      pushSubscriptions.push({ id, deviceClientId: deviceId, url: o.url, types, emailPush: o.emailPush ?? null, expires, keys, verified: false, code: `v${randomUUID().slice(0, 8)}` });
       created[cid] = { id, expires };
       state.n++;
     }
@@ -223,6 +237,13 @@ export const handlers: Record<string, Handler> = {
       if (code !== undefined) {
         if (code !== s.code) { notUpdated[id] = { type: "invalidProperties", properties: ["verificationCode"], description: "Verification code does not match." }; continue; }
         s.verified = true;
+      }
+      // An expiry can be extended, up to the same seven days a new one gets.
+      const wanted = (patch as Obj).expires;
+      if (typeof wanted === "string") {
+        const at = Math.min(Date.parse(wanted), Date.now() + PUSH_TTL_MS);
+        if (Number.isNaN(at)) { notUpdated[id] = { type: "invalidProperties", properties: ["expires"] }; continue; }
+        s.expires = new Date(at).toISOString();
       }
       updated[id] = null;
       state.n++;

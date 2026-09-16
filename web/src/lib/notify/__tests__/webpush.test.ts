@@ -125,9 +125,15 @@ describe("what gets registered", () => {
     expect(subscriptionPayload(fakeSub, null)).not.toHaveProperty("emailPush");
   });
 
-  it("subscribes to Email changes only, since EventSource covers an open tab", () => {
+  it("subscribes to deliveries only, so reading or moving mail elsewhere sends nothing", () => {
     client.session = session({ "urn:ietf:params:jmap:webpush-vapid": { applicationServerKey: LIVE_KEY } });
-    expect((subscriptionPayload(fakeSub, "a1") as Record<string, unknown>).types).toEqual(["Email"]);
+    expect((subscriptionPayload(fakeSub, "a1") as Record<string, unknown>).types).toEqual(["EmailDelivery"]);
+  });
+
+  it("asks for the message and conversation ids, which Stalwart only sends when named", () => {
+    client.session = session({ "urn:ietf:params:jmap:webpush-vapid": { applicationServerKey: LIVE_KEY }, "urn:ietf:params:jmap:emailpush": {} });
+    const payload = subscriptionPayload(fakeSub, "a1") as { emailPush: Record<string, { properties: string[] }> };
+    expect(payload.emailPush.a1!.properties).toEqual(expect.arrayContaining(["id", "threadId"]));
   });
 });
 

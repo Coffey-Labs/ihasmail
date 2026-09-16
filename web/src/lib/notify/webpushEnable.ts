@@ -15,11 +15,18 @@ import {
   applicationServerKey,
   createSubscription,
   decodeApplicationServerKey,
+  destroySubscriptions,
   deviceClientId,
+  extendSubscription,
   findSubscription,
   listSubscriptions,
-  needsRenewal,
+  mySubscriptions,
+  PushSetError,
   pushEnabledHere,
+  registeredEndpoint,
+  rememberEndpoint,
+  RENEW_WITHIN_MS,
+  roomToMake,
   setPushEnabledHere,
   subscriptionPayload,
   unsubscribeThisDevice,
@@ -64,8 +71,7 @@ async function collectStoredVerification(): Promise<void> {
 }
 
 /**
- * Subscribe this browser. Safe to call again — the deviceClientId makes a
- * repeat replace rather than accumulate.
+ * Subscribe this browser. Safe to call again: see `registerThisBrowser`.
  *
  * Returns why it could not, rather than throwing, because every reason is
  * something to tell the user plainly: an old server, a browser without push, a
@@ -98,11 +104,23 @@ export async function enableWebPush(): Promise<{ ok: true } | { ok: false; reaso
 }
 
 /**
- * Get this browser subscribed at the push service and registered at Stalwart.
+ * Get this browser subscribed at the push service and registered at Stalwart,
+ * with exactly one subscription there, and that one current.
  *
- * Shared by turning push on and by renewing it, because they are the same
- * call: `deviceClientId` makes a repeat registration replace rather than
- * accumulate, so there is no separate "update" path to get wrong.
+ * Shared by turning push on and by renewing it. It used to create a new
+ * subscription every time, on the belief that a repeated `deviceClientId`
+ * replaces the old one. Stalwart keeps both (checked live on 0.16.22), so each
+ * renewal added one, every start inside the renewal window added another, and
+ * the account reached its limit of fifteen -- "too many subscriptions" (#375).
+ * Now:
+ *
+ * - the same endpoint as last time, already registered: extend the newest one
+ *   when it is close to expiring, and remove any extra copies;
+ * - anything else -- a new endpoint, nothing registered, an extension the
+ *   server refused: remove this browser's old ones and register afresh.
+ *
+ * A registration refused for `overQuota` makes room among other browsers'
+ * subscriptions (`roomToMake`) and is tried once more.
  *
  * The local subscription is created when it is missing rather than only reused.
  * A browser may drop or rotate one on its own -- a `pushsubscriptionchange`
@@ -117,9 +135,35 @@ async function registerThisBrowser(key: string): Promise<void> {
     userVisibleOnly: true,
     applicationServerKey: decodeApplicationServerKey(key),
   }));
-  const accountId = useSession.getState().ownAccountFor(CAP.mail);
-  const inboxId = useMail.getState().roleId("inbox");
-  await createSubscription(subscriptionPayload(sub, accountId, inboxId));
+  const deviceId = deviceClientId();
+  const subs = await listSubscriptions();
+  const mine = mySubscriptions(subs, deviceId);
+  const [newest, ...extra] = mine;
+
+  if (newest && registeredEndpoint() === sub.endpoint) {
+    if (extra.length) await destroySubscriptions(extra.map((s) => s.id));
+    const at = newest.expires ? Date.parse(newest.expires) : Number.NaN;
+    if (!newest.expires || (!Number.isNaN(at) && at - Date.now() > RENEW_WITHIN_MS)) return;
+    try {
+      await extendSubscription(newest.id);
+      return;
+    } catch {
+      /* not extendable: replaced below */
+    }
+  }
+
+  if (mine.length) await destroySubscriptions(mine.map((s) => s.id));
+  const payload = subscriptionPayload(sub, useSession.getState().ownAccountFor(CAP.mail), useMail.getState().roleId("inbox"));
+  try {
+    await createSubscription(payload);
+  } catch (err) {
+    if (!(err instanceof PushSetError) || err.type !== "overQuota") throw err;
+    const room = roomToMake(subs.filter((s) => !mine.includes(s)), deviceId);
+    if (!room.length) throw err;
+    await destroySubscriptions(room);
+    await createSubscription(payload);
+  }
+  rememberEndpoint(sub.endpoint);
 }
 
 /**
@@ -141,7 +185,8 @@ export async function renewWebPush(): Promise<void> {
   const key = applicationServerKey();
   if (!key) return;
   try {
-    if (!needsRenewal(await listSubscriptions(), deviceClientId())) return;
+    // Cheap when nothing is due: one read, and a write only when a
+    // subscription is close to expiring, missing, or duplicated.
     await registerThisBrowser(key);
     listenForVerification();
   } catch {

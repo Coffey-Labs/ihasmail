@@ -133,3 +133,55 @@ test("a tab on the relay is moved to fan-out when its account verifies, and its 
     assert.match(out.written.at(-1) ?? "", /StateChange/, "the same browser stream now receives fan-out");
   } finally { restore(); }
 });
+
+test("a new subscription clears what this installation left behind, and only that", async () => {
+  // What a restart finds: its own subscription from the last process, another
+  // installation's on the same server, a browser's, and the old id format.
+  const calls: Array<[string, Record<string, unknown>]> = [];
+  let ownPrefix = "";
+  const real = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (url.endsWith("/.well-known/jmap") || url.includes("/jmap/session")) {
+      return new Response(JSON.stringify({ apiUrl: "http://127.0.0.1:1/jmap/", primaryAccounts: { "urn:ietf:params:jmap:mail": "a" },
+        accounts: { a: {} }, capabilities: {}, eventSourceUrl: "", downloadUrl: "", uploadUrl: "", state: "s" }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    const { methodCalls } = JSON.parse(String(init?.body)) as { methodCalls: [string, Record<string, unknown>, string][] };
+    const [name, args, id] = methodCalls[0]!;
+    calls.push([name, args]);
+    let result: Record<string, unknown> = {};
+    if (name === "PushSubscription/get") {
+      result = { list: [
+        { id: "mine-before", deviceClientId: `${ownPrefix}oldtoken` },
+        { id: "other-install", deviceClientId: "ihasmail-proxy-ZZZZZZZZZZ-12345678" },
+        { id: "a-browser", deviceClientId: "ihasmail-00000000-0000-4000-8000-000000000001" },
+        { id: "old-format", deviceClientId: "ihasmail-Ab3_x9Qz" },
+      ] };
+    } else if (name === "PushSubscription/set" && args.create) {
+      const body = (args.create as Record<string, { deviceClientId: string }>).s!;
+      result = { created: { s: { id: "fresh", expires: new Date(Date.now() + 7 * 86_400_000).toISOString() } } };
+      calls.at(-1)![1] = { ...args, deviceClientId: body.deviceClientId };
+    } else {
+      result = { destroyed: args.destroy };
+    }
+    return new Response(JSON.stringify({ methodResponses: [[name, result, id]] }), { status: 200, headers: { "content-type": "application/json" } });
+  }) as typeof fetch;
+  try {
+    // The installation's prefix, learned the way the server makes it: from its first create.
+    push.prepare("probe-prefix@example.com", "a", "Basic p");
+    await new Promise((r) => setTimeout(r, 30));
+    const firstCreate = calls.find(([n, a]) => n === "PushSubscription/set" && a.create);
+    const deviceId = String(firstCreate?.[1].deviceClientId ?? "");
+    assert.match(deviceId, /^ihasmail-proxy-[A-Za-z0-9_-]{10}-[A-Za-z0-9_-]{8}$/, "the server's own prefix, naming the installation");
+    ownPrefix = deviceId.slice(0, deviceId.lastIndexOf("-") + 1);
+
+    calls.length = 0;
+    push.prepare("restart@example.com", "a", "Basic r");
+    await new Promise((r) => setTimeout(r, 30));
+    const destroyed = calls.filter(([n, a]) => n === "PushSubscription/set" && a.destroy).flatMap(([, a]) => a.destroy as string[]);
+    assert.deepEqual(destroyed, ["mine-before"], "only this installation's leftover goes");
+    assert.ok(calls.some(([n, a]) => n === "PushSubscription/set" && a.create), "and a new one is made");
+  } finally {
+    globalThis.fetch = real;
+  }
+});

@@ -23,7 +23,7 @@
  * transition loses no events, because a tab opened before verification keeps
  * its own relay for its whole life.
  */
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import type { ServerResponse } from "node:http";
 import { config } from "./config.js";
 import { absoluteUpstream, getUpstreamSession, upstreamFor } from "./upstream.js";
@@ -71,10 +71,58 @@ async function jmap(entry: AccountPush, calls: unknown[]) {
   return (await res.json()) as { methodResponses: [string, Record<string, unknown>, string][] };
 }
 
+/*
+ * Whose subscriptions are whose.
+ *
+ * Each process used to register a subscription per account and forget it when
+ * it stopped -- state here is in memory, and an immutable deployment restarts
+ * on every deploy -- so each restart left one more behind, receiving 404s until
+ * it expired. Stalwart keeps them all and allows fifteen per account (checked
+ * live on 0.16.22, 2026-09-16), which the browser subscriptions count against
+ * too (#375).
+ *
+ * So the device id names the installation -- a hash of the address Stalwart
+ * posts to, stable across restarts and different for another installation on
+ * the same server -- and a new subscription first removes the ones this
+ * installation left before. The `ihasmail-proxy-` prefix keeps them apart from
+ * the browsers' own, which the web client may clear to make room.
+ */
+function installationId(): string {
+  return createHash("sha256").update(`${config.pushUrl}${config.basePath}`).digest("base64url").slice(0, 10);
+}
+
+function deviceIdFor(entry: AccountPush): string {
+  return `ihasmail-proxy-${installationId()}-${entry.token.slice(0, 8)}`;
+}
+
+async function removeLeftovers(entry: AccountPush) {
+  const mine = `ihasmail-proxy-${installationId()}-`;
+  const r = await jmap(entry, [["PushSubscription/get", { ids: null, properties: ["id", "deviceClientId"] }, "0"]]);
+  const list = (r.methodResponses[0]?.[1] as { list?: Array<{ id: string; deviceClientId?: string }> }).list ?? [];
+  const stale = list.filter((s) => s.id !== entry.subscriptionId && String(s.deviceClientId ?? "").startsWith(mine)).map((s) => s.id);
+  if (stale.length) await jmap(entry, [["PushSubscription/set", { destroy: stale }, "0"]]);
+}
+
+/** Give the live subscription another week, rather than registering a second one. */
+async function renew(entry: AccountPush) {
+  const expires = new Date(Date.now() + 7 * 86_400_000).toISOString().replace(/\.\d+Z$/, "Z");
+  const r = await jmap(entry, [["PushSubscription/set", { update: { [entry.subscriptionId!]: { expires } } }, "0"]]);
+  const res = r.methodResponses[0]?.[1] as { updated?: Record<string, unknown>; notUpdated?: Record<string, unknown> };
+  if (!res.updated || !(entry.subscriptionId! in res.updated)) throw new Error("subscription not extended");
+  const got = await jmap(entry, [["PushSubscription/get", { ids: [entry.subscriptionId], properties: ["expires"] }, "0"]]);
+  const after = (got.methodResponses[0]?.[1] as { list?: Array<{ expires?: string | null }> }).list?.[0]?.expires;
+  entry.expires = after ? Date.parse(after) : Date.parse(expires);
+}
+
 async function subscribe(entry: AccountPush) {
+  try {
+    await removeLeftovers(entry);
+  } catch (err) {
+    console.warn(`[ihasmail] push: could not clear old subscriptions for ${entry.username}: ${(err as Error).message}`);
+  }
   const url = `${config.pushUrl!.replace(/\/$/, "")}${config.basePath}/api/push/${entry.token}`;
   const r = await jmap(entry, [["PushSubscription/set", {
-    create: { s: { deviceClientId: `ihasmail-${entry.token.slice(0, 8)}`, url,
+    create: { s: { deviceClientId: deviceIdFor(entry), url,
                    types: ["Email", "Mailbox", "Thread", "Identity", "EmailSubmission", "VacationResponse"] } },
   }, "0"]]);
   const created = (r.methodResponses[0]?.[1] as { created?: Record<string, { id: string; expires?: string }> }).created?.s;
@@ -184,8 +232,13 @@ function startSweeper() {
         console.warn(`[ihasmail] push: no verification for ${entry.username} within ${VERIFY_TIMEOUT_MS / 1000}s; relay in use`);
       }
       if (entry.state === "verified" && entry.expires - now < RENEW_BEFORE_MS) {
-        entry.state = "pending"; entry.since = now;
-        subscribe(entry).catch(() => { entry.state = "failed"; });
+        // Extended in place, which keeps it verified. Only if the server will
+        // not is a new one registered, and that one has to verify again.
+        entry.expires = now + RENEW_BEFORE_MS;
+        renew(entry).catch(() => {
+          entry.state = "pending"; entry.since = Date.now();
+          subscribe(entry).catch(() => { entry.state = "failed"; });
+        });
       }
       if (entry.tabs.size === 0 && (entry.state === "failed" || now - entry.since > 10 * 60_000)) {
         void unsubscribe(entry);
