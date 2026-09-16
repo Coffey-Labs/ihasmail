@@ -1,5 +1,5 @@
 import { checkOtp } from "./auth.js";
-import { emailChanges, recordEmailChange, broadcast } from "./events.js";
+import { cardChanges, cardLog, emailChanges, recordCardChange, recordEmailChange, broadcast } from "./events.js";
 import { randomUUID } from "node:crypto";
 import { eventGetView, expandOccurrences, occurrenceAt, occurrenceView, parseSyntheticId, splitOccurrencePatch, syntheticId, type Occurrence } from "./recurrence.js";
 import { holdUntilOf, undoStatusOf } from "./futurerelease.js";
@@ -428,7 +428,29 @@ export const handlers: Record<string, Handler> = {
   // An empty `properties` list returns `id` alone, which `pick` already does.
   // 0.16.22 made Stalwart agree; through 0.16.21 it returned every property.
   "ContactCard/get": (a) => genericGet(a.accountId === SHARED_ACCOUNT ? sharedCards : cards)(a),
-  "ContactCard/set": genericSet(cards, "cc"),
+  /*
+   * Recorded and announced like Email/set, so the client's incremental sync
+   * (`ContactCard/changes`, then fetching what it names) runs here too. A
+   * state older than the log's window cannot be answered, as on a real server.
+   */
+  "ContactCard/set": (a) => {
+    const r = genericSet(cards, "cc")(a);
+    nextState();
+    recordCardChange({
+      created: Object.values((r.created ?? {}) as Record<string, { id: string }>).map((x) => x.id),
+      updated: Object.keys((r.updated ?? {}) as Obj),
+      destroyed: (r.destroyed as string[] | undefined) ?? [],
+    });
+    broadcast(["ContactCard"]);
+    return r;
+  },
+  "ContactCard/changes": (a) => {
+    const since = Number(a.sinceState ?? 0);
+    if (since < cardLog.floor) throw new MethodError("cannotCalculateChanges", "That state is too old to answer from.");
+    const relevant = cardChanges.filter((c) => c.state > since);
+    const pick = (k: "created" | "updated" | "destroyed") => [...new Set(relevant.flatMap((c) => c[k]))];
+    return { accountId: a.accountId ?? ACCOUNT, oldState: String(a.sinceState ?? "1"), newState: String(state.n), hasMoreChanges: false, created: pick("created"), updated: pick("updated"), destroyed: pick("destroyed") };
+  },
   "ContactCard/parse": (a) => { const parsed: Obj = {}; for (const b of a.blobIds as string[]) { const t = blobs.get(b)?.data.toString() ?? ""; const fn = /^FN:(.*)$/m.exec(t)?.[1]?.trim() ?? "Imported"; const em = /^EMAIL[^:]*:(.*)$/m.exec(t)?.[1]?.trim(); parsed[b] = [{ "@type": "Card", version: "1.0", uid: randomUUID(), kind: "individual", name: { full: fn }, emails: em ? { e1: { address: em } } : undefined }]; } return { accountId: ACCOUNT, parsed, notParsable: [] }; },
   "FileNode/query": (a) => {
     const f = (a.filter as Obj) ?? {};
