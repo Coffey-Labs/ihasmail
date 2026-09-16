@@ -183,6 +183,24 @@ export function MailView({ mailboxId, threadId, search }: { mailboxId?: string; 
     return -1;
   }, [ids, focusId, openMessageId, threadId, rowThreadId]);
 
+  /*
+   * Reading down a folder usually means the next row is next. Once the open
+   * conversation has had its turn, the one below starts loading while the
+   * reader reads, so moving on waits on nothing.
+   */
+  const nextRowId = threadId && currentRowIndex >= 0 ? ids[currentRowIndex + 1] : undefined;
+  const nextThreadId = nextRowId ? rowThreadId(nextRowId) : undefined;
+  useEffect(() => {
+    if (!nextThreadId || nextThreadId === threadId) return;
+    const start = () => useMail.getState().prefetchThread(nextThreadId);
+    if (typeof window.requestIdleCallback === "function") {
+      const handle = window.requestIdleCallback(start, { timeout: 2000 });
+      return () => window.cancelIdleCallback(handle);
+    }
+    const handle = window.setTimeout(start, 500);
+    return () => window.clearTimeout(handle);
+  }, [nextThreadId, threadId]);
+
   /** Email ids affected by an action on rows (selection or focused/open row). */
   const targetIds = useCallback(
     async (rowIds?: Id[]): Promise<Id[]> => {

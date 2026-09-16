@@ -1,4 +1,4 @@
-import { Fragment, lazy, memo, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent, type ReactNode } from "react";
+import { Fragment, lazy, memo, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type DragEvent, type MouseEvent, type PointerEvent, type ReactNode } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useShallow } from "zustand/react/shallow";
 import { Archive, ArrowLeft, CalendarDays, CalendarRange, CalendarPlus, CheckSquare, FolderInput, PanelRight, PanelBottom, PanelTop, Filter, Inbox, Mail, MailOpen, MailPlus, MoreVertical, Paperclip, RefreshCw, Reply, Search, Star, Tag, Trash2, AlertOctagon, Forward, Eraser, ShieldCheck, X } from "lucide-react";
@@ -718,6 +718,27 @@ function RowView({ email: e, threadEmails, top, height, selected, focused, open,
     },
   });
 
+  /*
+   * A conversation starts loading when the pointer settles on its row, or the
+   * moment a finger or button goes down, so that on a slow link the click
+   * finds it on its way. Drafts open in the composer instead.
+   */
+  const hover = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(hover.current), []);
+  const prefetch = () => {
+    if (!isDrafts) useMail.getState().prefetchThread(e.threadId);
+  };
+  const onPointerEnter = (ev: PointerEvent) => {
+    if (ev.pointerType !== "mouse") return;
+    window.clearTimeout(hover.current);
+    hover.current = window.setTimeout(prefetch, 80);
+  };
+  const onPointerLeave = () => window.clearTimeout(hover.current);
+  const onPointerDown = (ev: PointerEvent<HTMLDivElement>) => {
+    prefetch();
+    gesture.onPointerDown?.(ev);
+  };
+
   const onDragStart = (ev: DragEvent) => {
     // Read when the drag starts, so the row need not re-render on every change of selection.
     const selectedIds = useMail.getState().selected;
@@ -754,6 +775,9 @@ function RowView({ email: e, threadEmails, top, height, selected, focused, open,
       draggable={!touch}
       onDragStart={onDragStart}
       {...gesture}
+      onPointerDown={onPointerDown}
+      onPointerEnter={onPointerEnter}
+      onPointerLeave={onPointerLeave}
       role="row"
       aria-selected={selected}
     >
