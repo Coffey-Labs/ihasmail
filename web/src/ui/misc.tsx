@@ -8,10 +8,13 @@ import { t } from "@/lib/i18n";
 export function Avatar({ who, size, className }: { who: EmailAddress | { name?: string | null; email?: string } | string | null | undefined; size?: "sm" | "lg" | "xl"; className?: string }) {
   const email = typeof who === "string" ? who : (who?.email ?? "");
   const name = typeof who === "string" ? who : (who?.name ?? who?.email ?? "");
+  // Whatever cards are held count, the reader's own or a shared book's; the
+  // photo is fetched from the account the card belongs to.
   const photo = useContacts((s) => {
-    if (!email || !s.loaded) return null;
+    if (!email) return null;
     const c = s.lookupByEmail(email);
-    return c && s.accountId ? contactPhoto(c, s.accountId) : null;
+    const account = c ? (s.accountOfCard(c.id) ?? s.accountId) : null;
+    return c && account ? contactPhoto(c, account) : null;
   });
   return (
     <span className={`avatar ${size ?? ""} ${className ?? ""}`} style={{ background: photo ? "transparent" : avatarColor(email || name) }} aria-hidden="true">

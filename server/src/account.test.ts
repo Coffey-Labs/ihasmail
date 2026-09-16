@@ -144,6 +144,21 @@ test("upstream caches let go of sessions that have aged out", async () => {
   assert.deepEqual(upstreamCacheSizes(), { sessions: 0, info: 0 });
 });
 
+test("the mock refuses a contact photo given as a blob id, as Stalwart does", async () => {
+  const jmap = (methodCalls: unknown[]) => call("/api/jmap", { method: "POST", body: JSON.stringify({ using: ["urn:ietf:params:jmap:core", "urn:ietf:params:jmap:contacts"], methodCalls }) });
+  const card = (media: unknown) => ({ "@type": "Card", version: "1.0", kind: "individual", name: { full: "Probe" }, addressBookIds: { ab1: true }, media });
+  const res = await jmap([["ContactCard/set", { accountId: "a1", create: {
+    blob: card({ p: { "@type": "Media", kind: "photo", blobId: "b1", mediaType: "image/jpeg" } }),
+    inline: card({ p: { "@type": "Media", kind: "photo", uri: "data:image/jpeg;base64,AA", mediaType: "image/jpeg" } }),
+  } }, "s"]]);
+  assert.equal(res.status, 200);
+  const set = res.body.methodResponses[0][1];
+  assert.equal(set.notCreated.blob.description, "blobIds in media is not supported.");
+  assert.deepEqual(set.notCreated.blob.properties, ["media"]);
+  assert.ok(set.created.inline.id, "a data URI is accepted");
+  await jmap([["ContactCard/set", { accountId: "a1", destroy: [set.created.inline.id] }, "d"]]);
+});
+
 test("an app password needs a name", async () => {
   const res = await post("/api/account/app-passwords", { description: "   ", current: "demo-password" });
   assert.equal(res.status, 400);

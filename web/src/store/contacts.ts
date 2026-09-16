@@ -277,6 +277,13 @@ export const useContacts = create<ContactsState>((set, get) => ({
     if (!available) return;
     await get().loadBooks();
     void get().loadShared();
+    /*
+     * The cards too, in the background. The avatars in the mail list come from
+     * them, and nothing else loaded them until Contacts was opened or an
+     * address was typed -- so a photo appeared once somebody did either, and
+     * was gone again after the next reload (#376).
+     */
+    if (!get().loaded) void get().loadAll();
   },
 
   /*
