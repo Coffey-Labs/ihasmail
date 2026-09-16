@@ -97,3 +97,21 @@ export function resolveClientIp(peer: string, headers: ForwardHeaders, cfg: Trus
   const real = headers.realIp?.trim();
   return real && isIP(real) !== 0 ? real : peer;
 }
+
+/**
+ * The key a rate limit counts an address under.
+ *
+ * An IPv4 address is the key as it is. An IPv6 address is cut to its /64: that
+ * is the smallest block an ISP or a VPS hands out, so anyone who holds one
+ * address holds 2^64 of them, and a limit keyed on the full address is no
+ * limit. Everyone behind one /64 shares a budget, which is the same bargain an
+ * IPv4 NAT already makes.
+ */
+export function rateLimitKey(ip: string): string {
+  if (isIP(ip) !== 6) return ip;
+  const bits = toBits(ip);
+  if (!bits) return ip;
+  const prefix = bits.value >> 64n;
+  const groups = [48n, 32n, 16n, 0n].map((s) => ((prefix >> s) & 0xffffn).toString(16));
+  return `${groups.join(":")}::/64`;
+}
