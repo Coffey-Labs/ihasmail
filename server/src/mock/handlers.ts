@@ -455,7 +455,23 @@ export const handlers: Record<string, Handler> = {
    * state older than the log's window cannot be answered, as on a real server.
    */
   "ContactCard/set": (a) => {
-    const r = genericSet(cards, "cc")(a);
+    /*
+     * Stalwart refuses a `blobId` inside `media` (0.16.22, checked live on
+     * 2026-09-16), and takes the whole call down for it. The mock took
+     * anything, which is how ihasmail shipped a photo upload that never
+     * worked against the real server (#376).
+     */
+    const withBlobMedia = (o: unknown) => Object.values(((o as Obj)?.media as Record<string, Obj> | null) ?? {}).some((m) => m && "blobId" in m);
+    const refuse = { type: "invalidProperties", description: "blobIds in media is not supported.", properties: ["media"] };
+    const create = { ...((a.create as Obj) ?? {}) };
+    const update = { ...((a.update as Obj) ?? {}) };
+    const notCreated: Obj = {};
+    const notUpdated: Obj = {};
+    for (const [k, v] of Object.entries(create)) if (withBlobMedia(v)) { notCreated[k] = refuse; delete create[k]; }
+    for (const [k, v] of Object.entries(update)) if (withBlobMedia(v)) { notUpdated[k] = refuse; delete update[k]; }
+    const r = genericSet(cards, "cc")({ ...a, create, update });
+    if (Object.keys(notCreated).length) r.notCreated = { ...((r.notCreated as Obj) ?? {}), ...notCreated };
+    if (Object.keys(notUpdated).length) r.notUpdated = notUpdated;
     nextState();
     recordCardChange({
       created: Object.values((r.created ?? {}) as Record<string, { id: string }>).map((x) => x.id),

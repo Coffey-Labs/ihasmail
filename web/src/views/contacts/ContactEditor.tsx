@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Plus, Trash2, Camera, X } from "lucide-react";
 import type { ContactCard, JSContactAddress, JSContactEmail, JSContactPhone } from "@/jmap/types";
 import { useContacts } from "@/store/contacts";
-import { buildName, contactDisplayName, nameParts, newKey } from "@/lib/contacts";
+import { buildName, contactDisplayName, nameParts, newKey, withPhoto } from "@/lib/contacts";
 import { Dialog } from "@/ui/dialog";
 import { DateField } from "@/ui/datefield";
 import { toast } from "@/ui/toast";
@@ -105,16 +105,9 @@ export function ContactEditor({ card, defaultBookId, onClose, onSaved }: Props) 
       obj.links = website ? { [newKey("l")]: { "@type": "Link", uri: /^https?:/i.test(website) ? website : `https://${website}` } } : null;
       obj.notes = note.trim() ? { [newKey("x")]: { "@type": "Note", note: note.trim() } } : null;
       obj.members = kind === "group" && memberUids.length ? Object.fromEntries(memberUids.map((u) => [u, true])) : null;
-      if (photo) {
-        const m = /^data:([^;]+);base64,(.*)$/s.exec(photo.dataUrl);
-        if (m) {
-          const bin = atob(m[2]!);
-          const bytes = new Uint8Array(bin.length);
-          for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-          const up = await client.upload(contacts.accountId!, new Blob([bytes], { type: m[1]! }), { type: m[1]! });
-          obj.media = { [newKey("p")]: { "@type": "Media", kind: "photo", blobId: up.blobId, mediaType: m[1]! } };
-        }
-      } else if (removePhoto) obj.media = null;
+      // Inline, not uploaded: see `withPhoto`. The card's other media stays.
+      if (photo) obj.media = withPhoto(card.media, photo);
+      else if (removePhoto) obj.media = withPhoto(card.media, null);
       if (isNew) {
         const id = await contacts.createCard(obj as Partial<ContactCard>, bookId);
         toast.success(t("Contact created"));
