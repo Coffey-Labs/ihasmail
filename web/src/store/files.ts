@@ -50,7 +50,10 @@ interface FilesState {
    */
   draggingIds: Id[];
 
+  /** Whether Files is available and which account is the reader's. No round trip. */
   init(): Promise<void>;
+  /** Ask each shared account whether it holds files; see the note on it. */
+  discoverShared(): Promise<void>;
   /** Browse an account: the reader's own, or one shared with them. */
   openAccount(accountId: Id | null): void;
   loadChildren(parentId: Id | null): Promise<void>;
@@ -138,6 +141,17 @@ export const useFiles = create<FilesState>((set, get) => ({
     const session = useSession.getState();
     const ownAccountId = session.ownAccountFor(CAP.filenode);
     const available = Boolean(ownAccountId && client.hasCapability(CAP.filenode));
+    // Stay where the reader is if the session still offers that account;
+    // whether it still holds files is `discoverShared`'s to say.
+    const browsing = get().accountId;
+    const offered = Object.entries(session.session?.accounts ?? {}).some(([id, a]) => id === browsing && a.isPersonal === false);
+    if (!(browsing && (browsing === ownAccountId || offered))) set(emptyForAccount(ownAccountId));
+    set({ available, ownAccountId });
+  },
+
+  async discoverShared() {
+    const session = useSession.getState();
+    const ownAccountId = get().ownAccountId;
     /*
      * Which accounts hold shared files cannot be worked out from capabilities:
      * Stalwart advertises the whole set on a shared account -- mail, calendars,
@@ -151,23 +165,29 @@ export const useFiles = create<FilesState>((set, get) => ({
      * account whose calendar or contacts were the thing actually shared. An
      * account that shares no files does not belong in a list of shared files.
      */
+    /*
+     * Not at sign-in: only the Files view and the file picker list shared
+     * accounts, and each opening asks afresh. The questions go out together --
+     * calls made in one tick share a request -- rather than one account after
+     * another.
+     */
     const s = session.session;
     const candidates = Object.entries(s?.accounts ?? {}).filter(([, a]) => a.isPersonal === false);
-    const sharedAccounts: SharedAccount[] = [];
-    for (const [id, a] of candidates) {
-      try {
-        const res = await client.call<QueryResponse>("FileNode/query", { accountId: id, limit: 1 });
-        if (res.ids.length) sharedAccounts.push({ id, name: a.name });
-      } catch {
-        // Refused means nothing here is ours to see, which is the same answer.
-        continue;
-      }
-    }
+    const answers = await Promise.all(
+      candidates.map(([id, a]) =>
+        client.call<QueryResponse>("FileNode/query", { accountId: id, limit: 1 }).then(
+          (res): SharedAccount | null => (res.ids.length ? { id, name: a.name } : null),
+          // Refused means nothing here is ours to see, which is the same answer.
+          () => null,
+        ),
+      ),
+    );
+    const sharedAccounts = answers.filter((a): a is SharedAccount => a !== null);
     // Stay where the reader is if they are reading a share that still exists.
     const browsing = get().accountId;
     const keep = browsing && (browsing === ownAccountId || sharedAccounts.some((a) => a.id === browsing));
     if (!keep) set(emptyForAccount(ownAccountId));
-    set({ available, ownAccountId, sharedAccounts });
+    set({ sharedAccounts });
   },
 
   openAccount(accountId) {

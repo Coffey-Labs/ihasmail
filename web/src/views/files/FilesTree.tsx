@@ -32,6 +32,7 @@ async function refreshShares(force = false): Promise<void> {
     return;
   }
   await useFiles.getState().init();
+  await useFiles.getState().discoverShared();
 }
 
 

@@ -294,7 +294,9 @@ export const useContacts = create<ContactsState>((set, get) => ({
     }
     const books: SharedBook[] = [];
     const cards: Record<string, ContactCard> = {};
-    for (const [accountId, account] of accounts) {
+    // Every account at once: calls made in one tick share a request, where a
+    // loop sent one after another for each account shared with the reader.
+    await Promise.all(accounts.map(async ([accountId, account]) => {
       try {
         const res = await client.call<GetResponse<AddressBook>>("AddressBook/get", { accountId, ids: null, properties: ADDRESS_BOOK_PROPS });
         for (const book of res.list) books.push({ accountId, accountName: account.name, book });
@@ -310,7 +312,7 @@ export const useContacts = create<ContactsState>((set, get) => ({
          */
         const added = new Set(useSettings.getState().settings.addedShares);
         const wanted = new Set(res.list.filter((b) => b.isSubscribed || added.has(sharedKey(accountId, b.id))).map((b) => b.id));
-        if (!wanted.size) continue;
+        if (!wanted.size) return;
         // One page. A shared book is a colleague's contacts, not an archive,
         // and the alternative is holding the reader's own list hostage to it.
         const cardsRes = await client.chain([
@@ -325,9 +327,11 @@ export const useContacts = create<ContactsState>((set, get) => ({
       } catch {
         // An account that refuses is one that shared nothing here. Not an
         // error to show: the reader did not ask for it and cannot act on it.
-        continue;
       }
-    }
+    }));
+    // Answers arrive in any order; list the books in the session's.
+    const order = new Map(accounts.map(([id], i) => [id, i]));
+    books.sort((a, b) => (order.get(a.accountId) ?? 0) - (order.get(b.accountId) ?? 0));
     set({ sharedBooks: books, sharedCards: cards, sharedLoaded: true });
   },
 
