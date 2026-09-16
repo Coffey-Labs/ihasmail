@@ -58,6 +58,12 @@ check has passed — not afterwards — and the branch cannot be force-pushed or
 deleted. No approving review is required, so a PR of your own is not blocked
 waiting for one.
 
+**CI on a PR from a fork waits to be approved.** Every workflow run on an
+outside contributor's branch sits at *awaiting approval* until a maintainer
+starts it by hand, so the **build** check will not appear the moment you open
+the PR — that is the gate working, not a broken run. Pushing again will not
+start it, and neither will closing and reopening.
+
 ### Code Style
 
 - Match the existing formatting and naming conventions used elsewhere in the codebase.
