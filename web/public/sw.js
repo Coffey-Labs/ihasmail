@@ -86,14 +86,59 @@ async function tidy() {
   }
 }
 
-/** Keep the offline copy of the app page current, and tidy when it changes. */
+/** Keep the offline copy of the app page current, tidy when it changes, and fill in what it lists. */
 async function refreshShell(res) {
   const html = await res.text();
   const cache = await caches.open(VERSION);
   const prev = await cache.match(SHELL_KEY);
-  if (prev && (await prev.text()) === html) return;
-  await cache.put(SHELL_KEY, new Response(html, { headers: { "content-type": "text/html; charset=utf-8" } }));
-  await tidy();
+  if (!prev || (await prev.text()) !== html) {
+    await cache.put(SHELL_KEY, new Response(html, { headers: { "content-type": "text/html; charset=utf-8" } }));
+    await tidy();
+  }
+  await precache(html);
+}
+
+/*
+ * Fetching the rest of the build before it is asked for.
+ *
+ * The app page lists every file of its build (see the asset-list plugin in
+ * vite.config.ts). Without this, the first time after a deploy that a reader
+ * opened the composer, settings or a viewer, it waited on the server for the
+ * code -- on a distant link, a visible pause. Now those files are fetched
+ * quietly once a page names them, a few at a time, and only those not held
+ * already; a load cut short is carried on at the next navigation, which calls
+ * this again. Language catalogs are left to be cached when used, and nothing
+ * is fetched ahead when the reader has asked the browser to save data.
+ */
+const PRECACHE_PARALLEL = 3;
+
+function precacheList(html) {
+  const m = html.match(/<script type="application\/json" id="ihasmail-assets">([^<]*)<\/script>/);
+  if (!m) return [];
+  try {
+    const list = JSON.parse(m[1]).precache;
+    return Array.isArray(list) ? list.filter((p) => typeof p === "string" && p.startsWith(ASSETS)) : [];
+  } catch {
+    return [];
+  }
+}
+
+async function precache(html) {
+  if (self.navigator.connection && self.navigator.connection.saveData) return;
+  const cache = await caches.open(VERSION);
+  const wanted = [];
+  for (const path of precacheList(html)) if (!(await cache.match(path))) wanted.push(path);
+  const next = async () => {
+    for (let path = wanted.shift(); path; path = wanted.shift()) {
+      try {
+        const res = await fetch(path, { credentials: "same-origin" });
+        if (res.ok) await cache.put(path, res);
+      } catch {
+        /* offline, or a deploy changing over; the next navigation tries again */
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: PRECACHE_PARALLEL }, next));
 }
 
 /*
