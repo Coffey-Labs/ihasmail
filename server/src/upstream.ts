@@ -233,6 +233,23 @@ export interface AccountInfo {
 
 const infoCache = new Map<string, { info: AccountInfo; fetchedAt: number }>();
 const INFO_CACHE_MS = 30 * 60_000;
+
+/*
+ * Both caches are keyed by session, and used to lose an entry only when that
+ * session signed out or was refused -- not when it simply expired, which is how
+ * most sessions end. An entry past its age is never used again, so dropping
+ * those on a timer is all it takes to stop them accumulating.
+ */
+export function sweepUpstreamCaches(now = Date.now()): void {
+  for (const [id, v] of sessionCache) if (now - v.fetchedAt >= SESSION_CACHE_MS) sessionCache.delete(id);
+  for (const [id, v] of infoCache) if (now - v.fetchedAt >= INFO_CACHE_MS) infoCache.delete(id);
+}
+setInterval(() => sweepUpstreamCaches(), SESSION_CACHE_MS).unref();
+
+/** How many sessions the caches hold; for tests. */
+export function upstreamCacheSizes(): { sessions: number; info: number } {
+  return { sessions: sessionCache.size, info: infoCache.size };
+}
 const EMPTY_INFO: AccountInfo = { locale: null, edition: null, permissions: [] };
 
 /**

@@ -803,19 +803,26 @@ export function createApp(basePath = config.basePath): Hono<Env> {
     try {
       const upstream = await getUpstreamSession(session.id, session.authorization, upstreamFor(session.username));
       const url = absoluteUpstream(expandTemplate(upstream.downloadUrl, { accountId, blobId, name, type: accept }), upstream.baseUrl);
+      // A PDF viewer or a video element asks for pieces; pass that on. A server
+      // that ignores it answers with the whole file, as it did before.
+      const range = c.req.header("range");
       const res = await fetch(url, {
         // Ask for the bytes as they are. undici would otherwise negotiate gzip
         // on our behalf and hand back a decompressed body whose content-length
         // header still describes the compressed one -- see forwardedContentLength.
-        headers: { authorization: session.authorization, "accept-encoding": "identity" },
+        headers: { authorization: session.authorization, "accept-encoding": "identity", ...(range && /^bytes=[\d,\s-]+$/.test(range) ? { range } : {}) },
         signal: AbortSignal.timeout(Math.max(config.upstreamTimeout, 5 * 60_000)),
       });
+      if (res.status === 416) return c.body(null, 416);
       if (!res.ok) return c.json({ error: "not_found" }, res.status === 404 ? 404 : 502);
       const headers = new Headers();
       const type = sanitizeContentType(res.headers.get("content-type") ?? accept);
       headers.set("Content-Type", type);
       const cl = forwardedContentLength(res.headers);
       if (cl) headers.set("Content-Length", cl);
+      const partial = res.status === 206 && res.headers.get("content-range");
+      if (partial) headers.set("Content-Range", partial);
+      if (res.headers.get("accept-ranges") === "bytes") headers.set("Accept-Ranges", "bytes");
       const safeInline = inline && isInlineSafe(type);
       headers.set(
         "Content-Disposition",
@@ -840,8 +847,13 @@ export function createApp(basePath = config.basePath): Hono<Env> {
       }
       // Kept out of the browser's disk cache on a device that is not the
       // person's own: signing out wipes what the app stores, not that.
-      headers.set("Cache-Control", session.remember ? "private, max-age=3600" : "no-store");
-      return new Response(res.body, { status: 200, headers });
+      /*
+       * A blob id names its content -- the same id is the same bytes for good
+       * -- so on the reader's own device there is nothing to revalidate. On
+       * anyone else's, nothing is left in the disk cache at all.
+       */
+      headers.set("Cache-Control", session.remember ? "private, max-age=31536000, immutable" : "no-store");
+      return new Response(res.body, { status: partial ? 206 : 200, headers });
     } catch (err) {
       return upstreamFailure(c, err);
     }

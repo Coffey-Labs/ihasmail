@@ -138,7 +138,21 @@ export const server = createServer(async (req, res) => {
     const [, , , , blobId] = url.pathname.split("/");
     const b = blobs.get(blobId ?? "");
     if (!b) { res.writeHead(404); return res.end(); }
-    res.writeHead(200, { "content-type": url.searchParams.get("accept") ?? b.type, "content-length": b.data.length });
+    const type = url.searchParams.get("accept") ?? b.type;
+    // One byte range, the way a PDF viewer or a video element asks for one.
+    const m = /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range ?? ""));
+    if (m && (m[1] || m[2])) {
+      const size = b.data.length;
+      const start = m[1] ? Number(m[1]) : Math.max(0, size - Number(m[2]));
+      const end = m[1] && m[2] ? Math.min(Number(m[2]), size - 1) : size - 1;
+      if (start >= size || start > end) {
+        res.writeHead(416, { "content-range": `bytes */${size}` });
+        return res.end();
+      }
+      res.writeHead(206, { "content-type": type, "content-length": end - start + 1, "content-range": `bytes ${start}-${end}/${size}`, "accept-ranges": "bytes" });
+      return res.end(b.data.subarray(start, end + 1));
+    }
+    res.writeHead(200, { "content-type": type, "content-length": b.data.length, "accept-ranges": "bytes" });
     return res.end(b.data);
   }
   /*
