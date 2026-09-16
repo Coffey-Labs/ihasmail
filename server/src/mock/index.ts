@@ -7,6 +7,8 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { parseOtpauthUrl, verifyTotp } from "../totp.js";
 import { gzipSync } from "node:zlib";
 import { ACCOUNT, MAX_DELAYED_SEND, MOCK_EDITION, MOCK_LOCALE, NO_REGISTRY, Obj, PASS, PERMISSION_SNAPSHOT, PORT, SHARED_ACCOUNT, SHARED_CAPS, USER, account, nextState, state } from "./config.js";
+
+const SESSION_STATE = "1";
 import { PING_FLOOR_SECONDS, addEmail, blobs, calendars, people, principals, putBlob, recount } from "./data.js";
 import { MAX_OBJECTS, MethodError, directory, enforceLimits, resolveRefs } from "./engine.js";
 import { handlers } from "./handlers.js";
@@ -63,7 +65,12 @@ const session = () => ({
   downloadUrl: `http://127.0.0.1:${PORT}/jmap/download/{accountId}/{blobId}/{name}?accept={type}`,
   uploadUrl: `http://127.0.0.1:${PORT}/jmap/upload/{accountId}/`,
   eventSourceUrl: `http://127.0.0.1:${PORT}/jmap/eventsource/?types={types}&closeafter={closeafter}&ping={ping}`,
-  state: String(state.n),
+  /*
+   * The session's own state, which the account's data changes do not move.
+   * It matches the sessionState on every JMAP reply below, as Stalwart's does;
+   * tying it to the data counter made every reply look like a session change.
+   */
+  state: SESSION_STATE,
 });
 
 
@@ -125,7 +132,7 @@ export const server = createServer(async (req, res) => {
     }
     if (touched.size) { nextState(); setTimeout(() => broadcast([...touched, ...(touched.has("Email") ? ["Mailbox", "Thread"] : [])]), 50); }
     res.writeHead(200, { "content-type": "application/json" });
-    return res.end(JSON.stringify({ methodResponses: responses, sessionState: "1" }));
+    return res.end(JSON.stringify({ methodResponses: responses, sessionState: SESSION_STATE }));
   }
   if (url.pathname.startsWith("/jmap/upload/") && req.method === "POST") {
     const data = await readBody(req);
