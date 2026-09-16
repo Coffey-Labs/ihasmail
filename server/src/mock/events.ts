@@ -18,6 +18,18 @@ export function recordEmailChange(change: { created?: string[]; updated?: string
   if (emailChanges.length > 200) emailChanges.splice(0, emailChanges.length - 200);
 }
 
+/** The same for contact cards, so `ContactCard/changes` can answer too. */
+export const cardChanges: Array<{ state: number; created: string[]; updated: string[]; destroyed: string[] }> = [];
+/** Changes at or below this state have been dropped from the log, so a client that far behind cannot be answered. */
+export const cardLog = { floor: 0 };
+export function recordCardChange(change: { created?: string[]; updated?: string[]; destroyed?: string[] }) {
+  cardChanges.push({ state: state.n, created: change.created ?? [], updated: change.updated ?? [], destroyed: change.destroyed ?? [] });
+  if (cardChanges.length > 200) {
+    const dropped = cardChanges.splice(0, cardChanges.length - 200);
+    cardLog.floor = dropped[dropped.length - 1]!.state;
+  }
+}
+
 export function broadcast(types: string[]) {
   const payload = `event: state\ndata: ${JSON.stringify({ "@type": "StateChange", changed: { [ACCOUNT]: Object.fromEntries(types.map((t) => [t, String(state.n)])) } })}\n\n`;
   for (const c of sseClients) c.write(payload);

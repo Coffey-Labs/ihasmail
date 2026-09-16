@@ -498,7 +498,8 @@ export const useCalendar = create<CalendarState>((set, get) => ({
     const accounts = [...new Set(shared.map((c) => c.accountId))];
     const ids: string[] = [];
     const events: Record<string, CalendarEvent> = {};
-    for (const accountId of accounts) {
+    // Every account at once, rather than one waiting on the last.
+    await Promise.all(accounts.map(async (accountId) => {
       try {
         const res = await client.chain([
           ["CalendarEvent/query", { accountId, filter: { after: toLocalDateTime(start), before: toLocalDateTime(end) }, timeZone: tz, sort: [{ property: "start", isAscending: true }], expandRecurrences: true, limit: 2000 }, "q"],
@@ -512,10 +513,9 @@ export const useCalendar = create<CalendarState>((set, get) => ({
         }
       } catch {
         // One account refusing must not empty the calendar of the others.
-        continue;
       }
-    }
-    set((s) => ({ sharedEvents: { ...s.sharedEvents, ...events }, sharedRanges: { ...s.sharedRanges, [key]: ids } }));
+    }));
+    set((s) => ({ sharedEvents: { ...s.sharedEvents, ...events }, sharedRanges: key in s.ranges ? { ...s.sharedRanges, [key]: ids } : s.sharedRanges }));
   },
 
   async loadCalendars() {
@@ -535,7 +535,12 @@ export const useCalendar = create<CalendarState>((set, get) => ({
     const accountId = get().accountId;
     if (!accountId) return;
     const key = `${start.getTime()}|${end.getTime()}`;
-    if (!force && get().ranges[key]) return;
+    const held = get().ranges[key];
+    if (!force && held) {
+      // Shown again, so the last to be dropped.
+      set((s) => ({ ranges: keepRecent(s.ranges, key, held) }));
+      return;
+    }
     set({ loading: true });
     const tz = settings().timeZone ?? browserTimeZone;
     try {
@@ -560,7 +565,8 @@ export const useCalendar = create<CalendarState>((set, get) => ({
       set((s) => {
         const events = { ...s.events };
         for (const e of g.list) events[e.id] = e;
-        return { events, ranges: { ...s.ranges, [key]: q.ids }, loading: false, error: null };
+        const ranges = keepRecent(s.ranges, key, q.ids);
+        return { events, ranges, sharedRanges: onlyKeys(s.sharedRanges, ranges), loading: false, error: null };
       });
       void get().loadSharedRange(start, end);
     } catch (err) {
@@ -665,6 +671,7 @@ export const useCalendar = create<CalendarState>((set, get) => ({
        hiding one is remembered under the same account-qualified key. */
     const sharedKeys = new Set<string>();
     for (const list of Object.values(sharedRanges)) for (const k of list) sharedKeys.add(k);
+    const added = new Set(settings().addedShares);
     for (const k of sharedKeys) {
       const e = sharedEvents[k];
       if (!e) continue;
@@ -676,7 +683,6 @@ export const useCalendar = create<CalendarState>((set, get) => ({
          an account linked for its files offered its calendar too. `isSubscribed`
          is the only thing separating "shared with me" from "reachable", so
          nothing unsubscribed is drawn. */
-      const added = new Set(settings().addedShares);
       const theirs: Record<Id, Calendar> = {};
       for (const c of sharedCalendars) {
         if (c.accountId !== accountId) continue;
@@ -1000,11 +1006,16 @@ export const useCalendar = create<CalendarState>((set, get) => ({
     if (types.has("CalendarEvent")) get().invalidate();
   },
 
+  /*
+   * Load the windows held again, after something changed.
+   *
+   * Only the few most recently shown are held (see `keepRecent`), so this is a
+   * handful of queries rather than one for every month ever looked at. They
+   * are replaced where they are, not emptied first: clearing them made the
+   * calendar go blank until the answers came back.
+   */
   invalidate() {
-    // Force reload of all ranges currently cached.
-    const keys = Object.keys(get().ranges);
-    set({ ranges: {} });
-    for (const k of keys) {
+    for (const k of Object.keys(get().ranges)) {
       const [s, e] = k.split("|").map(Number) as [number, number];
       void get().loadRange(new Date(s), new Date(e), true);
     }
@@ -1014,6 +1025,27 @@ export const useCalendar = create<CalendarState>((set, get) => ({
     set({ draft });
   },
 }));
+
+/**
+ * How many loaded windows are held.
+ *
+ * Every week or month the reader visited used to stay, and each was queried
+ * again whenever any event changed, and walked by every render. A window
+ * dropped here is simply loaded again if the reader goes back to it.
+ */
+export const RANGES_KEPT = 4;
+
+/** `ranges` with `key` set and moved to the end, trimmed to the most recent `RANGES_KEPT`. */
+export function keepRecent(ranges: Record<string, Id[]>, key: string, ids: Id[]): Record<string, Id[]> {
+  const { [key]: _old, ...rest } = ranges;
+  const entries = [...Object.entries(rest), [key, ids] as [string, Id[]]];
+  return Object.fromEntries(entries.slice(-RANGES_KEPT));
+}
+
+/** `map` restricted to the windows still held. */
+function onlyKeys<T>(map: Record<string, T>, held: Record<string, unknown>): Record<string, T> {
+  return Object.fromEntries(Object.entries(map).filter(([k]) => k in held));
+}
 
 /**
  * Whether an event is part of a series.
