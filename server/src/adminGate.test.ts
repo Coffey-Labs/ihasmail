@@ -14,8 +14,18 @@ test("mail, calendars and the rest pass untouched", () => {
   assert.equal(r.ok, true);
 });
 
-test("the account's own registry objects pass", () => {
-  assert.equal(gateAdministration(req("x:AccountSettings/get", "x:AppPassword/set", "x:PublicKey/get", "x:MaskedEmail/set")).ok, true);
+test("the account's own registry objects can be read", () => {
+  assert.equal(gateAdministration(req("x:AccountSettings/get", "x:AppPassword/get", "x:PublicKey/get", "x:MaskedEmail/query")).ok, true);
+});
+
+test("but not written: a credential minted here would outlive a borrowed session", () => {
+  for (const m of ["x:AppPassword/set", "x:AccountPassword/set", "x:MaskedEmail/set"]) {
+    assert.deepEqual(gateAdministration(req("x:AccountSettings/get", m)), { ok: false, method: m });
+  }
+});
+
+test("API keys are not the account's to reach from here at all", () => {
+  assert.deepEqual(gateAdministration(req("x:ApiKey/get")), { ok: false, method: "x:ApiKey/get" });
 });
 
 test("directory and server objects are refused, and named", () => {

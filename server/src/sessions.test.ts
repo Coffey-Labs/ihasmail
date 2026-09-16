@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { SessionStore } from "./sessions.js";
+import { SessionStore, accountKey } from "./sessions.js";
 import { normalizeLocale } from "./upstream.js";
 import { deriveKey, open, seal, sha256 } from "./crypto.js";
 import { RateLimiter } from "./ratelimit.js";
@@ -28,6 +28,20 @@ test("session store creates, resolves, and refuses tampered cookies", () => {
   assert.equal(store.listForUser("u@example.com").length, 1);
   store.destroy(live!.id);
   assert.equal(store.resolve(cookie), null);
+});
+
+test("sessions group by the account, however its name was typed", () => {
+  const store = new SessionStore("");
+  const key = accountKey("https://mail.example.com", "Alice@Example.com");
+  const a = store.create({ username: "alice", account: key, password: "pw", remember: false, userAgent: "", ip: "" });
+  const b = store.create({ username: "ALICE@example.com", account: accountKey("https://mail.example.com", "alice@example.com"), password: "pw", remember: false, userAgent: "", ip: "" });
+  // The same name on another configured server is another account.
+  store.create({ username: "alice@example.com", account: accountKey("https://other.example.net", "alice@example.com"), password: "pw", remember: false, userAgent: "", ip: "" });
+  assert.equal(a.session.account, b.session.account);
+  assert.equal(store.listForUser(a.session.account).length, 2);
+  assert.equal(store.destroyAllForUser(a.session.account, a.session.id), 1);
+  assert.equal(store.resolve(b.cookie), null, "the other spelling was signed out");
+  assert.ok(store.resolve(a.cookie), "this session was kept");
 });
 
 test("persisted session data does not contain the password", () => {

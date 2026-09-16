@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { Code2, Download, Eye, Pencil, Printer, Save, Share2, X } from "lucide-react";
 import { confirmDialog, Dialog } from "./dialog";
 import { formatSize } from "@/lib/format";
+import { withoutBidiControls } from "@/lib/text/text";
 import { previewKind, TEXT_PREVIEW_CHARS, TEXT_PREVIEW_MAX } from "@/lib/preview";
 import { isMarkdown, renderMarkdown } from "@/lib/text/markdown";
 import { canShareFiles, shareFile } from "@/lib/share";
@@ -168,7 +169,7 @@ export function FilePreviewDialog({
     const download = () => {
       const l = document.createElement("a");
       l.href = file.url;
-      l.download = file.name;
+      l.download = withoutBidiControls(file.name);
       l.click();
     };
     try {
@@ -226,7 +227,7 @@ export function FilePreviewDialog({
     <Dialog
       open={Boolean(file)}
       onClose={requestClose}
-      title={file?.name ?? t("Preview")}
+      title={file ? withoutBidiControls(file.name) : t("Preview")}
       size="xl"
       closeOnBackdrop={!editing}
       footer={

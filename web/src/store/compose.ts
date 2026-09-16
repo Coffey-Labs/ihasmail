@@ -7,6 +7,7 @@ import { escapeHtml, htmlToText, quoteText, replySubject, textToHtml } from "@/l
 import { sanitizeEmailHtml, sanitizeEditorHtml } from "@/lib/text/html";
 import { toast } from "@/ui/toast";
 import { useMail, FULL_PROPS, BODY_PROPS } from "./mail";
+import { useSession } from "./session";
 import { ensureScheduledMailbox, useScheduled } from "./scheduled";
 import { formatScheduleTime, holdUntil } from "@/lib/schedule";
 import { t as translate } from "@/lib/i18n";
@@ -82,7 +83,9 @@ export interface Draft {
 interface ComposeState {
   drafts: Draft[];
   activeKey: string | null;
-  pendingSends: Record<string, { timer: number; toastId: number; draft: Draft }>;
+  pendingSends: Record<string, { timer: number; toastId: number; draft: Draft; run: () => Promise<void> }>;
+  /** Send everything still inside its undo window now. For signing out, while the session can still send. */
+  flushPendingSends(): Promise<void>;
   open(init?: Partial<Draft>): string;
   /** Open a draft holding what the operating system's share sheet sent us. */
   openFromShare(share: SharedContent): string;
@@ -632,7 +635,16 @@ export const useCompose = create<ComposeState>((set, get) => ({
     }
     const toastId = toast.show(translate("Sending…"), { duration: delay * 1000, progress: true, action: { label: translate("Undo"), onClick: () => get().undoSend(key) } });
     const timer = window.setTimeout(() => void doSend(), delay * 1000);
-    set((s) => ({ pendingSends: { ...s.pendingSends, [key]: { timer, toastId, draft: d } } }));
+    set((s) => ({ pendingSends: { ...s.pendingSends, [key]: { timer, toastId, draft: d, run: doSend } } }));
+  },
+
+  async flushPendingSends() {
+    const pending = Object.values(get().pendingSends);
+    for (const p of pending) {
+      window.clearTimeout(p.timer);
+      toast.dismiss(p.toastId);
+    }
+    await Promise.all(pending.map((p) => p.run()));
   },
 
   undoSend(key) {
@@ -999,3 +1011,28 @@ export function draftFromMailto(url: string): Partial<Draft> {
     ...(body ? { html: body, text: m.body } : {}),
   };
 }
+
+/*
+ * Nothing written in one session is left for the next.
+ *
+ * The other stores let go of their data when the session ends; this one used
+ * to keep its open composers, so on a shared machine the next person to sign
+ * in -- without a reload, after an idle sign-out, say -- found the last one's
+ * draft open and could send it. A draft that was saved is still in Drafts on
+ * the server. A send still in its undo window was sent on the way out if the
+ * sign-out was a deliberate one (see `logout`); if the session had already
+ * ended there is nothing left to send it with, so its timer is stopped rather
+ * than let it fire under whoever signs in next.
+ */
+useSession.subscribe((s) => {
+  if (s.status !== "anonymous") return;
+  const { drafts, pendingSends } = useCompose.getState();
+  if (!drafts.length && !Object.keys(pendingSends).length) return;
+  for (const t of autosaveTimers.values()) window.clearTimeout(t);
+  autosaveTimers.clear();
+  for (const p of Object.values(pendingSends)) {
+    window.clearTimeout(p.timer);
+    toast.dismiss(p.toastId);
+  }
+  useCompose.setState({ drafts: [], activeKey: null, pendingSends: {} });
+});

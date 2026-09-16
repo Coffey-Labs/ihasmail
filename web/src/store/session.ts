@@ -78,6 +78,14 @@ export const useSession = create<SessionState>((set, get) => ({
       /* never block signing out over this */
     }
     stopSettingsSync();
+    // A message still inside its undo window goes now, while there is a
+    // session to send it with; signing out is not an undo.
+    try {
+      const { useCompose } = await import("./compose");
+      await useCompose.getState().flushPendingSends();
+    } catch {
+      /* never block signing out over this */
+    }
     try {
       await apiFetch("/api/auth/logout", { method: "POST" });
     } catch {

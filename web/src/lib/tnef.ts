@@ -1,3 +1,4 @@
+import { withoutBidiControls } from "@/lib/text/text";
 /**
  * `winmail.dat`, opened.
  *
@@ -210,7 +211,7 @@ export function parseTnef(input: ArrayBuffer | Uint8Array): TnefAttachment[] {
       current = null;
       return;
     }
-    const name = (current.mapiName || current.title || "attachment").trim() || "attachment";
+    const name = withoutBidiControls(current.mapiName || current.title || "attachment").trim() || "attachment";
     out.push({
       name,
       type: current.mapiType || guessType(name),

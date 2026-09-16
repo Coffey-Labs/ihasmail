@@ -69,7 +69,7 @@ test("the registry reports an account with nothing set up yet", async () => {
 });
 
 test("app passwords are created, listed once with their secret, and revoked", async () => {
-  const created = await post("/api/account/app-passwords", { description: "Thunderbird" });
+  const created = await post("/api/account/app-passwords", { description: "Thunderbird", current: "demo-password" });
   assert.equal(created.status, 200);
   assert.match(created.body.secret, /^\$app\$/, "the server's generated secret is returned");
   assert.ok(created.body.id);
@@ -84,8 +84,40 @@ test("app passwords are created, listed once with their secret, and revoked", as
   assert.deepEqual((await call("/api/account/security")).body.appPasswords, []);
 });
 
+test("an app password needs the account password", async () => {
+  const missing = await post("/api/account/app-passwords", { description: "Stolen" });
+  assert.equal(missing.status, 400);
+  assert.equal(missing.body.error, "missing_fields");
+  const wrong = await post("/api/account/app-passwords", { description: "Stolen", current: "not-my-password" });
+  assert.equal(wrong.status, 403);
+  assert.equal(wrong.body.error, "invalid_credentials");
+  assert.deepEqual((await call("/api/account/security")).body.appPasswords, [], "nothing was created");
+});
+
+test("a checked session cannot mint one through the JMAP proxy instead", async () => {
+  // Signed in without "my own device", so the proxy reads every request.
+  const res = await call("/api/jmap", {
+    method: "POST",
+    body: JSON.stringify({ using: ["urn:ietf:params:jmap:core"], methodCalls: [["x:AppPassword/set", { create: { n: { description: "Stolen" } } }, "0"]] }),
+  });
+  assert.equal(res.status, 403);
+  assert.deepEqual((await call("/api/account/security")).body.appPasswords, []);
+});
+
+test("attachments are kept out of the disk cache of a device that is not the person's own", async () => {
+  const up = await app.request("/api/upload/a1", { method: "POST", headers: { "x-requested-with": "ihasmail", "content-type": "text/plain", cookie }, body: "hello" });
+  assert.equal(up.status, 200);
+  const { blobId } = (await up.json()) as { blobId: string };
+  const name = encodeURIComponent("Invoice_\u202Efdp.exe");
+  const res = await app.request(`/api/blob/a1/${blobId}/${name}?accept=text/plain`, { headers: { cookie } });
+  assert.equal(res.status, 200);
+  assert.equal(res.headers.get("cache-control"), "no-store");
+  assert.equal(res.headers.get("content-disposition"), "attachment; filename*=UTF-8''Invoice_fdp.exe", "no direction override in the saved name");
+  await res.arrayBuffer();
+});
+
 test("an app password needs a name", async () => {
-  const res = await post("/api/account/app-passwords", { description: "   " });
+  const res = await post("/api/account/app-passwords", { description: "   ", current: "demo-password" });
   assert.equal(res.status, 400);
   assert.equal(res.body.error, "missing_fields");
 });
