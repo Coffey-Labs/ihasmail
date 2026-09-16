@@ -39,11 +39,12 @@ jobs:
     permissions:
       packages: write
     steps:
-      # Pinned to a commit rather than a moving major tag. This action is
-      # handed `packages: write` and its whole job is deletion, so a tag
-      # repointed at something else -- by a compromise or a mistake upstream --
-      # is a bad day. v1.2.2.
-      - uses: dataaxiom/ghcr-cleanup-action@d52806a0dc70b430571a37da1fde39733ffd640f
+      # The only third-party action here that is not published by GitHub or
+      # Docker, and the one with the most to lose: it is handed
+      # `packages: write` and its whole job is deletion, so a ref repointed at
+      # something else -- by a compromise or a mistake upstream -- is a bad
+      # day. It was pinned to a commit long before the rest of them were.
+      - uses: dataaxiom/ghcr-cleanup-action@d52806a0dc70b430571a37da1fde39733ffd640f # v1.2.2
         with:
           owner: Coffey-Labs
           package: ihasmail
