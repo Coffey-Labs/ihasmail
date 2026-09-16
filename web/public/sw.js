@@ -18,16 +18,42 @@ const VERSION = "ihasmail-v2";
  * eventually would.
  */
 const BASE = new URL("./", self.location).pathname.replace(/\/$/, "");
-const SHELL = [`${BASE}/`, `${BASE}/manifest.webmanifest`, `${BASE}/img/logo.png`, `${BASE}/img/icon-192.png`, `${BASE}/favicon.ico`];
+const SHELL = [`${BASE}/manifest.webmanifest`, `${BASE}/img/logo.png`, `${BASE}/img/icon-192.png`, `${BASE}/favicon.ico`];
+
+/*
+ * Only the app page may be kept as the app page.
+ *
+ * The mount's root is not always the app: demo.ihasmail.com puts its landing
+ * page there, and a front door of any kind can. The worker used to cache
+ * whatever `/` returned at install and whatever HTML a navigation returned,
+ * and since app routes are answered from that copy first, a demo visitor who
+ * came back got the landing page on every route, for good. The app page is
+ * recognised by the asset list the build writes into it.
+ */
+const APP_PAGE_MARKER = 'id="ihasmail-assets"';
+const isAppPage = (html) => typeof html === "string" && html.includes(APP_PAGE_MARKER);
+
+/*
+ * The routes the app itself owns (App.tsx). Only these are answered from the
+ * kept page; anything else under the mount -- the root, a landing or farewell
+ * page in front of the app, a file -- goes to the network as it always did.
+ */
+const APP_ROUTE = /^\/(mail|search|contacts|calendar|files|settings|admin|login)(\/|$)/;
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  event.waitUntil(
+    caches.open(VERSION)
+      .then((c) => c.addAll(SHELL))
+      .then(() => fetch(`${BASE}/mail`, { credentials: "same-origin" }).then((res) => (res.ok ? refreshShell(res) : undefined)).catch(() => {}))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys()
       .then((keys) => Promise.all(keys.filter((k) => k !== VERSION).map((k) => caches.delete(k))))
+      .then(() => dropForeignShell())
       .then(() => tidy())
       .catch(() => {})
       .then(() => self.clients.claim())
@@ -91,9 +117,17 @@ async function tidy(also = "") {
   }
 }
 
+/** A kept page that is not the app page -- left by an earlier worker -- is thrown away. */
+async function dropForeignShell() {
+  const cache = await caches.open(VERSION);
+  const kept = await cache.match(SHELL_KEY);
+  if (kept && !isAppPage(await kept.text())) await cache.delete(SHELL_KEY);
+}
+
 /** Keep the offline copy of the app page current, tidy when it changes, and fill in what it lists. */
 async function refreshShell(res) {
   const html = await res.text();
+  if (!isAppPage(html)) return;
   const cache = await caches.open(VERSION);
   const prev = await cache.match(SHELL_KEY);
   const prevHtml = prev ? await prev.text() : "";
@@ -245,9 +279,9 @@ self.addEventListener("fetch", (event) => {
    * the version check reloads it (lib/sw/staleBuild.ts), and the assets it
    * names are kept for one more build so it can run until then.
    *
-   * Only app routes. An address ending in a file name -- an image or the
-   * manifest opened in a tab of its own -- is not the app page, and goes to
-   * the network as before. So does the first visit, which has no copy yet.
+   * Only the app's own routes (APP_ROUTE). The root, a page in front of the
+   * app, and a file opened in a tab of its own go to the network as before. So
+   * does the first visit, which has no copy yet.
    */
   if (req.mode === "navigate") {
     const network = fetch(req).then((res) => {
@@ -257,7 +291,7 @@ self.addEventListener("fetch", (event) => {
       }
       return res;
     });
-    const appRoute = !/\.[a-z0-9]+$/i.test(url.pathname);
+    const appRoute = APP_ROUTE.test(url.pathname.slice(BASE.length));
     event.respondWith((async () => {
       const kept = appRoute ? await caches.match(SHELL_KEY) : undefined;
       if (kept) {

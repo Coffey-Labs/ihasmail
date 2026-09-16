@@ -108,9 +108,12 @@ async function check(): Promise<boolean> {
 async function primeShell(): Promise<void> {
   if (!("caches" in window) || !navigator.serviceWorker?.controller) return;
   try {
-    const res = await fetch(withBase("/"), { credentials: "same-origin", cache: "no-store" });
+    // An app route rather than the root: the root can be a page in front of
+    // the app (the demo's landing page is), and only the app page may be kept.
+    const res = await fetch(withBase("/mail"), { credentials: "same-origin", cache: "no-store" });
     if (!res.ok || !(res.headers.get("content-type") ?? "").startsWith("text/html")) return;
     const html = await res.text();
+    if (!html.includes('id="ihasmail-assets"')) return;
     const cache = await caches.open(SW_CACHE_NAME);
     await cache.put(withBase("/"), new Response(html, { headers: { "content-type": "text/html; charset=utf-8" } }));
   } catch {
