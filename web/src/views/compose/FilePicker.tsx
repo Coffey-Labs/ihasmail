@@ -27,6 +27,11 @@ export function FilePicker({ onPick, onClose }: { onPick: (files: AttachableFile
   const [picked, setPicked] = useState<Record<string, FileNode>>({});
   const [returnTo] = useState(() => files.accountId);
 
+  // Shared accounts are not looked for at sign-in; the picker lists them, so it asks.
+  useEffect(() => {
+    void useFiles.getState().discoverShared();
+  }, []);
+
   useEffect(() => {
     void files.loadChildren(cur);
     // eslint-disable-next-line react-hooks/exhaustive-deps

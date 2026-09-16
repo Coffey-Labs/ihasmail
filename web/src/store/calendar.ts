@@ -409,14 +409,13 @@ export const useCalendar = create<CalendarState>((set, get) => ({
     if (accountId !== get().accountId) set({ accountId, calendars: {}, events: {}, ranges: {} });
     set({ available });
     if (!available) return;
-    await get().loadCalendars();
+    // Side by side: none of the three waits on another, and together they share a request.
+    const identities = client.call<GetResponse<ParticipantIdentity>>("ParticipantIdentity/get", { accountId, ids: null }).then(
+      (res) => set({ identities: res.list }),
+      () => set({ identities: [] }),
+    );
     void get().loadSharedCalendars();
-    try {
-      const res = await client.call<GetResponse<ParticipantIdentity>>("ParticipantIdentity/get", { accountId, ids: null });
-      set({ identities: res.list });
-    } catch {
-      set({ identities: [] });
-    }
+    await Promise.all([get().loadCalendars(), identities]);
   },
 
   /*
@@ -434,15 +433,16 @@ export const useCalendar = create<CalendarState>((set, get) => ({
     const session = useSession.getState();
     const own = session.ownAccountFor(CAP.calendars);
     const accounts = Object.entries(session.session?.accounts ?? {}).filter(([id, a]) => a.isPersonal === false && id !== own);
-    const found: SharedCalendar[] = [];
-    for (const [accountId, account] of accounts) {
-      try {
-        const res = await client.call<GetResponse<Calendar>>("Calendar/get", { accountId, ids: null, properties: CALENDAR_PROPS });
-        for (const calendar of res.list) found.push({ accountId, accountName: account.name, calendar });
-      } catch {
-        continue;
-      }
-    }
+    // Every account at once, in one request, and listed in the session's order.
+    const answers = await Promise.all(
+      accounts.map(([accountId, account]) =>
+        client.call<GetResponse<Calendar>>("Calendar/get", { accountId, ids: null, properties: CALENDAR_PROPS }).then(
+          (res) => res.list.map((calendar): SharedCalendar => ({ accountId, accountName: account.name, calendar })),
+          (): SharedCalendar[] => [],
+        ),
+      ),
+    );
+    const found = answers.flat();
     set({ sharedCalendars: found });
     // Fill in whatever windows are already on screen.
     for (const key of Object.keys(get().ranges)) {
