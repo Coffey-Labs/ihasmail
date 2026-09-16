@@ -38,7 +38,7 @@ const FOLDER_MIME = "application/x-ihasmail-folder";
 
 export function MailboxTree() {
   const mailboxes = useMail((s) => s.mailboxes);
-  const loaded = useMail((s) => s.mailboxesLoaded);
+  const loaded = useMail((s) => s.mailboxesLoaded || s.mailboxesCached);
   const [location] = useLocation();
   const currentId = location.startsWith("/mail/") ? location.split("/")[2] : undefined;
   const showHidden = useSettings((s) => s.settings.showHiddenFolders);

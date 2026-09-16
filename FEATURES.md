@@ -1414,8 +1414,13 @@ server settings is deliberately out of scope.
 # Platform
 
 - **Installable PWA** with a service worker: the app shell is cached for
-  installability and fast loads, API requests never are, and navigations are
-  network-first with the shell as fallback.
+  installability and fast loads, API requests never are. An app route is
+  answered from the kept shell at once while a fresh copy is fetched behind it;
+  a shell a build behind is caught by the version check at start and reloaded.
+  After a new version is seen, the rest of its code (composer, settings,
+  viewers) is fetched in the background, so opening them later does not wait on
+  the server; language catalogs are cached when first used, and nothing is
+  fetched ahead when the browser is set to save data.
 - **Manifest shortcuts** for Compose, Calendar and Contacts.
 - **One window, not one per launch.** A `mailto:` link, a shortcut or a
   notification opened while ihasmail is already running arrives in the copy
@@ -1545,15 +1550,23 @@ costs something to get wrong is the one that assumes the machine is yours.
 | --- | --- | --- |
 | Stays signed in | until the browser closes | up to 30 days (`SESSION_REMEMBER_TTL`) |
 | Idle sign-out | after 5 minutes | none |
-| Kept on the computer | nothing | settings cache, recent addresses, username |
+| Kept on the computer | nothing | settings cache, recent addresses, username, and the folder list with the first page of recently read folders (list rows only: sender, subject, preview, flags — no message bodies) |
 | Background notifications | refused | available |
 | Administration | unavailable | available, if the role allows it |
 
 Local storage is gated on that answer for **reads** as well as writes — a
 machine trusted once still has residue, and honoring it would let a previous
 session's data surface in a later untrusted one. Signing out clears the settings
-cache and recent addresses and tears down the push subscription, whichever
-answer was given.
+cache, recent addresses and kept folder list, and tears down the push
+subscription, whichever answer was given.
+
+What a ticked device keeps is what makes it **start quickly on a distant
+link**: once the server has confirmed the session, the folders and the inbox
+paint from the kept copy straight away, and the request for the open folder
+goes out without waiting on the folder list first. The server's answers
+replace the copy a round trip later. **Nothing kept is shown before the session
+is confirmed** — until then the app shows a spinner, so a session that has
+ended goes from the spinner to the sign-in form and never past a mailbox.
 
 The idle timer exists because the alternative does not work: `beforeunload` text
 was removed from browsers years ago, and **no event fires at all** for walking

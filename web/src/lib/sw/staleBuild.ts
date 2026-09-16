@@ -1,5 +1,6 @@
 import { APP_VERSION } from "../version";
 import { withBase } from "../basePath";
+import { SW_CACHE_NAME } from "./swCache";
 import { push, type PushState } from "@/jmap/push";
 
 /**
@@ -93,8 +94,28 @@ async function check(): Promise<boolean> {
   // deploy -- this stops the two of them reloading each other in a loop.
   if (tried() === serverVersion) return false;
   remember(serverVersion);
+  await primeShell();
   window.location.reload();
   return true;
+}
+
+/*
+ * The service worker answers a navigation from its kept copy of the app page
+ * and refreshes that copy behind it. A reload for a new build must not get the
+ * old copy back, so the new page is put in place first. Best effort: if this
+ * fails, the loop guard above still stops a second reload.
+ */
+async function primeShell(): Promise<void> {
+  if (!("caches" in window) || !navigator.serviceWorker?.controller) return;
+  try {
+    const res = await fetch(withBase("/"), { credentials: "same-origin", cache: "no-store" });
+    if (!res.ok || !(res.headers.get("content-type") ?? "").startsWith("text/html")) return;
+    const html = await res.text();
+    const cache = await caches.open(SW_CACHE_NAME);
+    await cache.put(withBase("/"), new Response(html, { headers: { "content-type": "text/html; charset=utf-8" } }));
+  } catch {
+    /* reload anyway */
+  }
 }
 
 /**
@@ -138,6 +159,10 @@ export function makeConnectionWatcher(): (state: PushState) => void {
 
 export function startBuildWatch(): void {
   push.onConnection(makeConnectionWatcher());
+
+  // A page the service worker answered from its kept copy may be a build
+  // behind; ask now rather than a minute from now.
+  if (navigator.serviceWorker?.controller) void reloadIfServerRebuilt();
 
   window.setInterval(() => {
     // A hidden tab is not being read, and will be checked when it surfaces.

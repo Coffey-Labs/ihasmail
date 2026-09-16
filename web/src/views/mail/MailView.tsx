@@ -27,6 +27,9 @@ export function MailView({ mailboxId, threadId, search }: { mailboxId?: string; 
   const searchStr = useSearch();
   const mailboxes = useMail((s) => s.mailboxes);
   const mailboxesLoaded = useMail((s) => s.mailboxesLoaded);
+  // Enough to ask for a folder: the kept copy of the folder list will do, and
+  // staying true as the server's copy replaces it keeps the query from repeating.
+  const mailboxesKnown = useMail((s) => s.mailboxesLoaded || s.mailboxesCached);
   const inboxId = useMail((s) => s.roleId("inbox"));
   const query = useMail((s) => s.query);
   const list = useMail((s) => s.list);
@@ -114,8 +117,8 @@ export function MailView({ mailboxId, threadId, search }: { mailboxId?: string; 
   }, [search, q, mailboxId, folderShape, settings.conversationMode, scheduledId]);
 
   useEffect(() => {
-    if (listQuery && mailboxesLoaded) void query(listQuery);
-  }, [listQuery, query, mailboxesLoaded]);
+    if (listQuery && mailboxesKnown) void query(listQuery);
+  }, [listQuery, query, mailboxesKnown]);
 
   // Nothing moves a message out of Scheduled when its hold expires, so settle
   // the folder up on the way in: sent messages to Sent, canceled ones back to

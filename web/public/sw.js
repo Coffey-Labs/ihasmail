@@ -67,12 +67,17 @@ function assetsNamedIn(html) {
   return out;
 }
 
-/** Drop failed responses, and assets the cached app page does not name. */
-async function tidy() {
+/**
+ * Drop failed responses, and assets the cached app page does not name. `also`
+ * is a page whose assets are kept as well: the one just replaced, which a tab
+ * opened from the kept copy may still be running.
+ */
+async function tidy(also = "") {
   const cache = await caches.open(VERSION);
   const shell = await cache.match(SHELL_KEY);
   // Without a page to go by, which assets are current is unknown; keep them.
   const keep = shell ? assetsNamedIn(await shell.text()) : null;
+  if (keep) for (const path of assetsNamedIn(also)) keep.add(path);
   for (const req of await cache.keys()) {
     const path = new URL(req.url).pathname;
     if (path.startsWith(ASSETS)) {
@@ -91,9 +96,10 @@ async function refreshShell(res) {
   const html = await res.text();
   const cache = await caches.open(VERSION);
   const prev = await cache.match(SHELL_KEY);
-  if (!prev || (await prev.text()) !== html) {
+  const prevHtml = prev ? await prev.text() : "";
+  if (prevHtml !== html) {
     await cache.put(SHELL_KEY, new Response(html, { headers: { "content-type": "text/html; charset=utf-8" } }));
-    await tidy();
+    await tidy(prevHtml);
   }
   await precache(html);
 }
@@ -228,15 +234,38 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Navigations & everything else: network-first, fall back to cached shell.
+  /*
+   * Navigations: the kept app page at once, and the network's behind it.
+   *
+   * Every route in the app is the same page, and waiting on the server for it
+   * cost a full round trip before anything could start -- the longest single
+   * wait on a distant link. So a route is answered from the kept copy when
+   * there is one, and the fresh page is fetched alongside to replace it for
+   * next time. A page that is a build behind is caught the way it always was:
+   * the version check reloads it (lib/sw/staleBuild.ts), and the assets it
+   * names are kept for one more build so it can run until then.
+   *
+   * Only app routes. An address ending in a file name -- an image or the
+   * manifest opened in a tab of its own -- is not the app page, and goes to
+   * the network as before. So does the first visit, which has no copy yet.
+   */
   if (req.mode === "navigate") {
-    event.respondWith(fetch(req).then((res) => {
+    const network = fetch(req).then((res) => {
       // Every route is the same app page; a fresh one replaces the offline copy.
       if (res.ok && (res.headers.get("content-type") || "").startsWith("text/html")) {
         event.waitUntil(refreshShell(res.clone()).catch(() => {}));
       }
       return res;
-    }).catch(() => caches.match(SHELL_KEY)));
+    });
+    const appRoute = !/\.[a-z0-9]+$/i.test(url.pathname);
+    event.respondWith((async () => {
+      const kept = appRoute ? await caches.match(SHELL_KEY) : undefined;
+      if (kept) {
+        event.waitUntil(network.catch(() => {}));
+        return kept;
+      }
+      return network.catch(() => caches.match(SHELL_KEY));
+    })());
     return;
   }
   event.respondWith(fetch(req).catch(() => caches.match(req)));
