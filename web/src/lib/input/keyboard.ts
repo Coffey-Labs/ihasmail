@@ -145,13 +145,14 @@ export function comboOf(e: KeyboardEvent): string | null {
   const mod = isMac ? e.metaKey : e.ctrlKey;
   if (mod) parts.push("mod");
   if (e.altKey) parts.push("alt");
-  if (e.shiftKey && key.length > 1) parts.push("shift");
+  const shiftedLetter = e.shiftKey && /^[a-z]$/i.test(key);
+  if (e.shiftKey && (key.length > 1 || shiftedLetter)) parts.push("shift");
   let k = key;
   if (k === " ") k = "space";
   else if (k === "Escape") k = "esc";
   else if (k.length === 1) {
-    // Single chars: shift is encoded by the character itself (e.g. "#", "!").
-    k = k.length === 1 && !e.shiftKey ? k.toLowerCase() : k;
+    // Symbols encode Shift in the character itself (e.g. "#", "!").
+    k = shiftedLetter || !e.shiftKey ? k.toLowerCase() : k;
   } else k = k.toLowerCase();
   parts.push(k);
   return parts.join("+");

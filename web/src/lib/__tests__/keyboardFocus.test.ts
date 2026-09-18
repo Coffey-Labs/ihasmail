@@ -11,8 +11,8 @@ import { isTextEntry, keyboard } from "@/lib/input/keyboard";
  * swallows a keystroke in the first place.
  */
 
-const pressFrom = (el: Element, key: string) => {
-  const e = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+const pressFrom = (el: EventTarget, key: string, init?: KeyboardEventInit) => {
+  const e = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true, ...init });
   el.dispatchEvent(e);
   return e;
 };
@@ -90,5 +90,24 @@ describe("shortcuts with a checkbox focused", () => {
 
     pressFrom(field, "e");
     expect(handler).not.toHaveBeenCalled();
+  });
+});
+
+describe("shifted letter shortcuts", () => {
+  it("matches Shift+I and Shift+U bindings", () => {
+    const read = vi.fn();
+    const unread = vi.fn();
+    pop = keyboard.pushScope("test", [
+      { keys: "shift+i", description: "Mark as read", group: "Actions", handler: read },
+      { keys: "shift+u", description: "Mark as unread", group: "Actions", handler: unread },
+    ]);
+
+    const readEvent = pressFrom(window, "I", { shiftKey: true });
+    const unreadEvent = pressFrom(window, "U", { shiftKey: true });
+
+    expect(read).toHaveBeenCalledOnce();
+    expect(unread).toHaveBeenCalledOnce();
+    expect(readEvent.defaultPrevented).toBe(true);
+    expect(unreadEvent.defaultPrevented).toBe(true);
   });
 });
