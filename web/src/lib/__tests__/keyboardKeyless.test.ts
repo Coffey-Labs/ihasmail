@@ -36,7 +36,7 @@ describe("a keydown with no key", () => {
 
   it("leaves real keys alone", () => {
     expect(comboOf(new KeyboardEvent("keydown", { key: "e" }))).toBe("e");
-    expect(comboOf(new KeyboardEvent("keydown", { key: "E", shiftKey: true }))).toBe("E");
+    expect(comboOf(new KeyboardEvent("keydown", { key: "E", shiftKey: true }))).toBe("shift+e");
     expect(comboOf(new KeyboardEvent("keydown", { key: "Enter", ctrlKey: true }))).toMatch(/enter$/);
   });
 });
