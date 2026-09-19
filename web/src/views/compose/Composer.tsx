@@ -147,12 +147,26 @@ export function Composer({ draft }: { draft: Draft }) {
     patch({ sendAt: at.getTime() });
   };
 
+  /*
+   * Switching format converts what has been written, but the quoted message
+   * is not something this draft wrote: it was prepared in both formats when
+   * the reply opened. Converting the plain-text quote into HTML would hand
+   * back a flattened copy of a message that still exists in its original
+   * markup, so re-attach that instead, and keep only what the author typed
+   * above it. Where the quote can no longer be found -- edited, or a draft
+   * that quotes nothing -- convert the whole body as before.
+   */
   const toggleFormat = () => {
     // Whichever way the format is changed, the offer has been answered.
     if (d.format === "html") {
-      patch({ format: "text", text: htmlToText(d.html), formatOffer: null });
+      const at = d.quoteHtml ? d.html.indexOf('<div class="ihm-quote">') : -1;
+      const written = at >= 0 ? htmlToText(d.html.slice(0, at)) : htmlToText(d.html);
+      patch({ format: "text", text: at >= 0 ? written.replace(/\s+$/, "") + d.quoteText : written, formatOffer: null });
     } else {
-      patch({ format: "html", html: textToHtml(d.text, { linkify: false, quoteColors: false }).replace(/\n/g, "<br>"), formatOffer: null });
+      const keeps = Boolean(d.quoteText) && d.text.endsWith(d.quoteText);
+      const written = keeps ? d.text.slice(0, d.text.length - d.quoteText.length) : d.text;
+      const asHtml = textToHtml(written, { linkify: false, quoteColors: false }).replace(/\n/g, "<br>");
+      patch({ format: "html", html: keeps ? asHtml + d.quoteHtml : asHtml, formatOffer: null });
     }
   };
 

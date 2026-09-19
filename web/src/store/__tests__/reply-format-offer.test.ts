@@ -98,6 +98,24 @@ describe("answering a message written in the other format", () => {
     expect(d.html).toContain("hi");
   });
 
+  it("keeps the quoted message in both formats, so a switch can restore it", async () => {
+    composeIn("text");
+    const d = await draftFor(RICH, "reply");
+    // The HTML quote is the original's markup, not the text one converted.
+    expect(d.quoteHtml).toContain("<p>hi</p>");
+    expect(d.quoteHtml).toContain("ihm-quote");
+    expect(d.quoteText).toContain("Ann");
+    expect(d.text.endsWith(d.quoteText)).toBe(true);
+  });
+
+  it("quotes nothing on a message started from scratch", () => {
+    composeIn("text");
+    const key = useCompose.getState().open();
+    const d = useCompose.getState().drafts.find((x) => x.key === key)!;
+    expect(d.quoteHtml).toBe("");
+    expect(d.quoteText).toBe("");
+  });
+
   it("makes no offer on a message started from scratch", () => {
     composeIn("text");
     const key = useCompose.getState().open();
