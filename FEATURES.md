@@ -441,6 +441,12 @@ minimizable and maximizable; full-screen on mobile.
   code block, links (`Ctrl+K`), inline images, an emoji picker, and remove
   formatting. Tab and Shift+Tab indent inside the body.
 - **Plain text** as a per-message or default format.
+- **Quoting follows the message's own image decision.** A quote renders the
+  message again, so the reply blocks its remote images unless that message was
+  allowed them — by policy, by a trusted sender, by the sender being a
+  contact, or by *Show images* having been pressed on it. Blocked images keep
+  their address and get it back when the reply is sent, so the recipient's
+  copy is the quote as its sender wrote it.
 - **Answering in the format the message was written in.** Replying in plain
   text to a rich text message, or the reverse, loses either the formatting or
   the plain text somebody chose to write in. The composer opens in the default
