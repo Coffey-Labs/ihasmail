@@ -15,7 +15,7 @@ import type { Anchor } from "@/ui/popover";
 import { CalendarContextMenu, eventColor, type CalendarContext } from "./CalendarContextMenu";
 import { toast } from "@/ui/toast";
 import { askEditScope, droppedMessage, runScoped } from "./scope";
-import { canDragEvent, dayDelta, moveByDaysPatch, movePatch, pixelsToMinutes, resizePatch, snap, type DragPatch } from "@/lib/calendar/eventDrag";
+import { canDragEvent, columnsMoved, dayDelta, moveAcrossPatch, moveByDaysPatch, pixelsToMinutes, resizePatch, snap, type DragPatch } from "@/lib/calendar/eventDrag";
 import { t as translate } from "@/lib/i18n";
 
 type View = "month" | "week" | "day" | "agenda";
@@ -237,16 +237,47 @@ function MonthView({ anchor, weekStart, onDay, onEvent, onEventContext, onSlotCo
   const weeks = [...Array(6)].map((_, w) => grid.slice(w * 7, w * 7 + 7));
   const dow = weeks[0]!.map((d) => formatWeekday(d));
   const maxPer = 4;
+  const chipDrag = useChipDrag(".month-cell", onDragCommit);
+
+  return (
+    <div className="month-grid">
+      <div className="dow-row">{dow.map((d) => <div key={d}>{d}</div>)}</div>
+      {weeks.map((days, wi) => (
+        <div key={wi} className="week-row">
+          {days.map((d) => {
+            const dayEnd = addDays(d, 1);
+            const evs = instances.filter((i) => i.start < dayEnd && i.end > d);
+            const shown = evs.slice(0, maxPer);
+            return (
+              <div key={d.toISOString()} data-date={toLocalDateOnly(d)} className={`month-cell ${d.getMonth() !== anchor.getMonth() ? "other" : ""} ${isToday(d) ? "today" : ""}`} onClick={() => onCreate(d)} onDoubleClick={() => onDay(d)} onContextMenu={(e) => onSlotContext(new Date(d.getTime() + 9 * 3600_000), new Date(d.getTime() + 10 * 3600_000), false, e)}>
+                <span className="day-num" onClick={(e) => { e.stopPropagation(); onDay(d); }}>{d.getDate() === 1 ? formatDayMonth(d) : d.getDate()}</span>
+                {shown.map((i) => <EventChip key={i.key} inst={i} day={d} onClick={(el) => onEvent(i, el)} onContext={(e) => onEventContext(i, e)} onDragStart={canDragEvent(i.event, i.calendar) ? (e) => chipDrag.begin(i, d, e) : undefined} dragging={chipDrag.draggingKey === i.key} suppressClick={() => chipDrag.draggedRef.current} />)}
+                {evs.length > maxPer && <span className="more" onClick={(e) => { e.stopPropagation(); onDay(d); }}>{translate("+{n} more", { n: evs.length - maxPer })}</span>}
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/*
+ * Dragging a chip to another day: the month grid, and the all-day row above
+ * the week grid. A cell there is a day and nothing finer, so the only question
+ * a drag asks is "which day". The cell under the pointer is found by asking
+ * the document rather than by tracking enter and leave on every cell: one
+ * question at the end beats bookkeeping throughout.
+ *
+ * The move is counted from the day the chip was picked up on, not from the
+ * event's first day, so a three-day event grabbed on its last day and dropped
+ * one cell to the right moves one day, not three.
+ */
+function useChipDrag(cellSelector: string, onDragCommit: (i: EventInstance, patch: DragPatch) => void) {
   const [draggingKey, setDraggingKey] = useState<string | null>(null);
   const draggedRef = useRef(false);
 
-  /*
-   * A month cell is a day and nothing finer, so the only question a drag here
-   * asks is "which day". The cell under the pointer is found by asking the
-   * document rather than by tracking enter and leave on forty-two cells: one
-   * question at the end beats bookkeeping throughout.
-   */
-  const beginChipDrag = (inst: EventInstance, e: React.PointerEvent) => {
+  const begin = (inst: EventInstance, grabbedOn: Date, e: React.PointerEvent) => {
     if (e.button !== 0 && e.pointerType === "mouse") return;
     if (!canDragEvent(inst.event, inst.calendar)) return;
     e.stopPropagation();
@@ -255,7 +286,7 @@ function MonthView({ anchor, weekStart, onDay, onEvent, onEventContext, onSlotCo
     el.setPointerCapture(e.pointerId);
     let landedOn: string | null = null;
     const onPointerMove = (ev: PointerEvent) => {
-      const cell = document.elementFromPoint(ev.clientX, ev.clientY)?.closest<HTMLElement>(".month-cell");
+      const cell = document.elementFromPoint(ev.clientX, ev.clientY)?.closest<HTMLElement>(cellSelector);
       const date = cell?.dataset.date ?? null;
       if (date) landedOn = date;
       if (!draggedRef.current) draggedRef.current = true;
@@ -277,8 +308,8 @@ function MonthView({ anchor, weekStart, onDay, onEvent, onEventContext, onSlotCo
       const target = parts && parts.length === 3 ? new Date(parts[0]!, parts[1]! - 1, parts[2]!) : null;
       // How far the hand moved it, in local days -- see moveByDaysPatch for
       // why the target date itself is the wrong thing to write.
-      if (target && !isSameDay(target, inst.start)) {
-        onDragCommit(inst, moveByDaysPatch(inst.event.start, dayDelta(inst.start, target)));
+      if (target && !isSameDay(target, grabbedOn)) {
+        onDragCommit(inst, moveByDaysPatch(inst.event.start, dayDelta(grabbedOn, target)));
       }
       window.setTimeout(() => (draggedRef.current = false), 0);
     };
@@ -287,27 +318,7 @@ function MonthView({ anchor, weekStart, onDay, onEvent, onEventContext, onSlotCo
     el.addEventListener("pointercancel", finish);
   };
 
-  return (
-    <div className="month-grid">
-      <div className="dow-row">{dow.map((d) => <div key={d}>{d}</div>)}</div>
-      {weeks.map((days, wi) => (
-        <div key={wi} className="week-row">
-          {days.map((d) => {
-            const dayEnd = addDays(d, 1);
-            const evs = instances.filter((i) => i.start < dayEnd && i.end > d);
-            const shown = evs.slice(0, maxPer);
-            return (
-              <div key={d.toISOString()} data-date={toLocalDateOnly(d)} className={`month-cell ${d.getMonth() !== anchor.getMonth() ? "other" : ""} ${isToday(d) ? "today" : ""}`} onClick={() => onCreate(d)} onDoubleClick={() => onDay(d)} onContextMenu={(e) => onSlotContext(new Date(d.getTime() + 9 * 3600_000), new Date(d.getTime() + 10 * 3600_000), false, e)}>
-                <span className="day-num" onClick={(e) => { e.stopPropagation(); onDay(d); }}>{d.getDate() === 1 ? formatDayMonth(d) : d.getDate()}</span>
-                {shown.map((i) => <EventChip key={i.key} inst={i} day={d} onClick={(el) => onEvent(i, el)} onContext={(e) => onEventContext(i, e)} onDragStart={canDragEvent(i.event, i.calendar) ? (e) => beginChipDrag(i, e) : undefined} dragging={draggingKey === i.key} suppressClick={() => draggedRef.current} />)}
-                {evs.length > maxPer && <span className="more" onClick={(e) => { e.stopPropagation(); onDay(d); }}>{translate("+{n} more", { n: evs.length - maxPer })}</span>}
-              </div>
-            );
-          })}
-        </div>
-      ))}
-    </div>
-  );
+  return { begin, draggingKey, draggedRef };
 }
 
 function statusClass(i: EventInstance): string {
@@ -358,24 +369,36 @@ function TimeGrid({ days, onEvent, onEventContext, onSlotContext, onCreate, onDa
    * new time, so the preview is one number and the commit is the same
    * arithmetic the tests cover.
    */
-  const [moving, setMoving] = useState<{ key: string; deltaMin: number; mode: "move" | "resize" } | null>(null);
+  const [moving, setMoving] = useState<{ key: string; deltaMin: number; deltaDays: number; shiftPx: number; mode: "move" | "resize" } | null>(null);
   /* A drag ends with a pointerup, and a pointerup on the same element is also
      a click. Without this, letting go of a moved event opens its popover. */
   const draggedRef = useRef(false);
+  const allDayDrag = useChipDrag(".ad-cell", onDragCommit);
 
-  const beginDrag = (inst: EventInstance, mode: "move" | "resize", e: React.PointerEvent) => {
+  /*
+   * A move goes sideways as well as up and down: across the columns to
+   * another day, keeping whatever hour it was dragged to. The block stays in
+   * its own column while it moves and is drawn shifted by whole columns, so
+   * the preview is two numbers and nothing is re-laid-out until it lands.
+   * A resize only ever changes the end, so it stays vertical.
+   */
+  const beginDrag = (inst: EventInstance, mode: "move" | "resize", column: number, e: React.PointerEvent) => {
     if (e.button !== 0 && e.pointerType === "mouse") return;
     if (!canDragEvent(inst.event, inst.calendar)) return;
     e.stopPropagation();
     e.preventDefault();
     const el = e.currentTarget as HTMLElement;
+    const startX = e.clientX;
     const startY = e.clientY;
+    const colWidth = mode === "move" ? el.closest<HTMLElement>(".day-col")?.getBoundingClientRect().width ?? 0 : 0;
     let delta = 0;
+    let deltaDays = 0;
     el.setPointerCapture(e.pointerId);
     const onPointerMove = (ev: PointerEvent) => {
       delta = snap(pixelsToMinutes(ev.clientY - startY, HOUR_H));
-      if (delta !== 0) draggedRef.current = true;
-      setMoving({ key: inst.key, deltaMin: delta, mode });
+      deltaDays = columnsMoved(ev.clientX - startX, colWidth, column, days.length);
+      if (delta !== 0 || deltaDays !== 0) draggedRef.current = true;
+      setMoving({ key: inst.key, deltaMin: delta, deltaDays, shiftPx: deltaDays * colWidth, mode });
     };
     const finish = () => {
       el.removeEventListener("pointermove", onPointerMove);
@@ -387,9 +410,9 @@ function TimeGrid({ days, onEvent, onEventContext, onSlotContext, onCreate, onDa
         /* already released, which is fine */
       }
       setMoving(null);
-      if (delta !== 0) {
+      if (delta !== 0 || deltaDays !== 0) {
         const seconds = (inst.end.getTime() - inst.start.getTime()) / 1000;
-        onDragCommit(inst, mode === "move" ? movePatch(inst.event.start, delta) : resizePatch(seconds, delta));
+        onDragCommit(inst, mode === "move" ? moveAcrossPatch(inst.event.start, deltaDays, delta) : resizePatch(seconds, delta));
       }
       // Cleared after the click that follows this pointerup has been swallowed.
       window.setTimeout(() => (draggedRef.current = false), 0);
@@ -431,8 +454,8 @@ function TimeGrid({ days, onEvent, onEventContext, onSlotContext, onCreate, onDa
       <div className="week-allday">
         <div className="ad-label">{translate("all-day")}</div>
         {days.map((d) => (
-          <div key={d.toISOString()} className="ad-cell" onClick={() => onCreate(d, addDays(d, 1), true)} onContextMenu={(e) => onSlotContext(d, addDays(d, 1), true, e)}>
-            {allDay(d).map((i) => <EventChip key={i.key} inst={i} day={d} onClick={(el) => onEvent(i, el)} onContext={(e) => onEventContext(i, e)} />)}
+          <div key={d.toISOString()} data-date={toLocalDateOnly(d)} className="ad-cell" onClick={() => onCreate(d, addDays(d, 1), true)} onContextMenu={(e) => onSlotContext(d, addDays(d, 1), true, e)}>
+            {allDay(d).map((i) => <EventChip key={i.key} inst={i} day={d} onClick={(el) => onEvent(i, el)} onContext={(e) => onEventContext(i, e)} onDragStart={canDragEvent(i.event, i.calendar) ? (e) => allDayDrag.begin(i, d, e) : undefined} dragging={allDayDrag.draggingKey === i.key} suppressClick={() => allDayDrag.draggedRef.current} />)}
           </div>
         ))}
       </div>
@@ -441,7 +464,7 @@ function TimeGrid({ days, onEvent, onEventContext, onSlotContext, onCreate, onDa
           <div className="time-col">
             {[...Array(24)].map((_, h) => h > 0 && <span key={h} className="hour-label" style={{ top: h * HOUR_H }}>{formatHourLabel(h)}</span>)}
           </div>
-          {days.map((d) => {
+          {days.map((d, column) => {
             const evs = layoutOverlaps(timed(d), d);
             const today = isToday(d);
             const nowTop = ((now.getHours() * 60 + now.getMinutes()) / 60) * HOUR_H;
@@ -490,9 +513,10 @@ function TimeGrid({ days, onEvent, onEventContext, onSlotContext, onCreate, onDa
                         height: Math.max(height + (moving?.key === inst.key && moving.mode === "resize" ? (moving.deltaMin / 60) * HOUR_H : 0), 18),
                         left: `${left}%`,
                         width: `calc(${width}% - 3px)`,
+                        transform: moving?.key === inst.key && moving.shiftPx ? `translateX(${moving.shiftPx}px)` : undefined,
                         background: color,
                       }}
-                      onPointerDown={(e) => beginDrag(inst, "move", e)}
+                      onPointerDown={(e) => beginDrag(inst, "move", column, e)}
                       onClick={(e) => { e.stopPropagation(); if (draggedRef.current) return; onEvent(inst, e.currentTarget); }}
                       onContextMenu={(e) => onEventContext(inst, e)}
                       title={inst.event.title ?? ""}
@@ -501,7 +525,7 @@ function TimeGrid({ days, onEvent, onEventContext, onSlotContext, onCreate, onDa
                         /* Its own element rather than an edge zone on the block,
                            so a thumb has something to aim at and the move drag
                            does not have to guess which one was meant. */
-                        <div className="ev-resize" onPointerDown={(e) => beginDrag(inst, "resize", e)} aria-hidden="true" />
+                        <div className="ev-resize" onPointerDown={(e) => beginDrag(inst, "resize", column, e)} aria-hidden="true" />
                       )}
                       <div className="ev-title">{inst.event.title || "(untitled)"}</div>
                       {height > 30 && <div className="ev-time">{formatTime(inst.start)} – {formatTime(inst.end)}</div>}

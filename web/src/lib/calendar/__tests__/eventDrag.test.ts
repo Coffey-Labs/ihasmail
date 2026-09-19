@@ -10,6 +10,8 @@ import {
   snap,
   movePatch,
   moveByDaysPatch,
+  moveAcrossPatch,
+  columnsMoved,
   dayDelta,
   resizePatch,
   SNAP_MINUTES,
@@ -180,10 +182,22 @@ describe("the patch a drag sends, computed in the event's own frame", () => {
     expect(resizePatch(3600, -600)).toEqual({ duration: "PT15M" });
   });
 
+  it("moves by days and minutes together, as a week-grid drag does", () => {
+    expect(moveAcrossPatch("2026-09-04T14:00:00", 2, 90)).toEqual({ start: "2026-09-06T15:30:00" });
+    expect(moveAcrossPatch("2026-09-04T14:00:00", -1, 0)).toEqual({ start: "2026-09-03T14:00:00" });
+    expect(moveAcrossPatch("2026-09-04T14:00:00", 0, -30)).toEqual({ start: "2026-09-04T13:30:00" });
+  });
+
+  it("adds the days as days, so a clock change does not move the hour", () => {
+    // US clocks go back on 1 November 2026; 14:00 stays 14:00 across it.
+    expect(moveAcrossPatch("2026-10-31T14:00:00", 2, 0)).toEqual({ start: "2026-11-02T14:00:00" });
+  });
+
   it("says nothing at all about a start it cannot read", () => {
     expect(movePatch("not a date", 30)).toEqual({});
     expect(moveByDaysPatch("", 3)).toEqual({});
     expect(moveByDaysPatch("2026-09-04T14:00:00", Number.NaN)).toEqual({});
+    expect(moveAcrossPatch("not a date", 1, 30)).toEqual({});
   });
 });
 
@@ -226,5 +240,25 @@ describe("pixelsToMinutes", () => {
     expect(snap(pixelsToMinutes(10, 48))).toBe(15);
     expect(snap(pixelsToMinutes(2, 48))).toBe(0);
     expect(SNAP_MINUTES).toBe(15);
+  });
+});
+
+describe("columnsMoved", () => {
+  it("counts whole columns, to the nearest", () => {
+    expect(columnsMoved(100, 100, 2, 7)).toBe(1);
+    expect(columnsMoved(140, 100, 2, 7)).toBe(1);
+    expect(columnsMoved(160, 100, 2, 7)).toBe(2);
+    expect(columnsMoved(-40, 100, 2, 7)).toBe(0);
+    expect(columnsMoved(-160, 100, 3, 7)).toBe(-2);
+  });
+
+  it("stops at the edges of the week instead of wrapping", () => {
+    expect(columnsMoved(-900, 100, 2, 7)).toBe(-2);
+    expect(columnsMoved(900, 100, 2, 7)).toBe(4);
+  });
+
+  it("never moves sideways in a one-day grid or before it is measured", () => {
+    expect(columnsMoved(500, 100, 0, 1)).toBe(0);
+    expect(columnsMoved(500, 0, 0, 7)).toBe(0);
   });
 });

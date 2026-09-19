@@ -142,6 +142,35 @@ export function moveByDaysPatch(storedStart: string, days: number): DragPatch {
   return { start: formatStored(moved) };
 }
 
+/**
+ * Moved by whole days and by minutes at once -- the week grid, where a drag
+ * goes sideways to another day and up or down to another hour in the same
+ * gesture.
+ *
+ * The days go first and as days, for the reason moveByDaysPatch gives: a day
+ * added to a wall clock keeps its time of day across a clock change, where
+ * 1440 minutes would not.
+ */
+export function moveAcrossPatch(storedStart: string, days: number, deltaMinutes: number): DragPatch {
+  const byDays = days ? moveByDaysPatch(storedStart, days).start : storedStart;
+  if (!byDays) return {};
+  return snap(deltaMinutes) ? movePatch(byDays, deltaMinutes) : { start: byDays };
+}
+
+/**
+ * How many columns sideways the pointer has gone, kept inside the grid.
+ *
+ * Counted from the column the drag began in, so an event that crosses
+ * midnight moves by the same amount whichever of its two halves was picked
+ * up. Past the first or last column it stops at the edge rather than
+ * wrapping: the week on screen is the only week a drag can reach.
+ */
+export function columnsMoved(deltaPixels: number, columnWidth: number, fromIndex: number, columnCount: number): number {
+  if (!columnWidth || columnCount < 2) return 0;
+  const moved = Math.round(deltaPixels / columnWidth) || 0; // never -0
+  return Math.max(-fromIndex, Math.min(columnCount - 1 - fromIndex, moved));
+}
+
 /** Whole days between two local dates, ignoring the time of day on each. */
 export function dayDelta(from: Date, to: Date): number {
   const a = new Date(from.getFullYear(), from.getMonth(), from.getDate()).getTime();
