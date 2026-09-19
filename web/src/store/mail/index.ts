@@ -29,6 +29,7 @@ import { plural, t } from "@/lib/i18n";
 import { withBase } from "@/lib/basePath";
 import { isDeviceTrusted, loadRaw, saveJson } from "@/lib/storage";
 import { MAILBOX_PROPS, LIST_PROPS, FULL_PROPS, BODY_PROPS } from "./props";
+import { compareFolders } from "@/lib/mailbox/folderOrder";
 import { type ListQuery, type MailState } from "./types";
 import { playNewMailSound, showNotification } from "@/lib/notify/notify";
 import { pushEnabledHere } from "@/lib/notify/webpush";
@@ -161,7 +162,7 @@ export const useMail = create<MailState>((set, get) => ({
   childrenOf(parentId) {
     return Object.values(get().mailboxes)
       .filter((m) => (m.parentId ?? null) === parentId)
-      .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
+      .sort(compareFolders);
   },
 
   async query(q, opts = {}) {
@@ -759,6 +760,20 @@ export const useMail = create<MailState>((set, get) => ({
     // Awaited, not fired and forgotten: the folder operation is not really done
     // until the rules pointing at it agree, and a page that navigates away
     // mid-save would leave the script half-written.
+    if (before.length) await followFolders(before);
+  },
+
+  async arrangeMailboxes(updates) {
+    const accountId = get().accountId!;
+    const moved = Object.keys(updates).filter((id) => updates[id]!.parentId !== undefined);
+    const before = moved.flatMap((id) => folderRefs(get(), id));
+    // One request for the whole level rather than one per folder. JMAP applies
+    // each update on its own, so a refusal can leave the level part-numbered;
+    // reloading shows whatever order the server actually kept.
+    const res = await client.call<SetResponse>("Mailbox/set", { accountId, update: updates });
+    const failed = Object.values(res.notUpdated ?? {})[0];
+    await get().loadMailboxes();
+    if (failed) throw new Error(setErrorMessage(failed));
     if (before.length) await followFolders(before);
   },
 

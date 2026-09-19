@@ -239,9 +239,16 @@ for that one, and the dialog says so.
 Real JMAP mailboxes, with the server's roles honored.
 
 - Create, rename, create a subfolder, delete (with or without its mail).
-- **Drag a folder onto another** to reparent it. Folders with a server role
-  (Inbox, Sent, Drafts, Trash, Junk, Archive) are structural and are not
-  offered the drag, because the server refuses to move them anyway.
+- **Order:** Inbox first, then the other special folders (Drafts, Sent,
+  Archive, Junk, Trash), then everything else A–Z, at every level.
+- **Drag a folder between two others** to put it there. The line shows where
+  it will land. The order is saved on the server as the folders' JMAP
+  `sortOrder`, so it follows you to every device, and other clients that
+  honor `sortOrder` show it too. *Move up* and *Move down* in the folder menu
+  do the same from the keyboard or on touch. Inbox always stays first.
+- **Drag a folder onto the middle of another** to reparent it. Folders with a
+  server role (Sent, Drafts, Trash, Junk, Archive) can be reordered but not
+  nested, because the server refuses to move them to another parent.
 - **Subscribe / unsubscribe** — *Show in list* / *Hide from list*. An
   unsubscribed folder still exists and still receives; it is just out of the
   way. Inbox cannot be hidden.
