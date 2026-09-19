@@ -1367,6 +1367,8 @@ export const catalog: Catalog = {
     "Collapse all": "Свернуть все",
     "Expand all": "Развернуть все",
     "Send now instead": "Отправить сейчас",
+    "This message is rich text": "Это письмо в формате HTML",
+    "This message is plain text": "Это письмо в виде простого текста",
     "Switch to plain text": "Переключиться на обычный текст",
     "Switch to rich text": "Переключиться на форматированный текст",
     "{used} of {total} used": "Использовано {used} из {total}",

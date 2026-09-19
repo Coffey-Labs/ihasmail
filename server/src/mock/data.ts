@@ -122,7 +122,11 @@ export function addSignedEmail(o: { which: keyof typeof SIGNED_MESSAGES; from: [
     hasAttachment: false,
     preview: body.slice(0, 120),
     textBody: [{ partId: "1", blobId: textBlob, size: body.length, name: null, type: "text/plain", charset: "utf-8", disposition: null, cid: null }],
-    htmlBody: [],
+    // `htmlBody` is derived (RFC 8621 4.1.4): a message with no HTML
+    // alternative still gets one, holding the text/plain part. Checked against
+    // Stalwart 0.16.21 on 2026-09-10 -- see hasHtmlAlternative() in the client,
+    // which reads the part's type rather than trusting this list to be empty.
+    htmlBody: [{ partId: "1", blobId: textBlob, size: body.length, name: null, type: "text/plain", charset: "utf-8", disposition: null, cid: null }],
     attachments: [],
     bodyValues: { "1": { value: body, isEncodingProblem: false, isTruncated: false } },
     bodyStructure: {
@@ -192,7 +196,8 @@ export function addEmail(o: { from: [string, string]; to?: string; subject: stri
     from: [{ name: o.from[0], email: o.from[1] }], to: [{ name: "Demo User", email: o.to ?? USER }], cc: null, bcc: null, replyTo: null, sender: null,
     subject: o.subject, hasAttachment: Boolean(o.attach), preview: text.slice(0, 120).replace(/\n/g, " "),
     textBody: [{ partId: "1", blobId: textBlob, size: text.length, name: null, type: "text/plain", charset: "utf-8", disposition: null, cid: null }],
-    htmlBody: o.html ? [{ partId: "2", blobId: htmlBlob, size: (o.styled ? STYLED_MARKETING_HTML : html).length, name: null, type: "text/html", charset: "utf-8", disposition: null, cid: null }] : [],
+    // No HTML alternative means `htmlBody` names the text part, not nothing. See addSignedEmail.
+    htmlBody: o.html ? [{ partId: "2", blobId: htmlBlob, size: (o.styled ? STYLED_MARKETING_HTML : html).length, name: null, type: "text/html", charset: "utf-8", disposition: null, cid: null }] : [{ partId: "1", blobId: textBlob, size: text.length, name: null, type: "text/plain", charset: "utf-8", disposition: null, cid: null }],
     attachments,
     bodyValues: { "1": { value: text, isEncodingProblem: false, isTruncated: false }, ...(o.html ? { "2": { value: o.styled ? STYLED_MARKETING_HTML : html, isEncodingProblem: false, isTruncated: false } } : {}) },
     bodyStructure: { partId: null, blobId: null, size: 0, type: "multipart/mixed", name: null, charset: null, disposition: null, cid: null, subParts: [{ partId: "1", blobId: textBlob, size: text.length, type: "text/plain", name: null, charset: "utf-8", disposition: null, cid: null }, ...(o.html ? [{ partId: "2", blobId: htmlBlob, size: (o.styled ? STYLED_MARKETING_HTML : html).length, type: "text/html", name: null, charset: "utf-8", disposition: null, cid: null }] : []), ...attachments] },

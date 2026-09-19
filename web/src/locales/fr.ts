@@ -1370,6 +1370,8 @@ export const catalog: Catalog = {
     "Collapse all": "Tout réduire",
     "Expand all": "Tout développer",
     "Send now instead": "Envoyer tout de suite",
+    "This message is rich text": "Ce message est en texte enrichi",
+    "This message is plain text": "Ce message est en texte brut",
     "Switch to plain text": "Passer en texte brut",
     "Switch to rich text": "Passer en texte enrichi",
     "{used} of {total} used": "{used} sur {total} utilisés",

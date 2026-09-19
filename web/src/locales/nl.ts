@@ -1362,6 +1362,8 @@ export const catalog: Catalog = {
     "Collapse all": "Alles samenvouwen",
     "Expand all": "Alles uitvouwen",
     "Send now instead": "Toch nu verzenden",
+    "This message is rich text": "Dit bericht is opgemaakte tekst",
+    "This message is plain text": "Dit bericht is platte tekst",
     "Switch to plain text": "Overschakelen naar platte tekst",
     "Switch to rich text": "Overschakelen naar opgemaakte tekst",
     "{used} of {total} used": "{used} van {total} gebruikt",

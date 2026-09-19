@@ -1373,6 +1373,8 @@ export const catalog: Catalog = {
     "Collapse all": "すべて折りたたむ",
     "Expand all": "すべて展開",
     "Send now instead": "予約をやめて今すぐ送信",
+    "This message is rich text": "このメールはリッチテキストです",
+    "This message is plain text": "このメールはプレーンテキストです",
     "Switch to plain text": "プレーンテキストに切り替え",
     "Switch to rich text": "リッチテキストに切り替え",
     "{used} of {total} used": "{total} 中 {used} を使用",
