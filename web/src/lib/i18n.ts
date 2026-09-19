@@ -120,7 +120,7 @@ export function plural(n: number, forms: PluralForms, vars?: Vars): string {
  *
  * So the sentence stays whole and the elements are placeholders in it:
  *
- *   tNode("Open {scheme} links in ihasmail.", { scheme: <code>mailto:</code> })
+ *   tNode("Open {scheme} links in {app}.", { scheme: <code>mailto:</code> }, { app: "ihasmail" })
  *
  * A translator sees one sentence with a named hole and can put the hole
  * wherever their language wants it.

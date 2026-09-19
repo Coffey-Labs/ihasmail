@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useAppName } from "@/lib/brand";
 import { Copy, KeyRound, ShieldCheck, Smartphone } from "lucide-react";
 import { apiFetch, ApiError } from "@/jmap/client";
 import { useSession } from "@/store/session";
@@ -177,6 +178,7 @@ function PasswordForm({ otpEnabled, onChanged }: { otpEnabled: boolean; onChange
  * stay — whoever is already enrolled needs a way back.
  */
 function TwoFactorOff({ reload }: { reload: () => Promise<void> }) {
+  const appName = useAppName();
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -200,7 +202,7 @@ function TwoFactorOff({ reload }: { reload: () => Promise<void> }) {
     <div>
       <p className="hint" style={{ marginBottom: 12 }}>
         
-        {t("This account has two-factor authentication on. ihasmail can't sign you in with a code yet, so signing in on another device needs an app password — or you can turn two-factor authentication off here.")}
+        {t("This account has two-factor authentication on. {app} can't sign you in with a code yet, so signing in on another device needs an app password — or you can turn two-factor authentication off here.", { app: appName })}
       </p>
       <div className="row" style={{ alignItems: "center", gap: 10 }}>
         <ShieldCheck size={18} />

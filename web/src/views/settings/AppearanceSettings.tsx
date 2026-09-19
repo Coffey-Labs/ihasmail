@@ -1,4 +1,5 @@
 import { useSettings } from "@/store/settings";
+import { useAppName } from "@/lib/brand";
 import { PALETTES, effectiveMode, type Mode, type PaletteId } from "@/lib/palette";
 import { Switch, useIsTouch } from "@/ui/misc";
 import { SWIPE_CHOICES, type SwipeAction } from "@/lib/input/swipe";
@@ -75,6 +76,7 @@ const ACCENTS = [
 ];
 
 export function AppearanceSettings() {
+  const appName = useAppName();
   const s = useSettings((st) => st.settings);
   const update = useSettings((st) => st.update);
   const prefersDark = Boolean(window.matchMedia?.("(prefers-color-scheme: dark)").matches);
@@ -84,7 +86,7 @@ export function AppearanceSettings() {
   return (
     <div>
       <h1>{translate("Appearance")}</h1>
-      <p className="lead">{translate("Make ihasmail yours.")}</p>
+      <p className="lead">{translate("Make {app} yours.", { app: appName })}</p>
       <h2>{translate("Theme")}</h2>
       <div className="mode-switch" role="group" aria-label={translate("Light or dark")}>
         {MODES.map((m) => (
@@ -178,7 +180,7 @@ export function AppearanceSettings() {
         </p>
       )}
       <p className="hint">
-        {translate("Only languages ihasmail has been translated into appear here, so this list grows as translations land rather than ahead of them — a language offered without strings behind it would leave the page claiming to be in a language it is not.")}
+        {translate("Only languages {app} has been translated into appear here, so this list grows as translations land rather than ahead of them — a language offered without strings behind it would leave the page claiming to be in a language it is not.", { app: appName })}
       </p>
       <p className="hint">
         

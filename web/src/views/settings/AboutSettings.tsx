@@ -1,4 +1,5 @@
 import { useSession } from "@/store/session";
+import { useAppName } from "@/lib/brand";
 import { client } from "@/jmap/client";
 import { DEFAULT_SOURCE_URL } from "@/lib/source";
 import { APP_VERSION } from "@/lib/version";
@@ -6,16 +7,17 @@ import { withBase } from "@/lib/basePath";
 import { t, tNode } from "@/lib/i18n";
 
 export function AboutSettings() {
+  const appName = useAppName();
   const session = useSession((s) => s.session);
   const caps = Object.keys(session?.capabilities ?? {});
   // A deployment running modified code should offer its own source, not ours.
   const sourceUrl = session?.ihasmail?.sourceUrl ?? DEFAULT_SOURCE_URL;
   return (
     <div>
-      <h1>{t("About ihasmail")}</h1>
+      <h1>{t("About {app}", { app: appName })}</h1>
       <p className="lead">{tNode("A fast, friendly, open-source webmail for {server}, built on JMAP.", { server: <a href="https://stalw.art" target="_blank" rel="noreferrer">{t("Stalwart Mail Server")}</a> })}</p>
       <div className="row" style={{ gap: 16, alignItems: "center", marginBottom: 16 }}>
-        <img src={withBase("/img/logo.png")} alt={t("ihasmail")} width={96} />
+        <img src={withBase("/img/logo.png")} alt={appName} width={96} />
         <div>
           {/* A product name and a version string: neither is a word to translate. */}
           <div style={{ fontWeight: 700, fontSize: "1.2em" }} className="notranslate" translate="no">ihasmail v{APP_VERSION}</div>
@@ -32,8 +34,8 @@ export function AboutSettings() {
           <tr><td>{t("Image privacy proxy")}</td><td>{session?.ihasmail?.imageProxy ? t("enabled") : t("disabled")}</td></tr>
         </tbody>
       </table>
-      <p className="hint" style={{ marginTop: 6 }}>{t("Stalwart does not publish its version number to mail clients, so ihasmail reports the edition where the server gives one. ihasmail requires 0.16 or newer, and sign-in refuses anything older.")}</p>
-      <p className="hint">{tNode("ihasmail's own version is the date of the commit it was built from, followed by where that commit came from: {example} was built from a commit dated the 30th of August 2026 that arrived through pull request 129. A commit that did not come through one carries its short SHA instead — {sha}. The version deliberately says nothing about Stalwart; what this build needs from the server is the line above.", { example: <strong className="notranslate" translate="no">v2026.8.30+pr129</strong>, sha: <code>+g1fa6578</code> })}</p>
+      <p className="hint" style={{ marginTop: 6 }}>{t("Stalwart does not publish its version number to mail clients, so {app} reports the edition where the server gives one. {app} requires 0.16 or newer, and sign-in refuses anything older.", { app: appName })}</p>
+      <p className="hint">{tNode("{app}'s own version is the date of the commit it was built from, followed by where that commit came from: {example} was built from a commit dated the 30th of August 2026 that arrived through pull request 129. A commit that did not come through one carries its short SHA instead — {sha}. The version deliberately says nothing about Stalwart; what this build needs from the server is the line above.", { example: <strong className="notranslate" translate="no">v2026.8.30+pr129</strong>, sha: <code>+g1fa6578</code> }, { app: appName })}</p>
       <h2>{t("Server capabilities")}</h2>
       <div className="row wrap gap-4">
         {caps.map((c) => <span key={c} className="chip mono" style={{ fontSize: ".78em" }}>{c.replace("urn:ietf:params:jmap:", "")}</span>)}
