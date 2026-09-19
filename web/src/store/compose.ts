@@ -5,6 +5,7 @@ import { formatFullDate, uid } from "@/lib/format";
 import { formatAddress, parseMailto, sameAddress, uniqueAddresses } from "@/lib/address";
 import { escapeHtml, htmlToText, quoteText, replySubject, textToHtml } from "@/lib/text/text";
 import { hasHtmlAlternative, sanitizeEmailHtml, sanitizeEditorHtml } from "@/lib/text/html";
+import { remoteImagesAllowed, restoreBlockedImages } from "@/lib/mail/remoteImages";
 import { toast } from "@/ui/toast";
 import { useMail, FULL_PROPS, BODY_PROPS } from "./mail";
 import { useSession } from "./session";
@@ -13,6 +14,7 @@ import { formatScheduleTime, holdUntil } from "@/lib/schedule";
 import { t as translate } from "@/lib/i18n";
 import { BASE_PATH } from "@/lib/basePath";
 import { settings } from "./settings";
+import { useContacts } from "./contacts";
 import { emlFilename } from "@/lib/text/emlName";
 import { fillPlaceholders, type PlaceholderContext } from "@/lib/templatePlaceholders";
 import { shareBody, type SharedContent } from "@/lib/shareTarget";
@@ -167,6 +169,26 @@ function blankDraft(init: Partial<Draft> = {}): Draft {
   };
 }
 
+/**
+ * Whether this message's remote images may be fetched into a composer.
+ *
+ * The same question the reader answered, asked with the same inputs: the
+ * policy, the trusted senders, whether the sender is a contact, and whether
+ * the reader pressed "Show images" on this message.
+ */
+function remoteImagesForMessage(email: Email): boolean {
+  const s = settings();
+  const from = email.from?.[0]?.email;
+  const contacts = useContacts.getState();
+  return remoteImagesAllowed({
+    from,
+    policy: s.imagePolicy,
+    trusted: s.trustedImageSenders,
+    inContacts: Boolean(from && contacts.loaded && contacts.lookupByEmail(from)),
+    shown: Boolean(useMail.getState().imagesShown[email.id]),
+  });
+}
+
 export function signatureBlock(identity: Identity | undefined, format: "html" | "text"): string {
   if (!identity) return "";
   if (format === "text") return identity.textSignature ? `\n\n-- \n${identity.textSignature}` : "";
@@ -260,7 +282,7 @@ export const useCompose = create<ComposeState>((set, get) => ({
       showCc: Boolean(full.cc?.length),
       showBcc: Boolean(full.bcc?.length),
       subject: full.subject ?? "",
-      html: html ? sanitizeEmailHtml(html, { cidMap, allowRemote: true, dropStyleBlocks: true }).html : textToHtml(text).replace(/\n/g, "<br>"),
+      html: html ? sanitizeEmailHtml(html, { cidMap, allowRemote: remoteImagesForMessage(full), dropStyleBlocks: true }).html : textToHtml(text).replace(/\n/g, "<br>"),
       text: text || (html ? htmlToText(html) : ""),
       format: html ? "html" : settings().composeFormat,
       attachments,
@@ -326,7 +348,7 @@ export const useCompose = create<ComposeState>((set, get) => ({
       showCc: Boolean(full.cc?.length),
       showBcc: Boolean(full.bcc?.length),
       subject: full.subject ?? "",
-      html: html ? sanitizeEmailHtml(html, { cidMap, allowRemote: true, dropStyleBlocks: true }).html : textToHtml(text).replace(/\n/g, "<br>"),
+      html: html ? sanitizeEmailHtml(html, { cidMap, allowRemote: remoteImagesForMessage(full), dropStyleBlocks: true }).html : textToHtml(text).replace(/\n/g, "<br>"),
       text: text || (html ? htmlToText(html) : ""),
       format: html ? "html" : settings().composeFormat,
       attachments,
@@ -413,9 +435,17 @@ export const useCompose = create<ComposeState>((set, get) => ({
         attachments.push({ id: uid("a"), name: a.name ?? "attachment", type: a.type, size: a.size, blobId: a.blobId, progress: 100, error: null, cid: a.cid ?? undefined, inline });
       }
     }
+    /*
+     * Quoting renders the message a second time, so the reader's decision
+     * about its remote images applies here too: a quote that fetched what
+     * they declined would report the message read to whoever was counting
+     * (#410). Blocked images keep their address and get it back on the way
+     * out, so the recipient's copy is the quote as its sender wrote it.
+     */
+    const allowRemote = remoteImagesForMessage(full);
     // Inline images are shown via their blob URLs in the editor and converted back to cid: at send time.
     const quotedHtmlBody = origHtml
-      ? sanitizeEmailHtml(origHtml, { cidMap, allowRemote: true, proxyRemote: false, dropStyleBlocks: true }).html
+      ? sanitizeEmailHtml(origHtml, { cidMap, allowRemote, proxyRemote: false, dropStyleBlocks: true }).html
       : textToHtml(origText).replace(/\n/g, "<br>");
     const fromStr = escapeHtml((full.from ?? []).map(formatAddress).join(", "));
     const date = formatFullDate(full.receivedAt);
@@ -781,7 +811,9 @@ export async function buildEmailObject(d: Draft, opts: { forSend: boolean; mailb
   if (!ident) throw new Error(translate("No sending identity available"));
   const from: EmailAddress = { name: ident.name || null, email: ident.email };
 
-  let html = d.format === "html" ? d.html : "";
+  // Images blocked when the message was quoted keep their address; the copy
+  // that leaves carries it, and the recipient's client decides for itself.
+  let html = d.format === "html" ? restoreBlockedImages(d.html) : "";
   const text = d.format === "html" ? htmlToText(d.html) : d.text;
 
   // Inline attachments shown via blob URLs in the editor → back to cid: references.

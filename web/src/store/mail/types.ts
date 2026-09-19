@@ -33,6 +33,12 @@ export interface ListState extends ListQuery {
 
 export interface MailState {
   accountId: Id | null;
+  /**
+   * Messages the reader pressed "Show images" on, this session. Kept here
+   * rather than in the message view because replying quotes the message into
+   * a second window, which has to honour the same decision.
+   */
+  imagesShown: Record<Id, boolean>;
   mailboxes: Record<Id, Mailbox>;
   mailboxState: string | null;
   mailboxesLoaded: boolean;
@@ -113,6 +119,8 @@ export interface MailState {
   saveVacation(patch: Partial<VacationResponse>): Promise<void>;
   loadQuota(): Promise<void>;
 
+  /** Remember that this message's remote images were allowed by hand. */
+  showImages(id: Id): void;
   select(ids: Id[], on: boolean): void;
   clearSelection(): void;
   /** Refresh the per-label unread counts, in one request. */

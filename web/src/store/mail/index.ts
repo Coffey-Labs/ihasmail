@@ -78,6 +78,7 @@ function offerArchiveFolder(retry: () => Promise<void>): void {
 
 export const useMail = create<MailState>((set, get) => ({
   accountId: null,
+  imagesShown: {},
   mailboxes: {},
   mailboxState: null,
   mailboxesLoaded: false,
@@ -864,6 +865,10 @@ export const useMail = create<MailState>((set, get) => ({
     } catch {
       set({ quotas: [] });
     }
+  },
+
+  showImages(id) {
+    set((s) => ({ imagesShown: { ...s.imagesShown, [id]: true } }));
   },
 
   select(ids, on) {

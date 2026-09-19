@@ -17,6 +17,7 @@ import { internalDomains, isExternalSender, linkVerdict } from "@/lib/warnings";
 import { spamReport, type SpamReport } from "@/lib/spamScore";
 import { formatFullDate, formatListDate, formatSize } from "@/lib/format";
 import { displayName, domainOf, formatAddress } from "@/lib/address";
+import { remoteImagesAllowed } from "@/lib/mail/remoteImages";
 import { EMAIL_BASE_CSS, TEXT_EMAIL_CSS, hasHtmlAlternative, htmlDeclaresColors, markKeptSurfaces, sanitizeEmailHtml } from "@/lib/text/html";
 import { openableInTab, previewKind } from "@/lib/preview";
 // Loaded when first opened: it is not needed to show mail, and it is not small.
@@ -118,7 +119,12 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
   /* Stable, so the body's click handler keeps its identity between renders.
      Passing an inline arrow here is what made the handler change on every
      render in the first place. */
-  const showImages = useCallback(() => setAllowRemote(true), []);
+  const showImages = useCallback(() => {
+    setAllowRemote(true);
+    // Recorded for the composer: a reply quotes this message and must not
+    // fetch what the reader has not agreed to (#410).
+    useMail.getState().showImages(e.id);
+  }, [e.id]);
   const [filterOpen, setFilterOpen] = useState(false);
   const moreMenu = useMenu();
   const [, navigate] = useLocation();
@@ -128,7 +134,7 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
   const from = e.from?.[0];
   const senderTrusted = settings.trustedImageSenders.includes((from?.email ?? "").toLowerCase());
   const inContacts = useContacts((s) => Boolean(from && s.loaded && s.lookupByEmail(from.email)));
-  const remoteAllowed = allowRemote || settings.imagePolicy === "always" || senderTrusted || (settings.imagePolicy === "contacts" && inContacts);
+  const remoteAllowed = remoteImagesAllowed({ from: from?.email, policy: settings.imagePolicy, trusted: settings.trustedImageSenders, inContacts, shown: allowRemote });
   const imageProxy = useSession((s) => s.session?.ihasmail?.imageProxy ?? true);
   const scheduled = useScheduled((s) => s.pending[e.id]);
   const receipt = useMemo(() => mdnDecision(e), [e]);
