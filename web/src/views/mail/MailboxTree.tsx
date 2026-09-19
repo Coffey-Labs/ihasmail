@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState, type DragEvent, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { AlertOctagon, Archive, ChevronDown, ChevronLeft, Clock, ChevronRight, File, Folder, FolderPlus, Inbox, Mail, MoreVertical, Palette, Send, Star, Tag, Trash2, Plus, Pencil, Eye, EyeOff, CheckCheck, Eraser, Share2, X, FolderInput } from "lucide-react";
+import { AlertOctagon, Archive, ArrowDown, ArrowUp, ChevronDown, ChevronLeft, Clock, ChevronRight, File, Folder, FolderPlus, Inbox, Mail, MoreVertical, Palette, Send, Star, Tag, Trash2, Plus, Pencil, Eye, EyeOff, CheckCheck, Eraser, Share2, X, FolderInput } from "lucide-react";
 import { useMail } from "@/store/mail";
 import { canEmpty, confirmAndEmpty, emptyLabel } from "@/lib/mailbox/emptyFolder";
 import { labelTree, visibleLabels } from "@/lib/mailbox/labelTree";
@@ -14,6 +14,7 @@ import { toast } from "@/ui/toast";
 import { MailboxPicker } from "./MailboxPicker";
 import { loadRaw, saveJson } from "@/lib/storage";
 import { canDropFolder, canMoveFolderTo, folderColor, movable } from "@/lib/mailbox/folderMove";
+import { canPlaceFolder, compareFolders, neighbour, placeFolder, type Placement } from "@/lib/mailbox/folderOrder";
 import { haptic, useTouchRow } from "@/lib/input/touch";
 import { plural, t } from "@/lib/i18n";
 import { mailboxDisplayName } from "@/lib/mailbox/mailboxName";
@@ -78,8 +79,32 @@ export function MailboxTree() {
     }
   };
 
-  // Tree: A–Z at every level (Inbox pinned to the top of the root), subfolders nested and
-  // collapsed by default. Expansion state is remembered per folder.
+  /** Whether the folder in flight may go just above or below this folder. */
+  const canPlace = (targetId: Id, placement: Placement): boolean => Boolean(draggingId) && canPlaceFolder(mailboxes, draggingId!, targetId, placement);
+
+  /** Put a folder just above or below another: a drag between rows, or Move up / Move down. */
+  const placeFolderAt = async (id: Id, targetId: Id, placement: Placement) => {
+    setDraggingId(null);
+    const updates = placeFolder(mailboxes, id, targetId, placement);
+    if (!updates) return;
+    try {
+      await useMail.getState().arrangeMailboxes(updates);
+      const parentId = updates[id]?.parentId;
+      if (parentId) {
+        const next = { ...expanded, [parentId]: true };
+        setExpanded(next);
+        saveJson("mbx-expanded", next);
+      }
+    } catch (err) {
+      toast.error(t("Could not move “{name}”: {reason}", { name: mailboxDisplayName(mailboxes[id]!), reason: (err as Error).message }));
+    }
+  };
+  const shown = (m: Mailbox) => showHidden || m.isSubscribed || m.role === "inbox";
+
+  // Tree: in `compareFolders` order at every level (Inbox, then any order the
+  // user has dragged into place, then the special folders, then A–Z),
+  // subfolders nested and collapsed by default. Expansion state is remembered
+  // per folder.
   const [expanded, setExpanded] = useState<Record<Id, boolean>>(() => loadRaw("mbx-expanded", {}));
   const toggle = (id: Id) => {
     const next = { ...expanded, [id]: !expanded[id] };
@@ -87,17 +112,13 @@ export function MailboxTree() {
     saveJson("mbx-expanded", next);
   };
   const { rows, childrenOf, subtreeUnread } = useMemo(() => {
-    const all = Object.values(mailboxes).filter((m) => showHidden || m.isSubscribed || m.role === "inbox");
+    const all = Object.values(mailboxes).filter(shown);
     const byParent = new Map<Id | null, Mailbox[]>();
     for (const m of all) {
       const p = m.parentId && mailboxes[m.parentId] ? m.parentId : null;
       byParent.set(p, [...(byParent.get(p) ?? []), m]);
     }
-    const cmp = (a: Mailbox, b: Mailbox) => {
-      if ((a.role === "inbox") !== (b.role === "inbox")) return a.role === "inbox" ? -1 : 1;
-      return a.name.localeCompare(b.name, undefined, { sensitivity: "base", numeric: true });
-    };
-    for (const list of byParent.values()) list.sort(cmp);
+    for (const list of byParent.values()) list.sort(compareFolders);
     const out: Array<{ m: Mailbox; depth: number; hasChildren: boolean; open: boolean; hiddenUnread: number; childUnread: number }> = [];
     const unreadBelow = (id: Id): number => (byParent.get(id) ?? []).reduce((n, c) => n + c.unreadEmails + unreadBelow(c.id), 0);
     const walk = (parent: Id | null, depth: number) => {
@@ -207,6 +228,8 @@ export function MailboxTree() {
               onFolderDragStart={() => {}}
               onFolderDragEnd={() => {}}
               onFolderDrop={() => {}}
+              canPlace={() => false}
+              onFolderPlace={() => {}}
             />
           </>
         )}
@@ -229,6 +252,8 @@ export function MailboxTree() {
             onFolderDragStart={() => setDraggingId(m.id)}
             onFolderDragEnd={() => { setDraggingId(null); setRootDrop(false); }}
             onFolderDrop={(id) => void moveFolder(id, m.id)}
+            canPlace={(placement) => canPlace(m.id, placement) && !(placement === "after" && open && hasChildren)}
+            onFolderPlace={(id, placement) => void placeFolderAt(id, m.id, placement)}
           />
         ))}
         {/* Labels are a flat list that belongs to the mailbox, not to whichever
@@ -260,7 +285,11 @@ export function MailboxTree() {
         )}
       </nav>
       <Popover anchor={menu.anchor} onClose={menu.close} width={300}>
-        {menuTarget && <MailboxMenu mailbox={menuTarget} onClose={menu.close} onCreateChild={() => void createFolder(menuTarget.id)} onShare={() => setShareTarget(menuTarget)} onMove={() => { menu.close(); setMoveTarget(menuTarget); }} />}
+        {menuTarget && <MailboxMenu mailbox={menuTarget} onClose={menu.close} onCreateChild={() => void createFolder(menuTarget.id)} onShare={() => setShareTarget(menuTarget)} onMove={() => { menu.close(); setMoveTarget(menuTarget); }} onStep={(direction) => {
+          menu.close();
+          const to = neighbour(mailboxes, menuTarget.id, direction, shown);
+          if (to) void placeFolderAt(menuTarget.id, to.targetId, to.placement);
+        }} canStep={(direction) => Boolean(neighbour(mailboxes, menuTarget.id, direction, shown))} />}
       </Popover>
       {moveTarget && (
         <MailboxPicker
@@ -280,8 +309,9 @@ export function MailboxTree() {
   );
 }
 
-function FolderRow({ mailbox: m, label, depth, hasChildren, open, hiddenUnread, childUnread, onToggle, onDrillIn, currentId, onMenu, dragging, acceptsFolder, onFolderDragStart, onFolderDragEnd, onFolderDrop }: { mailbox: Mailbox; label: string; depth: number; hasChildren: boolean; open: boolean; hiddenUnread: number; childUnread: number; onToggle: () => void; onDrillIn?: () => void; currentId?: string; onMenu: (m: Mailbox, e: { currentTarget: Element }) => void; dragging: boolean; acceptsFolder: boolean; onFolderDragStart: () => void; onFolderDragEnd: () => void; onFolderDrop: (id: Id) => void }) {
-  const [dropping, setDropping] = useState(false);
+function FolderRow({ mailbox: m, label, depth, hasChildren, open, hiddenUnread, childUnread, onToggle, onDrillIn, currentId, onMenu, dragging, acceptsFolder, onFolderDragStart, onFolderDragEnd, onFolderDrop, canPlace, onFolderPlace }: { mailbox: Mailbox; label: string; depth: number; hasChildren: boolean; open: boolean; hiddenUnread: number; childUnread: number; onToggle: () => void; onDrillIn?: () => void; currentId?: string; onMenu: (m: Mailbox, e: { currentTarget: Element }) => void; dragging: boolean; acceptsFolder: boolean; onFolderDragStart: () => void; onFolderDragEnd: () => void; onFolderDrop: (id: Id) => void; canPlace: (placement: Placement) => boolean; onFolderPlace: (id: Id, placement: Placement) => void }) {
+  /** Where a drop here would land: in this folder, or just above or below it. */
+  const [drop, setDrop] = useState<"into" | Placement | null>(null);
   /** Expanding in place and drilling in are the same relationship; only one shows. */
   const twisty = hasChildren && !onDrillIn;
   // Scheduled counts like Drafts: everything in it is already read, so the
@@ -297,19 +327,37 @@ function FolderRow({ mailbox: m, label, depth, hasChildren, open, hiddenUnread, 
   // Subscribed, not read once: picking a color has to repaint the row.
   const tint = useSettings((s) => folderColor(s.settings.folderColors, m.id));
 
+  /*
+   * A folder dropped on the top or bottom quarter of a row goes above or below
+   * it; anywhere else, into it. Where "into" isn't allowed -- a special folder,
+   * which can be reordered but never nested -- the whole row reorders, by
+   * whichever half the pointer is in.
+   */
+  const folderZone = (e: DragEvent): "into" | Placement | null => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const y = e.clientY - r.top;
+    const edge = r.height / 4;
+    const zone = y < edge ? "before" : y > r.height - edge ? "after" : "into";
+    if (zone !== "into" && canPlace(zone)) return zone;
+    if (acceptsFolder) return "into";
+    const half = y < r.height / 2 ? "before" : "after";
+    return canPlace(half) ? half : null;
+  };
   const onDragOver = (e: DragEvent) => {
-    const folder = e.dataTransfer.types.includes(FOLDER_MIME);
-    if (folder ? !acceptsFolder : !e.dataTransfer.types.includes("application/x-ihasmail-emails")) return;
+    const zone = e.dataTransfer.types.includes(FOLDER_MIME) ? folderZone(e) : e.dataTransfer.types.includes("application/x-ihasmail-emails") ? "into" : null;
+    if (!zone) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
-    if (!dropping) setDropping(true);
+    if (drop !== zone) setDrop(zone);
   };
   const onDrop = (e: DragEvent) => {
     e.preventDefault();
-    setDropping(false);
+    setDrop(null);
     const folderId = e.dataTransfer.getData(FOLDER_MIME);
     if (folderId) {
-      if (acceptsFolder) onFolderDrop(folderId);
+      const zone = folderZone(e);
+      if (zone === "into") onFolderDrop(folderId);
+      else if (zone) onFolderPlace(folderId, zone);
       return;
     }
     const raw = e.dataTransfer.getData("application/x-ihasmail-emails");
@@ -348,16 +396,17 @@ function FolderRow({ mailbox: m, label, depth, hasChildren, open, hiddenUnread, 
   return (
     <Link
       href={`/mail/${m.id}`}
-      className={`nav-item folder-row depth-${Math.min(depth, 4)} ${currentId === m.id ? "active" : ""} ${unread ? "unread" : ""} ${dropping ? "drop-target" : ""} ${dragging ? "dragging" : ""}`}
+      className={`nav-item folder-row depth-${Math.min(depth, 4)} ${currentId === m.id ? "active" : ""} ${unread ? "unread" : ""} ${drop === "into" ? "drop-target" : drop ? `drop-${drop}` : ""} ${dragging ? "dragging" : ""}`}
       title={label}
       {...press}
       // Dragging a folder is a mouse gesture; on a touchscreen the browser
-      // starts it from the same long press that now opens the menu.
-      draggable={movable(m) && !isTouch}
+      // starts it from the same long press that now opens the menu. Special
+      // folders drag too, to be reordered; only Inbox, always first, stays put.
+      draggable={m.role !== "inbox" && !isTouch}
       onDragStart={onDragStart}
       onDragEnd={onFolderDragEnd}
       onDragOver={onDragOver}
-      onDragLeave={() => setDropping(false)}
+      onDragLeave={() => setDrop(null)}
       onDrop={onDrop}
       onContextMenu={(e) => {
         e.preventDefault();
@@ -424,7 +473,7 @@ function FolderRow({ mailbox: m, label, depth, hasChildren, open, hiddenUnread, 
   );
 }
 
-function MailboxMenu({ mailbox: m, onClose, onCreateChild, onShare, onMove }: { mailbox: Mailbox; onClose: () => void; onCreateChild: () => void; onShare: () => void; onMove: () => void }) {
+function MailboxMenu({ mailbox: m, onClose, onCreateChild, onShare, onMove, onStep, canStep }: { mailbox: Mailbox; onClose: () => void; onCreateChild: () => void; onShare: () => void; onMove: () => void; onStep: (direction: "up" | "down") => void; canStep: (direction: "up" | "down") => boolean }) {
   const shared = Object.keys(m.shareWith ?? {}).length > 0;
   const [, navigate] = useLocation();
   const colors = useSettings((s) => s.settings.folderColors);
@@ -490,6 +539,9 @@ function MailboxMenu({ mailbox: m, onClose, onCreateChild, onShare, onMove }: { 
       <MenuItem icon={<FolderPlus size={16} />} label={t("New subfolder")} onClick={onCreateChild} disabled={!m.myRights.mayCreateChild} />
       <MenuItem icon={<Pencil size={16} />} label={t("Rename")} onClick={() => void rename()} disabled={isSpecial || !m.myRights.mayRename} />
       <MenuItem icon={<FolderInput size={16} />} label={t("Move to…")} onClick={onMove} disabled={!movable(m) || !m.myRights.mayRename} />
+      {/* The way to reorder without a drag: from the keyboard, and on touch. */}
+      <MenuItem icon={<ArrowUp size={16} />} label={t("Move up")} onClick={() => onStep("up")} disabled={!canStep("up")} />
+      <MenuItem icon={<ArrowDown size={16} />} label={t("Move down")} onClick={() => onStep("down")} disabled={!canStep("down")} />
       <MenuItem icon={m.isSubscribed ? <EyeOff size={16} /> : <Eye size={16} />} label={m.isSubscribed ? t("Hide from list") : t("Show in list")} onClick={() => void useMail.getState().updateMailbox(m.id, { isSubscribed: !m.isSubscribed })} disabled={m.role === "inbox"} />
       {/* Sharing a mail folder is withdrawn, not removed: Stalwart accepts and
           stores the share, and it never reaches the other account -- its own
