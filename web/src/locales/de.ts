@@ -1392,6 +1392,8 @@ export const catalog: Catalog = {
     "Collapse all": "Alle einklappen",
     "Expand all": "Alle ausklappen",
     "Send now instead": "Stattdessen jetzt senden",
+    "This message is rich text": "Diese Nachricht ist formatierter Text",
+    "This message is plain text": "Diese Nachricht ist Nur-Text",
     "Switch to plain text": "Zu Nur-Text wechseln",
     "Switch to rich text": "Zu formatiertem Text wechseln",
     "{used} of {total} used": "{used} von {total} belegt",

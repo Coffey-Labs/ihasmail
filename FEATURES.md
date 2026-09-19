@@ -441,6 +441,13 @@ minimizable and maximizable; full-screen on mobile.
   code block, links (`Ctrl+K`), inline images, an emoji picker, and remove
   formatting. Tab and Shift+Tab indent inside the body.
 - **Plain text** as a per-message or default format.
+- **Answering in the format the message was written in.** Replying in plain
+  text to a rich text message, or the reverse, loses either the formatting or
+  the plain text somebody chose to write in. The composer opens in the default
+  format and offers the other one for that message, above the editor; the
+  offer is dismissible and changes no setting. Forwards too. What counts as
+  rich text is the body part's own type, not the presence of `htmlBody`, which
+  RFC 8621 derives for plain-text mail as well.
 - **Recipient chips** with autocomplete from contacts, shared address books you
   have added, the server directory and recent recipients; your own cards win a
   tie against a colleague's copy of the same person. Free-form addresses parse

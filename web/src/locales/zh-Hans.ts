@@ -1372,6 +1372,8 @@ export const catalog: Catalog = {
     "Collapse all": "全部折叠",
     "Expand all": "全部展开",
     "Send now instead": "改为立即发送",
+    "This message is rich text": "这封邮件是富文本",
+    "This message is plain text": "这封邮件是纯文本",
     "Switch to plain text": "切换为纯文本",
     "Switch to rich text": "切换为富文本",
     "{used} of {total} used": "已使用 {used}，共 {total}",

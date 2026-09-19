@@ -4,7 +4,7 @@ import type { Email, EmailAddress, EmailBodyPart, Id, Identity, SetResponse } fr
 import { formatFullDate, uid } from "@/lib/format";
 import { formatAddress, parseMailto, sameAddress, uniqueAddresses } from "@/lib/address";
 import { escapeHtml, htmlToText, quoteText, replySubject, textToHtml } from "@/lib/text/text";
-import { sanitizeEmailHtml, sanitizeEditorHtml } from "@/lib/text/html";
+import { hasHtmlAlternative, sanitizeEmailHtml, sanitizeEditorHtml } from "@/lib/text/html";
 import { toast } from "@/ui/toast";
 import { useMail, FULL_PROPS, BODY_PROPS } from "./mail";
 import { useSession } from "./session";
@@ -75,6 +75,12 @@ export interface Draft {
   /** Original identity signature HTML currently embedded, to replace on identity switch. */
   signatureHtml: string;
   replyMode: "reply" | "replyAll" | "forward" | null;
+  /**
+   * The format the message being answered was written in, when it is not the
+   * one this draft opened in (#407). The composer offers the switch; answering
+   * it either way, or dismissing it, clears this.
+   */
+  formatOffer: "html" | "text" | null;
   mailboxIdOnSend?: Id | null;
   /** When set, hand the message to the server held until this instant. */
   sendAt: number | null;
@@ -145,6 +151,7 @@ function blankDraft(init: Partial<Draft> = {}): Draft {
     error: null,
     signatureHtml: "",
     replyMode: null,
+    formatOffer: null,
     sendAt: null,
     ...init,
   };
@@ -379,6 +386,13 @@ export const useCompose = create<ComposeState>((set, get) => ({
     const textPart = full.textBody?.[0];
     const origHtml = htmlPart?.partId ? (full.bodyValues?.[htmlPart.partId]?.value ?? "") : "";
     const origText = textPart?.partId ? (full.bodyValues?.[textPart.partId]?.value ?? "") : "";
+    /*
+     * What the message being answered was really written in. `htmlBody` is
+     * derived, so its presence proves nothing -- hasHtmlAlternative() reads the
+     * part's own type. Getting this wrong would offer every plain-text message
+     * a switch to rich text it does not need.
+     */
+    const origFormat = hasHtmlAlternative(htmlPart, origHtml) ? "html" : "text";
     const accountId = mail.accountId!;
     const attachments: ComposeAttachment[] = [];
     const cidMap: Record<string, string> = {};
@@ -434,6 +448,7 @@ export const useCompose = create<ComposeState>((set, get) => ({
       relatedKeyword: mode === "forward" ? "$forwarded" : "$answered",
       signatureHtml: sigHtml,
       replyMode: mode,
+      formatOffer: origFormat === s.composeFormat ? null : origFormat,
     });
     set((st) => ({ drafts: [...st.drafts, d], activeKey: d.key }));
     return d.key;

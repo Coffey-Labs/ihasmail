@@ -148,10 +148,11 @@ export function Composer({ draft }: { draft: Draft }) {
   };
 
   const toggleFormat = () => {
+    // Whichever way the format is changed, the offer has been answered.
     if (d.format === "html") {
-      patch({ format: "text", text: htmlToText(d.html) });
+      patch({ format: "text", text: htmlToText(d.html), formatOffer: null });
     } else {
-      patch({ format: "html", html: textToHtml(d.text, { linkify: false, quoteColors: false }).replace(/\n/g, "<br>") });
+      patch({ format: "html", html: textToHtml(d.text, { linkify: false, quoteColors: false }).replace(/\n/g, "<br>"), formatOffer: null });
     }
   };
 
@@ -261,6 +262,22 @@ export function Composer({ draft }: { draft: Draft }) {
             )}
           </div>
         </div>
+        {/*
+          Replying in one format to a message written in the other loses
+          something either way: the formatting of a rich reply, or the plain
+          text somebody chose to write in. The draft opens in the format the
+          settings ask for, and this offers the other one for this message
+          only, rather than quietly overriding the setting (#407).
+        */}
+        {d.formatOffer && (
+          <div className="composer-notice">
+            <span>{d.formatOffer === "html" ? translate("This message is rich text") : translate("This message is plain text")}</span>
+            <button type="button" className="btn btn-sm" onClick={toggleFormat}>
+              {d.formatOffer === "html" ? translate("Switch to rich text") : translate("Switch to plain text")}
+            </button>
+            <button type="button" className="icon-btn sm" aria-label={translate("Dismiss")} onClick={() => patch({ formatOffer: null })}><X size={14} /></button>
+          </div>
+        )}
         {d.format === "html" ? (
           <RichEditor ref={editorRef} html={d.html} onChange={onHtml} placeholder={translate("Write your message…")} spellcheck={settings.spellcheck} onFiles={(files) => addFiles(key, files)} showToolbar={showToolbar} autoFocus={initialFocus === "body"} />
         ) : (
