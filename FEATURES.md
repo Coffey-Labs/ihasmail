@@ -446,7 +446,9 @@ minimizable and maximizable; full-screen on mobile.
   allowed them — by policy, by a trusted sender, by the sender being a
   contact, or by *Show images* having been pressed on it. Blocked images keep
   their address and get it back when the reply is sent, so the recipient's
-  copy is the quote as its sender wrote it.
+  copy is the quote as its sender wrote it. Allowed ones are fetched through
+  the server's image proxy, the same as when the message was read, and the
+  sent copy points at their own addresses rather than at this server.
 - **Answering in the format the message was written in.** Replying in plain
   text to a rich text message, or the reverse, loses either the formatting or
   the plain text somebody chose to write in. The composer opens in the default

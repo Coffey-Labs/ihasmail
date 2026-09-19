@@ -1,3 +1,4 @@
+import { unproxiedImageUrl } from "@/lib/text/html";
 import type { ImagePolicy } from "@/store/settings";
 
 /**
@@ -20,6 +21,25 @@ export function remoteImagesAllowed(opts: {
   if (opts.shown || opts.policy === "always") return true;
   if (opts.trusted.includes((opts.from ?? "").toLowerCase())) return true;
   return opts.policy === "contacts" && opts.inContacts;
+}
+
+/**
+ * Point proxied images back at their own addresses, on the way out.
+ *
+ * Reading a message fetches its remote images through this server, so the
+ * sender learns nothing about the reader. Those URLs belong to this
+ * deployment, so a quote that kept them would reach the recipient as images
+ * only this server can serve -- broken for them, and a beacon back here for
+ * anyone who could load them (#412).
+ */
+export function unproxyImages(html: string): string {
+  if (!html.includes("/api/image?url=")) return html;
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  for (const img of Array.from(doc.querySelectorAll("img[src]"))) {
+    const real = unproxiedImageUrl(img.getAttribute("src") ?? "");
+    if (real) img.setAttribute("src", real);
+  }
+  return doc.body.innerHTML;
 }
 
 /**

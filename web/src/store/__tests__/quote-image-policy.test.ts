@@ -30,6 +30,13 @@ const MESSAGE = {
 
 const IDENTITIES = [{ id: "i1", name: "John", email: "john@example.org", replyTo: null }] as unknown as Identity[];
 
+/**
+ * Whether the draft will actually load the image. Allowed images go through
+ * the server's proxy where the deployment has one (#412), so the address is
+ * escaped inside an `/api/image` URL rather than sitting in `src` as it is.
+ */
+const fetched = (html: string) => html.includes(`/api/image?url=${encodeURIComponent(PIXEL)}`) || html.includes(`src="${PIXEL}"`);
+
 function replyDraft() {
   useMail.setState({
     accountId: "a1",
@@ -70,18 +77,18 @@ describe("quoting a message whose images were not allowed", () => {
   it("fetches them once the reader has shown images on that message", async () => {
     useMail.setState({ imagesShown: { m1: true } });
     const d = await replyDraft();
-    expect(d.html).toContain(`src="${PIXEL}"`);
+    expect(fetched(d.html)).toBe(true);
     expect(d.html).not.toContain("data-ihm-blocked");
   });
 
   it("fetches them when the policy is to show images always", async () => {
     useSettings.setState((s) => ({ settings: { ...s.settings, imagePolicy: "always" } }));
-    expect((await replyDraft()).html).toContain(`src="${PIXEL}"`);
+    expect(fetched((await replyDraft()).html)).toBe(true);
   });
 
   it("fetches them from a sender the reader trusts", async () => {
     useSettings.setState((s) => ({ settings: { ...s.settings, trustedImageSenders: ["shop@example.com"] } }));
-    expect((await replyDraft()).html).toContain(`src="${PIXEL}"`);
+    expect(fetched((await replyDraft()).html)).toBe(true);
   });
 
   it("leaves them blocked for a stranger when the policy is contacts only", async () => {
