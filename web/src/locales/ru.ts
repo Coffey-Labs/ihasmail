@@ -752,6 +752,7 @@ export const catalog: Catalog = {
     "Attachment reminder": "Напоминание о вложении",
     "Warn when the message mentions an attachment but none is attached.": "Предупреждать, если письмо упоминает вложение, но его нет.",
     "Spell check while typing": "Проверять орфографию при вводе",
+    "Open the composer full screen": "Писать письма во весь экран",
     "Confirm before deleting": "Спрашивать перед удалением",
     "Show message snippets": "Показывать начало письма",
     "Preview the first line of each message in the list.": "Показывать первую строку каждого письма в списке.",

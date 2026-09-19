@@ -137,7 +137,7 @@ function blankDraft(init: Partial<Draft> = {}): Draft {
     showBcc: false,
     showReplyTo: false,
     minimized: false,
-    maximized: false,
+    maximized: s.composeMaximized,
     dirty: false,
     savedAt: null,
     saving: false,

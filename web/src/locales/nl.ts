@@ -747,6 +747,7 @@ export const catalog: Catalog = {
     "Attachment reminder": "Bijlageherinnering",
     "Warn when the message mentions an attachment but none is attached.": "Waarschuwen wanneer het bericht een bijlage noemt maar er geen is bijgevoegd.",
     "Spell check while typing": "Spellingcontrole tijdens het typen",
+    "Open the composer full screen": "Berichten opstellen op volledig scherm",
     "Confirm before deleting": "Bevestigen voor verwijderen",
     "Show message snippets": "Berichtfragmenten tonen",
     "Preview the first line of each message in the list.": "De eerste regel van elk bericht in de lijst tonen.",

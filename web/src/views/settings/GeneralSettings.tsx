@@ -183,6 +183,7 @@ export function GeneralSettings() {
       <Switch locked={isEnforced("includeQuote")} checked={s.includeQuote} onChange={(v) => update({ includeQuote: v })} label={t("Quote original message in replies")} />
       <Switch locked={isEnforced("signatureAboveQuote")} checked={s.signatureAboveQuote} onChange={(v) => update({ signatureAboveQuote: v })} label={t("Place signature above quoted text")} />
       <Switch locked={isEnforced("spellcheck")} checked={s.spellcheck} onChange={(v) => update({ spellcheck: v })} label={t("Spell check while typing")} />
+      <Switch locked={isEnforced("composeMaximized")} checked={s.composeMaximized} onChange={(v) => update({ composeMaximized: v })} label={t("Open the composer full screen")} />
 
       <h2>{t("Locale")}</h2>
       <div className="field-row">

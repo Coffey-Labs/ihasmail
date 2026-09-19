@@ -755,6 +755,7 @@ export const catalog: Catalog = {
     "Attachment reminder": "Rappel de pièce jointe",
     "Warn when the message mentions an attachment but none is attached.": "Avertir lorsque le message mentionne une pièce jointe alors qu'aucune n'est jointe.",
     "Spell check while typing": "Vérification orthographique pendant la saisie",
+    "Open the composer full screen": "Rédiger les messages en plein écran",
     "Confirm before deleting": "Confirmer avant de supprimer",
     "Show message snippets": "Afficher un aperçu des messages",
     "Preview the first line of each message in the list.": "Afficher la première ligne de chaque message dans la liste.",

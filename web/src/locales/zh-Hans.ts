@@ -748,6 +748,7 @@ export const catalog: Catalog = {
     "Attachment reminder": "附件提醒",
     "Warn when the message mentions an attachment but none is attached.": "邮件提到附件但未添加时提醒。",
     "Spell check while typing": "输入时检查拼写",
+    "Open the composer full screen": "全屏写邮件",
     "Confirm before deleting": "删除前确认",
     "Show message snippets": "显示邮件摘要",
     "Preview the first line of each message in the list.": "在列表中显示每封邮件的首行。",
