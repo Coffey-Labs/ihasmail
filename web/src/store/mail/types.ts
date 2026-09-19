@@ -99,6 +99,8 @@ export interface MailState {
   /** Give something the Archive role -- adopting a folder already named for it, or making one. */
   ensureArchiveFolder(): Promise<Id>;
   updateMailbox(id: Id, patch: Partial<Mailbox>): Promise<void>;
+  /** Several folders' `sortOrder` (and at most a new parent) in one request: a reorder from the tree. */
+  arrangeMailboxes(updates: Record<Id, Partial<Mailbox>>): Promise<void>;
   destroyMailbox(id: Id, removeEmails?: boolean): Promise<void>;
 
   loadIdentities(): Promise<Identity[]>;
