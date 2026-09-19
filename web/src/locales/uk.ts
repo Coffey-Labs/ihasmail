@@ -746,6 +746,7 @@ export const catalog: Catalog = {
     "Attachment reminder": "Нагадування про вкладення",
     "Warn when the message mentions an attachment but none is attached.": "Попереджати, якщо лист згадує вкладення, але його немає.",
     "Spell check while typing": "Перевіряти орфографію під час введення",
+    "Open the composer full screen": "Писати листи на весь екран",
     "Confirm before deleting": "Питати перед видаленням",
     "Show message snippets": "Показувати початок листа",
     "Preview the first line of each message in the list.": "Показувати перший рядок кожного листа у списку.",

@@ -251,6 +251,11 @@ export interface Settings {
   archiveOnReply: boolean;
   autoAdvance: "newer" | "older" | "list";
   spellcheck: boolean;
+  /**
+   * Open every new composer full screen (#401). Desktop only: on a phone the
+   * composer fills the screen already and has no size to choose.
+   */
+  composeMaximized: boolean;
   sendAndArchive: boolean;
   /** Width (px) of the message list when the reading pane is on the right. */
   listPaneWidth: number;
@@ -376,6 +381,7 @@ export const DEFAULT_SETTINGS: Settings = {
   archiveOnReply: false,
   autoAdvance: "list",
   spellcheck: true,
+  composeMaximized: false,
   sendAndArchive: false,
   listPaneWidth: 520,
   listPaneHeight: 340,
