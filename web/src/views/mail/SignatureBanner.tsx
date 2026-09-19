@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { currentAppName, useAppName } from "@/lib/brand";
 import { BadgeCheck, ShieldAlert, ShieldQuestion, ShieldX } from "lucide-react";
 import { formatFingerprint } from "@/lib/smime/x509";
 import type { SignatureState } from "@/lib/smime/useSignature";
@@ -22,6 +23,7 @@ import { formatFullDate } from "@/lib/format";
  * verified against itself.
  */
 export function SignatureBanner({ state }: { state: SignatureState }) {
+  const appName = useAppName();
   const [open, setOpen] = useState(false);
   if (state.status !== "done") return null;
   const { crypto, trust, previous, warnings } = state.report;
@@ -31,7 +33,7 @@ export function SignatureBanner({ state }: { state: SignatureState }) {
     return (
       <Banner tone="quiet" icon={<ShieldQuestion size={16} />}>
         <span className="grow">
-          {t("This message is signed, and ihasmail could not check the signature.")} {explain(crypto.reason)}
+          {t("This message is signed, and {app} could not check the signature.", { app: appName })} {explain(crypto.reason)}
           {crypto.detail && <span className="hint"> {crypto.detail}</span>}
         </span>
       </Banner>
@@ -77,7 +79,7 @@ export function SignatureBanner({ state }: { state: SignatureState }) {
         ) : (
           <>
             {tNode("Signed by {name}, seen here for the first time.", { name: <strong className="notranslate" translate="no">{name}</strong> })}{" "}
-            {t("ihasmail will tell you if a later message from this address is signed by anybody else.")}
+            {t("{app} will tell you if a later message from this address is signed by anybody else.", { app: appName })}
           </>
         )}
         {warnings.includes("certificate-expired") && <> {t("The certificate has expired.")}</>}
@@ -134,11 +136,12 @@ export function SignatureBanner({ state }: { state: SignatureState }) {
 
 /** The sayable version of why a check did not happen, or did not hold. */
 function explain(reason: Reason): string {
+  const appName = currentAppName();
   switch (reason) {
     case "openpgp":
-      return t("It is signed with OpenPGP, and ihasmail has no way to fetch the sender's public key.");
+      return t("It is signed with OpenPGP, and {app} has no way to fetch the sender's public key.", { app: appName });
     case "rsa-pss":
-      return t("It uses a signature algorithm ihasmail cannot check yet.");
+      return t("It uses a signature algorithm {app} cannot check yet.", { app: appName });
     case "no-certificate":
       return t("The signature carries no certificate that can be read.");
     case "not-signed-properly":

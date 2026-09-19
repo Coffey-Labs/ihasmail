@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAppName } from "@/lib/brand";
 import { Plus, Trash2 } from "lucide-react";
 import { useSettings, type LabelVisibility } from "@/store/settings";
 import { labelTree, descendantKeywords } from "@/lib/mailbox/labelTree";
@@ -8,6 +9,7 @@ import { promptDialog } from "@/ui/dialog";
 import { t, tNode } from "@/lib/i18n";
 
 export function LabelsSettings() {
+  const appName = useAppName();
   const labels = useSettings((s) => s.settings.labels);
   const update = useSettings((s) => s.update);
   const [editing, setEditing] = useState<string | null>(null);
@@ -25,7 +27,7 @@ export function LabelsSettings() {
   return (
     <div>
       <h1>{t("Labels")}</h1>
-      <p className="lead">{t("Labels are IMAP keywords stored on your messages, so every other client sees them. Names, colors and nesting are ihasmail\u2019s own and follow your account. Nesting is display only \u2014 it rewrites nothing in the mailbox.")}</p>
+      <p className="lead">{t("Labels are IMAP keywords stored on your messages, so every other client sees them. Names, colors and nesting are {app}\u2019s own and follow your account. Nesting is display only \u2014 it rewrites nothing in the mailbox.", { app: appName })}</p>
       {labels.map((l) => (
         <div key={l.keyword} className="card">
           <div className="card-head">

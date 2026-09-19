@@ -1,4 +1,5 @@
 import { shareSummary, type SharedContent } from "@/lib/shareTarget";
+import { useAppName } from "@/lib/brand";
 import { confirmDialog } from "@/ui/dialog";
 import { t } from "@/lib/i18n";
 
@@ -23,6 +24,7 @@ export async function offerShare(share: SharedContent, open: (share: SharedConte
 
 /** What arrived, so the reader can tell whether it is theirs. */
 function ShareSummary({ share }: { share: SharedContent }) {
+  const appName = useAppName();
   const { title, preview, files } = shareSummary(share);
   return (
     <div>
@@ -39,7 +41,7 @@ function ShareSummary({ share }: { share: SharedContent }) {
           {files.length > 5 && <li>…</li>}
         </ul>
       )}
-      <p>{t("Something was shared with ihasmail. Nothing is sent until you choose Send. If you didn't just share this, discard it.")}</p>
+      <p>{t("Something was shared with {app}. Nothing is sent until you choose Send. If you didn't just share this, discard it.", { app: appName })}</p>
     </div>
   );
 }

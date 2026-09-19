@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAppName } from "@/lib/brand";
 import { useSettings, type ReadReceiptPolicy } from "@/store/settings";
 import { useMail } from "@/store/mail";
 import { domainOf } from "@/lib/address";
@@ -23,6 +24,7 @@ import { isEnforced } from "@/lib/settingsPolicy";
  * behaves toward the reader and toward senders.
  */
 export function PrivacySettings() {
+  const appName = useAppName();
   const s = useSettings((st) => st.settings);
   const update = useSettings((st) => st.update);
   const trusted = s.trustedImageSenders;
@@ -43,7 +45,7 @@ export function PrivacySettings() {
           <option value="always">{t("Always show")}</option>
         </select>
         <p className="hint">
-          {t("An image loaded from a sender's server tells them the message was opened, when, and from roughly where. Approved images are fetched by ihasmail's own server rather than the browser, so the sender learns none of those.")}
+          {t("An image loaded from a sender's server tells them the message was opened, when, and from roughly where. Approved images are fetched by {app}'s own server rather than the browser, so the sender learns none of those.", { app: appName })}
         </p>
       </div>
       {trusted.length > 0 && (

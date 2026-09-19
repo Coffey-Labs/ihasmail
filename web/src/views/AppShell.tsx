@@ -186,7 +186,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             {/* The project site. It is linked from the login screen footer, which
                 is a page a signed-in user never sees again -- so from inside the
                 app there was no way back to it. */}
-            <MenuItem icon={<Globe size={16} />} label={t("About ihasmail")} href="https://ihasmail.org" external />
+            <MenuItem icon={<Globe size={16} />} label={t("About {app}", { app: appName })} href="https://ihasmail.org" external />
             <MenuItem icon={<Settings size={16} />} label={t("Settings")} onClick={() => navigate("/settings")} />
             {/* Only for an account whose Stalwart role manages other accounts.
                 Nobody else is shown an entry that would open onto refusals. */}

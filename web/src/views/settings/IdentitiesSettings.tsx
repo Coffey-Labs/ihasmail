@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useAppName } from "@/lib/brand";
 import { Plus, Trash2, Star, Eye, EyeOff } from "lucide-react";
 import { useSettings } from "@/store/settings";
 import { useMail } from "@/store/mail";
@@ -75,6 +76,7 @@ export function IdentitiesSettings() {
 }
 
 function IdentityDialog({ identity, onClose }: { identity: Partial<Identity>; onClose: () => void }) {
+  const appName = useAppName();
   const [name, setName] = useState(identity.name ?? "");
   const [email, setEmail] = useState(identity.email ?? "");
   const [replyTo, setReplyTo] = useState(formatAddressList(identity.replyTo));
@@ -129,7 +131,7 @@ function IdentityDialog({ identity, onClose }: { identity: Partial<Identity>; on
           <span className="hint">{t("Images are stored in your Files (folder “ihasmail”) and embedded when you send.")}</span>
           <span className="hint nowrap" style={tooLong ? { color: "var(--warn)", fontWeight: 600 } : undefined}>{sigLen.toLocaleString()} / {SIGNATURE_LIMIT.toLocaleString()}</span>
         </div>
-        {tooLong && <div className="warn-box mt-8">{t("This signature is larger than the server's {limit}-byte limit. ihasmail will keep the full version in your Files and store a short text fallback on the server — other mail clients will see the plain-text version.", { limit: SIGNATURE_LIMIT })}</div>}
+        {tooLong && <div className="warn-box mt-8">{t("This signature is larger than the server's {limit}-byte limit. {app} will keep the full version in your Files and store a short text fallback on the server — other mail clients will see the plain-text version.", { limit: SIGNATURE_LIMIT, app: appName })}</div>}
       </div>
     </Dialog>
   );
