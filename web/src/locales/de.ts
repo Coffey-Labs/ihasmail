@@ -754,6 +754,7 @@ export const catalog: Catalog = {
     "Attachment reminder": "Anhang-Erinnerung",
     "Warn when the message mentions an attachment but none is attached.": "Warnen, wenn die Nachricht einen Anhang erwähnt, aber keiner angehängt ist.",
     "Spell check while typing": "Rechtschreibprüfung während der Eingabe",
+    "Open the composer full screen": "Nachrichten im Vollbild verfassen",
     "Confirm before deleting": "Vor dem Löschen bestätigen",
     "Show message snippets": "Nachrichtenvorschau anzeigen",
     "Preview the first line of each message in the list.": "Die erste Zeile jeder Nachricht in der Liste anzeigen.",

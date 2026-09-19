@@ -482,6 +482,8 @@ minimizable and maximizable; full-screen on mobile.
   uploaded, which it was not being.
 - **Attachment reminder** when the text mentions an attachment and none is there.
 - **Spell check** toggle.
+- **Open the composer full screen**, as a setting, for anyone whose first
+  move is always Maximize. Off by default; on a phone it changes nothing.
 - **Drafts** save as you type and on close, with the save state shown.
 - **Quoting** on reply, with the signature placed above or below it, and
   reply-all as an optional default.
@@ -921,7 +923,7 @@ not reach another that already has ihasmail open until it signs in again.
 
 | Section | Holds |
 | --- | --- |
-| **General** | Reading pane, mark-as-read delay, auto-advance, conversation view, snippets, avatars; compose format, quoting, signature placement, spell check; time zone, week start, language & region, date format, time format; `mailto:` handler; export / import / reset |
+| **General** | Reading pane, mark-as-read delay, auto-advance, conversation view, snippets, avatars; compose format, quoting, signature placement, spell check, full-screen composer; time zone, week start, language & region, date format, time format; `mailto:` handler; export / import / reset |
 | **Privacy & safety** | Remote images and the senders trusted with them, read receipts asked for and answered; the three warnings and the domains they measure against; undo-send window, attachment reminder, confirm-before-delete |
 | **Appearance** | Theme, accent color, density, font size, sidebar, swipe actions, interface language |
 | **Identities & signatures** | Addresses, names, Reply-To, HTML signatures, the default, and which to hide from the picker |

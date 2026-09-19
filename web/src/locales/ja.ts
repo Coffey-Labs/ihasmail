@@ -749,6 +749,7 @@ export const catalog: Catalog = {
     "Attachment reminder": "添付忘れの確認",
     "Warn when the message mentions an attachment but none is attached.": "本文で添付に触れているのにファイルが添付されていないとき警告します。",
     "Spell check while typing": "入力中にスペルチェックする",
+    "Open the composer full screen": "メールを全画面で作成",
     "Confirm before deleting": "削除前に確認する",
     "Show message snippets": "本文の抜粋を表示する",
     "Preview the first line of each message in the list.": "一覧に各メールの 1 行目を表示します。",
