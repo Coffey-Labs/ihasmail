@@ -76,6 +76,14 @@ export interface Draft {
   signatureHtml: string;
   replyMode: "reply" | "replyAll" | "forward" | null;
   /**
+   * The quoted message as it was prepared in each format, kept so that
+   * switching format re-attaches the original rather than a conversion of
+   * whatever the other format flattened it into. Empty on a draft that quotes
+   * nothing.
+   */
+  quoteHtml: string;
+  quoteText: string;
+  /**
    * The format the message being answered was written in, when it is not the
    * one this draft opened in (#407). The composer offers the switch; answering
    * it either way, or dismissing it, clears this.
@@ -151,6 +159,8 @@ function blankDraft(init: Partial<Draft> = {}): Draft {
     error: null,
     signatureHtml: "",
     replyMode: null,
+    quoteHtml: "",
+    quoteText: "",
     formatOffer: null,
     sendAt: null,
     ...init,
@@ -448,6 +458,8 @@ export const useCompose = create<ComposeState>((set, get) => ({
       relatedKeyword: mode === "forward" ? "$forwarded" : "$answered",
       signatureHtml: sigHtml,
       replyMode: mode,
+      quoteHtml,
+      quoteText: quoteTxt,
       formatOffer: origFormat === s.composeFormat ? null : origFormat,
     });
     set((st) => ({ drafts: [...st.drafts, d], activeKey: d.key }));

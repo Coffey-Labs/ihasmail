@@ -15,9 +15,13 @@ import { useMail } from "@/store/mail";
 
 window.matchMedia = ((q: string) => ({ matches: false, media: q, addEventListener() {}, removeEventListener() {} })) as unknown as typeof window.matchMedia;
 
+const QUOTE_HTML = '<div class="ihm-quote"><br><div>On Friday, Ann wrote:</div><blockquote><p>Look at <b>this</b></p></blockquote></div>';
+const QUOTE_TEXT = "\n\nOn Friday, Ann wrote:\n> Look at this";
+
 const REPLY: Partial<Draft> = {
   key: "d1", replyMode: "reply", subject: "Re: Numbers",
-  format: "text", text: "\n\nOn Friday, Ann wrote:\n> hi", html: "<div><br></div><div class=\"ihm-quote\">hi</div>",
+  format: "text", text: QUOTE_TEXT, html: `<div><br></div>${QUOTE_HTML}`,
+  quoteHtml: QUOTE_HTML, quoteText: QUOTE_TEXT,
   formatOffer: "html",
 };
 
@@ -52,6 +56,46 @@ describe("the format offer in the composer", () => {
     // The quoted reply came across, rather than the editor opening empty.
     expect(draft().html).toContain("Ann wrote");
     expect(bar()).toBeNull();
+  });
+
+  /*
+   * The message being quoted was prepared in both formats when the reply
+   * opened. Switching used to convert the plain-text body it had, handing
+   * back a flattened copy -- "> Look at this" -- of markup that still
+   * existed untouched on the draft.
+   */
+  it("restores the original message, rather than converting the flattened quote", () => {
+    act(() => button("Switch to rich text").click());
+    act(() => root.render(<Composer draft={draft()} />));
+    expect(draft().html).toContain("<b>this</b>");
+    expect(draft().html).toContain("<blockquote>");
+    expect(draft().html).not.toContain("&gt; Look at this");
+  });
+
+  it("keeps what the author typed above the quote", () => {
+    useCompose.getState().update("d1", { text: `Thanks, that helps.${QUOTE_TEXT}` });
+    act(() => root.render(<Composer draft={draft()} />));
+    act(() => button("Switch to rich text").click());
+    act(() => root.render(<Composer draft={draft()} />));
+    expect(draft().html).toContain("Thanks, that helps.");
+    expect(draft().html).toContain("<b>this</b>");
+    // Once only: the typed reply must not arrive with the quote doubled.
+    expect(draft().html.match(/On Friday, Ann wrote:/g)).toHaveLength(1);
+  });
+
+  it("goes back to plain text with the prepared quote, not a re-flattened one", () => {
+    // A rich draft answering a plain-text message: the offer runs the other way.
+    act(() => {
+      useCompose.getState().update("d1", { format: "html", html: `<div>Thanks.</div>${QUOTE_HTML}`, formatOffer: "text" });
+    });
+    act(() => root.render(<Composer draft={draft()} />));
+    act(() => button("Switch to plain text").click());
+    act(() => root.render(<Composer draft={draft()} />));
+    expect(draft().format).toBe("text");
+    expect(draft().text).toContain("Thanks.");
+    // The prepared plain-text quote, not HTML run through a converter.
+    expect(draft().text.endsWith(QUOTE_TEXT)).toBe(true);
+    expect(draft().text).not.toContain("<blockquote>");
   });
 
   it("dismisses without changing the format", () => {
