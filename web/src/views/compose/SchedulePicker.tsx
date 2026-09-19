@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useAppName } from "@/lib/brand";
 import { Clock } from "lucide-react";
 import { Dialog } from "@/ui/dialog";
 import { DateTimeField } from "@/ui/datefield";
@@ -33,6 +34,7 @@ export function ScheduleDialog({ open, maxMs, initial, onClose, onPick }: {
   onClose: () => void;
   onPick: (at: Date) => void;
 }) {
+  const appName = useAppName();
   const [value, setValue] = useState(() => toInputDateTime(initial ? new Date(initial) : roundToNext(new Date(Date.now() + 3_600_000), 15)));
   const at = fromInputDateTime(value);
   const error = scheduleError(at, new Date(), maxMs);
@@ -58,7 +60,7 @@ export function ScheduleDialog({ open, maxMs, initial, onClose, onPick }: {
         <p className="hint" style={{ color: "var(--danger)" }}>{error}</p>
       ) : (
         <p className="hint">
-          {`${t("The message waits on the server, so it goes out whether or not ihasmail is open.")}${maxMs > 0 ? ` ${t("This server holds a message for up to {span}.", { span: describeSpan(maxMs) })}` : ""}`}
+          {`${t("The message waits on the server, so it goes out whether or not {app} is open.", { app: appName })}${maxMs > 0 ? ` ${t("This server holds a message for up to {span}.", { span: describeSpan(maxMs) })}` : ""}`}
         </p>
       )}
     </Dialog>

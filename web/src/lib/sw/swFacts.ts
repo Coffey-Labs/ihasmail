@@ -16,6 +16,7 @@
  * was installed, which is the same condition background notifications already
  * carry — a push subscription has to be renewed from a tab too.
  */
+import { currentAppName } from "@/lib/brand";
 import { withBase } from "../basePath";
 import { SW_CACHE_NAME } from "./swCache";
 import { t } from "../i18n";
@@ -57,7 +58,7 @@ export async function publishWorkerFacts(accountId: string | null, archiveId: st
       noSubject: t("(no subject)"),
       archive: t("Archive"),
       markRead: t("Mark as read"),
-      failed: t("Could not do that — open ihasmail and try again"),
+      failed: t("Could not do that — open {app} and try again", { app: currentAppName() }),
     },
   };
   try {

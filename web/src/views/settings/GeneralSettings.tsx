@@ -1,4 +1,5 @@
 import { useSettings } from "@/store/settings";
+import { useAppName } from "@/lib/brand";
 import { Switch } from "@/ui/misc";
 import { browserTimeZone, listTimeZones } from "@/lib/dates";
 import { toast } from "@/ui/toast";
@@ -255,6 +256,7 @@ export function GeneralSettings() {
  * it can and points at the browser's own settings for the rest.
  */
 function MailHandlerSettings() {
+  const appName = useAppName();
   const support = mailtoHandlerSupport();
   const [requested, setRequested] = useState(mailtoHandlerRequested);
 
@@ -262,7 +264,7 @@ function MailHandlerSettings() {
     try {
       registerMailtoHandler();
       setRequested(true);
-      toast.success(t("Your browser will ask whether to open mail links in ihasmail"));
+      toast.success(t("Your browser will ask whether to open mail links in {app}", { app: appName }));
     } catch (err) {
       toast.error(t("Your browser refused the request: {error}", { error: (err as Error).message }));
     }
@@ -275,7 +277,7 @@ function MailHandlerSettings() {
   };
 
   if (support === "unsupported") {
-    return <p className="hint">{tNode("This browser cannot register apps for {scheme} links. Safari, in particular, has no such API — you can still make ihasmail the default from your operating system if you install it as an app.", { scheme: <code>mailto:</code> })}</p>;
+    return <p className="hint">{tNode("This browser cannot register apps for {scheme} links. Safari, in particular, has no such API — you can still make {app} the default from your operating system if you install it as an app.", { scheme: <code>mailto:</code> }, { app: appName })}</p>;
   }
   if (support === "insecure") {
     return <p className="hint">{tNode("Registering for {scheme} links requires a secure (HTTPS) connection.", { scheme: <code>mailto:</code> })}</p>;
@@ -284,7 +286,7 @@ function MailHandlerSettings() {
   return (
     <>
       <p className="hint">
-        {tNode("Open {scheme} links — in web pages, documents and other apps — in ihasmail instead of a desktop mail client. Your browser will ask you to confirm, and you can change it later in its own settings (Chrome: Settings › Privacy and security › Site settings › Protocol handlers; Firefox: Settings › General › Applications).", { scheme: <code>mailto:</code> })}
+        {tNode("Open {scheme} links — in web pages, documents and other apps — in {app} instead of a desktop mail client. Your browser will ask you to confirm, and you can change it later in its own settings (Chrome: Settings › Privacy and security › Site settings › Protocol handlers; Firefox: Settings › General › Applications).", { scheme: <code>mailto:</code> }, { app: appName })}
       </p>
       <div className="row wrap">
         <button className="btn btn-primary" onClick={ask}>{requested ? "Ask again" : "Make ihasmail the default mail app"}</button>
@@ -294,7 +296,7 @@ function MailHandlerSettings() {
       {!isInstalledApp() && (
         <p className="hint mt-8">
           
-          {t("For a system-wide default, install ihasmail as an app first (in Chrome: the install icon in the address bar). Your operating system can then offer ihasmail directly wherever it asks which mail app to use.")}
+          {t("For a system-wide default, install {app} as an app first (in Chrome: the install icon in the address bar). Your operating system can then offer {app} directly wherever it asks which mail app to use.", { app: appName })}
         </p>
       )}
     </>

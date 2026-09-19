@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useAppName } from "@/lib/brand";
 import { useSettings } from "@/store/settings";
 import { Switch } from "@/ui/misc";
 import { requestNotificationPermission, showNotification, playNewMailSound } from "@/lib/notify/notify";
@@ -10,6 +11,7 @@ import { t } from "@/lib/i18n";
 import { isEnforced } from "@/lib/settingsPolicy";
 
 export function NotificationsSettings() {
+  const appName = useAppName();
   const s = useSettings((st) => st.settings);
   const update = useSettings((st) => st.update);
   const pushConnected = useSession((st) => st.pushConnected);
@@ -37,7 +39,7 @@ export function NotificationsSettings() {
           }
           update({ desktopNotifications: v });
         }}
-        label={t("Desktop notifications while ihasmail is open")}
+        label={t("Desktop notifications while {app} is open", { app: appName })}
         hint={perm === "denied" ? t("Notifications are blocked in your browser settings.") : perm === "unsupported" ? t("Not supported in this browser.") : t("Shows a system notification when new mail arrives in your Inbox while the tab is in the background.")}
         disabled={perm === "denied" || perm === "unsupported"}
       />
@@ -68,18 +70,18 @@ export function NotificationsSettings() {
             setBusy(false);
           }
         }}
-        label={t("Notify me even when ihasmail is closed")}
+        label={t("Notify me even when {app} is closed", { app: appName })}
         hint={
           !canBackground
             ? t("Needs a browser with the Push API and a mail server that publishes a push key.")
             : supportsEmailPush()
-              ? t("Your mail server delivers these straight to your browser, so they arrive with no ihasmail tab open, naming the sender and subject. Your browser still has to be running — if you quit it completely, notifications wait and arrive when you open it again.")
+              ? t("Your mail server delivers these straight to your browser, so they arrive with no {app} tab open, naming the sender and subject. Your browser still has to be running — if you quit it completely, notifications wait and arrive when you open it again.", { app: appName })
               : t("Your mail server can wake this browser, but will not include the sender or subject. Your browser still has to be running.")
         }
       />
       <Switch locked={isEnforced("notificationSound")} checked={s.notificationSound} onChange={(v) => update({ notificationSound: v })} label={t("Play a sound for new mail")} />
       <div className="row mt-16">
-        <button className="btn" onClick={() => { showNotification(t("ihasmail test"), { body: t("This is what a new-mail notification looks like.") }); playNewMailSound(); }}>{t("Test notification")}</button>
+        <button className="btn" onClick={() => { showNotification(t("{app} test", { app: appName }), { body: t("This is what a new-mail notification looks like.") }); playNewMailSound(); }}>{t("Test notification")}</button>
       </div>
       <p className="hint mt-8">{t("The tab title and favicon always show your unread Inbox count.")}</p>
     </div>
