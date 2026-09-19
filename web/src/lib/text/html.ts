@@ -1,5 +1,5 @@
 import DOMPurify from "dompurify";
-import { withBase } from "@/lib/basePath";
+import { BASE_PATH, withBase } from "@/lib/basePath";
 
 export interface SanitizeOptions {
   /** Map of Content-ID (without angle brackets) → URL for inline images. */
@@ -156,6 +156,23 @@ function sanitizeCss(css: string, rewrite: (url: string) => string | null): stri
 
 export function proxiedImageUrl(url: string): string {
   return withBase(`/api/image?url=${encodeURIComponent(url)}`);
+}
+
+/**
+ * The address a proxied image really points at, or null if this is not one.
+ *
+ * A proxied URL is this server's, so it is right for reading a message and
+ * wrong for sending one: a quote left this way would hand the recipient
+ * images that only load from inside this deployment (#412).
+ */
+export function unproxiedImageUrl(src: string): string | null {
+  const path = `${BASE_PATH}/api/image?url=`;
+  if (!src.startsWith(path)) return null;
+  try {
+    return decodeURIComponent(src.slice(path.length)) || null;
+  } catch {
+    return null; // Malformed escape: leave it alone rather than mangle it.
+  }
 }
 
 export function sanitizeEmailHtml(input: string, opts: SanitizeOptions = {}): SanitizeResult {

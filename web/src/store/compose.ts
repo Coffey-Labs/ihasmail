@@ -5,7 +5,7 @@ import { formatFullDate, uid } from "@/lib/format";
 import { formatAddress, parseMailto, sameAddress, uniqueAddresses } from "@/lib/address";
 import { escapeHtml, htmlToText, quoteText, replySubject, textToHtml } from "@/lib/text/text";
 import { hasHtmlAlternative, sanitizeEmailHtml, sanitizeEditorHtml } from "@/lib/text/html";
-import { remoteImagesAllowed, restoreBlockedImages } from "@/lib/mail/remoteImages";
+import { remoteImagesAllowed, restoreBlockedImages, unproxyImages } from "@/lib/mail/remoteImages";
 import { toast } from "@/ui/toast";
 import { useMail, FULL_PROPS, BODY_PROPS } from "./mail";
 import { useSession } from "./session";
@@ -176,6 +176,11 @@ function blankDraft(init: Partial<Draft> = {}): Draft {
  * policy, the trusted senders, whether the sender is a contact, and whether
  * the reader pressed "Show images" on this message.
  */
+/** Whether this deployment fetches remote images through its own server. */
+function imageProxyOn(): boolean {
+  return useSession.getState().session?.ihasmail?.imageProxy ?? true;
+}
+
 function remoteImagesForMessage(email: Email): boolean {
   const s = settings();
   const from = email.from?.[0]?.email;
@@ -282,7 +287,7 @@ export const useCompose = create<ComposeState>((set, get) => ({
       showCc: Boolean(full.cc?.length),
       showBcc: Boolean(full.bcc?.length),
       subject: full.subject ?? "",
-      html: html ? sanitizeEmailHtml(html, { cidMap, allowRemote: remoteImagesForMessage(full), dropStyleBlocks: true }).html : textToHtml(text).replace(/\n/g, "<br>"),
+      html: html ? sanitizeEmailHtml(html, { cidMap, allowRemote: remoteImagesForMessage(full), proxyRemote: imageProxyOn(), dropStyleBlocks: true }).html : textToHtml(text).replace(/\n/g, "<br>"),
       text: text || (html ? htmlToText(html) : ""),
       format: html ? "html" : settings().composeFormat,
       attachments,
@@ -348,7 +353,7 @@ export const useCompose = create<ComposeState>((set, get) => ({
       showCc: Boolean(full.cc?.length),
       showBcc: Boolean(full.bcc?.length),
       subject: full.subject ?? "",
-      html: html ? sanitizeEmailHtml(html, { cidMap, allowRemote: remoteImagesForMessage(full), dropStyleBlocks: true }).html : textToHtml(text).replace(/\n/g, "<br>"),
+      html: html ? sanitizeEmailHtml(html, { cidMap, allowRemote: remoteImagesForMessage(full), proxyRemote: imageProxyOn(), dropStyleBlocks: true }).html : textToHtml(text).replace(/\n/g, "<br>"),
       text: text || (html ? htmlToText(html) : ""),
       format: html ? "html" : settings().composeFormat,
       attachments,
@@ -443,9 +448,13 @@ export const useCompose = create<ComposeState>((set, get) => ({
      * out, so the recipient's copy is the quote as its sender wrote it.
      */
     const allowRemote = remoteImagesForMessage(full);
+    // Fetched through this server while the reply is written, as reading the
+    // message does, and pointed back at their own addresses on the way out
+    // (#412).
+    const proxyRemote = imageProxyOn();
     // Inline images are shown via their blob URLs in the editor and converted back to cid: at send time.
     const quotedHtmlBody = origHtml
-      ? sanitizeEmailHtml(origHtml, { cidMap, allowRemote, proxyRemote: false, dropStyleBlocks: true }).html
+      ? sanitizeEmailHtml(origHtml, { cidMap, allowRemote, proxyRemote, dropStyleBlocks: true }).html
       : textToHtml(origText).replace(/\n/g, "<br>");
     const fromStr = escapeHtml((full.from ?? []).map(formatAddress).join(", "));
     const date = formatFullDate(full.receivedAt);
@@ -813,7 +822,7 @@ export async function buildEmailObject(d: Draft, opts: { forSend: boolean; mailb
 
   // Images blocked when the message was quoted keep their address; the copy
   // that leaves carries it, and the recipient's client decides for itself.
-  let html = d.format === "html" ? restoreBlockedImages(d.html) : "";
+  let html = d.format === "html" ? unproxyImages(restoreBlockedImages(d.html)) : "";
   const text = d.format === "html" ? htmlToText(d.html) : d.text;
 
   // Inline attachments shown via blob URLs in the editor → back to cid: references.
