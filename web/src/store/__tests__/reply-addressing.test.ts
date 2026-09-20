@@ -153,6 +153,30 @@ describe("a message of mine with nobody obvious to reply to", () => {
     const d = await draftFor({ ...MINE, to: [ME], cc: [] } as Email, "reply");
     expect(addrs(d.to)).toEqual([ME.email]);
   });
+
+  it("answers the Reply-To rather than my own desk when nobody else is on it", async () => {
+    /*
+     * A contact form: the site mails itself, From and To both its own address,
+     * and the person who filled the form in is in Reply-To. From alone makes
+     * this look like mine, and the fallback used to reply to me (#415).
+     */
+    const form = { ...MINE, to: [ME], cc: [], replyTo: [{ name: "Michael", email: "michael@example.com" }] } as Email;
+    const d = await draftFor(form, "reply");
+    expect(addrs(d.to)).toEqual(["michael@example.com"]);
+  });
+
+  it("does the same on a reply all, without cc-ing myself", async () => {
+    const form = { ...MINE, to: [ME], cc: [], replyTo: [{ name: "Michael", email: "michael@example.com" }] } as Email;
+    const d = await draftFor(form, "replyAll");
+    expect(addrs(d.to)).toEqual(["michael@example.com"]);
+    expect(d.cc).toEqual([]);
+  });
+
+  it("still prefers somebody I actually wrote to over my own Reply-To", async () => {
+    // The Cc is a person; the Reply-To is where answers to me belong.
+    const d = await draftFor({ ...MINE, to: [ME], replyTo: [{ name: null, email: "desk@example.org" }] } as Email, "reply");
+    expect(addrs(d.to)).toEqual([BOB.email]);
+  });
 });
 
 describe("forwarding", () => {

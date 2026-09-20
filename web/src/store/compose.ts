@@ -410,6 +410,19 @@ export const useCompose = create<ComposeState>((set, get) => ({
         // Addressed only to myself, or only in Cc: there is still somebody this
         // is a reply to, and an empty To is not it.
         if (!to.length) { to = cc.length ? cc : withoutOwn(full.cc ?? []); cc = []; }
+        /*
+         * Nobody but me on the message, and a Reply-To pointing somewhere that
+         * is not mine: that address is who this is really from.
+         *
+         * A contact form is the shape of it -- From and To are both the site's
+         * own mailbox, and the person who filled the form in is in Reply-To.
+         * The address test above calls that mine, correctly as far as it goes,
+         * and the fallback then addressed the reply to my own desk (#415).
+         *
+         * After the Cc, not before it: a message I really did send carries my
+         * own Reply-To, and somebody I actually wrote to beats it.
+         */
+        if (!to.length) to = withoutOwn(full.replyTo ?? []);
         if (!to.length) to = uniqueAddresses([...(full.to ?? []), ...(full.cc ?? [])]);
       } else {
         to = uniqueAddresses(full.replyTo?.length ? full.replyTo : (full.from ?? []));
