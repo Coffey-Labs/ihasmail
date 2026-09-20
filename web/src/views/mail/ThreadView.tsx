@@ -224,7 +224,23 @@ export function ThreadView({ threadId, mailboxId, onBack, actions, onNavigate, h
   }, [messages, reply]);
 
   const subject = messages[0]?.subject || emails[thread?.emailIds[0] ?? ""]?.subject || "(no subject)";
-  const rowIds = thread ? thread.emailIds.filter((id) => emails[id]) : [];
+  /*
+   * What the toolbar acts on: the messages the pane is showing, not the thread
+   * they belong to.
+   *
+   * With conversation view off, opening a message opens that message -- the
+   * list shows it alone, the pane renders it alone, and the buttons above it
+   * said so, because `anyUnread` and the rest already read `messages`. Only the
+   * ids handed to the action still named the whole thread, so Mark as unread,
+   * Move to, Report spam and Delete quietly took every message in it (#414).
+   *
+   * Same fallback as the pane's: an id naming nothing in this thread means the
+   * whole conversation, so the buttons keep matching what is on screen.
+   */
+  const rowIds = useMemo(() => {
+    const loaded = thread ? thread.emailIds.filter((id) => emails[id]).map((id) => ({ id })) : [];
+    return visibleMessages(loaded, messageId).map((m) => m.id);
+  }, [thread, emails, messageId]);
   const anyUnread = messages.some((e) => !e.keywords.$seen);
   const anyStarred = messages.some((e) => e.keywords.$flagged);
   const inJunk = Boolean(mailboxId && mailboxes[mailboxId]?.role === "junk");
