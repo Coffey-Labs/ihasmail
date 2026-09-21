@@ -115,6 +115,12 @@ version:
     GIT_DEPTH: "0"
   before_script:
     - apt-get update -qq && apt-get install -y -qq --no-install-recommends git >/dev/null
+    # The build directory is reused between jobs, and the node job chowns it to
+    # the unprivileged `node` user so its tests can run. A later job running
+    # git as root then finds the checkout owned by somebody else, and git
+    # refuses with "detected dubious ownership" (exit 128). Whether it happens
+    # depends on which cached directory a job lands on, so it comes and goes.
+    - git config --global --add safe.directory "$CI_PROJECT_DIR"
   script:
     - V="$(node scripts/version.mjs)"
     - echo "VERSION=$V" > version.env
@@ -178,6 +184,8 @@ weekly-release:
     GIT_DEPTH: "0"
   before_script:
     - apt-get update -qq && apt-get install -y -qq --no-install-recommends git curl jq >/dev/null
+    # See the version job: same shared directory, same root, same refusal.
+    - git config --global --add safe.directory "$CI_PROJECT_DIR"
   script:
     - |
       set -euo pipefail
