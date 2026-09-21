@@ -25,6 +25,37 @@ function roleRank(m: Mailbox): number {
   return m.role && m.role in ROLE_ORDER ? ROLE_ORDER[m.role]! : Number.MAX_SAFE_INTEGER;
 }
 
+/**
+ * Every folder, parents before their children and siblings in
+ * `compareFolders` order: the sidebar's order with every folder expanded.
+ * Lists that show all folders at once, like the move-to picker, use this so a
+ * folder sits where the user dragged it rather than where A–Z would put it.
+ *
+ * A folder the walk from the top never reaches (a parent loop the server
+ * should not allow) is appended rather than dropped, so it can still be
+ * picked.
+ */
+export function treeOrder(mailboxes: Record<Id, Mailbox>): Mailbox[] {
+  const byParent = new Map<Id | null, Mailbox[]>();
+  for (const m of Object.values(mailboxes)) {
+    const p = m.parentId && mailboxes[m.parentId] ? m.parentId : null;
+    byParent.set(p, [...(byParent.get(p) ?? []), m]);
+  }
+  for (const list of byParent.values()) list.sort(compareFolders);
+  const out: Mailbox[] = [];
+  const seen = new Set<Id>();
+  const walk = (parent: Id | null) => {
+    for (const m of byParent.get(parent) ?? []) {
+      if (seen.has(m.id)) continue;
+      seen.add(m.id);
+      out.push(m);
+      walk(m.id);
+    }
+  };
+  walk(null);
+  return out.concat(Object.values(mailboxes).filter((m) => !seen.has(m.id)).sort(compareFolders));
+}
+
 /** Every folder under `parentId` (null: the top level), in list order. */
 export function siblingsOf(mailboxes: Record<Id, Mailbox>, parentId: Id | null): Mailbox[] {
   return Object.values(mailboxes)

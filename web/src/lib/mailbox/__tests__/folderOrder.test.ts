@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canPlaceFolder, compareFolders, neighbour, placeFolder, siblingsOf } from "../folderOrder";
+import { canPlaceFolder, compareFolders, neighbour, placeFolder, siblingsOf, treeOrder } from "../folderOrder";
 import type { Id, Mailbox } from "@/jmap/types";
 
 const RIGHTS = { mayRename: true, mayCreateChild: true } as Mailbox["myRights"];
@@ -117,5 +117,25 @@ describe("neighbour", () => {
   it("skips folders that aren't on screen, so every step visibly moves", () => {
     const hidden = apply(fresh, { trash: { isSubscribed: false } });
     expect(neighbour(hidden, "alpha", "up", (m) => m.isSubscribed)).toEqual({ targetId: "junk", placement: "before" });
+  });
+});
+
+describe("treeOrder", () => {
+  const ids = (all: Record<Id, Mailbox>) => treeOrder(all).map((m) => m.id);
+
+  it("lists the tree the way the sidebar does, each folder followed by its subfolders", () => {
+    expect(ids(fresh)).toEqual(["inbox", "drafts", "sent", "junk", "trash", "alpha", "work", "clients", "zeta"]);
+  });
+
+  it("follows a saved order rather than A–Z", () => {
+    // #1 on GitLab: the move-to picker kept the old order after the sidebar changed.
+    const ordered = apply(fresh, { zeta: { sortOrder: 10 }, sent: { sortOrder: 20 }, alpha: { sortOrder: 30 }, drafts: { sortOrder: 40 }, junk: { sortOrder: 50 }, trash: { sortOrder: 60 }, work: { sortOrder: 70 } });
+    expect(ids(ordered)).toEqual(["inbox", "zeta", "sent", "alpha", "drafts", "junk", "trash", "work", "clients"]);
+  });
+
+  it("still lists a folder the walk from the top can't reach", () => {
+    const looped = apply(fresh, { work: { parentId: "clients" } });
+    expect(ids(looped)).toHaveLength(Object.keys(looped).length);
+    expect(ids(looped)).toEqual(expect.arrayContaining(["work", "clients"]));
   });
 });

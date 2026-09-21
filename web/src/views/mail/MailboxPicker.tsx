@@ -5,6 +5,7 @@ import { Dialog } from "@/ui/dialog";
 import type { Id, Mailbox } from "@/jmap/types";
 import { t } from "@/lib/i18n";
 import { mailboxDisplayPath } from "@/lib/mailbox/mailboxName";
+import { treeOrder } from "@/lib/mailbox/folderOrder";
 
 /**
  * @param need which right a folder has to grant to be worth offering.
@@ -24,10 +25,11 @@ export function MailboxPicker({ title, onClose, onPick, exclude, need = "mayAddI
   const [q, setQ] = useState("");
   const [active, setActive] = useState(0);
   const list = useMemo(() => {
-    const all = Object.values(mailboxes)
+    // The sidebar's order, not A–Z by path: a folder dragged into place has to
+    // be found in the same place here.
+    const all = treeOrder(mailboxes)
       .filter((m) => !exclude?.includes(m.id) && m.myRights[need] && (!allow || allow(m.id)))
-      .map((m) => ({ m, path: mailboxDisplayPath(m, mailboxes), pick: () => onPick(m.id) }))
-      .sort((a, b) => (a.m.role === "inbox" ? -1 : b.m.role === "inbox" ? 1 : a.path.localeCompare(b.path)));
+      .map((m) => ({ m, path: mailboxDisplayPath(m, mailboxes), pick: () => onPick(m.id) }));
     const rows: { m: Mailbox | null; path: string; pick: () => void }[] = root ? [{ m: null, path: root.label, pick: root.onPick }, ...all] : all;
     const ql = q.trim().toLowerCase();
     return ql ? rows.filter((x) => x.path.toLowerCase().includes(ql)) : rows;
