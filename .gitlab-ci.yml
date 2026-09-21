@@ -97,10 +97,35 @@ docker-build:
 # tolerable for a weekly tag and would not be for every push. That is why this
 # job is tag-only. If arm64 ever starts timing out, the fix is an arm64 runner,
 # not dropping the platform: TrueNAS and Unraid users pull it.
+# The version the image is built with, computed the way publish.yml did it:
+# scripts/version.mjs, which needs node and the full history. The build is
+# *told* the real form (IHASMAIL_VERSION, what About and /api/health report);
+# the Docker tag gets the same string with '+' turned into '-', because a tag
+# may not contain '+'. The first port of this job left the build arg out, so
+# a tag would have shipped an image reporting itself unversioned -- which is
+# exactly what version.test.ts calls looking wrong.
+version:
+  stage: build
+  image: node:26-bookworm-slim@sha256:582460f614631b59b824ac6020533b9bf339c7fdf3a6d7db31abb6b4065f0212 # 26-bookworm-slim
+  variables:
+    GIT_DEPTH: "0"
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq --no-install-recommends git >/dev/null
+  script:
+    - V="$(node scripts/version.mjs)"
+    - echo "VERSION=$V" > version.env
+    - echo "DOCKER_TAG=${V/+/-}" >> version.env
+    - cat version.env
+  artifacts:
+    reports:
+      dotenv: version.env
+  rules:
+    - if: $CI_COMMIT_TAG
+
 publish:
   stage: publish
   image: docker:28-cli@sha256:625d9431a9f54c5a2bc90f24f0e1c3d55b1349fd857dd85035f98c2c9acbdd4d # 28-cli
-  needs: [node]
+  needs: [node, version]
   variables:
     DOCKER_BUILDKIT: "1"
   before_script:
@@ -111,7 +136,9 @@ publish:
     - |
       docker buildx build \
         --platform linux/amd64,linux/arm64 \
-        --tag "$IMAGE:$CI_COMMIT_TAG" \
+        --build-arg IHASMAIL_VERSION="$VERSION" \
+        --provenance=false --sbom=false \
+        --tag "$IMAGE:$DOCKER_TAG" \
         --tag "$IMAGE:latest" \
         --push .
   after_script:
