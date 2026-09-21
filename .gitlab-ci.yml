@@ -30,17 +30,35 @@ default:
 node:
   stage: test
   image: node:26-bookworm-slim@sha256:582460f614631b59b824ac6020533b9bf339c7fdf3a6d7db31abb6b4065f0212 # 26-bookworm-slim
+  variables:
+    NPM_CONFIG_CACHE: "$CI_PROJECT_DIR/.npm"
+    # imageproxy.test.ts binds its "reached by name" server to ::1 and then
+    # asks for localhost, on the assumption that localhost resolves to IPv6
+    # first. That holds on a workstation and on GitHub's ubuntu-latest; inside
+    # this container /etc/hosts answers 127.0.0.1 first, the request lands on
+    # the pinned server instead and the control case fails. Node 17 onwards
+    # returns getaddrinfo order verbatim, so ask for the order the test
+    # expects rather than rewriting the test around the runner.
+    NODE_OPTIONS: "--dns-result-order=ipv6first"
   cache:
     key:
       files: [package-lock.json]
     paths: [.npm/]
   before_script:
-    - npm config set cache .npm --global
+    # version.test.ts shells out to git to resolve a build version, and the
+    # slim image ships without it. The clone is done by the runner's helper
+    # image, so nothing else here needs git and its absence is easy to miss.
+    - apt-get update -qq && apt-get install -y -qq --no-install-recommends git
+    # config.test.ts chmods a directory to 0555 and expects the write to be
+    # refused. Root ignores the permission bits, so as root that assertion can
+    # never hold. The tests run as the image's unprivileged `node` user for
+    # that reason; -p keeps the environment, including NODE_OPTIONS above.
+    - chown -R node:node "$CI_PROJECT_DIR"
   script:
-    - npm ci --ignore-scripts
-    - npm run typecheck
-    - npm test
-    - npm run build
+    - su node -p -c "npm ci --ignore-scripts"
+    - su node -p -c "npm run typecheck"
+    - su node -p -c "npm test"
+    - su node -p -c "npm run build"
   artifacts:
     paths: [dist/]
     expire_in: 1 week
