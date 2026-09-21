@@ -15,7 +15,7 @@
 # https://git.coffeylabs.org -- that name is Cloudflare-proxied on the Free
 # plan, which caps request bodies at 100 MB and would break artifact uploads.
 
-stages: [test, build, publish]
+stages: [test, build, publish, release]
 
 variables:
   # Jobs talk to the registry directly on its DNS-only name, never through the
@@ -64,6 +64,8 @@ node:
     paths: [dist/]
     expire_in: 1 week
   rules:
+    - if: $RELEASE_WEEKLY == "1"
+      when: never
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
     - if: $CI_COMMIT_TAG
@@ -83,6 +85,8 @@ docker-build:
     - docker build -t ihasmail:ci-$CI_COMMIT_SHORT_SHA .
     - docker image rm ihasmail:ci-$CI_COMMIT_SHORT_SHA
   rules:
+    - if: $RELEASE_WEEKLY == "1"
+      when: never
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
@@ -145,3 +149,73 @@ publish:
     - docker logout "$CI_REGISTRY" || true
   rules:
     - if: $CI_COMMIT_TAG
+
+# ----------------------------------------------------------- weekly release --
+# Port of .github/workflows/release.yml: cut a release once a week, but only
+# when there is something in it. The decision is the workflow's, unchanged --
+# count the commits on main since the newest published release, and skip the
+# week if there are none or if the tag already exists (the version comes from
+# the commit, so an unchanged commit is an existing tag).
+#
+# It runs from a pipeline schedule (Mondays 09:17 UTC, the same odd minute as
+# before) that sets RELEASE_WEEKLY=1. GitLab keeps schedules on the project,
+# not in this file, so the schedule and this job only work as a pair. Run it by
+# hand with RELEASE_WEEKLY=1, adding DRY_RUN=1 to see the decision and stop.
+#
+# The release -- and with it the tag -- is created with RELEASE_TOKEN, a
+# project access token (protected, masked), not CI_JOB_TOKEN. A tag pushed that
+# way is an ordinary push, so it starts the tag pipeline, and the version and
+# publish jobs above build the image from it. That replaces release.yml's
+# direct call of publish.yml, which only existed because a tag created with
+# GITHUB_TOKEN raises no event. The token expires; when it does this job fails
+# at the API call, loudly, and a new one goes in the same variable.
+weekly-release:
+  stage: release
+  image: node:26-bookworm-slim@sha256:582460f614631b59b824ac6020533b9bf339c7fdf3a6d7db31abb6b4065f0212 # 26-bookworm-slim
+  # One at a time: two overlapping runs would race to create the same tag.
+  resource_group: weekly-release
+  variables:
+    GIT_DEPTH: "0"
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq --no-install-recommends git curl jq >/dev/null
+  script:
+    - |
+      set -euo pipefail
+      # Internal address, as for everything else CI does: never through the proxy.
+      API="http://gitlab/api/v4/projects/${CI_PROJECT_ID}"
+      auth=(--header "PRIVATE-TOKEN: ${RELEASE_TOKEN}")
+      # The newest published release, or empty on a project that has never had
+      # one -- in which case everything counts as new.
+      previous="$(curl -fsS "${auth[@]}" "${API}/releases?order_by=released_at&sort=desc&per_page=1" | jq -r '.[0].tag_name // ""')"
+      # A release can outlive its tag. Falling back to the whole history
+      # over-counts, which cuts a release that was due anyway; under-counting
+      # would skip one that was.
+      if [ -n "$previous" ] && git rev-parse -q --verify "refs/tags/${previous}" >/dev/null; then
+        count="$(git rev-list --count "${previous}..HEAD")"; range="${previous}..HEAD"
+      else
+        count="$(git rev-list --count HEAD)"; range="HEAD"
+      fi
+      version="$(node scripts/version.mjs)"
+      # A Docker tag may not contain '+', and neither should the git tag, so
+      # the two always agree about what to call a build.
+      tag="v${version/+/-}"
+      title="v${version%%+*}"
+      sha="$(git rev-parse HEAD)"
+      if [ "$count" -eq 0 ]; then
+        echo "Nothing to release: no commits since ${previous}."; exit 0
+      fi
+      if git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
+        echo "Nothing to release: tag ${tag} already exists."; exit 0
+      fi
+      echo "Releasing ${tag} -- ${count} commit(s) since ${previous:-the beginning}, at ${sha}."
+      if [ "${DRY_RUN:-0}" = "1" ]; then echo "DRY_RUN=1: stopping here."; exit 0; fi
+      # Notes bounded to what is new, from the first-parent history of main --
+      # one line per merge, which is what GitHub's generated notes listed.
+      notes="$(git log --first-parent --format='- %s' "$range")"
+      jq -n --arg tag "$tag" --arg ref "$sha" --arg name "$title" \
+            --arg desc "$(printf '%s commit(s) since %s.\n\n%s' "$count" "${previous:-the beginning}" "$notes")" \
+            '{tag_name:$tag, ref:$ref, name:$name, description:$desc}' > release.json
+      curl -fsS "${auth[@]}" --header "Content-Type: application/json" \
+           --data @release.json "${API}/releases" | jq -r '"created release " + .tag_name'
+  rules:
+    - if: $RELEASE_WEEKLY == "1" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
