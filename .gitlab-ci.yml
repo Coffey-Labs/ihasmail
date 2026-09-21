@@ -1,0 +1,120 @@
+# CI for the self-hosted GitLab that replaced GitHub Actions when the account
+# was suspended on 2026-09-20. This is a port of .github/workflows/ci.yml and
+# publish.yml, which are kept in the tree for reference and for the day the
+# appeal succeeds.
+#
+# Every `image:` here is pinned to a digest, with the tag it belonged to in the
+# trailing comment. That is the direct replacement for the SHA-pinned `uses:`
+# in the Actions workflows: GitLab has no equivalent of an action allowlist, so
+# the only thing standing between this pipeline and whatever the publisher
+# pushes to a tag next is the digest. Read the comment for the version; the
+# digest is what runs. Do not "simplify" one back to a bare tag.
+#
+# The runner is a group runner on Web_Host with the host docker socket bound
+# in, reached over the internal container network rather than
+# https://git.coffeylabs.org -- that name is Cloudflare-proxied on the Free
+# plan, which caps request bodies at 100 MB and would break artifact uploads.
+
+stages: [test, build, publish]
+
+variables:
+  # Jobs talk to the registry directly on its DNS-only name, never through the
+  # proxy, for the same 100 MB reason.
+  IMAGE: $CI_REGISTRY_IMAGE
+  GIT_DEPTH: "0"
+
+default:
+  interruptible: true
+
+# ---------------------------------------------------------------- test ------
+node:
+  stage: test
+  image: node:26-bookworm-slim@sha256:582460f614631b59b824ac6020533b9bf339c7fdf3a6d7db31abb6b4065f0212 # 26-bookworm-slim
+  variables:
+    NPM_CONFIG_CACHE: "$CI_PROJECT_DIR/.npm"
+  cache:
+    key:
+      files: [package-lock.json]
+    paths: [.npm/]
+  before_script:
+    # version.test.ts shells out to git to resolve a build version, and the
+    # slim image ships without it. The clone is done by the runner's helper
+    # image, so nothing else here needs git and its absence is easy to miss.
+    - apt-get update -qq && apt-get install -y -qq --no-install-recommends git
+    # config.test.ts chmods a directory to 0555 and expects the write to be
+    # refused. Root ignores the permission bits, so as root that assertion can
+    # never hold. The tests run as the image's unprivileged `node` user for
+    # that reason; -p keeps the environment.
+    #
+    # imageproxy.test.ts needs IPv6 as well, which is not set here but on the
+    # runner: jobs run on the `ci-net` docker network, created with --ipv6.
+    # Without a non-loopback IPv6 address on the container, getaddrinfo's
+    # AI_ADDRCONFIG drops ::1 from the results entirely, localhost resolves to
+    # IPv4 only, and the test's control case connects to a port nothing is
+    # listening on. That is a runner property, so it cannot be fixed from this
+    # file -- if these tests ever fail again with ECONNREFUSED on 127.0.0.1,
+    # check that the runner still puts jobs on an IPv6-enabled network.
+    - chown -R node:node "$CI_PROJECT_DIR"
+  script:
+    - su node -p -c "npm ci --ignore-scripts"
+    - su node -p -c "npm run typecheck"
+    - su node -p -c "npm test"
+    - su node -p -c "npm run build"
+  artifacts:
+    paths: [dist/]
+    expire_in: 1 week
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_TAG
+
+# --------------------------------------------------------------- build ------
+# Proves the Dockerfile still builds on every change, without pushing. The
+# equivalent of ci.yml's final `docker build -t ihasmail:ci .` step.
+#
+# Not called `image`: that is a reserved keyword, and a job by that name is
+# silently read as the global image: setting instead ("image name should be a
+# string"). Same trap for `stages`, `cache`, `services` and `variables`.
+docker-build:
+  stage: build
+  image: docker:28-cli@sha256:625d9431a9f54c5a2bc90f24f0e1c3d55b1349fd857dd85035f98c2c9acbdd4d # 28-cli
+  needs: [node]
+  script:
+    - docker build -t ihasmail:ci-$CI_COMMIT_SHORT_SHA .
+    - docker image rm ihasmail:ci-$CI_COMMIT_SHORT_SHA
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# ------------------------------------------------------------- publish ------
+# Tag-driven, replacing the release -> publish workflow_call chain. GitHub
+# needed that dance because a release cut with GITHUB_TOKEN raises no event;
+# GitLab has no such rule, so a tag pipeline is enough.
+#
+# arm64 is built under QEMU on this amd64 host, not on a native runner as
+# GitHub's free `ubuntu-24.04-arm` did. It is slow -- tens of minutes for the
+# npm install and Vite build through instruction translation -- which is
+# tolerable for a weekly tag and would not be for every push. That is why this
+# job is tag-only. If arm64 ever starts timing out, the fix is an arm64 runner,
+# not dropping the platform: TrueNAS and Unraid users pull it.
+publish:
+  stage: publish
+  image: docker:28-cli@sha256:625d9431a9f54c5a2bc90f24f0e1c3d55b1349fd857dd85035f98c2c9acbdd4d # 28-cli
+  needs: [node]
+  variables:
+    DOCKER_BUILDKIT: "1"
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+    - docker run --privileged --rm tonistiigi/binfmt --install arm64
+    - docker buildx create --use --name ci-builder --driver docker-container || docker buildx use ci-builder
+  script:
+    - |
+      docker buildx build \
+        --platform linux/amd64,linux/arm64 \
+        --tag "$IMAGE:$CI_COMMIT_TAG" \
+        --tag "$IMAGE:latest" \
+        --push .
+  after_script:
+    - docker logout "$CI_REGISTRY" || true
+  rules:
+    - if: $CI_COMMIT_TAG
