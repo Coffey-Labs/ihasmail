@@ -190,7 +190,15 @@ weekly-release:
       # A release can outlive its tag. Falling back to the whole history
       # over-counts, which cuts a release that was due anyway; under-counting
       # would skip one that was.
-      if [ -n "$previous" ] && git rev-parse -q --verify "refs/tags/${previous}" >/dev/null; then
+      # Tag lookups use show-ref, which matches an exact ref and nothing else.
+      # `rev-parse --verify refs/tags/<name>` does not: on the git in this image
+      # (2.39) a name ending in -g<hex> falls back to being read as
+      # git-describe output, resolves to that commit, and so "exists" whether
+      # or not the tag does. Every commit not merged through a pull request has
+      # a -g<hex> version, so that check reported every such week as already
+      # released. Newer git (and GitHub's runners) do not fall back, which is
+      # why release.yml never showed it.
+      if [ -n "$previous" ] && git show-ref --verify --quiet "refs/tags/${previous}"; then
         count="$(git rev-list --count "${previous}..HEAD")"; range="${previous}..HEAD"
       else
         count="$(git rev-list --count HEAD)"; range="HEAD"
@@ -204,7 +212,7 @@ weekly-release:
       if [ "$count" -eq 0 ]; then
         echo "Nothing to release: no commits since ${previous}."; exit 0
       fi
-      if git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
+      if git show-ref --verify --quiet "refs/tags/${tag}"; then
         echo "Nothing to release: tag ${tag} already exists."; exit 0
       fi
       echo "Releasing ${tag} -- ${count} commit(s) since ${previous:-the beginning}, at ${sha}."
