@@ -141,7 +141,16 @@ publish:
   before_script:
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
     - docker run --privileged --rm tonistiigi/binfmt --install arm64
-    - docker buildx create --use --name ci-builder --driver docker-container || docker buildx use ci-builder
+    # The builder runs as a container on the host's daemon and does the push
+    # itself, including fetching a registry token from git.coffeylabs.org.
+    # On the runner's network that name resolves to an internal address
+    # (172.30.0.2) with nothing on 443, so the token request was refused and
+    # the push failed at the last step (job 513). On the host's network the
+    # name resolves as it does for `docker login` above. Only the token request
+    # uses it; layers still go to the registry's own DNS-only name. A new name,
+    # because `ci-builder` is a long-lived container shared between jobs and
+    # would keep whatever network it was created on.
+    - docker buildx create --use --name ci-builder-host --driver docker-container --driver-opt network=host || docker buildx use ci-builder-host
   script:
     - |
       docker buildx build \
