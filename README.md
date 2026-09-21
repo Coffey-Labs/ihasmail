@@ -77,7 +77,7 @@ docker compose up --build -d
 # → http://localhost:8080 — put a reverse proxy in front for TLS
 ```
 
-Or pull the published image, `ghcr.io/coffey-labs/ihasmail`. Releases are
+Or pull the published image, `registry.coffeylabs.org/coffey-labs/ihasmail`. Releases are
 weekly, so it is usually a few days behind `main`.
 
 People sign in with their Stalwart mailbox credentials. **An account with
