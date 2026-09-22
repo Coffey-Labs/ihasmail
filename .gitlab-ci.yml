@@ -141,16 +141,20 @@ publish:
   before_script:
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
     - docker run --privileged --rm tonistiigi/binfmt --install arm64
-    # The builder runs as a container on the host's daemon and does the push
-    # itself, including fetching a registry token from git.coffeylabs.org.
-    # On the runner's network that name resolves to an internal address
-    # (172.30.0.2) with nothing on 443, so the token request was refused and
-    # the push failed at the last step (job 513). On the host's network the
-    # name resolves as it does for `docker login` above. Only the token request
-    # uses it; layers still go to the registry's own DNS-only name. A new name,
-    # because `ci-builder` is a long-lived container shared between jobs and
-    # would keep whatever network it was created on.
-    - docker buildx create --use --name ci-builder-host --driver docker-container --driver-opt network=host || docker buildx use ci-builder-host
+    # The registry hands out push tokens from https://git.coffeylabs.org/jwt/auth,
+    # and buildx fetches them here, in the job, not in its builder. On ci-net
+    # that name is the gitlab container itself (172.30.0.2), which serves
+    # plain HTTP to the runner and nothing on 443, so every push failed at the
+    # last step with "connection refused". The login above works because the
+    # host's daemon does it, and the host resolves the name publicly. So, for
+    # this job only, point the name at its public address the same way. Only
+    # the token request uses it; layers go to the registry's own DNS-only name.
+    - |
+      public="$(nslookup "$CI_SERVER_HOST" 1.1.1.1 2>/dev/null | awk '/^Address: / && $2 !~ /:/ { print $2; exit }')"
+      if [ -z "$public" ]; then echo "Could not resolve $CI_SERVER_HOST publicly" >&2; exit 1; fi
+      echo "$public $CI_SERVER_HOST" >> /etc/hosts
+      echo "$CI_SERVER_HOST -> $public for the registry token"
+    - docker buildx create --use --name ci-builder --driver docker-container || docker buildx use ci-builder
   script:
     - |
       docker buildx build \
