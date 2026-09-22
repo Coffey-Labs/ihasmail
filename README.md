@@ -65,8 +65,8 @@ The long version is [FEATURES.md](FEATURES.md) and
 against 0.16.22; what changed in each release is in
 [KNOWN-ISSUES.md](KNOWN-ISSUES.md).
 
-- **No Stalwart yet?** [ihasmail-oneshot](https://github.com/Coffey-Labs/ihasmail-oneshot) deploys a new Stalwart and ihasmail together on one host, in one command.
-- **On Stalwart 0.15?** [stalwart-migrator](https://github.com/Coffey-Labs/stalwart-migrator) upgrades it in place, or stay on the [`stalwart-0.15-support`](https://github.com/Coffey-Labs/ihasmail/releases/tag/stalwart-0.15-support) release.
+- **No Stalwart yet?** [ihasmail-oneshot](https://git.coffeylabs.org/coffey-labs/ihasmail-oneshot) deploys a new Stalwart and ihasmail together on one host, in one command.
+- **On Stalwart 0.15?** [stalwart-migrator](https://git.coffeylabs.org/coffey-labs/stalwart-migrator) upgrades it in place, or stay on the [`stalwart-0.15-support`](https://git.coffeylabs.org/coffey-labs/ihasmail/releases/tag/stalwart-0.15-support) release.
 
 ## Quick start (Docker)
 

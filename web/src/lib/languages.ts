@@ -49,7 +49,7 @@ export const UI_LANGUAGES: readonly UiLanguage[] = [
 ];
 
 /** Where to report a bad translation. Beta languages depend on it. */
-export const TRANSLATION_ISSUE_URL = "https://github.com/Coffey-Labs/ihasmail/issues/new?title=Translation%3A%20";
+export const TRANSLATION_ISSUE_URL = "https://git.coffeylabs.org/coffey-labs/ihasmail/issues/new?title=Translation%3A%20";
 
 export const DEFAULT_UI_LANGUAGE = "en";
 

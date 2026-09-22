@@ -26,7 +26,7 @@ import { useMail } from "./mail";
  * `ContactCard/set` down they are the same" was always claiming and is now
  * true of.
  *
- * [#173]: https://github.com/Coffey-Labs/ihasmail/issues/173
+ * [#173]: https://git.coffeylabs.org/coffey-labs/ihasmail-github-archive/issues/173
  */
 /**
  * The UIDs an address book already holds.

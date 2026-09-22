@@ -101,7 +101,7 @@ export interface DialogChoice {
    * which is what "Discard changes" was, on a guard whose whole purpose is to
    * stop you losing work ([#175]).
    *
-   * [#175]: https://github.com/Coffey-Labs/ihasmail/issues/175
+   * [#175]: https://git.coffeylabs.org/coffey-labs/ihasmail-github-archive/issues/175
    */
   primary?: boolean;
 }
