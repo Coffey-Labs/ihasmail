@@ -39,7 +39,7 @@ concurrency:
 
 jobs:
   weekly-release:
-    runs-on: docker
+    runs-on: light
     container:
       image: node:26-bookworm-slim@sha256:582460f614631b59b824ac6020533b9bf339c7fdf3a6d7db31abb6b4065f0212 # 26-bookworm-slim
     env:

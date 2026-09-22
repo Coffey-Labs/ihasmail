@@ -29,7 +29,7 @@ concurrency:
 jobs:
   # -------------------------------------------------------------- test ------
   node:
-    runs-on: docker
+    runs-on: light
     container:
       image: node:26-bookworm-slim@sha256:582460f614631b59b824ac6020533b9bf339c7fdf3a6d7db31abb6b4065f0212 # 26-bookworm-slim
     env:
@@ -98,7 +98,7 @@ jobs:
   # version.test.ts calls looking wrong.
   version:
     if: ${{ startsWith(github.ref, 'refs/tags/') }}
-    runs-on: docker
+    runs-on: light
     container:
       image: node:26-bookworm-slim@sha256:582460f614631b59b824ac6020533b9bf339c7fdf3a6d7db31abb6b4065f0212 # 26-bookworm-slim
     outputs:
