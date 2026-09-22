@@ -1,0 +1,170 @@
+# CI on the self-hosted Gitea, ported from .gitlab-ci.yml during the move off
+# GitLab (2026-09-22). Gitea reads .gitea/workflows and ignores .github/ once
+# this directory exists; .github/workflows stays as it was for GitHub.
+#
+# Every job runs in an image pinned by digest (tag in the trailing comment),
+# and the only action used is coffey-labs/actions/checkout pinned by SHA. The
+# instance resolves short `uses:` against itself, never GitHub, so nothing
+# unreviewed can be pulled in. Read the comment for the version; the digest is
+# what runs. Do not "simplify" one back to a bare tag.
+#
+# Jobs run on the runner's `ci-net` network and clone from Gitea's internal
+# address, never through the Cloudflare-proxied public name, which caps
+# request bodies at 100 MB. Images go to the registry's own DNS-only name
+# (vars.REGISTRY, an org variable).
+#
+# The weekly release is its own workflow, weekly-release.yml.
+name: ci
+
+on:
+  push:
+    branches: [main]
+    tags: ['**']
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # -------------------------------------------------------------- test ------
+  node:
+    runs-on: docker
+    container:
+      image: node:26-bookworm-slim@sha256:582460f614631b59b824ac6020533b9bf339c7fdf3a6d7db31abb6b4065f0212 # 26-bookworm-slim
+    env:
+      NPM_CONFIG_CACHE: ${{ github.workspace }}/.npm
+    steps:
+      # version.test.ts shells out to git to resolve a build version, and the
+      # slim image ships without it; the checkout action installs it when it
+      # is missing, so it is there for the tests too. Full history, because
+      # the version is computed from it.
+      - uses: coffey-labs/actions/checkout@fab0c4d45e0162963965f1555df27b7bed5e20ec
+        with:
+          fetch-depth: 0
+      # config.test.ts chmods a directory to 0555 and expects the write to be
+      # refused. Root ignores the permission bits, so as root that assertion
+      # can never hold. The tests run as the image's unprivileged `node` user
+      # for that reason; -p keeps the environment.
+      #
+      # imageproxy.test.ts needs IPv6 as well, which is not set here but on the
+      # runner: jobs run on the `ci-net` docker network, created with --ipv6.
+      # Without a non-loopback IPv6 address on the container, getaddrinfo's
+      # AI_ADDRCONFIG drops ::1 from the results entirely, localhost resolves
+      # to IPv4 only, and the test's control case connects to a port nothing
+      # is listening on. That is a runner property, so it cannot be fixed from
+      # this file -- if these tests ever fail again with ECONNREFUSED on
+      # 127.0.0.1, check that the runner still puts jobs on an IPv6-enabled
+      # network.
+      - run: chown -R node:node "$GITHUB_WORKSPACE"
+      - run: su node -p -c "npm ci --ignore-scripts"
+      - run: su node -p -c "npm run typecheck"
+      - run: su node -p -c "npm test"
+      - run: su node -p -c "npm run build"
+
+  # ------------------------------------------------------------- build ------
+  # Proves the Dockerfile still builds on every change, without pushing. The
+  # equivalent of ci.yml's final `docker build -t ihasmail:ci .` step. The
+  # Dockerfile builds everything itself, so nothing is handed over from the
+  # node job; `needs` only keeps the order.
+  docker-build:
+    if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+    needs: [node]
+    runs-on: docker
+    container:
+      image: docker:28-cli@sha256:625d9431a9f54c5a2bc90f24f0e1c3d55b1349fd857dd85035f98c2c9acbdd4d # 28-cli
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
+    steps:
+      - uses: coffey-labs/actions/checkout@fab0c4d45e0162963965f1555df27b7bed5e20ec
+      - run: |
+          tag="ihasmail:ci-$(echo "$GITHUB_SHA" | cut -c1-8)"
+          docker build -t "$tag" .
+          docker image rm "$tag"
+
+  # ----------------------------------------------------------- publish ------
+  # Tag-driven. GitHub needed a release -> publish workflow_call chain because
+  # a release cut with GITHUB_TOKEN raises no event -- and Gitea behaves the
+  # same way, which is why weekly-release.yml cuts its release with
+  # RELEASE_TOKEN: a tag made with that token is an ordinary push, and starts
+  # this workflow.
+  #
+  # The version the image is built with, computed the way publish.yml did it:
+  # scripts/version.mjs, which needs node and the full history. The build is
+  # *told* the real form (IHASMAIL_VERSION, what About and /api/health
+  # report); the Docker tag gets the same string with '+' turned into '-',
+  # because a tag may not contain '+'. Leaving the build arg out would ship an
+  # image reporting itself unversioned -- which is exactly what
+  # version.test.ts calls looking wrong.
+  version:
+    if: ${{ startsWith(github.ref, 'refs/tags/') }}
+    runs-on: docker
+    container:
+      image: node:26-bookworm-slim@sha256:582460f614631b59b824ac6020533b9bf339c7fdf3a6d7db31abb6b4065f0212 # 26-bookworm-slim
+    outputs:
+      version: ${{ steps.v.outputs.VERSION }}
+      docker_tag: ${{ steps.v.outputs.DOCKER_TAG }}
+    steps:
+      - uses: coffey-labs/actions/checkout@fab0c4d45e0162963965f1555df27b7bed5e20ec
+        with:
+          fetch-depth: 0
+      - id: v
+        shell: bash
+        run: |
+          V="$(node scripts/version.mjs)"
+          echo "VERSION=$V" >> "$GITHUB_OUTPUT"
+          echo "DOCKER_TAG=${V/+/-}" >> "$GITHUB_OUTPUT"
+          echo "VERSION=$V DOCKER_TAG=${V/+/-}"
+
+  # arm64 is built under QEMU on this amd64 host, not on a native runner as
+  # GitHub's free `ubuntu-24.04-arm` did. It is slow -- tens of minutes for the
+  # npm install and Vite build through instruction translation -- which is
+  # tolerable for a weekly tag and would not be for every push. That is why
+  # this job is tag-only. If arm64 ever starts timing out, the fix is an arm64
+  # runner, not dropping the platform: TrueNAS and Unraid users pull it.
+  #
+  # The push logs in with PACKAGE_TOKEN (jcoffey-dev, write:package): Gitea's
+  # per-job token is refused by the container registry. The registry hands out
+  # its push tokens from its own name, so unlike on GitLab nothing here has to
+  # be pointed at a public address.
+  publish:
+    if: ${{ startsWith(github.ref, 'refs/tags/') }}
+    needs: [node, version]
+    runs-on: docker
+    container:
+      image: docker:28-cli@sha256:625d9431a9f54c5a2bc90f24f0e1c3d55b1349fd857dd85035f98c2c9acbdd4d # 28-cli
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
+    env:
+      DOCKER_BUILDKIT: "1"
+      REGISTRY: ${{ vars.REGISTRY }}
+      IMAGE: ${{ vars.REGISTRY }}/${{ github.repository }}
+      VERSION: ${{ needs.version.outputs.version }}
+      DOCKER_TAG: ${{ needs.version.outputs.docker_tag }}
+      PACKAGE_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+    steps:
+      - uses: coffey-labs/actions/checkout@fab0c4d45e0162963965f1555df27b7bed5e20ec
+      - run: |
+          test -n "$REGISTRY" && test -n "$VERSION" && test -n "$DOCKER_TAG"
+          test -n "$PACKAGE_TOKEN" || { echo "PACKAGE_TOKEN secret is not set on this repository" >&2; exit 1; }
+          echo "$PACKAGE_TOKEN" | docker login -u jcoffey-dev --password-stdin "$REGISTRY"
+          docker run --privileged --rm tonistiigi/binfmt --install arm64
+          docker buildx create --use --name gitea-builder --driver docker-container || docker buildx use gitea-builder
+      - run: |
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            --build-arg IHASMAIL_VERSION="$VERSION" \
+            --provenance=false --sbom=false \
+            --tag "$IMAGE:$DOCKER_TAG" \
+            --tag "$IMAGE:latest" \
+            --push .
+          docker buildx imagetools inspect "$IMAGE:$DOCKER_TAG"
+      # Gitea keeps a container package on its owner; linking it shows it on
+      # the repository's Packages tab. Idempotent.
+      - run: |
+          apk add --no-cache -q curl
+          curl -fsS -o /dev/null -X POST -H "Authorization: token $PACKAGE_TOKEN" \
+            "$CI_SERVER_INTERNAL/api/v1/packages/${GITHUB_REPOSITORY%%/*}/container/${GITHUB_REPOSITORY#*/}/-/link/${GITHUB_REPOSITORY#*/}" \
+            || echo "package already linked (or link refused); not fatal"
+      - if: always()
+        run: docker logout "$REGISTRY" || true

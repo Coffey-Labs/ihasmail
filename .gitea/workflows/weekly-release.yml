@@ -1,0 +1,101 @@
+# Weekly release, ported from the weekly-release job in .gitlab-ci.yml (itself
+# a port of .github/workflows/release.yml): cut a release once a week, but
+# only when there is something in it. The decision is unchanged -- count the
+# commits on main since the newest published release, and skip the week if
+# there are none or if the tag already exists (the version comes from the
+# commit, so an unchanged commit is an existing tag).
+#
+# Mondays 09:17 UTC, the same odd minute as before. Run it by hand from the
+# Actions tab (workflow_dispatch); dry_run defaults to true, so a manual run
+# shows the decision and stops unless you untick it.
+#
+# SIDE-BY-SIDE PERIOD: until the GitLab cutover, GitLab's own schedule is
+# still live and still cuts the real release, and its tags reach this copy
+# through the sync. Two releasers would race to create the same tag, so this
+# workflow only ever dry-runs unless the variable RELEASE_LIVE is '1'. Set
+# RELEASE_LIVE=1 (repo or org Actions variable) at cutover, when GitLab's
+# schedule is switched off -- not before.
+#
+# Reads use the job's own token. The release -- and with it the tag -- is
+# created with RELEASE_TOKEN (jcoffey-dev, write:repository), because a tag
+# Gitea creates for the job token raises no event (checked 2026-09-22), and
+# the tag has to start ci.yml's version and publish jobs.
+name: weekly-release
+
+on:
+  schedule:
+    - cron: '17 9 * * 1'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Show the decision and stop
+        type: boolean
+        default: true
+
+# One at a time: two overlapping runs would race to create the same tag.
+concurrency:
+  group: weekly-release
+  cancel-in-progress: false
+
+jobs:
+  weekly-release:
+    runs-on: docker
+    container:
+      image: node:26-bookworm-slim@sha256:582460f614631b59b824ac6020533b9bf339c7fdf3a6d7db31abb6b4065f0212 # 26-bookworm-slim
+    env:
+      READ_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+      # Live only with RELEASE_LIVE=1 AND either the schedule or a manual run
+      # with dry_run unticked.
+      DRY_RUN: ${{ (vars.RELEASE_LIVE == '1' && (github.event_name == 'schedule' || inputs.dry_run == false || inputs.dry_run == 'false')) && '0' || '1' }}
+    steps:
+      - uses: coffey-labs/actions/checkout@fab0c4d45e0162963965f1555df27b7bed5e20ec
+        with:
+          fetch-depth: 0
+      - run: apt-get update -qq && apt-get install -y -qq --no-install-recommends curl jq >/dev/null
+      - shell: bash
+        run: |
+          set -euo pipefail
+          # Internal address, as for everything else CI does: never through the proxy.
+          API="${CI_SERVER_INTERNAL}/api/v1/repos/${GITHUB_REPOSITORY}"
+          # The newest published release, or empty on a project that has never
+          # had one -- in which case everything counts as new.
+          previous="$(curl -fsS -H "Authorization: token ${READ_TOKEN}" "${API}/releases?draft=false&pre-release=false&limit=1" | jq -r '.[0].tag_name // ""')"
+          # A release can outlive its tag. Falling back to the whole history
+          # over-counts, which cuts a release that was due anyway;
+          # under-counting would skip one that was.
+          # Tag lookups use show-ref, which matches an exact ref and nothing
+          # else. `rev-parse --verify refs/tags/<name>` does not: on the git in
+          # this image (2.39) a name ending in -g<hex> falls back to being read
+          # as git-describe output, resolves to that commit, and so "exists"
+          # whether or not the tag does. Every commit not merged through a pull
+          # request has a -g<hex> version, so that check reported every such
+          # week as already released.
+          if [ -n "$previous" ] && git show-ref --verify --quiet "refs/tags/${previous}"; then
+            count="$(git rev-list --count "${previous}..HEAD")"; range="${previous}..HEAD"
+          else
+            count="$(git rev-list --count HEAD)"; range="HEAD"
+          fi
+          version="$(node scripts/version.mjs)"
+          # A Docker tag may not contain '+', and neither should the git tag,
+          # so the two always agree about what to call a build.
+          tag="v${version/+/-}"
+          title="v${version%%+*}"
+          sha="$(git rev-parse HEAD)"
+          if [ "$count" -eq 0 ]; then
+            echo "Nothing to release: no commits since ${previous}."; exit 0
+          fi
+          if git show-ref --verify --quiet "refs/tags/${tag}"; then
+            echo "Nothing to release: tag ${tag} already exists."; exit 0
+          fi
+          echo "Releasing ${tag} -- ${count} commit(s) since ${previous:-the beginning}, at ${sha}."
+          if [ "$DRY_RUN" = "1" ]; then echo "Dry run (RELEASE_LIVE='${{ vars.RELEASE_LIVE }}'): stopping here."; exit 0; fi
+          # Notes bounded to what is new, from the first-parent history of
+          # main -- one line per merge, which is what GitHub's generated notes
+          # listed.
+          notes="$(git log --first-parent --format='- %s' "$range")"
+          jq -n --arg tag "$tag" --arg ref "$sha" --arg name "$title" \
+                --arg body "$(printf '%s commit(s) since %s.\n\n%s' "$count" "${previous:-the beginning}" "$notes")" \
+                '{tag_name:$tag, target_commitish:$ref, name:$name, body:$body}' > release.json
+          curl -fsS -H "Authorization: token ${RELEASE_TOKEN}" -H "Content-Type: application/json" \
+               --data @release.json "${API}/releases" | jq -r '"created release " + .tag_name'
