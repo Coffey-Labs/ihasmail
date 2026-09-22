@@ -280,7 +280,7 @@ export const config = {
    * source, not the one it was forked from -- so anyone deploying a patched
    * ihasmail should point this at their own tree.
    */
-  sourceUrl: env("SOURCE_URL", "https://github.com/Coffey-Labs/ihasmail"),
+  sourceUrl: env("SOURCE_URL", "https://git.coffeylabs.org/coffey-labs/ihasmail"),
   host: env("HOST", "0.0.0.0"),
   port: int("PORT", 8080),
   /**

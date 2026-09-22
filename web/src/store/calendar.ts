@@ -108,7 +108,7 @@ export function isOccurrence(event: CalendarEvent): boolean {
  * before it is sent — rejected properties throw, inherited ones are reported to
  * the caller — rather than being posted hopefully and believed.
  *
- * [#26]: https://github.com/Coffey-Labs/ihasmail/issues/26
+ * [#26]: https://git.coffeylabs.org/coffey-labs/ihasmail-github-archive/issues/26
  */
 const OCCURRENCE_REJECTED = new Set([
   "baseEventId", "calendarIds", "isDraft", "isOrigin", "utcStart", "utcEnd",

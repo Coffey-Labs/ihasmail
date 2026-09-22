@@ -29,7 +29,7 @@ services:
       APP_SECRET: ${APP_SECRET:?set APP_SECRET in .env (openssl rand -base64 48)}
       APP_NAME: ${APP_NAME:-ihasmail}
       BASE_PATH: ${BASE_PATH:-}
-      SOURCE_URL: ${SOURCE_URL:-https://github.com/Coffey-Labs/ihasmail}
+      SOURCE_URL: ${SOURCE_URL:-https://git.coffeylabs.org/coffey-labs/ihasmail}
       TRUST_PROXY: "1"
       IMAGE_PROXY: "1"
     volumes:
