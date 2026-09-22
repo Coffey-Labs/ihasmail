@@ -146,6 +146,7 @@ jobs:
       - uses: coffey-labs/actions/checkout@fab0c4d45e0162963965f1555df27b7bed5e20ec
       - run: |
           test -n "$REGISTRY" && test -n "$VERSION" && test -n "$DOCKER_TAG"
+          test -n "$PACKAGE_TOKEN" || { echo "PACKAGE_TOKEN secret is not set on this repository" >&2; exit 1; }
           echo "$PACKAGE_TOKEN" | docker login -u jcoffey-dev --password-stdin "$REGISTRY"
           docker run --privileged --rm tonistiigi/binfmt --install arm64
           docker buildx create --use --name gitea-builder --driver docker-container || docker buildx use gitea-builder
