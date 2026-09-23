@@ -266,6 +266,8 @@ export interface Email {
   "header:Received:asText:all"?: string[] | null;
   "header:X-Spam-Status:asText"?: string | null;
   "header:X-Spam-Result:asText"?: string | null;
+  /** The language model's opinion, when AI spam classification is on (lib/llmOpinion). */
+  "header:X-Spam-LLM:asText"?: string | null;
 }
 
 export interface Thread {

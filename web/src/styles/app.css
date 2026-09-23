@@ -2474,6 +2474,13 @@ button.dp-open:disabled { cursor: default; opacity: .5; }
 .spam-weight.bad { color: var(--danger); }
 .spam-weight.good { color: var(--success); }
 
+/* The language model's opinion, in the details and above a message in
+   Junk (views/mail/LlmOpinion.tsx). The explanation is the model's own words,
+   so it keeps its line breaks out and wraps rather than widening the pane. */
+.llm-opinion { display: flex; flex-direction: column; gap: 4px; }
+.llm-heading { display: inline-flex; flex-wrap: wrap; gap: .4em; align-items: baseline; }
+.llm-explanation { overflow-wrap: anywhere; }
+
 /* The placeholder reference under a template's body. */
 .placeholder-list { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; align-items: baseline; }
 .placeholder-row { display: contents; }

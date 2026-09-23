@@ -1703,6 +1703,9 @@ export const catalog: Catalog = {
     "{app} will tell you if a later message from this address is signed by anybody else.": "このアドレスからの以降のメールが別の人の署名だった場合、{app} がお知らせします。",
     "itself, or an issuer it does not name": "自分自身、または名前のない発行者",
     "no address": "アドレスなし",
+    // ── Spam filter: the language model's opinion ──────────────────
+    "Language model's opinion": "言語モデルの見解",
+    "One of several signals the spam filter weighed": "迷惑メールフィルターが考慮した複数の判断材料のひとつ",
   },
   plurals: {
     // ── Administration: domains ────────────────────────────────────

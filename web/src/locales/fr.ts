@@ -1700,6 +1700,9 @@ export const catalog: Catalog = {
     "{app} will tell you if a later message from this address is signed by anybody else.": "{app} vous préviendra si un message ultérieur de cette adresse est signé par quelqu'un d'autre.",
     "itself, or an issuer it does not name": "lui-même, ou un émetteur qu'il ne nomme pas",
     "no address": "aucune adresse",
+    // ── Spam filter: the language model's opinion ──────────────────
+    "Language model's opinion": "Avis du modèle de langage",
+    "One of several signals the spam filter weighed": "Un signal parmi d'autres pris en compte par le filtre antispam",
   },
   plurals: {
     // ── Administration: domains ────────────────────────────────────

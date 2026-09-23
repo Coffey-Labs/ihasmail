@@ -1702,6 +1702,9 @@ export const catalog: Catalog = {
     "{app} will tell you if a later message from this address is signed by anybody else.": "如果此地址之后的邮件由他人签名，{app} 会提醒您。",
     "itself, or an issuer it does not name": "其自身，或一个未具名的颁发者",
     "no address": "无地址",
+    // ── Spam filter: the language model's opinion ──────────────────
+    "Language model's opinion": "语言模型的判断",
+    "One of several signals the spam filter weighed": "垃圾邮件过滤考虑的多个信号之一",
   },
   plurals: {
     // ── Administration: domains ────────────────────────────────────
