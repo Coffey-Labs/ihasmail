@@ -1,0 +1,17 @@
+# Announce each published release on the community forum, in this project's
+# Announcements category (coffey-labs/actions discourse-release; the repo ->
+# category map is its release-map.json). Safe to re-run: one topic per tag.
+name: announce
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  announce:
+    runs-on: light
+    steps:
+      - uses: coffey-labs/actions/discourse-release@e9293996e2efa770839121fa8f8da93083f216be
+        with:
+          api-key: ${{ secrets.DISCOURSE_RELEASE_KEY }}
+          discord-webhook: ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
