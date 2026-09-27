@@ -2,7 +2,7 @@ import type { PermissionCatalog } from "@/lib/permissionLabels";
 
 /**
  * Stalwart 0.16.22's permission labels in Dutch, keyed by permission name. Checked against source.json.
- * Reviewed and corrected by Michael (mbjboon82, also mbjboon-netizen), a native speaker, in September 2026.
+ * Reviewed and corrected by Michael (mbjboon82, also mbjboon-netizen), a native speaker, in September 2026: https://git.coffeylabs.org/mbjboon82
  */
 
 // Dutch speaker note: For example “Cluster Nodes Management” is a bit difficult to translate naturally into Dutch.

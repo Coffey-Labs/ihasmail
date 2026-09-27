@@ -1046,9 +1046,9 @@ stated in Settings, next to a link for reporting anything that reads wrongly, be
 shipping them quietly — would ask people to trust text nobody has checked. A
 language loses the Beta mark when a speaker has read it and said so, which is a
 deliberate act by a person and not something a percentage earns. Dutch was the
-first: Michael (mbjboon82, also mbjboon-netizen), a native speaker, read every
-string, including the permission labels, and his corrections shipped in
-September 2026.
+first: Michael ([mbjboon82](https://git.coffeylabs.org/mbjboon82), also
+mbjboon-netizen), a native speaker, read every string, including the permission
+labels, and his corrections shipped in September 2026.
 
 Two things follow from the design rather than the translation:
 
