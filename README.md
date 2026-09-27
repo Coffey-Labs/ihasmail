@@ -53,7 +53,7 @@ layout, on [ihasmail.org](https://ihasmail.org/#screenshots).
 - **Settings that follow the account**, kept in the account's own storage on Stalwart
 - **On a phone** — swipe to archive or delete, pull to refresh, hold to select
 - **Administration** — a dashboard, accounts, groups, mailing lists, roles, tenants and domains, each shown only when the Stalwart role allows it
-- **Ten interface languages and twelve themes** — the nine translations are marked Beta until a native speaker has read them
+- **Ten interface languages and twelve themes** — Dutch has been read by a native speaker; the other eight translations are marked Beta until one has
 - **Platform** — installable PWA, Web Push, `mailto:` handler, no credentials in the browser, strict CSP
 
 The long version is [FEATURES.md](FEATURES.md) and

@@ -40,7 +40,7 @@ export const UI_LANGUAGES: readonly UiLanguage[] = [
   { tag: "de", name: "Deutsch", beta: true },
   { tag: "es", name: "Español", beta: true },
   { tag: "fr", name: "Français", beta: true },
-  { tag: "nl", name: "Nederlands", beta: true },
+  { tag: "nl", name: "Nederlands" },
   { tag: "pt-BR", name: "Português (Brasil)", beta: true },
   { tag: "ja", name: "日本語", beta: true },
   { tag: "ru", name: "Русский", beta: true },
