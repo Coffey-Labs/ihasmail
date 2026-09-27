@@ -1035,16 +1035,20 @@ is why they are two settings and not one.
 | | |
 | --- | --- |
 | English | the source language, and what every other catalog falls back to |
-| Deutsch · Español · Français · Nederlands · Português (Brasil) | Beta |
+| Nederlands | reviewed by a native speaker |
+| Deutsch · Español · Français · Português (Brasil) | Beta |
 | Русский · Українська · 简体中文 · 日本語 | Beta |
 
-**All nine translations are marked Beta, and the label is not modesty.**
-The catalogs were produced by AI against standard dictionaries and have not
-been read by anybody who speaks the language. That is stated in Settings, next
-to a link for reporting anything that reads wrongly, because the alternative —
+**Eight of the nine translations are marked Beta, and the label is not
+modesty.** The catalogs were produced by AI against standard dictionaries, and
+apart from Dutch none has been read by anybody who speaks the language. That is
+stated in Settings, next to a link for reporting anything that reads wrongly, because the alternative —
 shipping them quietly — would ask people to trust text nobody has checked. A
 language loses the Beta mark when a speaker has read it and said so, which is a
-deliberate act by a person and not something a percentage earns.
+deliberate act by a person and not something a percentage earns. Dutch was the
+first: Michael ([mbjboon82](https://git.coffeylabs.org/mbjboon82), also
+mbjboon-netizen), a native speaker, read every string, including the permission
+labels, and his corrections shipped in September 2026.
 
 Two things follow from the design rather than the translation:
 
@@ -1873,7 +1877,7 @@ worked on (the default, `oss`, shows only its notice). Two mailing lists round i
 
 The full list with reasons is [ROADMAP.md](ROADMAP.md). In short: no snooze
 (nothing in JMAP or Stalwart supports it, and ihasmail holds no password to act
-on a mailbox while you are away), no language yet checked by a native speaker,
+on a mailbox while you are away), only one language (Dutch) checked by a native speaker,
 no two-factor sign-in without an app password, no sharing of mail folders (the
 server stores the share and never delivers it), no public links (JMAP shares
 with accounts on the same server, and ihasmail has no storage of its own to
