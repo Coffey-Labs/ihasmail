@@ -16,6 +16,10 @@
 
 # ihasmail
 
+> [!NOTE]
+> Development happens on [git.coffeylabs.org/coffey-labs/ihasmail](https://git.coffeylabs.org/coffey-labs/ihasmail); the copy on GitHub is a read-only mirror.
+> Report issues at **[git.coffeylabs.org/coffey-labs/ihasmail/issues](https://git.coffeylabs.org/coffey-labs/ihasmail/issues)**, and join discussions at **[community.coffeylabs.org](https://community.coffeylabs.org)**.
+
 **Immutable webmail for [Stalwart Mail Server](https://stalw.art).** Mail,
 calendars, contacts, files and filters in one app that works as well on a phone
 as on a desktop — and a container with nothing to persist.
