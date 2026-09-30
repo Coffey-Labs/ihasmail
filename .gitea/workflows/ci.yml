@@ -44,7 +44,9 @@ jobs:
   # BUILD_ON and re-run.
   github:
     if: ${{ vars.BUILD_ON == 'github' }}
-    runs-on: light
+    # Its own runner label with plenty of slots: this job only polls, but holds a slot
+    # for as long as the GitHub build takes, and must not starve the build runners.
+    runs-on: wait
     timeout-minutes: 150
     container:
       image: node:26-bookworm-slim@sha256:582460f614631b59b824ac6020533b9bf339c7fdf3a6d7db31abb6b4065f0212 # 26-bookworm-slim
