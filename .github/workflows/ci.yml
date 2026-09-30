@@ -223,6 +223,53 @@ jobs:
             "$GITEA_URL/api/v1/packages/${owner,,}/container/${name,,}/-/link/${name}" \
             || echo "package already linked (or link refused); not fatal"
 
+  # ---------------------------------------------------- github release ------
+  # Copies this tag's Gitea release -- notes and files -- to a GitHub release,
+  # so the replica's Releases page, and anyone watching it, keeps up. Gitea's
+  # release is the real one; this is left out of the report to Gitea, so a
+  # failure here cannot fail a release. PR and issue numbers in the notes are
+  # rewritten to Gitea links: on GitHub a bare #16 is some other PR.
+  github-release:
+    if: ${{ vars.BUILD_ON == 'github' && github.ref_type == 'tag' }}
+    needs: [publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GITEA_URL: ${{ vars.GITEA_URL }}
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ github.ref_name }}
+    steps:
+      - run: |
+          set -euo pipefail
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "GitHub already has a release for $TAG"; exit 0
+          fi
+          # The Gitea release exists by now if this run made it; if the weekly
+          # release job made it, it came before the tag. Allow a few minutes.
+          code=0
+          for _ in $(seq 1 15); do
+            code="$(curl -sS -o rel.json -w '%{http_code}' "$GITEA_URL/api/v1/repos/$GITHUB_REPOSITORY/releases/tags/$TAG")"
+            [ "$code" = 200 ] && break
+            sleep 20
+          done
+          if [ "$code" != 200 ]; then echo "No Gitea release for $TAG; nothing to copy"; exit 0; fi
+          if [ "$(jq -r .draft rel.json)" = true ]; then echo "The Gitea release is a draft; not copying"; exit 0; fi
+          export BASE="$(jq -r '.html_url | sub("/releases/tag/.*$"; "")' rel.json)"
+          jq -r '.body // ""' rel.json | perl -pe 's{(?<![\w/&\[])#(\d+)\b}{[#$1]($ENV{BASE}/pulls/$1)}g' > notes.md
+          printf '\n\n_Mirrored from [the Gitea release](%s); report issues on [Gitea](%s/issues)._\n' \
+            "$(jq -r .html_url rel.json)" "$BASE" >> notes.md
+          files=()
+          mkdir -p files
+          while IFS=$'\t' read -r name url; do
+            curl -fsSL -o "files/$name" "$url"; files+=("files/$name")
+          done < <(jq -r '.assets[]? | [.name, .browser_download_url] | @tsv' rel.json)
+          title="$(jq -r '.name // ""' rel.json)"; [ -n "$title" ] || title="$TAG"
+          if [ "$(jq -r .prerelease rel.json)" = true ]; then kind=--prerelease; else kind=--latest; fi
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --title "$title" \
+            --notes-file notes.md "$kind" "${files[@]}"
+          echo "created the GitHub release for $TAG with ${#files[@]} file(s)"
+
   # ------------------------------------------------------------ report ------
   # One commit status on Gitea for the whole run. Gitea's ci.yml waits for it,
   # so the pull request's own checks pass or fail with this run.
