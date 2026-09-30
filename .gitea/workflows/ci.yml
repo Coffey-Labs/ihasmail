@@ -1,6 +1,14 @@
 # CI on the self-hosted Gitea, ported from .gitlab-ci.yml during the move off
 # GitLab (2026-09-22). Gitea reads .gitea/workflows and ignores .github/ once
-# this directory exists; .github/workflows stays as it was for GitHub.
+# this directory exists.
+#
+# THE SWITCH is the organization variable BUILD_ON. With BUILD_ON=github the
+# build jobs below skip: the mirror carries each commit and tag to GitHub,
+# .github/workflows/ci.yml does the same work there on native runners, and
+# the `github` job here waits for the status it reports back, so this run
+# still passes or fails with the real result. With BUILD_ON unset, everything
+# builds here as before -- which is the whole fallback if GitHub is ever
+# unavailable.
 #
 # Every job runs in an image pinned by digest (tag in the trailing comment),
 # and the only action used is coffey-labs/actions/checkout pinned by SHA. The
@@ -27,8 +35,43 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ------------------------------------------------------------ github ------
+  # With BUILD_ON=github, the one job that runs here: it waits for the commit
+  # status GitHub's ci.yml posts for this commit -- "github/ci (branch)", or
+  # "(tag)" for a tag -- and passes or fails with it. For a pull request that
+  # is the head commit, which is what the mirror pushed. Nothing arriving
+  # within the timeout usually means the mirror or GitHub is down; unset
+  # BUILD_ON and re-run.
+  github:
+    if: ${{ vars.BUILD_ON == 'github' }}
+    runs-on: light
+    timeout-minutes: 150
+    container:
+      image: node:26-bookworm-slim@sha256:582460f614631b59b824ac6020533b9bf339c7fdf3a6d7db31abb6b4065f0212 # 26-bookworm-slim
+    env:
+      READ_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      CONTEXT: github/ci (${{ startsWith(github.ref, 'refs/tags/') && 'tag' || 'branch' }})
+    steps:
+      - run: apt-get update -qq && apt-get install -y -qq --no-install-recommends ca-certificates curl jq >/dev/null
+      - shell: bash
+        run: |
+          set -uo pipefail
+          url="${CI_SERVER_INTERNAL}/api/v1/repos/${GITHUB_REPOSITORY}/commits/${SHA}/statuses?limit=50"
+          echo "Waiting for \"${CONTEXT}\" on ${SHA}"
+          while :; do
+            state="$(curl -fsS -H "Authorization: token ${READ_TOKEN}" "$url" |
+                     jq -r --arg c "$CONTEXT" '[.[] | select(.context == $c)] | sort_by(.id) | last | .status // "missing"')"
+            case "$state" in
+              success) echo "GitHub: success"; exit 0 ;;
+              failure|error) echo "GitHub: $state -- see the status link on the commit"; exit 1 ;;
+            esac
+            sleep 20
+          done
+
   # -------------------------------------------------------------- test ------
   node:
+    if: ${{ vars.BUILD_ON != 'github' }}
     runs-on: light
     container:
       image: node:26-bookworm-slim@sha256:582460f614631b59b824ac6020533b9bf339c7fdf3a6d7db31abb6b4065f0212 # 26-bookworm-slim
@@ -68,7 +111,7 @@ jobs:
   # Dockerfile builds everything itself, so nothing is handed over from the
   # node job; `needs` only keeps the order.
   docker-build:
-    if: ${{ !startsWith(github.ref, 'refs/tags/') }}
+    if: ${{ vars.BUILD_ON != 'github' && !startsWith(github.ref, 'refs/tags/') }}
     needs: [node]
     runs-on: docker
     container:
@@ -97,7 +140,7 @@ jobs:
   # image reporting itself unversioned -- which is exactly what
   # version.test.ts calls looking wrong.
   version:
-    if: ${{ startsWith(github.ref, 'refs/tags/') }}
+    if: ${{ vars.BUILD_ON != 'github' && startsWith(github.ref, 'refs/tags/') }}
     runs-on: light
     container:
       image: node:26-bookworm-slim@sha256:582460f614631b59b824ac6020533b9bf339c7fdf3a6d7db31abb6b4065f0212 # 26-bookworm-slim
@@ -128,7 +171,7 @@ jobs:
   # its push tokens from its own name, so unlike on GitLab nothing here has to
   # be pointed at a public address.
   publish:
-    if: ${{ startsWith(github.ref, 'refs/tags/') }}
+    if: ${{ vars.BUILD_ON != 'github' && startsWith(github.ref, 'refs/tags/') }}
     needs: [node, version]
     runs-on: docker
     container:
