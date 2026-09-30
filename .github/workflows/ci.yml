@@ -177,7 +177,10 @@ jobs:
         with:
           name: digest-${{ strategy.job-index }}
           path: /tmp/digests/*
-          retention-days: 1
+          # Kept a week, and overwritable, so a re-run of the build or of
+          # publish alone still finds (or replaces) the digests.
+          retention-days: 7
+          overwrite: true
           if-no-files-found: error
 
   # Joins the two digests into :<version> and :latest -- every tag moves
