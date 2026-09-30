@@ -223,6 +223,38 @@ jobs:
             "$GITEA_URL/api/v1/packages/${owner,,}/container/${name,,}/-/link/${name}" \
             || echo "package already linked (or link refused); not fatal"
 
+  # ------------------------------------------------------ ghcr replica ------
+  # Copies the release image from the Gitea registry, which stays the
+  # authoritative one, to ghcr.io under the same version tag and :latest. It is
+  # a copy, not a second build: the digest on GHCR is the digest on the
+  # registry, so `docker pull ghcr.io/...` gets exactly the same image. Left
+  # out of the report to Gitea, like the release copy, so a GHCR problem
+  # cannot fail a release.
+  ghcr:
+    if: ${{ vars.BUILD_ON == 'github' && github.ref_type == 'tag' }}
+    needs: [version, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.version.outputs.docker_tag }}
+        run: |
+          set -euo pipefail
+          src="${{ vars.REGISTRY }}/${GITHUB_REPOSITORY,,}"
+          dst="ghcr.io/${GITHUB_REPOSITORY,,}"
+          tag="$TAG"
+          echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker buildx imagetools create -t "$dst:$tag" -t "$dst:latest" "$src:$tag"
+          want="$(docker buildx imagetools inspect "$src:$tag" --format '{{json .Manifest.Digest}}')"
+          got="$(docker buildx imagetools inspect "$dst:$tag" --format '{{json .Manifest.Digest}}')"
+          echo "registry $src:$tag = $want"
+          echo "ghcr     $dst:$tag = $got"
+          [ "$want" = "$got" ] || echo "::warning::GHCR digest differs from the registry's"
+          docker logout ghcr.io
+
   # ---------------------------------------------------- github release ------
   # Copies this tag's Gitea release -- notes and files -- to a GitHub release,
   # so the replica's Releases page, and anyone watching it, keeps up. Gitea's
