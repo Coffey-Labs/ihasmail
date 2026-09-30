@@ -232,8 +232,12 @@ jobs:
           GITEA_URL: ${{ vars.GITEA_URL }}
           GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
           CONTEXT: github/ci (${{ github.ref_type }})
-          STATE: ${{ (contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')) && 'failure' || 'success' }}
+          STATE: ${{ contains(needs.*.result, 'failure') && 'failure' || (contains(needs.*.result, 'cancelled') && 'cancelled' || 'success') }}
         run: |
+          # A cancelled run was superseded by a newer run for the same commit (the
+          # mirror can push one commit twice); that run reports. Posting "failure"
+          # here would fail the Gitea check while the real build is still going.
+          if [ "$STATE" = cancelled ]; then echo "cancelled: leaving the result to the newer run"; exit 0; fi
           jq -n --arg s "$STATE" --arg c "$CONTEXT" \
                 --arg u "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
                 '{state:$s, context:$c, target_url:$u, description:"GitHub Actions"}' |
