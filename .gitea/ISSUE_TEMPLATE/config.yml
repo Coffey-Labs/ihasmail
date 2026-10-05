@@ -1,0 +1,4 @@
+# Gitea is where issues live. This file keeps Gitea from falling back to
+# .github/ISSUE_TEMPLATE/config.yml, which turns blank issues off for the
+# GitHub mirror.
+blank_issues_enabled: true
