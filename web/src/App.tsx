@@ -19,7 +19,7 @@ import { ComposerDock } from "@/views/compose/ComposerDock";
 import { requestNotificationPermission, setBaseTitle, setUnreadBadge } from "@/lib/notify/notify";
 import { publishWorkerFacts } from "@/lib/sw/swFacts";
 import { PAINTED_FROM_CACHE, useSettings, syncedPart } from "@/store/settings";
-import { armSettingsSync, loadRemoteSettings, queueSettingsPush, settingsAlreadyLoadedFor, settingsSyncAvailable } from "@/lib/settingsSync";
+import { armSettingsSync, loadRemoteSettings, loadSettingsOnce, queueSettingsPush, settingsSyncAvailable } from "@/lib/settingsSync";
 import { loadSettingsPolicy } from "@/lib/settingsPolicy";
 import { listenForVerification, renewWebPush } from "@/lib/notify/webpushEnable";
 import { plural, t, useLanguageVersion, whenLanguageReady } from "@/lib/i18n";
@@ -140,22 +140,22 @@ function AuthedApp() {
    * Once per account, not once per mount: this subtree is keyed on the
    * language version, so picking a language throws it away and builds it
    * again. Re-reading the settings file there would apply a copy written
-   * before the change and undo it.
+   * before the change and undo it. And the load is not this mount's to
+   * cancel: the settings file choosing a language remounts the tree midway
+   * through it, and a load cut off there never armed the pushes, so nothing
+   * changed afterwards was saved (Gitea issue #23). `loadSettingsOnce` runs
+   * it to the end and lets every mount wait on it.
    */
   const [ready, setReady] = useState(PAINTED_FROM_CACHE);
   useEffect(() => {
-    if (settingsAlreadyLoadedFor(accountId)) {
-      setReady(true);
-      return;
-    }
     let canceled = false;
-    void (async () => {
+    void loadSettingsOnce(accountId, async (isCurrent) => {
       /* Before the account's own settings, so both the seeding below and the
          enforcement inside `hydrate` have something to apply. */
       await loadSettingsPolicy();
-      if (canceled) return;
+      if (!isCurrent()) return;
       const remote = await loadRemoteSettings();
-      if (canceled) return;
+      if (!isCurrent()) return;
       if (remote) useSettings.getState().hydrate(remote);
       // No settings file: this account has never had settings of its own, so
       // the installation's defaults are what it starts on rather than
@@ -177,15 +177,16 @@ function AuthedApp() {
       // The catalog for whatever language that turned out to be. Hydrating
       // asks for it; this is waiting for the answer.
       await whenLanguageReady();
-      if (canceled) return;
-      setReady(true);
+      if (!isCurrent()) return;
       // Pushes were held back until now so they could not race the load. A
       // change made while it was in flight was kept, and goes out here.
       armSettingsSync();
       // No file yet — seed one from what this browser has, so the next device
       // to sign in starts from these rather than from the defaults.
       if (!remote && settingsSyncAvailable()) queueSettingsPush(syncedPart(useSettings.getState().settings));
-    })();
+    }).then(() => {
+      if (!canceled) setReady(true);
+    });
     return () => {
       canceled = true;
     };

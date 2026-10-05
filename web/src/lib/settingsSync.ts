@@ -34,6 +34,9 @@ let inFlight: Promise<void> | null = null;
 /** Nothing is pushed before the first load has settled, or we would race it. */
 let armed = false;
 let loadedFor: string | null = null;
+let loading: Promise<void> | null = null;
+/** Bumped by every new load and every sign-out; a load checks it is still the latest. */
+let generation = 0;
 let listenersBound = false;
 
 export function settingsSyncAvailable(): boolean {
@@ -64,21 +67,34 @@ export async function loadRemoteSettings(): Promise<Record<string, unknown> | nu
 }
 
 /**
- * Has this account's settings file already been read on this page load?
+ * Load this account's settings, once per page load, however many times the
+ * caller mounts.
  *
- * Claims the account as a side effect, so two callers cannot both start a
- * read. The subtree that does the reading is keyed on the language version
- * and so is deliberately remounted whenever somebody picks a language;
- * without this the remount re-reads a file written before the change and
- * applies it, putting the old language back.
+ * The subtree that does the reading is keyed on the language version, so it
+ * is remounted whenever the language changes -- including when the settings
+ * file itself picks one. Tying the load to a mount meant that remount canceled
+ * it halfway: the new mount saw the account already claimed and skipped the
+ * load, and nothing armed the pushes, so every later change was silently
+ * dropped (Gitea issue #23). Now the load belongs to the account, not the
+ * mount: every mount waits on the same promise, and the load runs to the end.
  *
+ * Re-reading on a remount is still wrong -- it would apply a file written
+ * before the change and undo it -- which is why it is shared, not repeated.
+ *
+ * `isCurrent` turns false once the session that started the load signs out,
+ * so a load overtaken by a sign-out stops instead of applying stale settings.
  * Cleared by `stopSettingsSync`, so signing out and back in reads again.
  */
-export function settingsAlreadyLoadedFor(accountId: string | null | undefined): boolean {
-  if (!accountId) return true;
-  if (loadedFor === accountId) return true;
+export function loadSettingsOnce(
+  accountId: string | null | undefined,
+  load: (isCurrent: () => boolean) => Promise<void>,
+): Promise<void> {
+  if (!accountId) return Promise.resolve();
+  if (loadedFor === accountId && loading) return loading;
   loadedFor = accountId;
-  return false;
+  const mine = ++generation;
+  loading = load(() => generation === mine);
+  return loading;
 }
 
 /** Allow pushes. Called once the first load has settled, either way. */
@@ -93,6 +109,8 @@ export function armSettingsSync(): void {
 export function stopSettingsSync(): void {
   armed = false;
   loadedFor = null;
+  loading = null;
+  generation++;
   pending = null;
   if (timer !== null) {
     window.clearTimeout(timer);
