@@ -1,0 +1,15 @@
+# GitHub is a read-only mirror. Its New issue page shows these links
+# instead of a blank form, so reports land on Gitea where they're tracked.
+# Gitea reads .gitea/ISSUE_TEMPLATE/config.yml first, so this file only
+# applies on GitHub.
+blank_issues_enabled: false
+contact_links:
+  - name: Report a bug or request a feature
+    url: https://git.coffeylabs.org/coffey-labs/ihasmail/issues
+    about: Issues are tracked on git.coffeylabs.org. GitHub is a read-only mirror.
+  - name: Ask a question or start a discussion
+    url: https://community.coffeylabs.org
+    about: Questions and ideas go to the Coffey Labs community.
+  - name: Report a security vulnerability
+    url: https://git.coffeylabs.org/coffey-labs/ihasmail/src/branch/main/SECURITY.md
+    about: Please report vulnerabilities privately, never in a public issue.
