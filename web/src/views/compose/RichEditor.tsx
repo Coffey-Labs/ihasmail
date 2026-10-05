@@ -3,6 +3,7 @@ import { AlignCenter, AlignLeft, AlignRight, Bold, Code, Eraser, Image as ImageI
 import { sanitizeEditorHtml } from "@/lib/text/html";
 import { Popover, useMenu } from "@/ui/popover";
 import { t as translate } from "@/lib/i18n";
+import { ImageResizer } from "./ImageResizer";
 
 export interface RichEditorHandle {
   focus(): void;
@@ -37,6 +38,8 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
   const linkMenu = useMenu();
   const [linkUrl, setLinkUrl] = useState("");
   const savedRange = useRef<Range | null>(null);
+  /** The image whose size is being changed, if one has been clicked. */
+  const [selectedImg, setSelectedImg] = useState<HTMLImageElement | null>(null);
 
   // Sync external html → DOM (only when it differs from what we emitted)
   useEffect(() => {
@@ -45,6 +48,7 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
     if (html !== lastEmitted.current) {
       el.innerHTML = html;
       lastEmitted.current = html;
+      setSelectedImg(null);
       setEmpty(!el.textContent?.trim() && !el.querySelector("img"));
     }
   }, [html]);
@@ -72,6 +76,8 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
     if (!el) return;
     const v = el.innerHTML;
     lastEmitted.current = v;
+    // Deleted, or typed over: there is nothing left to resize.
+    setSelectedImg((img) => (img && el.contains(img) ? img : null));
     setEmpty(!el.textContent?.trim() && !el.querySelector("img"));
     onChange(v);
   }, [onChange]);
@@ -205,6 +211,14 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
         onMouseUp={saveRange}
         onPaste={onPaste}
         onDrop={onDrop}
+        onClick={(e) => setSelectedImg(e.target instanceof HTMLImageElement ? e.target : null)}
+        onContextMenu={(e) => {
+          // A right-click on an image offers its sizes, which is where the
+          // report went looking for them, instead of the browser's menu.
+          if (!(e.target instanceof HTMLImageElement)) return;
+          e.preventDefault();
+          setSelectedImg(e.target);
+        }}
         onDragOver={(e) => e.preventDefault()}
         onKeyDown={(e) => {
           if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
@@ -221,6 +235,9 @@ export const RichEditor = forwardRef<RichEditorHandle, Props>(function RichEdito
         aria-multiline="true"
         aria-label={translate("Message body")}
       />
+      {selectedImg && elRef.current && (
+        <ImageResizer area={elRef.current} img={selectedImg} onChange={emit} onClose={() => setSelectedImg(null)} />
+      )}
       {showToolbar && (
         <div className="editor-toolbar" role="toolbar" aria-label={translate("Formatting")}>
           <button type="button" className="icon-btn" title={translate("Undo (Ctrl+Z)")} onMouseDown={(e) => e.preventDefault()} onClick={() => exec("undo")}><Undo size={16} /></button>

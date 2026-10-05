@@ -1605,6 +1605,14 @@ select optgroup { background-color: var(--bg-elev); color: var(--fg); }
 .editor-area:empty::before, .editor-area[data-empty="true"]::before { content: attr(data-placeholder); color: var(--fg-faint); pointer-events: none; position: absolute; }
 .editor-area blockquote { margin: 0 0 0 .8ex; border-left: 2px solid var(--border-strong); padding-left: 1ex; color: var(--fg-muted); }
 .editor-area img { max-width: 100%; height: auto; }
+/* Image resizing (Gitea issue #26): drawn over the editor, never inside it, so none of it is sent. */
+.img-resize-layer { position: absolute; pointer-events: none; overflow: hidden; z-index: 5; }
+.img-resize-frame { position: absolute; outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 2px; }
+.img-resize-handle { position: absolute; right: -7px; bottom: -7px; width: 14px; height: 14px; background: var(--accent); border: 2px solid var(--bg-elev); border-radius: 3px; cursor: nwse-resize; pointer-events: auto; touch-action: none; }
+.img-resize-bar { position: absolute; display: flex; gap: 4px; padding: 3px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow-2); pointer-events: auto; }
+.img-resize-bar .btn-sm { height: 26px; padding: 0 8px; }
+.img-resize-bar .btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+@media (pointer: coarse) { .img-resize-handle { width: 24px; height: 24px; right: -12px; bottom: -12px; border-radius: 50%; } }
 .editor-area a { color: var(--link); }
 .editor-area .ihm-signature { color: var(--fg-muted); }
 .editor-area pre { font-family: var(--font-mono); background: var(--bg-sunken); padding: 8px; border-radius: 6px; overflow: auto; }
