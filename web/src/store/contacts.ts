@@ -792,13 +792,28 @@ export const useContacts = create<ContactsState>((set, get) => ({
       seen.add(k);
       out.push(s);
     };
-    const score = (name: string | null, email: string): number => {
+    /*
+     * Words in any order: "jane smi" finds "Smith, Jane", and a nickname or the
+     * organization counts as much as the name. Each word typed has to start a
+     * word of the person's name, nickname, organization or address.
+     */
+    const tokens = q.split(/\s+/).filter(Boolean);
+    const wordsOf = (parts: Array<string | null | undefined>) =>
+      parts.flatMap((p) => (p ?? "").toLowerCase().split(/[\s,.;:@_+()<>"'-]+/)).filter(Boolean);
+    const score = (name: string | null, email: string, extra: Array<string | null | undefined> = []): number => {
       const n = (name ?? "").toLowerCase();
       const e = email.toLowerCase();
       if (e.startsWith(q) || n.startsWith(q)) return 0;
-      if (n.split(/\s+/).some((w) => w.startsWith(q))) return 1;
+      const words = wordsOf([name, email, ...extra]);
+      if (tokens.every((t) => words.some((w) => w.startsWith(t)))) return 1;
       if (e.includes(q) || n.includes(q)) return 2;
       return 99;
+    };
+    // Someone written to lately ranks a little above someone not, within the same kind of match.
+    const recentRank = new Map(st.recent.map((r, i) => [r.email.toLowerCase(), i] as const));
+    const recency = (email: string) => {
+      const i = recentRank.get(email.toLowerCase());
+      return i === undefined ? 0 : -0.3 * (1 - i / Math.max(1, st.recent.length));
     };
     const candidates: Array<Suggestion & { score: number }> = [];
     // A shared address book is only useful if it answers when you are writing
@@ -807,19 +822,20 @@ export const useContacts = create<ContactsState>((set, get) => ({
     const own = Object.values(st.cards).map((c) => ({ c, penalty: 0 }));
     const shared = Object.values(st.sharedCards).map((c) => ({ c, penalty: 0.5 }));
     for (const { c, penalty } of [...own, ...shared]) {
+      const extra = [...Object.values(c.nicknames ?? {}).map((x) => x.name), ...Object.values(c.organizations ?? {}).map((x) => x.name)];
       for (const a of contactEmails(c)) {
-        const sc = score(a.name, a.email);
-        if (sc < 99) candidates.push({ name: a.name, email: a.email, source: "contact", contactId: c.id, score: sc + penalty });
+        const sc = score(a.name, a.email, extra);
+        if (sc < 99) candidates.push({ name: a.name, email: a.email, source: "contact", contactId: c.id, score: sc + penalty + recency(a.email) });
       }
     }
     for (const p of st.principals) {
       if (!p.email) continue;
       const sc = score(p.name, p.email);
-      if (sc < 99) candidates.push({ name: p.name, email: p.email, source: "gal", score: sc + 0.5 });
+      if (sc < 99) candidates.push({ name: p.name, email: p.email, source: "gal", score: sc + 0.5 + recency(p.email) });
     }
     for (const r of st.recent) {
       const sc = score(r.name, r.email);
-      if (sc < 99) candidates.push({ name: r.name, email: r.email, source: "recent", score: sc + 0.25 });
+      if (sc < 99) candidates.push({ name: r.name, email: r.email, source: "recent", score: sc + 0.25 + recency(r.email) });
     }
     candidates.sort((a, b) => a.score - b.score || (a.name ?? a.email).localeCompare(b.name ?? b.email));
     for (const c of candidates) {
