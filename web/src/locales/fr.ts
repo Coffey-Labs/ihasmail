@@ -740,6 +740,8 @@ export const catalog: Catalog = {
 
     // ── Settings ───────────────────────────────────────────────────────
     "Settings": "Paramètres",
+    "Show folder list": "Afficher la liste des dossiers",
+    "Hide folder list": "Masquer la liste des dossiers",
     "All settings": "Tous les paramètres",
     "Sections": "Sections",
     "General": "Général",

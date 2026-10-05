@@ -731,6 +731,8 @@ export const catalog: Catalog = {
 
     // ── Settings ───────────────────────────────────────────────────────
     "Settings": "Налаштування",
+    "Show folder list": "Показати список тек",
+    "Hide folder list": "Сховати список тек",
     "All settings": "Усі налаштування",
     "Sections": "Розділи",
     "General": "Загальні",

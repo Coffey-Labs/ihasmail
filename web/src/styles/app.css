@@ -1370,6 +1370,82 @@ a.menu-item:hover { color: var(--fg); }
 .collapsed .nav-item .nav-dot { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
 .nav-label-color { width: 10px; height: 10px; border-radius: 3px; flex: 0 0 auto; }
 /* Outlook-style module bar at the bottom of the sidebar */
+/* App rail. A fixed column left of the sidebar on wide screens; phones keep the tab bar. */
+.app-body.has-rail { grid-template-columns: 56px var(--sidebar-w) minmax(0, 1fr); }
+.app-body.has-rail.collapsed { grid-template-columns: 56px var(--sidebar-w-collapsed) minmax(0, 1fr); }
+.app-body.has-rail > .sidebar-splitter { left: calc(56px + var(--sidebar-w) - 3px); }
+/* Only Mail's folder list has an icon-only form. Calendar, Contacts, Files, Settings and Admin
+   hide their sidebar outright when collapsed; the rail still navigates and its toggle brings it back. */
+.app-body.has-rail.sidebar-hidden { grid-template-columns: 56px 0 minmax(0, 1fr); }
+.app-body.sidebar-hidden > .sidebar { visibility: hidden; padding: 0; min-width: 0; }
+.app-rail { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 0 12px; border-right: 1px solid var(--border); min-height: 0; }
+.app-rail-spacer { flex: 1; }
+.rail-toggle { background: none; border: 0; cursor: pointer; margin-top: 4px; }
+.rail-link { position: relative; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 12px; color: var(--fg-muted); transition: background .12s, color .12s; }
+.rail-link:hover { background: var(--bg-hover); color: var(--fg); }
+.rail-link.active { background: var(--accent-soft); color: var(--accent-soft-fg); }
+.rail-badge { position: absolute; top: -3px; right: -5px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--pill-accent); color: var(--accent-fg); font-size: 10.5px; font-weight: 700; line-height: 18px; text-align: center; box-shadow: 0 0 0 2px var(--bg); }
+
+/* Pill counts. Accent-filled when the folder has unread mail, neutral for totals (Drafts, Scheduled). */
+.nav-item .nav-count { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 20px; padding: 0 7px; border-radius: 999px; background: var(--bg-active); color: var(--fg-muted); font-size: .74em; font-weight: 650; font-variant-numeric: tabular-nums; }
+/* The accent as a fill behind small text (pills, the rail badge, Compose). The plain accent is
+   a mid tone that white text does not read on in light themes, so it is darkened there and
+   lightened a touch in dark ones: at least 4.5:1 in all 12 palettes x 6 accents x 2 modes,
+   measured 2026-10-05 (lowest 4.83). */
+:root { --pill-accent: color-mix(in srgb, var(--accent) 70%, black); }
+:root[data-theme="dark"] { --pill-accent: color-mix(in srgb, var(--accent) 88%, white); }
+.nav-item.unread .nav-count { background: var(--pill-accent); color: var(--accent-fg); font-weight: 700; }
+.nav-item.active .nav-count, .nav-item.active.unread .nav-count { background: var(--pill-accent); color: var(--accent-fg); box-shadow: 0 1px 2px rgb(0 0 0 / .25); }
+.collapsed .nav-item .nav-count { display: none; }
+
+/* Raised surfaces. A top-lit sheen, a 1px inner highlight on top and shade below, and a small drop,
+   so buttons and the current selection read as pieces standing off the page. Tuned per theme lightness. */
+:root {
+  --raise-sheen: linear-gradient(to bottom, rgb(255 255 255 / .30), rgb(255 255 255 / .04) 50%, rgb(0 0 0 / .06));
+  --raise-sheen-strong: linear-gradient(to bottom, rgb(255 255 255 / .32), rgb(255 255 255 / .06) 50%, rgb(0 0 0 / .14));
+  --raise-hi: rgb(255 255 255 / .75);
+  --raise-lo: rgb(0 0 0 / .12);
+  --raise-drop: 0 1px 2px rgb(0 0 0 / .14), 0 3px 8px rgb(0 0 0 / .09);
+  --raise-press: inset 0 1px 2px rgb(0 0 0 / .14);
+}
+:root[data-theme="dark"] {
+  --raise-sheen: linear-gradient(to bottom, rgb(255 255 255 / .14), rgb(255 255 255 / .02) 50%, rgb(0 0 0 / .16));
+  --raise-sheen-strong: linear-gradient(to bottom, rgb(255 255 255 / .30), rgb(255 255 255 / .06) 50%, rgb(0 0 0 / .22));
+  --raise-hi: rgb(255 255 255 / .16);
+  --raise-lo: rgb(0 0 0 / .45);
+  --raise-drop: 0 1px 2px rgb(0 0 0 / .55), 0 3px 10px rgb(0 0 0 / .32);
+  --raise-press: inset 0 1px 3px rgb(0 0 0 / .45);
+}
+.btn, .compose-btn, .rail-link.active, .nav-item.active, .module-link.active, .segmented button.active {
+  background-image: var(--raise-sheen);
+  box-shadow: inset 0 1px 0 var(--raise-hi), inset 0 -1px 0 var(--raise-lo), var(--raise-drop);
+}
+.btn-primary, .rail-badge { background-image: var(--raise-sheen-strong); }
+.compose-btn, .compose-btn:hover { background-color: var(--pill-accent); color: var(--accent-fg); background-image: var(--raise-sheen-strong); }
+.compose-btn svg { color: inherit; }
+.compose-btn, .rail-link.active { box-shadow: inset 0 1px 0 rgb(255 255 255 / .28), inset 0 -1px 0 rgb(0 0 0 / .22), var(--raise-drop); }
+.compose-btn:hover { box-shadow: inset 0 1px 0 rgb(255 255 255 / .28), inset 0 -1px 0 rgb(0 0 0 / .22), var(--shadow-2); filter: brightness(1.05); }
+.rail-link.active, .rail-link.active:hover { background-color: var(--accent); color: var(--accent-fg); background-image: var(--raise-sheen-strong); }
+.btn-primary { box-shadow: inset 0 1px 0 rgb(255 255 255 / .22), inset 0 -1px 0 rgb(0 0 0 / .18), var(--raise-drop); }
+.btn:active, .compose-btn:active, .rail-link:active, .nav-item:active, .module-link:active, .segmented button:active {
+  transform: translateY(1px);
+  box-shadow: var(--raise-press);
+  background-image: none;
+}
+/* The segmented control clips its children; the raise sits inside its border. */
+.segmented button.active { box-shadow: inset 0 1px 0 var(--raise-hi), inset 0 -1px 0 var(--raise-lo); }
+
+/* Tinted role-folder icons. A color the reader picked for a folder still wins (style attribute, fill rule above). */
+:root { --role-inbox: #2f6fe4; --role-drafts: #8a5cd6; --role-sent: #138a6c; --role-archive: #976214; --role-junk: #b8501c; --role-trash: #c93c4b; --role-scheduled: #0f8aa6; }
+:root[data-theme="dark"] { --role-inbox: #6ea2ff; --role-drafts: #b796f5; --role-sent: #4fcfa6; --role-archive: #e5b45a; --role-junk: #f2925f; --role-trash: #f07a87; --role-scheduled: #4fc3dc; }
+.folder-row .folder-icon[data-role="inbox"]:not([style*="--folder-color"]) svg { color: var(--role-inbox); }
+.folder-row .folder-icon[data-role="drafts"]:not([style*="--folder-color"]) svg { color: var(--role-drafts); }
+.folder-row .folder-icon[data-role="sent"]:not([style*="--folder-color"]) svg { color: var(--role-sent); }
+.folder-row .folder-icon[data-role="archive"]:not([style*="--folder-color"]) svg { color: var(--role-archive); }
+.folder-row .folder-icon[data-role="junk"]:not([style*="--folder-color"]) svg { color: var(--role-junk); }
+.folder-row .folder-icon[data-role="trash"]:not([style*="--folder-color"]) svg { color: var(--role-trash); }
+.folder-row .folder-icon[data-role="scheduled"]:not([style*="--folder-color"]) svg { color: var(--role-scheduled); }
+
 .module-bar { display: flex; align-items: stretch; justify-content: space-around; gap: 2px; padding: 6px 4px 4px; border-top: 1px solid var(--border); flex: 0 0 auto; }
 .module-link { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; flex: 1; min-width: 0; padding: 6px 2px; border-radius: var(--radius-sm); color: var(--fg-muted); text-decoration: none; font-size: 11px; font-weight: 500; transition: background .12s, color .12s; }
 .module-link:hover { background: var(--bg-hover); color: var(--fg); }

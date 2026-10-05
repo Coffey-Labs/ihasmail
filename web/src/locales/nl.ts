@@ -735,6 +735,8 @@ export const catalog: Catalog = {
 
     // ── Settings ───────────────────────────────────────────────────────
     "Settings": "Instellingen",
+    "Show folder list": "Mappenlijst tonen",
+    "Hide folder list": "Mappenlijst verbergen",
     "All settings": "Alle instellingen",
     "Sections": "Onderdelen",
     "General": "Algemeen",

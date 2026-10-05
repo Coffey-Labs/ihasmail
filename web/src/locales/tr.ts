@@ -1096,6 +1096,8 @@ export const catalog: Catalog = {
 		"Set on this role": "Bu role ayarlandı",
 		"Set password": "Şifre belirle",
 		"Settings": "Ayarlar",
+		"Show folder list": "Klasör listesini göster",
+		"Hide folder list": "Klasör listesini gizle",
 		"Settings imported": "Ayarlar içe aktarıldı",
 		"Settings reset to defaults": "Ayarlar varsayılanlara sıfırlandı",
 		"Settings → Filters & rules": "Ayarlar → Filtreler ve kurallar",

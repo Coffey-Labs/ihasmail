@@ -737,6 +737,8 @@ export const catalog: Catalog = {
 
     // ── Settings ───────────────────────────────────────────────────────
     "Settings": "Настройки",
+    "Show folder list": "Показать список папок",
+    "Hide folder list": "Скрыть список папок",
     "All settings": "Все настройки",
     "Sections": "Разделы",
     "General": "Общие",

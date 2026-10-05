@@ -733,6 +733,8 @@ export const catalog: Catalog = {
 
     // ── Settings ───────────────────────────────────────────────────────
     "Settings": "设置",
+    "Show folder list": "显示文件夹列表",
+    "Hide folder list": "隐藏文件夹列表",
     "All settings": "全部设置",
     "Sections": "分区",
     "General": "常规",
