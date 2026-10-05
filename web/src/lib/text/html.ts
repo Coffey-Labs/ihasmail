@@ -287,7 +287,10 @@ export function sanitizeEditorHtml(input: string): string {
 export const EMAIL_BASE_CSS = `
 :host { display:block; color-scheme: light; }
 :host(.themed) { color-scheme: inherit; }
-.ihm-email-root { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 1.5; color:#1f2937; background:#fff; padding:16px; border-radius:8px; overflow-wrap:anywhere; word-break:normal; contain: content; }
+/* contain: content clips what overflows, so mail built wider than the pane --
+   a min-width table, a nowrap cell -- was cut off with no way to reach the
+   rest. It scrolls sideways instead (Gitea issue #24). */
+.ihm-email-root { font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 14px; line-height: 1.5; color:#1f2937; background:#fff; padding:16px; border-radius:8px; overflow-wrap:anywhere; word-break:normal; contain: content; overflow-x:auto; overflow-y:hidden; }
 .ihm-email-root img { max-width:100%; height:auto; }
 .ihm-email-root img[data-ihm-blocked] { display:inline-block; min-width:16px; min-height:16px; background:#f1f5f9 repeating-linear-gradient(45deg,#e2e8f0 0 6px,#f1f5f9 6px 12px); border:1px dashed #cbd5e1; }
 .ihm-email-root table { max-width:100%; }

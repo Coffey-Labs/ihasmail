@@ -387,3 +387,16 @@ describe("the containment that mail CSS cannot override", () => {
     expect(rule).toMatch(/contain\s*:\s*layout/);
   });
 });
+
+describe("mail wider than the reading pane", () => {
+  /*
+   * The root keeps `contain: content`, which clips what overflows, so without
+   * a scroll the right side of a min-width table was simply gone, worst on a
+   * phone (Gitea issue #24). jsdom does no layout, so this pins the rule.
+   */
+  it("scrolls sideways instead of being cut off", () => {
+    const root = EMAIL_BASE_CSS.match(/\.ihm-email-root \{([^}]*)\}/)?.[1] ?? "";
+    expect(root).toMatch(/contain:\s*content/);
+    expect(root).toMatch(/overflow-x:\s*auto/);
+  });
+});
