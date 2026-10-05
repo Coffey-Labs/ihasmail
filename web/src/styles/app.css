@@ -1302,7 +1302,8 @@ a.menu-item:hover { color: var(--fg); }
 .collapsed .compose-btn span { display: none; }
 .nav-section { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px 4px; font-size: .75em; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--fg-faint); }
 .nav-section .icon-btn { width: 24px; height: 24px; }
-.collapsed .nav-section { display: none; }
+/* Outweighs `.sidebar .nav-section { display: flex }` further down, which otherwise draws a cut-off heading in the collapsed strip. */
+.collapsed .nav-section, .app-body.collapsed .sidebar .nav-section { display: none; }
 .nav-item { position: relative; display: flex; align-items: center; gap: 12px; height: 36px; padding: 0 12px; border-radius: 0 999px 999px 0; margin-right: 8px; color: var(--fg); text-decoration: none; white-space: nowrap; transition: background .12s; user-select: none; font-weight: 450; }
 .nav-item:hover { background: var(--bg-hover); }
 .nav-item.unread .nav-label, .nav-item.unread .nav-count { font-weight: 700; color: var(--fg); }

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { client, setErrorMessage } from "@/jmap/client";
+import { ApiError, client, setErrorMessage } from "@/jmap/client";
 import type { Email, EmailAddress, EmailBodyPart, Id, Identity, SetResponse } from "@/jmap/types";
 import { formatFullDate, uid } from "@/lib/format";
 import { formatAddress, parseMailto, sameAddress, uniqueAddresses } from "@/lib/address";
@@ -94,6 +94,12 @@ export interface Draft {
   mailboxIdOnSend?: Id | null;
   /** When set, hand the message to the server held until this instant. */
   sendAt: number | null;
+  /**
+   * The Message-ID this draft goes out under, fixed at its first send and
+   * kept if the draft comes back after a failure. Sending it again asks the
+   * server first whether a message with this id already went out.
+   */
+  sendMessageId?: string;
 }
 
 interface ComposeState {
@@ -680,8 +686,12 @@ export const useCompose = create<ComposeState>((set, get) => ({
   },
 
   async send(key) {
-    const d = get().drafts.find((x) => x.key === key);
-    if (!d) return;
+    const found = get().drafts.find((x) => x.key === key);
+    if (!found) return;
+    // A draft that already has a Message-ID has been sent before, and failed.
+    const retry = Boolean(found.sendMessageId);
+    const fromEmail = (useMail.getState().identities.find((i) => i.id === found.identityId) ?? useMail.getState().identities[0])?.email ?? "";
+    const d: Draft = { ...found, sendMessageId: found.sendMessageId ?? newMessageId(fromEmail) };
     const delay = settings().undoSendSeconds;
     // A schedule the user left sitting until it passed is just a send now.
     const scheduling = d.sendAt !== null && d.sendAt > Date.now();
@@ -696,9 +706,20 @@ export const useCompose = create<ComposeState>((set, get) => ({
         return { pendingSends: rest };
       });
       try {
-        await sendInternal(d, get);
+        const sent = await sendInternal(d, get, { retry });
+        if (sent.alreadySent) {
+          toast.success(translate("This message had already been sent, so it wasn't sent again."));
+          return;
+        }
         toast.success(scheduling ? translate("Send scheduled for {when}", { when: formatScheduleTime(new Date(d.sendAt!)) }) : translate("Message sent"));
       } catch (err) {
+        if (err instanceof SendOutcomeUnknown) {
+          toast.error(err.message, {
+            action: { label: translate("Open draft"), onClick: () => set((s) => ({ drafts: [...s.drafts, { ...d, sending: false, error: err.message }], activeKey: d.key })) },
+            duration: 30000,
+          });
+          return;
+        }
         toast.error(translate("Send failed: {error}", { error: (err as Error).message }), {
           action: { label: translate("Open draft"), onClick: () => set((s) => ({ drafts: [...s.drafts, { ...d, sending: false, error: (err as Error).message }], activeKey: d.key })) },
           duration: 15000,
@@ -1008,7 +1029,50 @@ export function buildSubmission(opts: {
   };
 }
 
-async function sendInternal(d: Draft, _get: () => ComposeState): Promise<void> {
+/**
+ * A send whose outcome nobody can state: the request went out, no answer came
+ * back, and the server could not be asked afterwards either. Offering a plain
+ * "send again" here is how one message is delivered twice.
+ */
+export class SendOutcomeUnknown extends Error {}
+
+/** A Message-ID for one send, on the sending identity's domain (RFC 5322 §3.6.4). */
+export function newMessageId(fromEmail: string): string {
+  const domain = fromEmail.split("@")[1] || "localhost";
+  return `${crypto.randomUUID()}@${domain}`;
+}
+
+/**
+ * Whether a failed request may still have been carried out. A refusal (4xx)
+ * means the server did not run it; no answer, or a 5xx from the proxy that
+ * lost the upstream reply, means it may have.
+ */
+export function sendOutcomeUnknown(err: unknown): boolean {
+  if (err instanceof ApiError) return err.status >= 500 || err.status === 408;
+  return true;
+}
+
+/**
+ * What became of a send with this Message-ID.
+ *
+ * `sent`: a message carrying it exists and was submitted. `orphan`: it exists
+ * but no submission does, so it was created and never sent. `none`: nothing.
+ *
+ * Stalwart expunges submissions after its hold period, so "no submission"
+ * means unsent only right after the attempt (`justNow`). Later, a message
+ * still carrying the id is taken as sent: every path that fails a send
+ * destroys the copy it created.
+ */
+export async function traceSend(accountId: Id, messageId: string, justNow: boolean): Promise<{ trace: "sent" | "orphan" | "none"; emailIds: Id[] }> {
+  const q = await client.call<{ ids: Id[] }>("Email/query", { accountId, filter: { header: ["Message-ID", messageId] } });
+  const emailIds = q.ids ?? [];
+  if (!emailIds.length) return { trace: "none", emailIds };
+  if (!justNow) return { trace: "sent", emailIds };
+  const subs = await client.call<{ ids: Id[] }>("EmailSubmission/query", { accountId, filter: { emailIds } });
+  return { trace: subs.ids?.length ? "sent" : "orphan", emailIds };
+}
+
+async function sendInternal(d: Draft, _get: () => ComposeState, opts: { retry?: boolean } = {}): Promise<{ alreadySent?: boolean }> {
   const mail = useMail.getState();
   const accountId = mail.accountId!;
   const ident = mail.identities.find((i) => i.id === d.identityId) ?? mail.identities[0];
@@ -1017,6 +1081,27 @@ async function sendInternal(d: Draft, _get: () => ComposeState): Promise<void> {
   const scheduled = d.sendAt !== null && d.sendAt > Date.now();
   const scheduledId = scheduled ? await ensureScheduledMailbox() : null;
   const email = await buildEmailObject(d, { forSend: true, mailboxId: scheduledId });
+  const messageId = d.sendMessageId ?? newMessageId(ident.email);
+  email.messageId = [messageId];
+  /*
+   * Sending again a draft that came back from a failed send: ask first. The
+   * failure may have been only the reply going missing, and a second
+   * submission would deliver the message twice.
+   */
+  if (opts.retry) {
+    let found: Awaited<ReturnType<typeof traceSend>>;
+    try {
+      found = await traceSend(accountId, messageId, false);
+    } catch {
+      throw new SendOutcomeUnknown(translate("Couldn't check whether this message was already sent. Check Sent before sending it again."));
+    }
+    if (found.trace === "sent") {
+      if (d.draftId) void client.call("Email/set", { accountId, destroy: [d.draftId] });
+      void mail.loadMailboxes();
+      void mail.refreshList();
+      return { alreadySent: true };
+    }
+  }
   const sentId = mail.roleId("sent");
   const draftsId = mail.roleId("drafts");
   const rcpts = uniqueAddresses([...d.to, ...d.cc, ...d.bcc]).map((a) => ({ email: a.email }));
@@ -1042,7 +1127,27 @@ async function sendInternal(d: Draft, _get: () => ComposeState): Promise<void> {
   if (d.relatedEmailId && d.relatedKeyword) {
     calls.push(["Email/set", { accountId, update: { [d.relatedEmailId]: { [`keywords/${d.relatedKeyword}`]: true } } }, "k"]);
   }
-  const res = await client.chain(calls, { allowErrors: true });
+  let res: Awaited<ReturnType<typeof client.chain>>;
+  try {
+    res = await client.chain(calls, { allowErrors: true });
+  } catch (err) {
+    if (!sendOutcomeUnknown(err)) throw err;
+    // No answer is not a no: find out what the server did with it.
+    let found: Awaited<ReturnType<typeof traceSend>>;
+    try {
+      found = await traceSend(accountId, messageId, true);
+    } catch {
+      throw new SendOutcomeUnknown(translate("Couldn't confirm whether this message was sent. Check Sent before sending it again."));
+    }
+    if (found.trace === "sent") {
+      void mail.loadMailboxes();
+      void mail.refreshList();
+      return {};
+    }
+    // Created but never submitted: take it out of Sent, then report the failure.
+    if (found.trace === "orphan") void client.call("Email/set", { accountId, destroy: found.emailIds });
+    throw err;
+  }
   const e = res.get("e")?.[0] as unknown as SetResponse<Email> & { __error?: { type: string; description?: string } };
   if (e.__error) throw new Error(setErrorMessage(e.__error));
   if (e.notCreated?.m) throw new Error(setErrorMessage(e.notCreated.m));
@@ -1074,6 +1179,7 @@ async function sendInternal(d: Draft, _get: () => ComposeState): Promise<void> {
   }
   void mail.loadMailboxes();
   void mail.refreshList();
+  return {};
 }
 
 export { FULL_PROPS, BODY_PROPS };
