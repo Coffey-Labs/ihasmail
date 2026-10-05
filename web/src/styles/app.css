@@ -1461,6 +1461,11 @@ a.menu-item:hover { color: var(--fg); }
 .mail-list.two-line .msg-row .msg-from { width: auto; flex: 1; }
 .mail-list.two-line .msg-row .msg-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .mail-list.two-line .msg-row .msg-line1 { display: flex; align-items: center; gap: 8px; }
+/* Labels share the sender's line (#35). The sender gives way first, then the
+   labels, each of which truncates rather than pushing the date off the row. */
+.mail-list.two-line .msg-row .msg-line1 .msg-from { flex: 0 1 auto; min-width: 3em; }
+.mail-list.two-line .msg-row .msg-line1 .msg-labels { flex: 0 1 auto; min-width: 0; max-width: 55%; overflow: hidden; }
+.mail-list.two-line .msg-row .msg-line1 .msg-labels .tag { flex: 0 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; display: block; line-height: 18px; }
 .mail-list.two-line .msg-row .msg-main { display: flex; gap: 6px; }
 .mail-list.two-line .msg-row .msg-subject { flex: 0 1 auto; }
 .mail-list.two-line .msg-row .msg-preview { flex: 1; }
