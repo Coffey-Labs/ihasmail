@@ -12,9 +12,11 @@ interface Props {
   placeholder?: string;
   autoFocus?: boolean;
   id?: string;
+  /** Addresses already in the message's other recipient fields, not to be suggested again. */
+  exclude?: EmailAddress[];
 }
 
-export function RecipientInput({ value, onChange, placeholder, autoFocus, id }: Props) {
+export function RecipientInput({ value, onChange, placeholder, autoFocus, id, exclude }: Props) {
   const [text, setText] = useState("");
   const [sugg, setSugg] = useState<Suggestion[]>([]);
   const [active, setActive] = useState(0);
@@ -34,7 +36,7 @@ export function RecipientInput({ value, onChange, placeholder, autoFocus, id }: 
     const t = window.setTimeout(() => {
       void suggest(q).then((list) => {
         if (id !== reqId.current) return;
-        const existing = new Set(value.map((v) => v.email.toLowerCase()));
+        const existing = new Set([...value, ...(exclude ?? [])].map((v) => v.email.toLowerCase()));
         const filtered = list.filter((s) => !existing.has(s.email.toLowerCase()));
         setSugg(filtered);
         setActive(0);
@@ -42,7 +44,7 @@ export function RecipientInput({ value, onChange, placeholder, autoFocus, id }: 
       });
     }, 120);
     return () => window.clearTimeout(t);
-  }, [text, suggest, value]);
+  }, [text, suggest, value, exclude]);
 
   const commit = (raw?: string) => {
     const s = (raw ?? text).trim().replace(/[,;]+$/, "");

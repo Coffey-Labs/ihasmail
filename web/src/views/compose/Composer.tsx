@@ -235,7 +235,7 @@ export function Composer({ draft }: { draft: Draft }) {
                   already knows the name they are half-way through typing. */}
               <button type="button" className="link-btn" onClick={() => setAddressBookOpen(true)} title={translate("Choose from address books")}>{translate("To")}</button>
             </label>
-            <RecipientInput id={`${key}-to`} value={d.to} onChange={(to) => patch({ to })} placeholder={translate("Recipients")} autoFocus={initialFocus === "to"} />
+            <RecipientInput id={`${key}-to`} value={d.to} exclude={[...d.cc, ...d.bcc]} onChange={(to) => patch({ to })} placeholder={translate("Recipients")} autoFocus={initialFocus === "to"} />
             <span className="field-extra">
               {/* Beside Cc and Bcc, because that is where someone looks when
                   they are thinking about who the message goes to. The label
@@ -255,13 +255,13 @@ export function Composer({ draft }: { draft: Draft }) {
           {d.showCc && (
             <div className="composer-field">
               <label htmlFor={`${key}-cc`}>{translate("Cc")}</label>
-              <RecipientInput id={`${key}-cc`} value={d.cc} onChange={(cc) => patch({ cc })} />
+              <RecipientInput id={`${key}-cc`} value={d.cc} exclude={[...d.to, ...d.bcc]} onChange={(cc) => patch({ cc })} />
             </div>
           )}
           {d.showBcc && (
             <div className="composer-field">
               <label htmlFor={`${key}-bcc`}>{translate("Bcc")}</label>
-              <RecipientInput id={`${key}-bcc`} value={d.bcc} onChange={(bcc) => patch({ bcc })} />
+              <RecipientInput id={`${key}-bcc`} value={d.bcc} exclude={[...d.to, ...d.cc]} onChange={(bcc) => patch({ bcc })} />
             </div>
           )}
           <div className="composer-field">
