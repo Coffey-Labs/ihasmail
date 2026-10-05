@@ -1038,11 +1038,11 @@ is why they are two settings and not one.
 | Nederlands | reviewed by a native speaker |
 | Deutsch · Español · Français · Português (Brasil) | Beta |
 | Русский · Українська · 简体中文 · 日本語 | Beta |
-| Türkçe | Beta, contributed by Hakan Arslan |
+| Türkçe | by a native speaker, Hakan Arslan |
 
-**Nine of the ten translations are marked Beta, and the label is not
+**Eight of the ten translations are marked Beta, and the label is not
 modesty.** The catalogs were produced by AI against standard dictionaries, and
-apart from Dutch none has been signed off by anybody who speaks the language. That is
+apart from Dutch and Turkish none has been signed off by anybody who speaks the language. That is
 stated in Settings, next to a link for reporting anything that reads wrongly, because the alternative —
 shipping them quietly — would ask people to trust text nobody has checked. A
 language loses the Beta mark when a speaker has read it and said so, which is a
@@ -1052,9 +1052,9 @@ mbjboon-netizen), a native speaker, read every string, including the permission
 labels, and his corrections shipped in September 2026.
 
 Turkish came the other way, as a contribution: Hakan Arslan ([harslannet](https://github.com/harslannet))
-translated every string and permission label, made with AI and checked by him,
-and sent it in October 2026. He marked it Beta himself, and it keeps the mark
-until a reader signs it off.
+translated every string and permission label, made with AI and checked by him
+as a native speaker, and sent it in October 2026. It ships without the Beta
+mark.
 
 Two things follow from the design rather than the translation:
 
