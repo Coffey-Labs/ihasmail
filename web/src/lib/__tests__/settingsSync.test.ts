@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_SETTINGS, DEVICE_KEYS, acceptRemote, mergeRemote, syncedPart, type Settings } from "@/store/settings";
 import { isAppFolder } from "../appFolder";
-import { settingsAlreadyLoadedFor, stopSettingsSync } from "../settingsSync";
+import { loadSettingsOnce, stopSettingsSync } from "../settingsSync";
 
 /**
  * Settings used to live only in localStorage, so nothing followed the user
@@ -116,20 +116,67 @@ describe("a change made but not yet written up", () => {
     expect(merged.uiLanguage).toBe("en");
   });
 
-  it("reads the file again for an account after a sign-out", () => {
+  it("reads the file again for an account after a sign-out", async () => {
     stopSettingsSync();
-    expect(settingsAlreadyLoadedFor("a1")).toBe(false);
+    let loads = 0;
+    const load = async () => { loads++; };
+    await loadSettingsOnce("a1", load);
     // The remount that a language change causes must not read it a second time.
-    expect(settingsAlreadyLoadedFor("a1")).toBe(true);
+    await loadSettingsOnce("a1", load);
+    expect(loads).toBe(1);
     // Signing out drops the claim, so signing back in reads the file rather
     // than trusting whatever the previous session left behind.
     stopSettingsSync();
-    expect(settingsAlreadyLoadedFor("a1")).toBe(false);
+    await loadSettingsOnce("a1", load);
+    expect(loads).toBe(2);
     stopSettingsSync();
   });
 
-  it("treats a missing account as already loaded, so nothing is fetched", () => {
-    expect(settingsAlreadyLoadedFor(null)).toBe(true);
-    expect(settingsAlreadyLoadedFor(undefined)).toBe(true);
+  it("finishes a load that a remount interrupts, so changes are saved (Gitea #23)", async () => {
+    stopSettingsSync();
+    let release!: () => void;
+    const gate = new Promise<void>((r) => { release = r; });
+    let loads = 0;
+    let armed = false;
+    const load = async (isCurrent: () => boolean) => {
+      loads++;
+      await gate;
+      if (!isCurrent()) return;
+      armed = true;
+    };
+    // First mount starts the load; the settings file picks a language and the
+    // tree remounts before the load has finished.
+    const first = loadSettingsOnce("a1", load);
+    const second = loadSettingsOnce("a1", load);
+    expect(second).toBe(first);
+    release();
+    await second;
+    expect(loads).toBe(1);
+    // This is what used to be skipped: the remounted tree took the
+    // already-loaded path and nothing armed the pushes.
+    expect(armed).toBe(true);
+    stopSettingsSync();
+  });
+
+  it("stops a load that a sign-out overtakes", async () => {
+    stopSettingsSync();
+    let release!: () => void;
+    const gate = new Promise<void>((r) => { release = r; });
+    let applied = false;
+    const pending = loadSettingsOnce("a1", async (isCurrent) => {
+      await gate;
+      if (isCurrent()) applied = true;
+    });
+    stopSettingsSync();
+    release();
+    await pending;
+    expect(applied).toBe(false);
+  });
+
+  it("treats a missing account as already loaded, so nothing is fetched", async () => {
+    let loads = 0;
+    await loadSettingsOnce(null, async () => { loads++; });
+    await loadSettingsOnce(undefined, async () => { loads++; });
+    expect(loads).toBe(0);
   });
 });
