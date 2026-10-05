@@ -33,9 +33,10 @@ describe("resolveUiLanguage", () => {
     // Not a completeness measure. A catalog can be word-for-word finished
     // and still read like a machine wrote it, which is what this marks.
     // English is the source and Dutch was signed off by a native speaker in
-    // September 2026. Every other language is unreviewed, and stays marked
-    // until a person says otherwise.
-    const reviewed = new Set(["en", "nl"]);
+    // September 2026. Turkish was made and checked by a native speaker (Hakan
+    // Arslan, October 2026). Every other language is unreviewed, and stays
+    // marked until a person says otherwise.
+    const reviewed = new Set(["en", "nl", "tr"]);
     for (const l of UI_LANGUAGES) {
       if (reviewed.has(l.tag)) expect(l.beta).toBeUndefined();
       else expect(l.beta).toBe(true);
