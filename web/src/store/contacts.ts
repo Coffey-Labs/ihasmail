@@ -2,10 +2,12 @@ import { create } from "zustand";
 import { accountKey, loadRaw, saveJson } from "@/lib/storage";
 import { CAP, chunk, client, JmapMethodError, setErrorMessage } from "@/jmap/client";
 import type { AddressBook, ChangesResponse, ContactCard, EmailAddress, GetResponse, Id, Principal, QueryResponse, SetError, SetResponse } from "@/jmap/types";
-import { contactDisplayName, contactEmails, sortKey } from "@/lib/contacts";
+import { contactDisplayName, contactEmails, contactFromAddress, sortKey } from "@/lib/contacts";
+import { uniqueAddresses } from "@/lib/address";
 import { parseLdif, uidFromDn } from "@/lib/ldif";
 import { cardFromLdif } from "@/lib/mozillaAb";
 import { useSettings } from "./settings";
+import { t as translate } from "@/lib/i18n";
 import { useSession } from "./session";
 import { useMail } from "./mail";
 
@@ -225,6 +227,8 @@ interface ContactsState {
    */
   emptyBook(bookId: Id): Promise<{ destroyed: number; unfiled: number; refused?: SetError }>;
   createBook(name: string): Promise<Id>;
+  /** Save the addresses that are not on any contact yet, in the Collected address book. */
+  collectRecipients(addrs: EmailAddress[], own: string[]): Promise<number>;
   updateBook(id: Id, patch: Partial<AddressBook>): Promise<void>;
   destroyBook(id: Id): Promise<void>;
   /** Import vCards, updating any whose UID this book already holds rather than duplicating it. */
@@ -613,6 +617,28 @@ export const useContacts = create<ContactsState>((set, get) => ({
       await get().syncCards();
     }
     return { destroyed: gone.length, unfiled, refused };
+  },
+
+  async collectRecipients(addrs, own) {
+    if (!get().available || !get().accountId) return 0;
+    // Every card has to be known, or someone already a contact gets a second card.
+    if (!get().loaded) await get().loadAll();
+    const ownSet = new Set(own.map((e) => e.toLowerCase()));
+    const fresh = uniqueAddresses(addrs).filter((a) => a.email && !ownSet.has(a.email.toLowerCase()) && !get().lookupByEmail(a.email));
+    if (!fresh.length) return 0;
+    const accountId = get().accountId!;
+    const { settings, update } = useSettings.getState();
+    let bookId = settings.collectedBookId && get().books[settings.collectedBookId] ? settings.collectedBookId : null;
+    if (!bookId) {
+      bookId = await get().createBook(translate("Collected"));
+      update({ collectedBookId: bookId });
+    }
+    const create = Object.fromEntries(
+      fresh.map((a, i) => [`c${i}`, { "@type": "Card", version: "1.0", uid: crypto.randomUUID(), kind: "individual", ...contactFromAddress(a), addressBookIds: { [bookId!]: true } }]),
+    );
+    const res = await client.call<SetResponse<ContactCard>>("ContactCard/set", { accountId, create });
+    await get().syncCards();
+    return Object.keys(res.created ?? {}).length;
   },
 
   async createBook(name) {

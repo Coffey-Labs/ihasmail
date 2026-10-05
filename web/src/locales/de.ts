@@ -652,6 +652,12 @@ export const catalog: Catalog = {
     "+{n} more": "+{n} weitere",
 
     "Contacts": "Kontakte",
+
+    "Collected": "Gesammelt",
+
+    "Save people you write to as contacts": "Personen, denen Sie schreiben, als Kontakte speichern",
+
+    "Everyone you send to who isn’t a contact yet is added to the Collected address book, so they’re suggested on every device. Your own addresses are never added.": "Alle, an die Sie senden und die noch keine Kontakte sind, werden dem Adressbuch „Gesammelt“ hinzugefügt und auf jedem Gerät vorgeschlagen. Ihre eigenen Adressen werden nie hinzugefügt.",
     "Contacts are not available": "Kontakte sind nicht verfügbar",
     "New contact": "Neuer Kontakt",
     "Edit contact": "Kontakt bearbeiten",

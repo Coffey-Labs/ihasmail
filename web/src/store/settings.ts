@@ -207,6 +207,15 @@ export interface Settings {
    */
   birthdayCalendar: boolean;
   /**
+   * Save everyone written to who is not a contact yet, in an address book of
+   * its own, so they are suggested on every device rather than only in the
+   * browser that sent the message. On by default, as mail clients do; the
+   * address book can be emptied or deleted like any other.
+   */
+  collectRecipients: boolean;
+  /** The address book collected recipients go to, once there is one. */
+  collectedBookId: string | null;
+  /**
    * Calendars subscribed to by URL. The subscription is the setting; the
    * events themselves are fetched on demand and never stored, so this follows
    * the account the way every other preference does and costs nothing to sync.
@@ -361,6 +370,8 @@ export const DEFAULT_SETTINGS: Settings = {
   timeZone: null,
   labelsSidebar: true,
   birthdayCalendar: false,
+  collectRecipients: true,
+  collectedBookId: null,
   icalSubscriptions: [],
   listSortPreset: "newest",
   listSortLevels: [],

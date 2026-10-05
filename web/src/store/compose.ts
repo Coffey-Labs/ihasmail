@@ -711,6 +711,11 @@ export const useCompose = create<ComposeState>((set, get) => ({
           toast.success(translate("This message had already been sent, so it wasn't sent again."));
           return;
         }
+        // Everyone written to who is not a contact yet, so they are suggested on every device.
+        if (settings().collectRecipients) {
+          const own = useMail.getState().identities.map((i) => i.email);
+          void useContacts.getState().collectRecipients([...d.to, ...d.cc, ...d.bcc], own).catch(() => undefined);
+        }
         toast.success(scheduling ? translate("Send scheduled for {when}", { when: formatScheduleTime(new Date(d.sendAt!)) }) : translate("Message sent"));
       } catch (err) {
         if (err instanceof SendOutcomeUnknown) {

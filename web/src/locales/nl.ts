@@ -644,6 +644,12 @@ export const catalog: Catalog = {
     "+{n} more": "+{n} meer",
 
     "Contacts": "Contacten",
+
+    "Collected": "Verzameld",
+
+    "Save people you write to as contacts": "Mensen aan wie je schrijft als contact opslaan",
+
+    "Everyone you send to who isn’t a contact yet is added to the Collected address book, so they’re suggested on every device. Your own addresses are never added.": "Iedereen aan wie je mailt en die nog geen contact is, wordt toegevoegd aan het adresboek Verzameld, zodat die op elk apparaat wordt voorgesteld. Je eigen adressen worden nooit toegevoegd.",
     "Contacts are not available": "Contacten zijn niet beschikbaar",
     "New contact": "Nieuw contact",
     "Edit contact": "Contact bewerken",

@@ -640,6 +640,12 @@ export const catalog: Catalog = {
     "+{n} more": "+{n}",
 
     "Contacts": "Контакти",
+
+    "Collected": "Зібрані",
+
+    "Save people you write to as contacts": "Зберігати адресатів як контакти",
+
+    "Everyone you send to who isn’t a contact yet is added to the Collected address book, so they’re suggested on every device. Your own addresses are never added.": "Усі, кому ви пишете і кого ще немає в контактах, додаються до адресної книги «Зібрані» й пропонуються на всіх пристроях. Ваші власні адреси не додаються.",
     "Contacts are not available": "Контакти недоступні",
     "New contact": "Новий контакт",
     "Edit contact": "Змінити контакт",

@@ -643,6 +643,12 @@ export const catalog: Catalog = {
     "+{n} more": "他 {n} 件",
 
     "Contacts": "連絡先",
+
+    "Collected": "収集したアドレス",
+
+    "Save people you write to as contacts": "メールを送った相手を連絡先に保存する",
+
+    "Everyone you send to who isn’t a contact yet is added to the Collected address book, so they’re suggested on every device. Your own addresses are never added.": "まだ連絡先にない送信先は「収集したアドレス」アドレス帳に追加され、どのデバイスでも候補に表示されます。自分のアドレスは追加されません。",
     "Contacts are not available": "連絡先は利用できません",
     "New contact": "新しい連絡先",
     "Edit contact": "連絡先を編集",

@@ -642,6 +642,12 @@ export const catalog: Catalog = {
     "+{n} more": "还有 {n} 项",
 
     "Contacts": "联系人",
+
+    "Collected": "已收集",
+
+    "Save people you write to as contacts": "将您发信的联系人保存为联系人",
+
+    "Everyone you send to who isn’t a contact yet is added to the Collected address book, so they’re suggested on every device. Your own addresses are never added.": "您发信的对象如果还不是联系人，会被添加到“已收集”通讯录，在所有设备上都会作为建议显示。您自己的地址不会被添加。",
     "Contacts are not available": "联系人不可用",
     "New contact": "新建联系人",
     "Edit contact": "编辑联系人",

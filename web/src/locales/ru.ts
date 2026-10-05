@@ -646,6 +646,12 @@ export const catalog: Catalog = {
     "+{n} more": "+{n}",
 
     "Contacts": "Контакты",
+
+    "Collected": "Собранные",
+
+    "Save people you write to as contacts": "Сохранять адресатов как контакты",
+
+    "Everyone you send to who isn’t a contact yet is added to the Collected address book, so they’re suggested on every device. Your own addresses are never added.": "Все, кому вы пишете и кого ещё нет в контактах, добавляются в адресную книгу «Собранные» и предлагаются на всех устройствах. Ваши собственные адреса не добавляются.",
     "Contacts are not available": "Контакты недоступны",
     "New contact": "Новый контакт",
     "Edit contact": "Изменить контакт",
