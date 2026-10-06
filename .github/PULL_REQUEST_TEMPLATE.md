@@ -14,7 +14,7 @@
 ## Translations
 
 <!--
-  Nine languages ship alongside English, and a missing key silently renders
+  Ten languages ship alongside English, and a missing key silently renders
   its English source -- so an untranslated string is invisible until somebody
   reading that language finds it. Say which this PR is, explicitly:
 
