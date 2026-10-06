@@ -214,7 +214,7 @@ and the single-host `deploy.example.sh`, are covered in
 
 ## Reporting Security Issues
 
-Please **do not** open a public issue for security vulnerabilities. Instead, report them privately by emailing **johnellisATlinuxDOTcom** with details of the issue. See `SECURITY.md` if one is present in the repo for further instructions.
+Please **do not** open a public issue for security vulnerabilities. Instead, report them privately by emailing **securityATcoffeylabsDOTorg** with details of the issue. See `SECURITY.md` if one is present in the repo for further instructions.
 
 ## Questions?
 
