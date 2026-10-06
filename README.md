@@ -111,7 +111,7 @@ Architecture, the mock's switches and how versions are numbered are in
 
 ## License
 
-Copyright (C) 2026 Coffey Labs — AGPL-3.0-or-later. See [LICENSE](LICENSE).
+Copyright (C) 2026 Coffey Labs LLC — AGPL-3.0-or-later. See [LICENSE](LICENSE).
 
 If you run a modified ihasmail, set `SOURCE_URL` to your own repository: the
 sign-in page and Settings › About both show it. See
