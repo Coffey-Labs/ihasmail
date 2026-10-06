@@ -4,7 +4,7 @@
  * The rule this replaces was `subject.replace(/[^\w.-]+/g, "_")`, and `\w`
  * without the `u` flag is ASCII: every character of a Russian, Japanese or
  * Chinese subject failed the class, so those messages downloaded as a row of
- * underscores. ihasmail ships in nine languages besides English, so the
+ * underscores. ihasmail ships in ten languages besides English, so the
  * subjects it handled worst were most of the world's.
  *
  * What is actually unsafe in a filename is a much shorter list than "not

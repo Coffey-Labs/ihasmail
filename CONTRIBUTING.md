@@ -73,13 +73,14 @@ start it, and neither will closing and reopening.
 
 ### Translations
 
-Nine languages ship alongside English: German, Spanish, French, Dutch,
-Portuguese (Brazil), Russian, Ukrainian, Simplified Chinese and Japanese, in
+Ten languages ship alongside English: German, Spanish, French, Dutch,
+Portuguese (Brazil), Russian, Ukrainian, Simplified Chinese, Japanese and
+Turkish, in
 `web/src/locales/`. A missing key renders its English source rather than
 failing, so an untranslated string is invisible until somebody reading that
 language finds it.
 
-**Any change that adds or alters a user-visible string adds work in all nine
+**Any change that adds or alters a user-visible string adds work in all ten
 catalogs.** Say so explicitly in the PR — how many keys, and the fallback
 count before and after — and say so just as explicitly when a change adds none,
 so it is never left to be inferred.
@@ -94,7 +95,7 @@ plural(n, { one: "Deleted {n} contact", other: "Deleted {n} contacts" })
 
 is keyed on **`"Deleted {n} contacts"`**. Keying the catalog on the `one`
 form type-checks, builds, passes every test, and silently falls back to English
-in all nine languages. Nothing errors. The only signal is the fallback count
+in all ten languages. Nothing errors. The only signal is the fallback count
 going up, so read it:
 
 ```sh
