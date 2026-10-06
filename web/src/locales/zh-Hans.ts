@@ -1717,6 +1717,15 @@ export const catalog: Catalog = {
     "Back to my mail": "返回我的邮件",
     "Send or close the message you're writing first.": "请先发送或关闭您正在撰写的邮件。",
     "You no longer have access to {name}. Back to your own mail.": "您已无法访问 {name}。已返回您自己的邮件。",
+    // ── Signed in to more than one account ──
+    "You can't add more accounts here.": "无法在此添加更多账户。",
+    "That account is on another mail server. Only accounts on this server can be added.": "该账户位于其他邮件服务器上。只能添加此服务器上的账户。",
+    "That account couldn't be added.": "无法添加该账户。",
+    "Add an account": "添加账户",
+    "Working…": "正在处理…",
+    "Add account": "添加账户",
+    "Both accounts stay signed in here; switch between them from this menu.": "两个账户都会在这里保持登录；可从此菜单在它们之间切换。",
+    "Sign out of all accounts": "退出所有账户",
   },
   plurals: {
     // ── Administration: domains ────────────────────────────────────

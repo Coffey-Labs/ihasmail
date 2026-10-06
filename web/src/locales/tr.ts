@@ -1609,6 +1609,15 @@ export const catalog: Catalog = {
 		"Back to my mail": "Postama dön",
 		"Send or close the message you're writing first.": "Önce yazdığınız iletiyi gönderin veya kapatın.",
 		"You no longer have access to {name}. Back to your own mail.": "{name} hesabına artık erişiminiz yok. Kendi postanıza dönün.",
+		// ── Signed in to more than one account ──
+		"You can't add more accounts here.": "Buraya daha fazla hesap ekleyemezsiniz.",
+		"That account is on another mail server. Only accounts on this server can be added.": "Bu hesap başka bir posta sunucusunda. Yalnızca bu sunucudaki hesaplar eklenebilir.",
+		"That account couldn't be added.": "Bu hesap eklenemedi.",
+		"Add an account": "Hesap ekle",
+		"Working…": "İşleniyor…",
+		"Add account": "Hesap ekle",
+		"Both accounts stay signed in here; switch between them from this menu.": "Her iki hesap da burada oturum açık kalır; bu menüden aralarında geçiş yapın.",
+		"Sign out of all accounts": "Tüm hesaplardan çıkış yap",
 	},
 	plurals: {
 		"({n} deleted first)": {

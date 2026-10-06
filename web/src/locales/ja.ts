@@ -1718,6 +1718,15 @@ export const catalog: Catalog = {
     "Back to my mail": "自分のメールに戻る",
     "Send or close the message you're writing first.": "作成中のメッセージを先に送信するか閉じてください。",
     "You no longer have access to {name}. Back to your own mail.": "{name} にアクセスできなくなりました。自分のメールに戻ります。",
+    // ── Signed in to more than one account ──
+    "You can't add more accounts here.": "これ以上アカウントを追加できません。",
+    "That account is on another mail server. Only accounts on this server can be added.": "そのアカウントは別のメールサーバーにあります。追加できるのはこのサーバーのアカウントだけです。",
+    "That account couldn't be added.": "そのアカウントを追加できませんでした。",
+    "Add an account": "アカウントを追加",
+    "Working…": "処理中…",
+    "Add account": "アカウントを追加",
+    "Both accounts stay signed in here; switch between them from this menu.": "どちらのアカウントもここでサインインしたままになります。このメニューから切り替えられます。",
+    "Sign out of all accounts": "すべてのアカウントからサインアウト",
   },
   plurals: {
     // ── Administration: domains ────────────────────────────────────

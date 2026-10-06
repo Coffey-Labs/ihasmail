@@ -1706,6 +1706,15 @@ export const catalog: Catalog = {
     "Back to my mail": "Повернутися до моєї пошти",
     "Send or close the message you're writing first.": "Спочатку надішліть або закрийте лист, який пишете.",
     "You no longer have access to {name}. Back to your own mail.": "У вас більше немає доступу до {name}. Повертаємося до вашої пошти.",
+    // ── Signed in to more than one account ──
+    "You can't add more accounts here.": "Додати тут ще облікові записи не можна.",
+    "That account is on another mail server. Only accounts on this server can be added.": "Цей обліковий запис розміщено на іншому поштовому сервері. Додати можна лише облікові записи цього сервера.",
+    "That account couldn't be added.": "Не вдалося додати цей обліковий запис.",
+    "Add an account": "Додати обліковий запис",
+    "Working…": "Виконується…",
+    "Add account": "Додати обліковий запис",
+    "Both accounts stay signed in here; switch between them from this menu.": "Обидва облікові записи залишаються тут у системі; перемикайтеся між ними в цьому меню.",
+    "Sign out of all accounts": "Вийти з усіх облікових записів",
   },
   plurals: {
     // ── Administration: domains ────────────────────────────────────

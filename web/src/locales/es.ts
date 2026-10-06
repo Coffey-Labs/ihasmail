@@ -1710,6 +1710,15 @@ export const catalog: Catalog = {
     "Back to my mail": "Volver a mi correo",
     "Send or close the message you're writing first.": "Envíe o cierre primero el mensaje que está escribiendo.",
     "You no longer have access to {name}. Back to your own mail.": "Ya no tiene acceso a {name}. Vuelve a su propio correo.",
+    // ── Signed in to more than one account ──
+    "You can't add more accounts here.": "No puede añadir más cuentas aquí.",
+    "That account is on another mail server. Only accounts on this server can be added.": "Esa cuenta está en otro servidor de correo. Solo se pueden añadir cuentas de este servidor.",
+    "That account couldn't be added.": "No se pudo añadir esa cuenta.",
+    "Add an account": "Añadir una cuenta",
+    "Working…": "Procesando…",
+    "Add account": "Añadir cuenta",
+    "Both accounts stay signed in here; switch between them from this menu.": "Ambas cuentas siguen con la sesión iniciada aquí; cambie entre ellas desde este menú.",
+    "Sign out of all accounts": "Cerrar sesión en todas las cuentas",
   },
   plurals: {
     // ── Administration: domains ────────────────────────────────────
