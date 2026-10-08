@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-ihasmail is under active development. Security fixes are applied to the latest release on the `main` branch. Older tags/releases are not guaranteed to receive backported fixes.
+ihasmail is in maintenance mode: it receives security fixes, dependency updates, Stalwart compatibility fixes and small bug fixes, but no new features. Security fixes are applied to the latest release on the `main` branch. Older tags/releases are not guaranteed to receive backported fixes.
 
 | Version       | Supported          |
 | ------------- | ------------------ |
@@ -11,11 +11,12 @@ ihasmail is under active development. Security fixes are applied to the latest r
 
 ## Reporting a Vulnerability
 
-**Please do not open a public GitHub issue for security vulnerabilities.** Public issues are visible to everyone, including potential attackers, before a fix is available.
+**Please do not open a public issue for security vulnerabilities.** Public issues are visible to everyone, including potential attackers, before a fix is available.
 
-Instead, report security issues privately by emailing:
+Instead, report security issues privately in either of these ways:
 
-**securityATcoffeylabsDOTorg**
+- Email **securityATcoffeylabsDOTorg**
+- Use [GitHub's private vulnerability reporting](https://github.com/Coffey-Labs/ihasmail/security/advisories/new) on the mirror
 
 Please include as much of the following as you can:
 
