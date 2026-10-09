@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Plus, Trash2, Users } from "lucide-react";
-import type { BusyPeriod, CalendarEvent, EmailAddress, JSCalendarAlert, JSCalendarParticipant, JSCalendarRecurrenceRule, JSCalendarNDay } from "@/jmap/types";
-import { useCalendar, myParticipantKeys, isRecurring, isOccurrence, eventRule, makeParticipant, participantEmail, type EventScope } from "@/store/calendar";
+import type { BusyPeriod, Calendar, CalendarEvent, EmailAddress, Id, JSCalendarAlert, JSCalendarParticipant, JSCalendarRecurrenceRule, JSCalendarNDay } from "@/jmap/types";
+import { useCalendar, myParticipantKeys, isRecurring, isOccurrence, eventRule, makeParticipant, participantEmail, sharedKey, writableSharedCalendars, type EventScope } from "@/store/calendar";
 import { useSettings } from "@/store/settings";
 import { useSession } from "@/store/session";
 import { CAP } from "@/jmap/client";
@@ -21,6 +21,8 @@ import { plural, t as translate } from "@/lib/i18n";
 
 export interface EditorInit {
   event?: CalendarEvent;
+  /** The account `event` lives in when it is from a shared calendar. See `EventInstance`. */
+  accountId?: Id;
   start: Date;
   end: Date;
   allDay: boolean;
@@ -50,6 +52,14 @@ const BUSY_LABEL: Record<"confirmed" | "tentative" | "unavailable", string> = {
  * success. Both halves are reasons not to send them — the second more so,
  * because nothing would say it had happened.
  */
+/** A calendar the editor can save into, and the account it is in (absent: the reader's own). */
+interface CalendarTarget {
+  token: string;
+  accountId?: Id;
+  calendar: Calendar;
+  label: string;
+}
+
 const OCCURRENCE_OMIT = new Set(["useDefaultAlerts", "calendarIds", "recurrenceRule", "privacy", "organizerCalendarAddress"]);
 
 export function EventEditor({ init, onClose }: { init: EditorInit; onClose: () => void }) {
@@ -92,7 +102,7 @@ export function EventEditor({ init, onClose }: { init: EditorInit; onClose: () =
       if (!chosen) { onClose(); return; }
       setScope(chosen);
       if (chosen === "occurrence") setBase(ev);
-      else void cal.getEvent(ev.baseEventId!).then(setBase);
+      else void cal.getEvent(ev.baseEventId!, init.accountId).then(setBase);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [init.event?.id]);
@@ -107,14 +117,33 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
   const cal = useCalendar();
   const contacts = useContacts();
   const ev = base;
-  const calendars = Object.values(cal.calendars).filter((c) => c.myRights.mayWriteAll || c.myRights.mayWriteOwn);
-  const initialCal = ev ? Object.keys(ev.calendarIds)[0] : (calendars.find((c) => c.isDefault)?.id ?? calendars[0]?.id);
+  const addedShares = useSettings((s) => s.settings.addedShares);
+  /*
+   * Where the event can be saved: the reader's own writable calendars, then
+   * shared ones they may write to, named with whose they are. An existing
+   * event stays in its account -- JMAP has no moving an event between
+   * accounts -- so editing offers only that account's calendars.
+   */
+  const targets: CalendarTarget[] = [
+    ...Object.values(cal.calendars)
+      .filter((c) => c.myRights.mayWriteAll || c.myRights.mayWriteOwn)
+      .map((c): CalendarTarget => ({ token: c.id, calendar: c, label: c.name })),
+    ...writableSharedCalendars(cal.sharedCalendars, addedShares)
+      .map((s): CalendarTarget => ({ token: sharedKey(s.accountId, s.calendar.id), accountId: s.accountId, calendar: s.calendar, label: `${s.calendar.name} (${s.accountName})` })),
+  ].filter((x) => !ev || x.accountId === init.accountId);
+  const own = targets.filter((x) => !x.accountId);
+  const evCal = ev ? Object.keys(ev.calendarIds)[0] : undefined;
+  const initialTarget = evCal
+    ? (init.accountId ? sharedKey(init.accountId, evCal) : evCal)
+    : (own.find((x) => x.calendar.isDefault)?.token ?? own[0]?.token ?? targets[0]?.token);
   const evTz = ev?.timeZone ?? settingsTz;
   const baseStart = ev ? zonedToDate(ev.start, ev.showWithoutTime ? null : evTz) : init.start;
   const baseEnd = ev ? new Date(baseStart.getTime() + (parseDuration(ev.duration) || (ev.showWithoutTime ? 86400 : 3600)) * 1000) : init.end;
 
   const [title, setTitle] = useState(ev?.title ?? init.seed?.title ?? "");
-  const [calendarId, setCalendarId] = useState(initialCal ?? "");
+  const [target, setTarget] = useState(initialTarget ?? "");
+  const chosen = targets.find((x) => x.token === target);
+  const calendarId = chosen?.calendar.id ?? (evCal && target === initialTarget ? evCal : "");
   const [allDay, setAllDay] = useState(ev ? Boolean(ev.showWithoutTime) : init.allDay);
   const [start, setStart] = useState(baseStart);
   const [end, setEnd] = useState(baseEnd);
@@ -313,13 +342,13 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
         const patch: Record<string, unknown> = {};
         for (const [k, v] of Object.entries(source)) patch[k] = v === undefined ? null : v;
         if (!oneDate && Object.keys(ev.calendarIds)[0] !== calendarId) patch.calendarIds = { [calendarId]: true };
-        const dropped = await runScoped(scope, (s) => cal.updateEvent(ev, patch, invites, s));
+        const dropped = await runScoped(scope, (s) => cal.updateEvent(ev, patch, invites, s, init.accountId));
         if (!dropped) { setBusy(false); return; }
         toast.success(droppedMessage(dropped) ?? (oneDate ? "This occurrence updated" : "Event updated"));
       } else {
         const clean: Record<string, unknown> = {};
         for (const [k, v] of Object.entries(obj)) if (v !== undefined) clean[k] = v;
-        await cal.createEvent(clean as Partial<CalendarEvent>, calendarId, invites);
+        await cal.createEvent(clean as Partial<CalendarEvent>, calendarId, invites, chosen?.accountId);
         toast.success(invites ? "Event created and invitations sent" : "Event created");
       }
       onClose();
@@ -408,8 +437,8 @@ function EventForm({ init, base, scope, editing, onClose, settingsTz, defaultAle
         )}
         <div className="field-row">
           <div className="field"><label>{translate("Calendar")}</label>
-            <select className="select" value={calendarId} disabled={oneDate} title={oneDate ? translate("An occurrence cannot be moved to another calendar on its own") : undefined} onChange={(e) => setCalendarId(e.target.value)}>
-              {calendars.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            <select className="select" value={target} disabled={oneDate} title={oneDate ? translate("An occurrence cannot be moved to another calendar on its own") : undefined} onChange={(e) => setTarget(e.target.value)}>
+              {targets.map((x) => <option key={x.token} value={x.token}>{x.label}</option>)}
             </select>
           </div>
           <div className="field"><label>{translate("Location")}</label><input className="input" value={location} onChange={(e) => setLocation(e.target.value)} placeholder={translate("Add location")} /></div>

@@ -18,6 +18,13 @@ export interface EventInstance {
   end: Date;
   allDay: boolean;
   calendar: Calendar | undefined;
+  /**
+   * The account the event lives in, for one from a calendar somebody shared;
+   * absent for the reader's own. Event ids only mean something inside their
+   * account, so every write about this event goes there, never to the
+   * reader's own account under the owner's id (#49).
+   */
+  accountId?: Id;
 }
 
 /*
@@ -230,6 +237,18 @@ export interface SharedCalendar {
 export const sharedKey = (accountId: Id, id: Id): string => `${accountId}:${id}`;
 
 /**
+ * Shared calendars a new event can go into: the ones drawn beside the
+ * reader's own (subscribed, or added here -- see `instancesIn`) whose share
+ * lets them write.
+ */
+export function writableSharedCalendars(shared: SharedCalendar[], addedShares: string[]): SharedCalendar[] {
+  const added = new Set(addedShares);
+  return shared.filter((c) =>
+    (c.calendar.isSubscribed || added.has(sharedKey(c.accountId, c.calendar.id))) &&
+    (c.calendar.myRights.mayWriteAll || c.calendar.myRights.mayWriteOwn));
+}
+
+/**
  * An event begun outside the calendar -- from a message, so far.
  *
  * The editor lives inside CalendarView and the reader is somewhere else when
@@ -282,12 +301,16 @@ interface CalendarState {
   instancesIn(start: Date, end: Date): EventInstance[];
   /** Re-fetch every subscribed calendar. */
   refreshSubscriptions(): Promise<void>;
-  getEvent(id: Id): Promise<CalendarEvent | null>;
-  createEvent(event: Partial<CalendarEvent>, calendarId: Id, sendInvites: boolean): Promise<Id>;
+  /*
+   * The event calls take the account the event lives in -- `EventInstance`'s
+   * `accountId` -- and default to the reader's own. See `EventInstance`.
+   */
+  getEvent(id: Id, accountId?: Id): Promise<CalendarEvent | null>;
+  createEvent(event: Partial<CalendarEvent>, calendarId: Id, sendInvites: boolean, accountId?: Id): Promise<Id>;
   /** Returns the properties that had to be left to the series, if any. */
-  updateEvent(event: CalendarEvent, patch: Record<string, unknown>, sendInvites: boolean, scope: EventScope): Promise<string[]>;
-  destroyEvent(event: CalendarEvent, sendInvites: boolean, scope: EventScope): Promise<void>;
-  rsvp(event: CalendarEvent, status: "accepted" | "tentative" | "declined", comment?: string): Promise<void>;
+  updateEvent(event: CalendarEvent, patch: Record<string, unknown>, sendInvites: boolean, scope: EventScope, accountId?: Id): Promise<string[]>;
+  destroyEvent(event: CalendarEvent, sendInvites: boolean, scope: EventScope, accountId?: Id): Promise<void>;
+  rsvp(event: CalendarEvent, status: "accepted" | "tentative" | "declined", comment?: string, accountId?: Id): Promise<void>;
   createCalendar(data: Partial<Calendar>): Promise<Id>;
   updateCalendar(id: Id, patch: Partial<Calendar>): Promise<void>;
   destroyCalendar(id: Id): Promise<void>;
@@ -692,23 +715,27 @@ export const useCalendar = create<CalendarState>((set, get) => ({
       if (calId && !theirs[calId]) continue;
       const inst = toInstance(e, theirs);
       if (!inst) continue;
+      // Keyed and addressed by account: the owner's ids can equal the reader's.
+      inst.key = k;
+      inst.accountId = accountId;
       if (inst.end > start && inst.start < end) out.push(inst);
     }
     out.sort((a, b) => a.start.getTime() - b.start.getTime() || b.end.getTime() - a.end.getTime());
     return [...out, ...birthdays];
   },
 
-  async getEvent(id) {
-    const accountId = get().accountId;
+  async getEvent(id, owner) {
+    const accountId = owner ?? get().accountId;
     if (!accountId) return null;
     const res = await client.call<GetResponse<CalendarEvent>>("CalendarEvent/get", { accountId, ids: [id], properties: EVENT_PROPS });
     const e = res.list[0];
-    if (e) set((s) => ({ events: { ...s.events, [e.id]: e } }));
+    // Only the reader's own go into `events`; a shared one is keyed by account.
+    if (e && accountId === get().accountId) set((s) => ({ events: { ...s.events, [e.id]: e } }));
     return e ?? null;
   },
 
-  async createEvent(event, calendarId, sendInvites) {
-    const accountId = get().accountId!;
+  async createEvent(event, calendarId, sendInvites, owner) {
+    const accountId = owner ?? get().accountId!;
     const obj = { "@type": "Event", uid: crypto.randomUUID(), ...event, calendarIds: { [calendarId]: true } };
     const res = await client.call<SetResponse<CalendarEvent>>("CalendarEvent/set", { accountId, create: { e: obj }, sendSchedulingMessages: sendInvites });
     const err = res.notCreated?.e;
@@ -717,7 +744,7 @@ export const useCalendar = create<CalendarState>((set, get) => ({
     return res.created!.e!.id;
   },
 
-  async updateEvent(event, patch, sendInvites, scope) {
+  async updateEvent(event, patch, sendInvites, scope, owner) {
     /*
      * A derived birthday has no server-side existence, so there is nothing to
      * write and an id that would mean nothing if sent. The UI already keeps
@@ -726,7 +753,7 @@ export const useCalendar = create<CalendarState>((set, get) => ({
      * it.
      */
     if (isBirthdayEvent(event.id) || isSubscriptionEvent(event.id)) return [];
-    const accountId = get().accountId!;
+    const accountId = owner ?? get().accountId!;
     const id = scope === "occurrence" ? await currentOccurrenceId(accountId, event) : eventIdForScope(event, scope);
     // An occurrence takes less than the series does, and says so about only
     // half of it. Narrow the patch here rather than posting it hopefully.
@@ -739,7 +766,7 @@ export const useCalendar = create<CalendarState>((set, get) => ({
     return dropped;
   },
 
-  async destroyEvent(event, sendInvites, scope) {
+  async destroyEvent(event, sendInvites, scope, owner) {
     /*
      * A derived birthday has no server-side existence, so there is nothing to
      * write and an id that would mean nothing if sent. The UI already keeps
@@ -748,15 +775,21 @@ export const useCalendar = create<CalendarState>((set, get) => ({
      * it.
      */
     if (isBirthdayEvent(event.id) || isSubscriptionEvent(event.id)) return;
-    const accountId = get().accountId!;
+    const accountId = owner ?? get().accountId!;
     const id = scope === "occurrence" ? await currentOccurrenceId(accountId, event) : eventIdForScope(event, scope);
     const res = await client.call<SetResponse>("CalendarEvent/set", { accountId, destroy: [id], sendSchedulingMessages: sendInvites });
     const err = res.notDestroyed?.[id];
     if (err) throw new CalendarSetError(err);
     set((s) => {
-      const events = { ...s.events };
       // Drop both ids: the one that was sent, and the object as the caller
       // held it. An occurrence destroy leaves the master alone on purpose.
+      if (accountId !== s.accountId) {
+        const sharedEvents = { ...s.sharedEvents };
+        delete sharedEvents[sharedKey(accountId, id)];
+        if (scope === "occurrence") delete sharedEvents[sharedKey(accountId, event.id)];
+        return { sharedEvents };
+      }
+      const events = { ...s.events };
       delete events[id];
       if (scope === "occurrence") delete events[event.id];
       return { events };
@@ -764,7 +797,7 @@ export const useCalendar = create<CalendarState>((set, get) => ({
     get().invalidate();
   },
 
-  async rsvp(event, status, comment) {
+  async rsvp(event, status, comment, owner) {
     const mine = myParticipantKeys(event, get().identities);
     if (!mine.length) throw new Error("You are not a participant of this event");
     const patch: Record<string, unknown> = {};
@@ -777,7 +810,7 @@ export const useCalendar = create<CalendarState>((set, get) => ({
     // pointers 0.16.20 allows on an occurrence -- so this would silently mean
     // "only that day" if it were aimed at an instance. Accepting an invitation
     // means accepting the series.
-    await get().updateEvent(event, patch, true, "series");
+    await get().updateEvent(event, patch, true, "series", owner);
   },
 
   async createCalendar(data) {
