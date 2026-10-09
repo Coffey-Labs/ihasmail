@@ -69,7 +69,7 @@ export function CalendarContextMenu({ ctx, onClose, onOpen, onEdit, onCreate }: 
     const scope = await askEditScope(ev);
     if (!scope) return;
     try {
-      const dropped = await runScoped(scope, (s) => cal.updateEvent(ev, p, false, s));
+      const dropped = await runScoped(scope, (s) => cal.updateEvent(ev, p, false, s, inst.accountId));
       if (!dropped) return;
       // A per-occurrence change can be accepted in part. Say which part.
       toast.success(droppedMessage(dropped) ?? (scope === "occurrence" ? `${msg} for this date` : msg));
@@ -85,7 +85,9 @@ export function CalendarContextMenu({ ctx, onClose, onOpen, onEdit, onCreate }: 
   const duplicate = async () => {
     const { id: _i, baseEventId: _b, uid: _u, utcStart: _s, utcEnd: _e, isOrigin: _o, calendarIds, created: _c, updated: _up, sequence: _sq, recurrenceId: _ri, recurrenceIdTimeZone: _rt, ...rest } = ev as CalendarEvent & Record<string, unknown>;
     try {
-      await cal.createEvent({ ...rest, title: t("Copy of {title}", { title: ev.title ?? t("event") }), participants: undefined, replyTo: undefined, organizerCalendarAddress: undefined } as Partial<CalendarEvent>, Object.keys(calendarIds)[0] ?? Object.keys(cal.calendars)[0]!, false);
+      // The copy goes into the same calendar, so into the same account.
+      const sameCal = Object.keys(calendarIds)[0];
+      await cal.createEvent({ ...rest, title: t("Copy of {title}", { title: ev.title ?? t("event") }), participants: undefined, replyTo: undefined, organizerCalendarAddress: undefined } as Partial<CalendarEvent>, sameCal ?? Object.keys(cal.calendars)[0]!, false, sameCal ? inst.accountId : undefined);
       toast.success(t("Event duplicated"));
     } catch (err) {
       toast.error((err as Error).message);
@@ -101,7 +103,7 @@ export function CalendarContextMenu({ ctx, onClose, onOpen, onEdit, onCreate }: 
     }
     if (!scope) return;
     try {
-      await runScoped(scope, (s) => cal.destroyEvent(ev, participants > 1, s));
+      await runScoped(scope, (s) => cal.destroyEvent(ev, participants > 1, s, inst.accountId));
       toast.success(scope === "occurrence" ? "Occurrence deleted" : "Event deleted");
     } catch (err) {
       toast.error((err as Error).message);

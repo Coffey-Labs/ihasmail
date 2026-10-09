@@ -130,7 +130,7 @@ export function CalendarView({ view: viewParam, date }: { view?: string; date?: 
       const scope = await askEditScope(ev);
       if (!scope) return;
       try {
-        const dropped = await runScoped(scope, (sc) => cal.updateEvent(ev, { ...patch }, false, sc));
+        const dropped = await runScoped(scope, (sc) => cal.updateEvent(ev, { ...patch }, false, sc, inst.accountId));
         if (!dropped) return;
         const message = droppedMessage(dropped);
         if (message) toast.success(message);
@@ -217,9 +217,9 @@ export function CalendarView({ view: viewParam, date }: { view?: string; date?: 
       {effectiveView === "month" && <MonthView onDragCommit={(i, patch) => void commitDrag(i, patch)} anchor={anchor} weekStart={weekStart} onDay={(d) => go("day", d)} onEvent={onEvent} onEventContext={onEventContext} onSlotContext={onSlotContext} onCreate={(d) => openNew(new Date(d.getTime() + 9 * 3600_000))} />}
       {(effectiveView === "week" || effectiveView === "day") && <TimeGrid onDragCommit={(i, patch) => void commitDrag(i, patch)} days={effectiveView === "week" ? weekDays(anchor, weekStart) : [anchor]} onEvent={onEvent} onEventContext={onEventContext} onSlotContext={onSlotContext} onCreate={(s, e, allDay) => openNew(s, e, allDay)} onDayHeader={(d) => go("day", d)} workStart={settings.workDayStart} workEnd={settings.workDayEnd} />}
       {effectiveView === "agenda" && <AgendaView start={anchor} onEvent={onEvent} onEventContext={onEventContext} />}
-      {ctx && <CalendarContextMenu ctx={ctx} onClose={() => setCtx(null)} onOpen={(inst, a) => setPopover({ inst, anchor: a })} onEdit={(inst) => setEditor({ event: inst.event, start: inst.start, end: inst.end, allDay: inst.allDay })} onCreate={(s, e, allDay) => { setCtx(null); openNew(s, e, allDay); }} />}
+      {ctx && <CalendarContextMenu ctx={ctx} onClose={() => setCtx(null)} onOpen={(inst, a) => setPopover({ inst, anchor: a })} onEdit={(inst) => setEditor({ event: inst.event, accountId: inst.accountId, start: inst.start, end: inst.end, allDay: inst.allDay })} onCreate={(s, e, allDay) => { setCtx(null); openNew(s, e, allDay); }} />}
       {isMobile && <button className="fab" aria-label={translate("New event")} onClick={() => openNew()}><Plus size={24} /></button>}
-      {popover && <EventPopover inst={popover.inst} anchor={popover.anchor} onClose={() => setPopover(null)} onEdit={() => { setEditor({ event: popover.inst.event, start: popover.inst.start, end: popover.inst.end, allDay: popover.inst.allDay }); setPopover(null); }} />}
+      {popover && <EventPopover inst={popover.inst} anchor={popover.anchor} onClose={() => setPopover(null)} onEdit={() => { setEditor({ event: popover.inst.event, accountId: popover.inst.accountId, start: popover.inst.start, end: popover.inst.end, allDay: popover.inst.allDay }); setPopover(null); }} />}
       {editor && <EventEditor init={editor} onClose={() => setEditor(null)} />}
     </div>
   );
