@@ -1,5 +1,8 @@
 # ---- build stage ----
-FROM node:26-alpine AS build
+# Docker Hub images, pulled through Google's mirror: GitHub's shared runners
+# hit Docker Hub's anonymous pull limit (429), which the mirror is not subject
+# to. Same images, same digests (checked 2026-10-09).
+FROM mirror.gcr.io/library/node:26-alpine AS build
 # What this build calls itself: 2.16.<PR>, worked out by whoever runs the
 # build. It cannot be worked out in here -- .dockerignore keeps .git out of the
 # context on purpose, and git is not installed either. `node scripts/version.mjs`
@@ -25,7 +28,7 @@ COPY . .
 RUN npm run build
 
 # ---- runtime stage ----
-FROM node:26-alpine AS runtime
+FROM mirror.gcr.io/library/node:26-alpine AS runtime
 # Re-declared: an ARG does not cross stages.
 ARG IHASMAIL_VERSION=""
 ARG BASE_PATH=""
