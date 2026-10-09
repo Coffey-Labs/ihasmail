@@ -11,7 +11,7 @@ jobs:
   announce:
     runs-on: light
     steps:
-      - uses: coffey-labs/actions/discourse-release@e9293996e2efa770839121fa8f8da93083f216be
+      - uses: coffey-labs/actions/discourse-release@fd5fc9fb7da5f13d055f18b4bd5234c5fe5230d1
         with:
           api-key: ${{ secrets.DISCOURSE_RELEASE_KEY }}
           discord-webhook: ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
