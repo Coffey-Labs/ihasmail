@@ -91,10 +91,12 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
  * for the same message (`ihasmail-<id>`), so if both ever show it, the second
  * replaces the first instead of stacking beside it.
  */
-export function showNotification(title: string, opts: NotificationOptions & { onClick?: () => void } = {}): void {
+export function showNotification(title: string, opts: NotificationOptions & { onClick?: () => void; force?: boolean } = {}): void {
   if (!("Notification" in window) || Notification.permission !== "granted") return;
-  if (document.visibilityState === "visible" && document.hasFocus()) return;
-  const { onClick, ...options } = opts;
+  // New mail in a tab you're looking at needs no notification. A test asked
+  // for from Settings is always in such a tab, so it says to show anyway (#48).
+  if (!opts.force && document.visibilityState === "visible" && document.hasFocus()) return;
+  const { onClick, force: _force, ...options } = opts;
   const full = { icon: withBase("/img/icon-192.png"), badge: withBase("/img/favicon-64.png"), ...options };
   const viaWorker = navigator.serviceWorker?.controller ? navigator.serviceWorker.ready : null;
   if (viaWorker) {

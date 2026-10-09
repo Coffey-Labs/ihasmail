@@ -81,7 +81,7 @@ export function NotificationsSettings() {
       />
       <Switch locked={isEnforced("notificationSound")} checked={s.notificationSound} onChange={(v) => update({ notificationSound: v })} label={t("Play a sound for new mail")} />
       <div className="row mt-16">
-        <button className="btn" onClick={() => { showNotification(t("{app} test", { app: appName }), { body: t("This is what a new-mail notification looks like.") }); playNewMailSound(); }}>{t("Test notification")}</button>
+        <button className="btn" onClick={() => { showNotification(t("{app} test", { app: appName }), { body: t("This is what a new-mail notification looks like."), force: true }); playNewMailSound(); }}>{t("Test notification")}</button>
       </div>
       <p className="hint mt-8">{t("The tab title and favicon always show your unread Inbox count.")}</p>
     </div>
