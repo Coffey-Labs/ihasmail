@@ -1,5 +1,6 @@
 import type { Id, Invocation, JmapResponse, JmapSession, MethodError, UploadResponse } from "./types";
 import { withBase } from "@/lib/basePath";
+import { reauthAtFrontDoor } from "@/lib/frontDoor";
 
 export const CAP = {
   core: "urn:ietf:params:jmap:core",
@@ -75,11 +76,22 @@ const HEADERS = { "content-type": "application/json", accept: "application/json"
  * whatever the deployment happens to be called.
  */
 export async function apiFetch<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
-  const res = await fetch(withBase(path), {
-    ...init,
-    headers: { ...HEADERS, ...(init.headers as Record<string, string> | undefined) },
-    credentials: "same-origin",
-  });
+  let res: Response;
+  try {
+    res = await fetch(withBase(path), {
+      ...init,
+      headers: { ...HEADERS, ...(init.headers as Record<string, string> | undefined) },
+      credentials: "same-origin",
+    });
+  } catch (err) {
+    // A sign-in proxy redirecting to its login looks exactly like this (#47).
+    void reauthAtFrontDoor();
+    throw err;
+  }
+  if (res.redirected && !(res.headers.get("content-type") ?? "").includes("json")) {
+    // Followed to somebody else's page on this origin: the same door.
+    void reauthAtFrontDoor();
+  }
   if (res.status === 401 && !path.startsWith("/api/auth/login")) {
     client.handleUnauthenticated();
     throw new ApiError(401, "unauthenticated", "Your session has expired. Please sign in again.");
