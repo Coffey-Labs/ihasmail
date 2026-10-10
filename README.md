@@ -12,13 +12,14 @@
   <a href="https://stalw.art" target="_blank" rel="noreferrer"><img alt="Requires Stalwart 0.16 or newer; tested against 0.16.22" src="https://img.shields.io/badge/Stalwart-0.16.22-6366f1?style=flat-square"></a>
   <a href="https://docs.ihasmail.org" target="_blank" rel="noreferrer"><img alt="Documentation: docs.ihasmail.org" src="https://img.shields.io/badge/docs-docs.ihasmail.org-0ea5e9?style=flat-square"></a>
   <a href="https://coffeylabs.org" target="_blank" rel="noreferrer"><img alt="by Coffey Labs" src="https://img.shields.io/badge/by-Coffey%20Labs-0f766e?style=flat-square"></a>
+  <a href="https://discord.gg/nqcY4TKfAn" target="_blank" rel="noreferrer"><img alt="Chat on Discord" src="https://img.shields.io/discord/1523538164084637797?label=discord&logo=discord&logoColor=white&color=5865f2&style=flat-square"></a>
 </p>
 
 # ihasmail
 
 > [!NOTE]
 > Development happens on [git.coffeylabs.org/coffey-labs/ihasmail](https://git.coffeylabs.org/coffey-labs/ihasmail); the copy on GitHub is a read-only mirror.
-> Report issues at **[git.coffeylabs.org/coffey-labs/ihasmail/issues](https://git.coffeylabs.org/coffey-labs/ihasmail/issues)**, and join discussions at **[community.coffeylabs.org](https://community.coffeylabs.org)**.
+> Report issues at **[git.coffeylabs.org/coffey-labs/ihasmail/issues](https://git.coffeylabs.org/coffey-labs/ihasmail/issues)**, join discussions at **[community.coffeylabs.org](https://community.coffeylabs.org)**, or chat on **[Discord](https://discord.gg/nqcY4TKfAn)**.
 
 **Immutable webmail for [Stalwart Mail Server](https://stalw.art).** Mail,
 calendars, contacts, files and filters in one app that works as well on a phone
