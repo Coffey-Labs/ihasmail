@@ -35,9 +35,26 @@ Open an issue describing:
 
 For larger changes, please open an issue to discuss the approach **before** submitting a pull request — this saves everyone time if the direction needs adjusting.
 
+### Sending a change
+
+New accounts on git.coffeylabs.org can file issues but can't push or fork.
+Until you have repository access, open an
+[issue](https://git.coffeylabs.org/coffey-labs/ihasmail/issues) for the change, or say hello
+on [community.coffeylabs.org](https://community.coffeylabs.org), and attach the
+change to the issue as a patch:
+
+```bash
+git format-patch origin/main --stdout > my-change.patch
+```
+
+Repository access goes to volunteers we have worked with; a few good issues or
+patches is the usual way in. After that you push a branch here and open a pull
+request, as below. The GitHub copy is a read-only mirror, so pull requests opened
+there are not merged.
+
 ### Submitting Pull Requests
 
-1. **Fork** the repository and create your branch from `main`.
+1. **Create your branch** from `main`. Pushing it needs repository access; see [Sending a change](#sending-a-change).
 2. **Name your branch** descriptively, e.g. `fix/thread-view-scroll` or `feat/search-filters`.
 3. **Keep PRs focused** — one logical change per PR. Large, unrelated changes bundled together are harder to review and more likely to be rejected.
 4. **Write clear commit messages** describing what changed and why.
@@ -124,9 +141,9 @@ examples in `web/src/views/*/__tests__/`.
 
 ### Development Setup
 
-1. Clone your fork:
+1. Clone the repository:
    ```bash
-   git clone https://github.com/YOUR-USERNAME/ihasmail.git
+   git clone https://git.coffeylabs.org/coffey-labs/ihasmail.git
    cd ihasmail
    ```
 2. Point your local instance at a running Stalwart Mail Server (a test/dev instance is strongly recommended — do not develop against a production mailbox), or use the built-in mock below.
