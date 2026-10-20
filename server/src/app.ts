@@ -628,11 +628,21 @@ export function createApp(basePath = config.basePath): Hono<Env> {
       setOthersCookie(c, others.map((o) => o.cookie));
     }
     const canAdd = addRefusal(c) === null;
-    return c.json({
-      accounts: [front, ...others.map((o) => o.session)].map((s, i) => ({ id: s.id, username: s.username, front: i === 0 })),
-      canAdd,
-      max: MAX_ACCOUNTS,
-    });
+    // Each one's mail account, which its push subscription and
+    // a notification's buttons need
+    const accounts = await Promise.all(
+      [front, ...others.map((o) => o.session)].map(async (s, i) => {
+        let mailAccountId: string | null = null;
+        try {
+          const upstream = await getUpstreamSession(s.id, s.authorization, upstreamFor(s.username));
+          mailAccountId = upstream.primaryAccounts?.["urn:ietf:params:jmap:mail"] ?? null;
+        } catch {
+          /* unknown for now: push for it waits for the next start */
+        }
+        return { id: s.id, username: s.username, front: i === 0, mailAccountId };
+      }),
+    );
+    return c.json({ accounts, canAdd, max: MAX_ACCOUNTS });
   });
 
   /*

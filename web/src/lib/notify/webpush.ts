@@ -337,18 +337,29 @@ export async function destroySubscriptions(ids: Id[], call: JmapCall = frontCall
  */
 const ENDPOINT_KEY = "ihasmail:pushEndpoint";
 
-export function registeredEndpoint(): string | null {
+/*
+ * One per account, since each signed-in account on this device
+ * has its own subscription, and kept when switching between them (see
+ * KEEP_ON_SIGN_OUT in lib/storage) so a switch doesn't register them afresh.
+ * Without an account, the key from before: the account in front.
+ */
+function endpointKey(accountId?: Id | null): string {
+  return accountId ? `${ENDPOINT_KEY}:${accountId}` : ENDPOINT_KEY;
+}
+
+export function registeredEndpoint(accountId?: Id | null): string | null {
   try {
-    return localStorage.getItem(ENDPOINT_KEY);
+    return localStorage.getItem(endpointKey(accountId)) ?? (accountId ? localStorage.getItem(ENDPOINT_KEY) : null);
   } catch {
     return null;
   }
 }
 
-export function rememberEndpoint(endpoint: string | null): void {
+export function rememberEndpoint(endpoint: string | null, accountId?: Id | null): void {
   try {
-    if (endpoint) localStorage.setItem(ENDPOINT_KEY, endpoint);
-    else localStorage.removeItem(ENDPOINT_KEY);
+    const key = endpointKey(accountId);
+    if (endpoint) localStorage.setItem(key, endpoint);
+    else localStorage.removeItem(key);
   } catch {
     /* private mode: every start is then a fresh registration, which still works */
   }
@@ -374,6 +385,20 @@ export async function verifySubscription(id: Id, verificationCode: string, call:
 
 export async function destroySubscription(id: Id): Promise<void> {
   await client.call<SetResponse<JmapPushSubscription>>("PushSubscription/set", { destroy: [id] }, [CAP.core, VAPID_CAP]);
+}
+
+/**
+ * Remove this device's subscription in one account only, leaving
+ * the browser's push subscription and the switch alone -- for signing out of
+ * the account in front while others stay signed in and keep notifying.
+ */
+export async function unsubscribeAccount(call: JmapCall = frontCall, accountId?: Id | null): Promise<void> {
+  try {
+    await destroySubscriptions(mySubscriptions(await listSubscriptions(call), deviceClientId()).map((s) => s.id), call);
+  } catch {
+    /* signing out must not fail over this */
+  }
+  rememberEndpoint(null, accountId);
 }
 
 /** Remove every subscription this browser registered. Used when signing out. */

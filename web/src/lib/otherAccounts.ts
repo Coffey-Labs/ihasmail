@@ -6,13 +6,15 @@
  * when one rises while the app is open, a desktop notification names the
  * account, so mail for support@ isn't missed while someone works in their own.
  *
- * Only while a tab is open. A notification with the app closed needs each
- * added account's own Web Push subscription, which is still to come.
+ * Only while a tab is open, and only where background notifications are off:
+ * with them on, each account has its own Web Push subscription and the worker
+ * notifies (lib/notify/webpushEnable, public/sw.js).
  */
 import { useEffect } from "react";
 import { create } from "zustand";
 import { apiFetch } from "@/jmap/client";
 import { showNotification } from "@/lib/notify/notify";
+import { pushEnabledHere } from "@/lib/notify/webpush";
 import { t } from "@/lib/i18n";
 import { useSession } from "@/store/session";
 import { useSettings } from "@/store/settings";
@@ -48,6 +50,9 @@ export async function pollOtherUnread(): Promise<void> {
   const before = useOtherUnread.getState().unread;
   useOtherUnread.getState().set(next);
   if (!useSettings.getState().settings.desktopNotifications) return;
+  // With background notifications on here, the worker tells about these
+  // accounts already: the counts stay, a second telling doesn't
+  if (pushEnabledHere()) return;
   const names = new Map(useSession.getState().signedIn.map((a) => [a.id, a.username]));
   for (const id of risen(before, next)) {
     const name = names.get(id);

@@ -6,9 +6,10 @@ import { accountForCapability, ownAccountForCapability } from "@/lib/accountRout
 import { setServerLocale } from "@/lib/datetime";
 import { flushSettingsPush, stopSettingsSync } from "@/lib/settingsSync";
 import { reloadIfServerRebuilt } from "@/lib/sw/staleBuild";
-import { unsubscribeThisDevice } from "@/lib/notify/webpush";
+import { unsubscribeAccount, unsubscribeThisDevice } from "@/lib/notify/webpush";
 import { clearAllData, clearSignedInData, setDeviceTrusted } from "@/lib/storage";
 import { startIdleLogout, stopIdleLogout } from "@/lib/idleLogout";
+import { withBase } from "@/lib/basePath";
 import { findSharedMail, sharedMailCandidates, type SharedMailAccount } from "@/lib/sharedMail";
 
 export type AuthStatus = "loading" | "anonymous" | "authenticated";
@@ -66,6 +67,31 @@ export interface SignedInAccount {
   id: string;
   username: string;
   front: boolean;
+  /** Its mail account, for its push subscription; null when not known yet. */
+  mailAccountId?: string | null;
+}
+
+/**
+ * A notification for an account not in front opens
+ * `?account=<session>&next=<where>`: bring that account forward, then go
+ * there. Only a path inside the app is followed.
+ */
+// Read as the app starts: the router sends `/` on to `/mail` without its query.
+let launchParams: URLSearchParams | null = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+
+async function openFromNotification(accounts: SignedInAccount[]): Promise<void> {
+  const params = launchParams;
+  launchParams = null;
+  const wanted = params?.get("account");
+  if (!params || !wanted) return;
+  const raw = params.get("next") ?? "";
+  const next = raw.startsWith("/") && !raw.startsWith("//") ? raw : withBase("/mail");
+  const account = accounts.find((a) => a.id === wanted);
+  if (account && !account.front) {
+    await apiFetch(`/api/auth/accounts/${encodeURIComponent(wanted)}/front`, { method: "POST" });
+    clearSignedInData();
+  }
+  window.location.replace(next);
 }
 
 /** Which sign-out: the account in front, or every one. */
@@ -117,7 +143,19 @@ export const useSession = create<SessionState>((set, get) => ({
     // without removing it leaves this browser notifying for a mailbox nobody is
     // signed into. On a shared machine that is somebody else's mail.
     try {
-      await unsubscribeThisDevice();
+      const everyone = signOutPath.endsWith("logout-all");
+      const othersRemain = !everyone && get().signedIn.some((a) => !a.front);
+      if (everyone) {
+        // Every account's subscription goes, the others' first
+        const { unsubscribeOtherAccounts } = await import("@/lib/notify/webpushEnable");
+        await unsubscribeOtherAccounts();
+      }
+      if (othersRemain) {
+        // Only this account's; the browser keeps notifying for the rest
+        await unsubscribeAccount(undefined, get().ownAccountFor(CAP.mail));
+      } else {
+        await unsubscribeThisDevice();
+      }
     } catch {
       /* never block signing out over this */
     }
@@ -162,6 +200,7 @@ export const useSession = create<SessionState>((set, get) => ({
     try {
       const answer = await apiFetch<{ accounts: SignedInAccount[]; canAdd: boolean }>("/api/auth/accounts");
       set({ signedIn: answer.accounts, canAddAccount: answer.canAdd });
+      await openFromNotification(answer.accounts);
     } catch {
       set({ signedIn: [], canAddAccount: false });
     }

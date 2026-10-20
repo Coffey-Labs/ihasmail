@@ -324,13 +324,14 @@ function AuthedApp() {
    * See lib/swFacts.ts.
    */
   const archiveId = useMail((s) => s.roleId("archive"));
+  const inboxId = useMail((s) => s.roleId("inbox"));
   const languageVersion = useLanguageVersion();
   useEffect(() => {
     // The worker acts on the reader's own mail; while a shared mailbox is in
     // view, the archive folder here is its
     if (viewing) return;
-    void publishWorkerFacts(accountId, archiveId);
-  }, [accountId, archiveId, languageVersion, viewing]);
+    void publishWorkerFacts(accountId, archiveId, inboxId);
+  }, [accountId, archiveId, inboxId, languageVersion, viewing]);
 
   // Request notification permission lazily when enabled
   const notif = useSettings((s) => s.settings.desktopNotifications);

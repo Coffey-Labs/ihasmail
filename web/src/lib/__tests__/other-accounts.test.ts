@@ -65,4 +65,21 @@ describe("other accounts' unread mail", () => {
     expect(shown).toEqual([]);
     expect(useOtherUnread.getState().unread).toEqual({ b: 9 });
   });
+
+  it("leaves telling to the worker where background notifications are on", async () => {
+    const { setDeviceTrusted } = await import("@/lib/storage");
+    const { setPushEnabledHere } = await import("@/lib/notify/webpush");
+    setDeviceTrusted(true);
+    setPushEnabledHere(true);
+    try {
+      await pollOtherUnread();
+      counts = { b: 12 };
+      await pollOtherUnread();
+      expect(shown).toEqual([]);
+      expect(useOtherUnread.getState().unread).toEqual({ b: 12 });
+    } finally {
+      setPushEnabledHere(false);
+      setDeviceTrusted(false);
+    }
+  });
 });

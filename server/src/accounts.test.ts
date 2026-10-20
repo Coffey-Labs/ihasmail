@@ -171,3 +171,11 @@ test("only push, mailboxes and marking mail reach an account not in front", asyn
   const front = (await b.accounts()).find((a) => a.front)!;
   assert.equal((await b.call(`/api/auth/accounts/${front.id}/jmap`, { method: "POST", body: { methodCalls: [] } })).status, 404);
 });
+
+test("each listed account says which mail account it is", async () => {
+  const b = new Browser();
+  await b.signIn("first@example.com", "first-password");
+  await b.signIn("second@example.com", "second-password", true);
+  const res = await b.call("/api/auth/accounts");
+  for (const a of res.body.accounts) assert.equal(typeof a.mailAccountId, "string", JSON.stringify(a));
+});
