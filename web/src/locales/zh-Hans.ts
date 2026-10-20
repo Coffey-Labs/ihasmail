@@ -1726,6 +1726,10 @@ export const catalog: Catalog = {
     "Add account": "添加账户",
     "Both accounts stay signed in here; switch between them from this menu.": "两个账户都会在这里保持登录；可从此菜单在它们之间切换。",
     "Sign out of all accounts": "退出所有账户",
+    // ── New mail in other accounts ──
+    "New mail for {name}": "{name} 有新邮件",
+    "Unread in the Inbox: {count}": "收件箱中的未读邮件：{count}",
+    "Account: new mail in another account": "账户：其他账户有新邮件",
   },
   plurals: {
     // ── Administration: domains ────────────────────────────────────

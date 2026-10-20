@@ -1727,6 +1727,10 @@ export const catalog: Catalog = {
     "Add account": "アカウントを追加",
     "Both accounts stay signed in here; switch between them from this menu.": "どちらのアカウントもここでサインインしたままになります。このメニューから切り替えられます。",
     "Sign out of all accounts": "すべてのアカウントからサインアウト",
+    // ── New mail in other accounts ──
+    "New mail for {name}": "{name} に新着メール",
+    "Unread in the Inbox: {count}": "受信トレイの未読: {count}",
+    "Account: new mail in another account": "アカウント: 別のアカウントに新着メールがあります",
   },
   plurals: {
     // ── Administration: domains ────────────────────────────────────

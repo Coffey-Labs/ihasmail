@@ -1722,6 +1722,10 @@ export const catalog: Catalog = {
     "Add account": "Adicionar conta",
     "Both accounts stay signed in here; switch between them from this menu.": "As duas contas continuam conectadas aqui; alterne entre elas por este menu.",
     "Sign out of all accounts": "Sair de todas as contas",
+    // ── New mail in other accounts ──
+    "New mail for {name}": "E-mail novo para {name}",
+    "Unread in the Inbox: {count}": "Não lidas na Caixa de entrada: {count}",
+    "Account: new mail in another account": "Conta: e-mail novo em outra conta",
   },
   plurals: {
     // ── Administration: domains ────────────────────────────────────

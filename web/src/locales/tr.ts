@@ -1618,6 +1618,10 @@ export const catalog: Catalog = {
 		"Add account": "Hesap ekle",
 		"Both accounts stay signed in here; switch between them from this menu.": "Her iki hesap da burada oturum açık kalır; bu menüden aralarında geçiş yapın.",
 		"Sign out of all accounts": "Tüm hesaplardan çıkış yap",
+		// ── New mail in other accounts ──
+		"New mail for {name}": "{name} için yeni posta",
+		"Unread in the Inbox: {count}": "Gelen Kutusu'nda okunmamış: {count}",
+		"Account: new mail in another account": "Hesap: başka bir hesapta yeni posta",
 	},
 	plurals: {
 		"({n} deleted first)": {

@@ -1719,6 +1719,10 @@ export const catalog: Catalog = {
     "Add account": "Account toevoegen",
     "Both accounts stay signed in here; switch between them from this menu.": "Beide accounts blijven hier ingelogd; wissel ertussen via dit menu.",
     "Sign out of all accounts": "Uitloggen bij alle accounts",
+    // ── New mail in other accounts ──
+    "New mail for {name}": "Nieuwe mail voor {name}",
+    "Unread in the Inbox: {count}": "Ongelezen in Postvak IN: {count}",
+    "Account: new mail in another account": "Account: nieuwe mail in een ander account",
   },
   plurals: {
     // ── Administration: domains ────────────────────────────────────

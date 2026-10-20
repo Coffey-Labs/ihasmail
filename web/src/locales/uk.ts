@@ -1715,6 +1715,10 @@ export const catalog: Catalog = {
     "Add account": "Додати обліковий запис",
     "Both accounts stay signed in here; switch between them from this menu.": "Обидва облікові записи залишаються тут у системі; перемикайтеся між ними в цьому меню.",
     "Sign out of all accounts": "Вийти з усіх облікових записів",
+    // ── New mail in other accounts ──
+    "New mail for {name}": "Новий лист для {name}",
+    "Unread in the Inbox: {count}": "Непрочитаних у «Вхідних»: {count}",
+    "Account: new mail in another account": "Обліковий запис: нові листи в іншому обліковому записі",
   },
   plurals: {
     // ── Administration: domains ────────────────────────────────────

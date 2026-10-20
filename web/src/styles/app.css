@@ -1254,6 +1254,8 @@ a.menu-item:hover { color: var(--fg); }
 .topbar .brand img { width: 34px; height: 34px; object-fit: contain; }
 .topbar .brand .brand-name { color: #14b8a6; }
 .topbar .brand .brand-name span { color: var(--fg-muted); font-weight: 500; }
+/* New mail in another signed-in account, on the avatar */
+.acct-dot { position: absolute; top: 0; right: 0; width: 9px; height: 9px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--bg); }
 /* `min-width: 0`, or the flex default of `auto` holds the search field at its
    own min-content and the account buttons beside it are pushed off a phone. */
 .searchbar { flex: 1 1 auto; min-width: 0; max-width: 720px; margin: 0 auto; position: relative; }
