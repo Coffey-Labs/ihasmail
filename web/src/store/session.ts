@@ -9,6 +9,7 @@ import { reloadIfServerRebuilt } from "@/lib/sw/staleBuild";
 import { unsubscribeThisDevice } from "@/lib/notify/webpush";
 import { clearAllData, clearSignedInData, setDeviceTrusted } from "@/lib/storage";
 import { startIdleLogout, stopIdleLogout } from "@/lib/idleLogout";
+import { findSharedMail, sharedMailCandidates, type SharedMailAccount } from "@/lib/sharedMail";
 
 export type AuthStatus = "loading" | "anonymous" | "authenticated";
 
@@ -17,6 +18,16 @@ interface SessionState {
   session: JmapSession | null;
   /** Selected mail account (defaults to primary). */
   accountId: Id | null;
+  /**
+   * A group's mailbox or someone's shared folders, shown in Mail instead of
+   * the reader's own. Mail only: calendars, contacts, files, settings, filters
+   * and push stay the reader's own.
+   */
+  viewing: Id | null;
+  /** Shared and group mailboxes the reader can open; see lib/sharedMail. */
+  sharedMail: SharedMailAccount[];
+  /** The name of a shared mailbox the reader lost while it was in view. */
+  viewEnded: string | null;
   error: string | null;
   pushConnected: boolean;
   /** Finer than pushConnected: tells "reconnecting" from "not connected". */
@@ -26,6 +37,11 @@ interface SessionState {
   logout(): Promise<void>;
   refresh(): Promise<void>;
   setAccount(id: Id): void;
+  /** Show a shared mailbox's mail, or the reader's own with null. */
+  view(id: Id | null): void;
+  /** Finds the shared and group mailboxes the reader can open. */
+  loadSharedMail(): Promise<void>;
+  clearViewEnded(): void;
   /** The account to read and write for a capability, honoring the account switcher. */
   accountFor(cap: string): Id | null;
   /** The user's own account for a capability, whatever they are looking at. */
@@ -38,6 +54,9 @@ export const useSession = create<SessionState>((set, get) => ({
   status: "loading",
   session: null,
   accountId: null,
+  viewing: null,
+  sharedMail: [],
+  viewEnded: null,
   error: null,
   pushConnected: false,
   pushState: "disconnected",
@@ -47,7 +66,7 @@ export const useSession = create<SessionState>((set, get) => ({
       const s = await apiFetch<JmapSession>("/api/auth/session");
       applySession(s, set);
     } catch (err) {
-      if (err instanceof ApiError && err.status === 401) set({ status: "anonymous", session: null, accountId: null });
+      if (err instanceof ApiError && err.status === 401) set({ status: "anonymous", session: null, accountId: null, viewing: null, sharedMail: [] });
       else set({ status: "anonymous", error: (err as Error).message });
     }
   },
@@ -99,7 +118,7 @@ export const useSession = create<SessionState>((set, get) => ({
     // problem next -- and the address book cached here is the same argument.
     clearSignedInData();
     client.session = null;
-    set({ status: "anonymous", session: null, accountId: null });
+    set({ status: "anonymous", session: null, accountId: null, viewing: null, sharedMail: [] });
   },
 
   refresh() {
@@ -109,7 +128,15 @@ export const useSession = create<SessionState>((set, get) => ({
         const s = await apiFetch<JmapSession>("/api/auth/session?refresh=1");
         client.session = s;
         setServerLocale(s.ihasmail?.userLocale);
-        set({ session: s });
+        // A shared mailbox taken away, or a group left, takes the reader back to their own mail
+        const viewing = get().viewing;
+        if (viewing && !sharedMailCandidates(s).some((a) => a.id === viewing)) {
+          const name = get().session?.accounts[viewing]?.name ?? null;
+          set({ session: s, viewing: null, viewEnded: name });
+        } else {
+          set({ session: s });
+        }
+        void get().loadSharedMail();
       } catch {
         /* ignore */
       } finally {
@@ -121,6 +148,24 @@ export const useSession = create<SessionState>((set, get) => ({
 
   setAccount(id) {
     set({ accountId: id });
+  },
+
+  view(id) {
+    if (id === get().viewing) return;
+    if (id && !get().sharedMail.some((a) => a.id === id)) return;
+    set({ viewing: id });
+  },
+
+  async loadSharedMail() {
+    const session = get().session;
+    const found = await findSharedMail(session);
+    // A sign-out or another session while it was asking
+    if (get().session !== session) return;
+    set({ sharedMail: found });
+  },
+
+  clearViewEnded() {
+    set({ viewEnded: null });
   },
 
   accountFor(cap) {
@@ -149,7 +194,8 @@ function applySession(s: JmapSession, set: (p: Partial<SessionState>) => void) {
     startIdleLogout(() => void useSession.getState().logout());
   }
   const accountId = s.primaryAccounts[CAP.mail] ?? Object.keys(s.accounts)[0] ?? null;
-  set({ status: "authenticated", session: s, accountId, error: null });
+  set({ status: "authenticated", session: s, accountId, viewing: null, sharedMail: [], error: null });
+  void useSession.getState().loadSharedMail();
 }
 
 client.onUnauthenticated(() => {
@@ -162,7 +208,7 @@ client.onUnauthenticated(() => {
   // usual reason to be signed out here, and reloading a form someone has
   // already started typing into would throw the password away.
   void reloadIfServerRebuilt().then((reloading) => {
-    if (!reloading) useSession.setState({ status: "anonymous", session: null, accountId: null });
+    if (!reloading) useSession.setState({ status: "anonymous", session: null, accountId: null, viewing: null, sharedMail: [] });
   });
 });
 
@@ -170,4 +216,11 @@ push.onConnection((state) => useSession.setState({ pushConnected: state === "con
 
 export function hasCap(cap: string): boolean {
   return client.hasCapability(cap);
+}
+
+/** The shared or group mailbox in view, if one is. */
+export function useViewingShared(): SharedMailAccount | null {
+  const viewing = useSession((s) => s.viewing);
+  const sharedMail = useSession((s) => s.sharedMail);
+  return viewing ? (sharedMail.find((a) => a.id === viewing) ?? null) : null;
 }

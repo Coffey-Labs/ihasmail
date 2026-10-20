@@ -1711,6 +1711,13 @@ export const catalog: Catalog = {
     // ── Spam filter: the language model's opinion ──────────────────
     "Language model's opinion": "言語モデルの見解",
     "One of several signals the spam filter weighed": "迷惑メールフィルターが考慮した複数の判断材料のひとつ",
+    // ── Shared and group mailboxes ──
+    "Mail to show": "表示するメール",
+    "My mail": "自分のメール",
+    "Shared mailbox:": "共有メールボックス:",
+    "Back to my mail": "自分のメールに戻る",
+    "Send or close the message you're writing first.": "作成中のメッセージを先に送信するか閉じてください。",
+    "You no longer have access to {name}. Back to your own mail.": "{name} にアクセスできなくなりました。自分のメールに戻ります。",
   },
   plurals: {
     // ── Administration: domains ────────────────────────────────────

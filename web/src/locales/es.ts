@@ -1703,6 +1703,13 @@ export const catalog: Catalog = {
     // ── Spam filter: the language model's opinion ──────────────────
     "Language model's opinion": "Opinión del modelo de lenguaje",
     "One of several signals the spam filter weighed": "Una de varias señales que el filtro de spam ha tenido en cuenta",
+    // ── Shared and group mailboxes ──
+    "Mail to show": "Correo que mostrar",
+    "My mail": "Mi correo",
+    "Shared mailbox:": "Buzón compartido:",
+    "Back to my mail": "Volver a mi correo",
+    "Send or close the message you're writing first.": "Envíe o cierre primero el mensaje que está escribiendo.",
+    "You no longer have access to {name}. Back to your own mail.": "Ya no tiene acceso a {name}. Vuelve a su propio correo.",
   },
   plurals: {
     // ── Administration: domains ────────────────────────────────────

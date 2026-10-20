@@ -1,7 +1,9 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { BookOpen, Calendar, ChevronsUpDown, FolderOpen, Globe, HelpCircle, LogOut, Mail, Menu as MenuIcon, Moon, PanelLeftClose, PanelLeftOpen, PenSquare, Plus, RefreshCw, Settings, ShieldCheck, Sun, Upload, Users, X } from "lucide-react";
+import { BookOpen, Calendar, Check, ChevronsUpDown, FolderOpen, Globe, HelpCircle, LogOut, Mail, Menu as MenuIcon, Moon, PanelLeftClose, PanelLeftOpen, PenSquare, Plus, RefreshCw, Settings, ShieldCheck, Sun, Upload, Users, X } from "lucide-react";
 import { useSession } from "@/store/session";
+import { toast } from "@/ui/toast";
+import { SharedBar } from "./SharedBar";
 import { withBase } from "@/lib/basePath";
 import { DEFAULT_APP_NAME } from "@/lib/brand";
 import { useEffectiveTheme, useSettings } from "@/store/settings";
@@ -131,18 +133,34 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [openShare, navigate]);
 
   /*
-   * There is no account switcher any more.
+   * Mail other people let the reader into: a group's mailbox, or folders
+   * someone shared.
    *
-   * It existed to reach what other people shared, and was the wrong door: it
-   * moved the whole app to somebody else's account, and Stalwart advertises
-   * every capability on a shared account, so mail, calendar and contacts went
-   * with it and were refused. Shares are listed where they belong now -- in
-   * Files and in Contacts, beside the reader's own -- and found without anyone
-   * having to know an account switch was involved.
+   * There used to be an account switcher, and it was the wrong door: it moved
+   * the whole app to somebody else's account, and Stalwart advertises every
+   * capability on a shared account, so mail, calendar and contacts went with
+   * it and were refused. Calendars, contacts and files shares are listed where
+   * they belong, beside the reader's own. Mail is the one thing shown in place
+   * of the reader's, so this switches Mail alone, and offers only accounts
+   * that answered with mailboxes (lib/sharedMail).
    */
+  const viewing = useSession((s) => s.viewing);
+  const sharedMail = useSession((s) => s.sharedMail);
+  const switchTo = (id: string | null) => {
+    acctMenu.close();
+    if (id === viewing) return;
+    // A message being written belongs to the account it was started in
+    if (useCompose.getState().drafts.length) {
+      toast.show(t("Send or close the message you're writing first."));
+      return;
+    }
+    useSession.getState().view(id);
+    navigate("/mail");
+  };
 
   return (
-    <div className="app">
+    <div className={`app ${viewing ? "viewing-shared" : ""}`}>
+      <SharedBar />
       <header className="topbar">
         {/* On a wide screen the folder list is toggled from the bottom of the rail; phones keep the menu button for the drawer. */}
         {isMobile && (
@@ -189,6 +207,22 @@ export function AppShell({ children }: { children: ReactNode }) {
               </div>
             </div>
             <MenuSep />
+            {sharedMail.length > 0 && (
+              <>
+                <div className="hint" style={{ padding: "4px 10px" }}>{t("Mail to show")}</div>
+                <MenuItem icon={viewing ? <Mail size={16} /> : <Check size={16} />} label={t("My mail")} active={!viewing} onClick={() => switchTo(null)} />
+                {sharedMail.map((account) => (
+                  <MenuItem
+                    key={account.id}
+                    icon={viewing === account.id ? <Check size={16} /> : <Users size={16} />}
+                    label={<span className="notranslate" translate="no">{account.name}</span>}
+                    active={viewing === account.id}
+                    onClick={() => switchTo(account.id)}
+                  />
+                ))}
+                <MenuSep />
+              </>
+            )}
             <MenuItem icon={<BookOpen size={16} />} label={t("Documentation")} href="https://docs.ihasmail.org" external />
             {/* The project site. It is linked from the login screen footer, which
                 is a page a signed-in user never sees again -- so from inside the

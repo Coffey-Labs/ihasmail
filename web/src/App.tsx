@@ -1,7 +1,7 @@
-import { Fragment, lazy, Suspense, useEffect, useState } from "react";
+import { Fragment, lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Route, Switch, Redirect, useLocation, Router } from "wouter";
 import { useSession } from "@/store/session";
-import { useMail } from "@/store/mail";
+import { notifyOwnWhileAway, ownAccountAway, useMail } from "@/store/mail";
 import { scheduleSupported, useScheduled } from "@/store/scheduled";
 import { useContacts } from "@/store/contacts";
 import { useCalendar } from "@/store/calendar";
@@ -231,6 +231,8 @@ function AuthedApp() {
         timer = null;
         for (const [a, types] of pending) {
           if (a === useMail.getState().accountId) void useMail.getState().applyChanges(types);
+          // The reader's own mail, while a shared mailbox is in view, is still announced
+          if (a === ownAccountAway() && types.has("Email")) void notifyOwnWhileAway();
           if (a === useContacts.getState().accountId) useContacts.getState().applyChanges(types);
           if (a === useCalendar.getState().accountId) useCalendar.getState().applyChanges(types);
           if (a === useFiles.getState().accountId) useFiles.getState().applyChanges(types);
@@ -260,10 +262,57 @@ function AuthedApp() {
     return id ? (s.mailboxes[id]?.unreadEmails ?? 0) : 0;
   });
   const appName = useSession((s) => s.session?.ihasmail?.appName) || DEFAULT_APP_NAME;
+
+  /*
+   * A shared mailbox's mail, when it comes into view, and the reader's own
+   * when it goes back. Push carries nothing for an account only shared with
+   * the reader, so while one is open it is polled.
+   */
+  const viewing = useSession((s) => s.viewing);
+  const viewedOnce = useRef(false);
   useEffect(() => {
-    setBaseTitle(appName);
+    if (!viewedOnce.current) {
+      viewedOnce.current = true;
+      if (!viewing) return;
+    }
+    const mail = useMail.getState();
+    void mail.loadMailboxes();
+    void mail.loadIdentities();
+    if (!viewing) return;
+    const poll = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void useMail.getState().applyChanges(new Set(["Email", "Mailbox"]));
+      }
+    }, 60_000);
+    return () => window.clearInterval(poll);
+  }, [viewing]);
+
+  // A mailbox shared or taken away while the app is open shows up when the
+  // reader comes back to it, without signing in again
+  useEffect(() => {
+    let last = 0;
+    const onVisible = () => {
+      if (document.visibilityState !== "visible" || Date.now() - last < 60_000) return;
+      last = Date.now();
+      void useSession.getState().refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, []);
+
+  const viewEnded = useSession((s) => s.viewEnded);
+  useEffect(() => {
+    if (!viewEnded) return;
+    toast.show(t("You no longer have access to {name}. Back to your own mail.", { name: viewEnded }));
+    useSession.getState().clearViewEnded();
+  }, [viewEnded]);
+
+  // A shared mailbox in view is named in the tab
+  const viewingName = useSession((s) => (s.viewing ? s.session?.accounts[s.viewing]?.name : undefined));
+  useEffect(() => {
+    setBaseTitle(viewingName ? `${viewingName} · ${appName}` : appName);
     setUnreadBadge(inboxUnread);
-  }, [inboxUnread, appName]);
+  }, [inboxUnread, appName, viewingName]);
 
   /*
    * Leave the service worker its briefing.
@@ -277,8 +326,11 @@ function AuthedApp() {
   const archiveId = useMail((s) => s.roleId("archive"));
   const languageVersion = useLanguageVersion();
   useEffect(() => {
+    // The worker acts on the reader's own mail; while a shared mailbox is in
+    // view, the archive folder here is its
+    if (viewing) return;
     void publishWorkerFacts(accountId, archiveId);
-  }, [accountId, archiveId, languageVersion]);
+  }, [accountId, archiveId, languageVersion, viewing]);
 
   // Request notification permission lazily when enabled
   const notif = useSettings((s) => s.settings.desktopNotifications);

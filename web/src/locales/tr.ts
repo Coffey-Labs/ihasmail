@@ -1602,6 +1602,13 @@ export const catalog: Catalog = {
 		"“{name}” will be deactivated (not deleted) and a new “ihasmail” script will take over.": "“{name}” devre dışı bırakılacak (silinmeyecek) ve yeni bir “ihasmail” betiği görevi devralacaktır.",
 		"•••": "•••",
 		"＋ New folder…": "＋ Yeni klasör…",
+		// ── Shared and group mailboxes ──
+		"Mail to show": "Gösterilecek posta",
+		"My mail": "Postam",
+		"Shared mailbox:": "Paylaşılan posta kutusu:",
+		"Back to my mail": "Postama dön",
+		"Send or close the message you're writing first.": "Önce yazdığınız iletiyi gönderin veya kapatın.",
+		"You no longer have access to {name}. Back to your own mail.": "{name} hesabına artık erişiminiz yok. Kendi postanıza dönün.",
 	},
 	plurals: {
 		"({n} deleted first)": {

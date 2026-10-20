@@ -1243,6 +1243,12 @@ a.menu-item:hover { color: var(--fg); }
  * bar shrink instead of setting the width for everything below it.
  */
 .app { height: 100%; display: grid; grid-template-rows: var(--topbar-h) 1fr; grid-template-columns: minmax(0, 1fr); overflow: hidden; }
+/* A shared or group mailbox in view: its bar is a grid row of its own above the top bar, in the palette's accent. */
+.app.viewing-shared { grid-template-rows: auto var(--topbar-h) 1fr; }
+.shared-bar { display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: var(--accent); color: var(--accent-fg); font-size: .9em; min-width: 0; }
+.shared-bar strong { font-weight: 700; }
+.shared-bar button { flex: none; border: 1px solid currentColor; background: transparent; color: inherit; border-radius: 999px; padding: 3px 12px; font: inherit; font-weight: 600; cursor: pointer; }
+.shared-bar button:hover, .shared-bar button:focus-visible { background: color-mix(in srgb, currentColor 15%, transparent); }
 .topbar { display: flex; align-items: center; gap: 8px; padding: 0 12px; background: var(--bg); position: relative; z-index: 50; }
 .topbar .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 1.2em; letter-spacing: -.01em; color: var(--fg); text-decoration: none; padding-right: 8px; min-width: 0; }
 .topbar .brand img { width: 34px; height: 34px; object-fit: contain; }

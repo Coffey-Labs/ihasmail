@@ -1710,6 +1710,13 @@ export const catalog: Catalog = {
     // ── Spam filter: the language model's opinion ──────────────────
     "Language model's opinion": "语言模型的判断",
     "One of several signals the spam filter weighed": "垃圾邮件过滤考虑的多个信号之一",
+    // ── Shared and group mailboxes ──
+    "Mail to show": "要显示的邮件",
+    "My mail": "我的邮件",
+    "Shared mailbox:": "共享邮箱：",
+    "Back to my mail": "返回我的邮件",
+    "Send or close the message you're writing first.": "请先发送或关闭您正在撰写的邮件。",
+    "You no longer have access to {name}. Back to your own mail.": "您已无法访问 {name}。已返回您自己的邮件。",
   },
   plurals: {
     // ── Administration: domains ────────────────────────────────────

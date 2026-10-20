@@ -10,7 +10,7 @@ import { withBase } from "../basePath";
 import { SW_CACHE_NAME } from "../sw/swCache";
 import { isDeviceTrusted } from "@/lib/storage";
 import { useSession } from "@/store/session";
-import { useMail } from "@/store/mail";
+import { ownInboxId } from "@/store/mail";
 import {
   applicationServerKey,
   createSubscription,
@@ -153,7 +153,8 @@ async function registerThisBrowser(key: string): Promise<void> {
   }
 
   if (mine.length) await destroySubscriptions(mine.map((s) => s.id));
-  const payload = subscriptionPayload(sub, useSession.getState().ownAccountFor(CAP.mail), useMail.getState().roleId("inbox"));
+  // The reader's own inbox, never a shared mailbox's in view
+  const payload = subscriptionPayload(sub, useSession.getState().ownAccountFor(CAP.mail), ownInboxId());
   try {
     await createSubscription(payload);
   } catch (err) {
