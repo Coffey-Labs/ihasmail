@@ -44,6 +44,14 @@ describe("the worker's briefing", () => {
     expect(facts.archiveId).toBe("mb-archive");
   });
 
+  it("names the inbox a notification opens in", async () => {
+    // The route takes a mailbox id. The worker used to put the word `inbox`
+    // there, and every click landed on "That folder no longer exists".
+    const { store } = fakeCaches();
+    await publishWorkerFacts("a1", "mb-archive", "mb-inbox");
+    expect(written(store).inboxId).toBe("mb-inbox");
+  });
+
   it("carries the worker's text in the language the tab is in", async () => {
     // The worker has no catalog. Everything it will say has to be said here
     // first, or a German reader gets English buttons on their lock screen.

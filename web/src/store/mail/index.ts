@@ -105,6 +105,15 @@ export const useMail = create<MailState>((set, get) => ({
 
   setAccount(accountId) {
     if (accountId === get().accountId) return;
+    // Leaving the reader's own mail for a shared mailbox, remember where theirs
+    // was, so new mail there is still announced
+    const own = useSession.getState().accountId;
+    const leaving = get().accountId;
+    if (leaving && leaving === own && accountId && accountId !== own) {
+      ownWhileAway = { accountId: own, inbox: get().roleId("inbox"), state: get().emailState };
+    } else if (accountId === own) {
+      ownWhileAway = null;
+    }
     resetBodyOrder();
     snapshots.clear();
     set({
@@ -1490,10 +1499,56 @@ function removeFromList(ids: Id[], set: (fn: (s: MailState) => Partial<MailState
 }
 
 async function notifyNewMail(created: Id[], get: () => MailState) {
-  const s = settings();
   const inbox = get().roleId("inbox");
   if (!inbox) return;
   const emails = await get().getEmails(created);
+  announceNewMail(emails, inbox);
+}
+
+/**
+ * The reader's own account while a shared mailbox is in view: its inbox and
+ * how far its mail was seen, so what arrives there meanwhile is still
+ * announced.
+ */
+let ownWhileAway: { accountId: Id; inbox: Id | null; state: string | null } | null = null;
+
+/** New mail in the reader's own account, while a shared mailbox is in view. */
+export async function notifyOwnWhileAway(): Promise<void> {
+  const away = ownWhileAway;
+  if (!away?.inbox || !away.state) return;
+  try {
+    const changes = await client.call<ChangesResponse>("Email/changes", {
+      accountId: away.accountId,
+      sinceState: away.state,
+      maxChanges: 50,
+    });
+    if (ownWhileAway !== away) return;
+    away.state = changes.newState;
+    if (!changes.created.length) return;
+    const got = await client.call<GetResponse<Email>>("Email/get", {
+      accountId: away.accountId,
+      ids: changes.created,
+      properties: LIST_PROPS,
+    });
+    announceNewMail(got.list, away.inbox);
+  } catch {
+    /* the next change tries again */
+  }
+}
+
+export function ownAccountAway(): Id | null {
+  return ownWhileAway?.accountId ?? null;
+}
+
+/** The reader's own inbox, whatever account is in view. */
+export function ownInboxId(): Id | null {
+  const mail = useMail.getState();
+  if (mail.accountId === useSession.getState().accountId) return mail.roleId("inbox");
+  return ownWhileAway?.inbox ?? null;
+}
+
+function announceNewMail(emails: Email[], inbox: Id) {
+  const s = settings();
   const fresh = emails.filter((e) => e.mailboxIds[inbox] && !e.keywords.$seen && !e.keywords.$draft);
   if (!fresh.length) return;
   if (s.notificationSound) playNewMailSound();
@@ -1519,9 +1574,9 @@ async function notifyNewMail(created: Id[], get: () => MailState) {
   }
 }
 
-/** Keep the store bound to the selected account. */
+/** Keep the store bound to the account in view: a shared mailbox while one is open, the reader's own otherwise. */
 useSession.subscribe((s) => {
-  useMail.getState().setAccount(s.status === "authenticated" ? s.accountId : null);
+  useMail.getState().setAccount(s.status === "authenticated" ? (s.viewing ?? s.accountId) : null);
 });
 
 

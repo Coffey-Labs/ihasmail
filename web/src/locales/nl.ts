@@ -1703,6 +1703,26 @@ export const catalog: Catalog = {
     // ── Spam filter: the language model's opinion ──────────────────
     "Language model's opinion": "Oordeel van het taalmodel",
     "One of several signals the spam filter weighed": "Een van meerdere signalen die het spamfilter heeft meegewogen",
+    // ── Shared and group mailboxes ──
+    "Mail to show": "Mail tonen van",
+    "My mail": "Mijn mail",
+    "Shared mailbox:": "Gedeeld postvak:",
+    "Back to my mail": "Terug naar mijn mail",
+    "Send or close the message you're writing first.": "Verzend of sluit eerst het bericht dat u schrijft.",
+    "You no longer have access to {name}. Back to your own mail.": "U hebt geen toegang meer tot {name}. Terug naar uw eigen mail.",
+    // ── Signed in to more than one account ──
+    "You can't add more accounts here.": "U kunt hier geen accounts meer toevoegen.",
+    "That account is on another mail server. Only accounts on this server can be added.": "Dat account staat op een andere mailserver. Alleen accounts op deze server kunnen worden toegevoegd.",
+    "That account couldn't be added.": "Dat account kon niet worden toegevoegd.",
+    "Add an account": "Een account toevoegen",
+    "Working…": "Bezig…",
+    "Add account": "Account toevoegen",
+    "Both accounts stay signed in here; switch between them from this menu.": "Beide accounts blijven hier ingelogd; wissel ertussen via dit menu.",
+    "Sign out of all accounts": "Uitloggen bij alle accounts",
+    // ── New mail in other accounts ──
+    "New mail for {name}": "Nieuwe mail voor {name}",
+    "Unread in the Inbox: {count}": "Ongelezen in Postvak IN: {count}",
+    "Account: new mail in another account": "Account: nieuwe mail in een ander account",
   },
   plurals: {
     // ── Administration: domains ────────────────────────────────────

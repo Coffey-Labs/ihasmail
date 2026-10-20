@@ -384,8 +384,11 @@ async function readFacts() {
  * rather than swallowed. A tap that silently does nothing is the failure worth
  * avoiding here: the reader has already put the phone down.
  */
-async function jmap(methodCalls) {
-  const res = await fetch(`${BASE}/api/jmap`, {
+async function jmap(methodCalls, sessionId) {
+  // An account not in front is reached through its own session,
+  // on the webmail server's narrow route for it
+  const path = sessionId ? `${BASE}/api/auth/accounts/${encodeURIComponent(sessionId)}/jmap` : `${BASE}/api/jmap`;
+  const res = await fetch(path, {
     method: "POST",
     credentials: "same-origin",
     headers: { "content-type": "application/json", accept: "application/json", "x-requested-with": "ihasmail" },
@@ -454,6 +457,15 @@ self.addEventListener("push", (event) => {
 
   const emails = (data && data["@type"] === "EmailPush" && Array.isArray(data.emails)) ? data.emails : [];
   event.waitUntil((async () => {
+    const facts = await readFacts();
+    /*
+     * Whose mail this is. The payload names its account; one that
+     * isn't the account in front is one of the others signed in here, or one
+     * that has been signed out since (said plainly, with nothing to act on).
+     */
+    const forAccount = data && data.accountId && facts && data.accountId !== facts.accountId ? data.accountId : null;
+    const other = forAccount ? (facts.others || []).find((o) => o.accountId === forAccount) || null : null;
+    if (forAccount) return showOtherAccount(emails, facts, other);
     /*
      * Someone reading the app already knows. A focused, visible window of this
      * app gets its new mail from its own event stream, so a notification on
@@ -462,7 +474,6 @@ self.addEventListener("push", (event) => {
      */
     const windows = await self.clients.matchAll({ type: "window" });
     if (windows.some((w) => w.focused && w.visibilityState === "visible")) return;
-    const facts = await readFacts();
     const strings = facts?.strings ?? { newMail: "New mail", newMessage: "New message", noSubject: "(no subject)" };
     /*
      * Mark the app icon, without claiming a number.
@@ -500,8 +511,7 @@ self.addEventListener("push", (event) => {
         // be drawn.
         actions: email.id ? actionsFor(facts) : [],
         data: {
-          // The route names a conversation, and `m` the message in it.
-          url: email.id && email.threadId ? `${BASE}/mail/inbox/${email.threadId}?m=${encodeURIComponent(email.id)}` : `${BASE}/mail`,
+          url: messageUrl(facts && facts.inboxId, email),
           id: email.id || null,
           title,
           accountId: facts?.accountId ?? null,
@@ -512,6 +522,70 @@ self.addEventListener("push", (event) => {
     }
   })());
 });
+
+/*
+ * New mail for a signed-in account that isn't in front.
+ *
+ * Shown even while a tab is focused: that tab's own stream only carries the
+ * account in front, so nothing else would tell. The account's address is the
+ * title, so it can't be taken for the front account's mail; the tag carries
+ * the account, so two accounts' notifications don't replace each other; the
+ * buttons act through that account's session; and opening it brings that
+ * account forward before showing the message.
+ */
+async function showOtherAccount(emails, facts, other) {
+  const strings = facts.strings;
+  const icon = `${BASE}/img/icon-192.png?v=${BRAND_V}`;
+  const badge = `${BASE}/img/favicon-64.png?v=${BRAND_V}`;
+  if ("setAppBadge" in self.navigator) await self.navigator.setAppBadge().catch(() => {});
+  if (!other || !emails.length) {
+    // Signed out since, or nothing to show: say only what is true
+    await self.registration.showNotification(other ? other.username : strings.newMail, {
+      body: other ? strings.newMail : undefined,
+      icon, badge,
+      tag: `ihasmail-other-${other ? other.accountId : "unknown"}`,
+      data: { url: other ? openUrl(other, `${BASE}/mail`) : `${BASE}/mail` },
+    });
+    return;
+  }
+  for (const email of emails.slice(0, 5)) {
+    const { title, body, preview } = textOf(email, strings);
+    const at = messageUrl(other.inboxId, email);
+    await self.registration.showNotification(other.username, {
+      body: `${title}: ${body}${preview ? `\n${preview}` : ""}`,
+      icon, badge,
+      tag: `ihasmail-${other.accountId}-${email.id || body}`,
+      actions: email.id ? actionsFor({ ...facts, archiveId: other.archiveId }) : [],
+      data: {
+        url: openUrl(other, at),
+        id: email.id || null,
+        title: other.username,
+        accountId: other.accountId,
+        archiveId: other.archiveId,
+        sessionId: other.sessionId,
+        failed: strings.failed ?? null,
+      },
+    });
+  }
+}
+
+/** Where opening a notification for an account not in front goes: it comes forward first. */
+/**
+ * Where a notification opens. The route names a mailbox by id and then a
+ * conversation, and `m` the message in it. It used to say `inbox` where the id
+ * goes, which the app reads as a folder that no longer exists, so every click
+ * landed on the inbox list with "That folder no longer exists" instead of the
+ * message. Without an inbox id from the briefing, the inbox is the honest
+ * landing.
+ */
+function messageUrl(inboxId, email) {
+  if (!inboxId || !email.id || !email.threadId) return `${BASE}/mail`;
+  return `${BASE}/mail/${encodeURIComponent(inboxId)}/${encodeURIComponent(email.threadId)}?m=${encodeURIComponent(email.id)}`;
+}
+
+function openUrl(other, next) {
+  return `${BASE}/?account=${encodeURIComponent(other.sessionId)}&next=${encodeURIComponent(next)}`;
+}
 
 /*
  * Do what the button said, without opening anything.
@@ -533,7 +607,7 @@ async function runAction(action, data) {
     : { "keywords/$seen": true };
   try {
     if (action === "archive" && !archiveId) throw new Error("no archive mailbox");
-    await jmap([["Email/set", { accountId, update: { [id]: patch } }, "0"]]);
+    await jmap([["Email/set", { accountId, update: { [id]: patch } }, "0"]], data.sessionId || null);
   } catch {
     await self.registration.showNotification(data.title || "ihasmail", {
       body: data.failed || "Could not do that — open ihasmail and try again",

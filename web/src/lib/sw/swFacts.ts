@@ -28,6 +28,13 @@ export interface WorkerFacts {
   accountId: string;
   /** Where Archive files to; null where the account has no archive folder. */
   archiveId: string | null;
+  /** The inbox a notification opens in; the route names a mailbox by id. */
+  inboxId?: string | null;
+  /**
+   * The other accounts signed in here, so a push for one of them
+   * says whose it is and its buttons act through that account's session.
+   */
+  others?: OtherAccountFacts[];
   /** The worker's own user-visible text, in the language this tab is in. */
   strings: {
     newMail: string;
@@ -47,11 +54,31 @@ export interface WorkerFacts {
  * reading in a week's time. Rewriting it is one cache put; there is nothing to
  * gain by working out whether it differs.
  */
-export async function publishWorkerFacts(accountId: string | null, archiveId: string | null): Promise<void> {
+export interface OtherAccountFacts {
+  accountId: string;
+  sessionId: string;
+  username: string;
+  archiveId: string | null;
+  inboxId?: string | null;
+}
+
+let lastFront: { accountId: string | null; archiveId: string | null; inboxId: string | null } = { accountId: null, archiveId: null, inboxId: null };
+let others: OtherAccountFacts[] = [];
+
+/** Record the other accounts and write the briefing again with them. */
+export async function setOtherAccountFacts(list: OtherAccountFacts[]): Promise<void> {
+  others = list;
+  await publishWorkerFacts(lastFront.accountId, lastFront.archiveId, lastFront.inboxId);
+}
+
+export async function publishWorkerFacts(accountId: string | null, archiveId: string | null, inboxId: string | null = null): Promise<void> {
+  lastFront = { accountId, archiveId, inboxId };
   if (typeof caches === "undefined" || !accountId) return;
   const facts: WorkerFacts = {
     accountId,
     archiveId,
+    inboxId,
+    others,
     strings: {
       newMail: t("New mail"),
       newMessage: t("New message"),

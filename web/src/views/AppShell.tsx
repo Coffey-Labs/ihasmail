@@ -1,13 +1,17 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { BookOpen, Calendar, ChevronsUpDown, FolderOpen, Globe, HelpCircle, LogOut, Mail, Menu as MenuIcon, Moon, PanelLeftClose, PanelLeftOpen, PenSquare, Plus, RefreshCw, Settings, ShieldCheck, Sun, Upload, Users, X } from "lucide-react";
+import { BookOpen, Calendar, Check, ChevronsUpDown, FolderOpen, Globe, HelpCircle, LogOut, Mail, Menu as MenuIcon, Moon, PanelLeftClose, PanelLeftOpen, PenSquare, Plus, RefreshCw, Settings, ShieldCheck, Sun, Upload, Users, X } from "lucide-react";
 import { useSession } from "@/store/session";
+import { toast } from "@/ui/toast";
+import { SharedBar } from "./SharedBar";
 import { withBase } from "@/lib/basePath";
 import { DEFAULT_APP_NAME } from "@/lib/brand";
 import { useEffectiveTheme, useSettings } from "@/store/settings";
 import { toggleTarget } from "@/lib/palette";
 import { useMail } from "@/store/mail";
 import { draftFromMailto, useCompose } from "@/store/compose";
+import { AddAccountDialog } from "./AddAccountDialog";
+import { useOtherAccountsUnread, useOtherUnread } from "@/lib/otherAccounts";
 import { Avatar, useIsMobile } from "@/ui/misc";
 import { MenuItem, MenuSep, Popover, useMenu } from "@/ui/popover";
 import { Splitter } from "@/ui/Splitter";
@@ -70,6 +74,23 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pushState = useSession((s) => s.pushState);
   const session = useSession((s) => s.session);
   const logout = useSession((s) => s.logout);
+  // The other accounts signed in here, and adding one
+  const signedIn = useSession((s) => s.signedIn);
+  const canAddAccount = useSession((s) => s.canAddAccount);
+  const [addingAccount, setAddingAccount] = useState(false);
+  // New mail in the accounts not in front
+  useOtherAccountsUnread();
+  const otherUnread = useOtherUnread((s) => s.unread);
+  const anyOtherUnread = Object.values(otherUnread).some((n) => n > 0);
+  const bringForward = (sessionId: string) => {
+    acctMenu.close();
+    // A message being written belongs to the account it was started in
+    if (useCompose.getState().drafts.length) {
+      toast.show(t("Send or close the message you're writing first."));
+      return;
+    }
+    void useSession.getState().switchTo(sessionId);
+  };
   const appName = useSession((s) => s.session?.ihasmail?.appName) || DEFAULT_APP_NAME;
   const acctMenu = useMenu();
   const administers = hasAdministration(usePermissions());
@@ -131,18 +152,34 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [openShare, navigate]);
 
   /*
-   * There is no account switcher any more.
+   * Mail other people let the reader into: a group's mailbox, or folders
+   * someone shared.
    *
-   * It existed to reach what other people shared, and was the wrong door: it
-   * moved the whole app to somebody else's account, and Stalwart advertises
-   * every capability on a shared account, so mail, calendar and contacts went
-   * with it and were refused. Shares are listed where they belong now -- in
-   * Files and in Contacts, beside the reader's own -- and found without anyone
-   * having to know an account switch was involved.
+   * There used to be an account switcher, and it was the wrong door: it moved
+   * the whole app to somebody else's account, and Stalwart advertises every
+   * capability on a shared account, so mail, calendar and contacts went with
+   * it and were refused. Calendars, contacts and files shares are listed where
+   * they belong, beside the reader's own. Mail is the one thing shown in place
+   * of the reader's, so this switches Mail alone, and offers only accounts
+   * that answered with mailboxes (lib/sharedMail).
    */
+  const viewing = useSession((s) => s.viewing);
+  const sharedMail = useSession((s) => s.sharedMail);
+  const switchTo = (id: string | null) => {
+    acctMenu.close();
+    if (id === viewing) return;
+    // A message being written belongs to the account it was started in
+    if (useCompose.getState().drafts.length) {
+      toast.show(t("Send or close the message you're writing first."));
+      return;
+    }
+    useSession.getState().view(id);
+    navigate("/mail");
+  };
 
   return (
-    <div className="app">
+    <div className={`app ${viewing ? "viewing-shared" : ""}`}>
+      <SharedBar />
       <header className="topbar">
         {/* On a wide screen the folder list is toggled from the bottom of the rail; phones keep the menu button for the drawer. */}
         {isMobile && (
@@ -175,8 +212,15 @@ export function AppShell({ children }: { children: ReactNode }) {
               <Settings size={21} />
             </Link>
           )}
-          <button className="icon-btn" style={{ width: "auto", padding: "0 2px", borderRadius: 999 }} onClick={acctMenu.open} aria-label={t("Account")}>
+          <button
+            className="icon-btn"
+            style={{ width: "auto", padding: "0 2px", borderRadius: 999, position: "relative" }}
+            onClick={acctMenu.open}
+            aria-label={anyOtherUnread ? t("Account: new mail in another account") : t("Account")}
+          >
             <Avatar who={{ name: session?.username, email: session?.username }} size="sm" />
+            {/* Another signed-in account has unread mail */}
+            {anyOtherUnread && <span className="acct-dot" aria-hidden />}
           </button>
           <Popover anchor={acctMenu.anchor} onClose={acctMenu.close} align="end" width={280}>
             <div style={{ padding: "10px 10px 6px", display: "flex", gap: 10, alignItems: "center" }}>
@@ -189,6 +233,58 @@ export function AppShell({ children }: { children: ReactNode }) {
               </div>
             </div>
             <MenuSep />
+            {/* Each account signed in here, the one in front ticked */}
+            {(signedIn.length > 1 || canAddAccount) && (
+              <>
+                {signedIn.length > 1 && <div className="hint" style={{ padding: "4px 10px" }}>{t("Accounts")}</div>}
+                {signedIn.length > 1 &&
+                  signedIn.map((account) => (
+                    <MenuItem
+                      key={account.id}
+                      icon={account.front ? <Check size={16} /> : <Mail size={16} />}
+                      label={
+                        <span className="row" style={{ gap: 8, alignItems: "center" }}>
+                          <span className="notranslate grow truncate" translate="no">{account.username}</span>
+                          {!account.front && (otherUnread[account.id] ?? 0) > 0 && (
+                            <span className="nav-count" aria-label={t("Unread in the Inbox: {count}", { count: otherUnread[account.id]! })}>
+                              {otherUnread[account.id]! > 9999 ? "9999+" : otherUnread[account.id]}
+                            </span>
+                          )}
+                        </span>
+                      }
+                      active={account.front}
+                      onClick={() => (account.front ? acctMenu.close() : bringForward(account.id))}
+                    />
+                  ))}
+                {canAddAccount && (
+                  <MenuItem
+                    icon={<Plus size={16} />}
+                    label={t("Add account")}
+                    onClick={() => {
+                      acctMenu.close();
+                      setAddingAccount(true);
+                    }}
+                  />
+                )}
+                <MenuSep />
+              </>
+            )}
+            {sharedMail.length > 0 && (
+              <>
+                <div className="hint" style={{ padding: "4px 10px" }}>{t("Mail to show")}</div>
+                <MenuItem icon={viewing ? <Mail size={16} /> : <Check size={16} />} label={t("My mail")} active={!viewing} onClick={() => switchTo(null)} />
+                {sharedMail.map((account) => (
+                  <MenuItem
+                    key={account.id}
+                    icon={viewing === account.id ? <Check size={16} /> : <Users size={16} />}
+                    label={<span className="notranslate" translate="no">{account.name}</span>}
+                    active={viewing === account.id}
+                    onClick={() => switchTo(account.id)}
+                  />
+                ))}
+                <MenuSep />
+              </>
+            )}
             <MenuItem icon={<BookOpen size={16} />} label={t("Documentation")} href="https://docs.ihasmail.org" external />
             {/* The project site. It is linked from the login screen footer, which
                 is a page a signed-in user never sees again -- so from inside the
@@ -215,7 +311,11 @@ export function AppShell({ children }: { children: ReactNode }) {
             )}
             <MenuItem icon={<RefreshCw size={16} />} label={t("Refresh")} onClick={() => window.location.reload()} />
             <MenuItem icon={<LogOut size={16} />} label={t("Sign out")} onClick={() => void logout()} />
+            {signedIn.length > 1 && (
+              <MenuItem icon={<LogOut size={16} />} label={t("Sign out of all accounts")} onClick={() => void useSession.getState().logoutAll()} />
+            )}
           </Popover>
+          <AddAccountDialog open={addingAccount} onClose={() => setAddingAccount(false)} />
         </div>
       </header>
 

@@ -87,6 +87,9 @@ function ownKeys(): string[] {
 export function clearSignedInData(): void {
   for (const key of ownKeys()) {
     if (KEEP_ON_SIGN_OUT.includes(key)) continue;
+    // Each account's registered push endpoint, which is not mail
+    // and is cleared with its subscription (webpush.ts)
+    if (key.startsWith("pushEndpoint:")) continue;
     removeKey(key);
   }
 }

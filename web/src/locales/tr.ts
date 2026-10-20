@@ -1602,6 +1602,26 @@ export const catalog: Catalog = {
 		"“{name}” will be deactivated (not deleted) and a new “ihasmail” script will take over.": "“{name}” devre dışı bırakılacak (silinmeyecek) ve yeni bir “ihasmail” betiği görevi devralacaktır.",
 		"•••": "•••",
 		"＋ New folder…": "＋ Yeni klasör…",
+		// ── Shared and group mailboxes ──
+		"Mail to show": "Gösterilecek posta",
+		"My mail": "Postam",
+		"Shared mailbox:": "Paylaşılan posta kutusu:",
+		"Back to my mail": "Postama dön",
+		"Send or close the message you're writing first.": "Önce yazdığınız iletiyi gönderin veya kapatın.",
+		"You no longer have access to {name}. Back to your own mail.": "{name} hesabına artık erişiminiz yok. Kendi postanıza dönün.",
+		// ── Signed in to more than one account ──
+		"You can't add more accounts here.": "Buraya daha fazla hesap ekleyemezsiniz.",
+		"That account is on another mail server. Only accounts on this server can be added.": "Bu hesap başka bir posta sunucusunda. Yalnızca bu sunucudaki hesaplar eklenebilir.",
+		"That account couldn't be added.": "Bu hesap eklenemedi.",
+		"Add an account": "Hesap ekle",
+		"Working…": "İşleniyor…",
+		"Add account": "Hesap ekle",
+		"Both accounts stay signed in here; switch between them from this menu.": "Her iki hesap da burada oturum açık kalır; bu menüden aralarında geçiş yapın.",
+		"Sign out of all accounts": "Tüm hesaplardan çıkış yap",
+		// ── New mail in other accounts ──
+		"New mail for {name}": "{name} için yeni posta",
+		"Unread in the Inbox: {count}": "Gelen Kutusu'nda okunmamış: {count}",
+		"Account: new mail in another account": "Hesap: başka bir hesapta yeni posta",
 	},
 	plurals: {
 		"({n} deleted first)": {

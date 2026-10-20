@@ -5,12 +5,16 @@
  * testable: everything here touches the browser's service worker and
  * permission prompt, none of which exists under a test runner.
  */
-import { CAP } from "@/jmap/client";
+import { apiFetch, CAP } from "@/jmap/client";
+import type { GetResponse, Id, Mailbox } from "@/jmap/types";
+import { otherAccountCall } from "@/lib/notify/otherAccount";
+import { setOtherAccountFacts, type OtherAccountFacts } from "@/lib/sw/swFacts";
+import type { SignedInAccount } from "@/store/session";
 import { withBase } from "../basePath";
 import { SW_CACHE_NAME } from "../sw/swCache";
 import { isDeviceTrusted } from "@/lib/storage";
 import { useSession } from "@/store/session";
-import { useMail } from "@/store/mail";
+import { ownInboxId } from "@/store/mail";
 import {
   applicationServerKey,
   createSubscription,
@@ -18,6 +22,8 @@ import {
   destroySubscriptions,
   deviceClientId,
   extendSubscription,
+  frontCall,
+  type JmapCall,
   findSubscription,
   listSubscriptions,
   mySubscriptions,
@@ -29,6 +35,7 @@ import {
   roomToMake,
   setPushEnabledHere,
   subscriptionPayload,
+  unsubscribeAccount,
   unsubscribeThisDevice,
   verifySubscription,
   webPushAvailable,
@@ -48,7 +55,7 @@ export function listenForVerification(): void {
   listening = true;
   navigator.serviceWorker.addEventListener("message", (e: MessageEvent) => {
     const d = e.data as { type?: string; id?: string; code?: string } | undefined;
-    if (d?.type === "push-verification" && d.id && d.code) void verifySubscription(d.id, d.code).catch(() => {});
+    if (d?.type === "push-verification" && d.id && d.code) void verifyAnywhere(d.id, d.code);
   });
   void collectStoredVerification();
 }
@@ -64,9 +71,41 @@ async function collectStoredVerification(): Promise<void> {
     if (!hit) return;
     const { id, code } = (await hit.json()) as { id?: string; code?: string };
     await cache.delete(key);
-    if (id && code) await verifySubscription(id, code);
+    if (id && code) await verifyAnywhere(id, code);
   } catch {
     /* nothing waiting, or no cache: not a failure */
+  }
+}
+
+/**
+ * A verification code belongs to one account's subscription, and
+ * the worker doesn't say which: the account in front first, then each other
+ * signed-in account until one takes it.
+ */
+async function verifyAnywhere(id: Id, code: string): Promise<void> {
+  try {
+    await verifySubscription(id, code);
+    return;
+  } catch {
+    /* not the front account's */
+  }
+  for (const account of await otherAccounts()) {
+    try {
+      await verifySubscription(id, code, otherAccountCall(account.id));
+      return;
+    } catch {
+      /* not this one's either */
+    }
+  }
+}
+
+/** The signed-in accounts not in front, as the server lists them now. */
+async function otherAccounts(): Promise<SignedInAccount[]> {
+  try {
+    const answer = await apiFetch<{ accounts: SignedInAccount[] }>("/api/auth/accounts");
+    return answer.accounts.filter((a) => !a.front);
+  } catch {
+    return [];
   }
 }
 
@@ -97,6 +136,8 @@ export async function enableWebPush(): Promise<{ ok: true } | { ok: false; reaso
     await registerThisBrowser(key);
     setPushEnabledHere(true);
     listenForVerification();
+    // And every other account signed in here
+    await registerOtherAccounts(key);
     return { ok: true };
   } catch (err) {
     return { ok: false, reason: (err as Error).message || "Could not subscribe to notifications." };
@@ -128,7 +169,23 @@ export async function enableWebPush(): Promise<{ ok: true } | { ok: false; reaso
  * gave up there, leaving push off for good with the switch still saying it was
  * on.
  */
-async function registerThisBrowser(key: string): Promise<void> {
+interface PushTarget {
+  call: JmapCall;
+  /** The account's mail account, which the subscription names. */
+  accountId: Id | null;
+  inboxId: Id | null;
+  /** Whose remembered endpoint to compare with: the account's own. */
+  endpointOf: Id | null;
+}
+
+function frontTarget(): PushTarget {
+  // The reader's own inbox, never a shared mailbox's in view
+  const accountId = useSession.getState().ownAccountFor(CAP.mail);
+  return { call: frontCall, accountId, inboxId: ownInboxId(), endpointOf: accountId };
+}
+
+async function registerThisBrowser(key: string, target: PushTarget = frontTarget()): Promise<void> {
+  const { call } = target;
   const reg = await navigator.serviceWorker.ready;
   const sub = (await reg.pushManager.getSubscription()) ?? (await reg.pushManager.subscribe({
     // Web Push requires it, and Chrome refuses a subscription without it.
@@ -136,34 +193,61 @@ async function registerThisBrowser(key: string): Promise<void> {
     applicationServerKey: decodeApplicationServerKey(key),
   }));
   const deviceId = deviceClientId();
-  const subs = await listSubscriptions();
+  const subs = await listSubscriptions(call);
   const mine = mySubscriptions(subs, deviceId);
   const [newest, ...extra] = mine;
 
-  if (newest && registeredEndpoint() === sub.endpoint) {
-    if (extra.length) await destroySubscriptions(extra.map((s) => s.id));
+  if (newest && registeredEndpoint(target.endpointOf) === sub.endpoint) {
+    if (extra.length) await destroySubscriptions(extra.map((s) => s.id), call);
     const at = newest.expires ? Date.parse(newest.expires) : Number.NaN;
     if (!newest.expires || (!Number.isNaN(at) && at - Date.now() > RENEW_WITHIN_MS)) return;
     try {
-      await extendSubscription(newest.id);
+      await extendSubscription(newest.id, Date.now(), call);
       return;
     } catch {
       /* not extendable: replaced below */
     }
   }
 
-  if (mine.length) await destroySubscriptions(mine.map((s) => s.id));
-  const payload = subscriptionPayload(sub, useSession.getState().ownAccountFor(CAP.mail), useMail.getState().roleId("inbox"));
+  if (mine.length) await destroySubscriptions(mine.map((s) => s.id), call);
+  const payload = subscriptionPayload(sub, target.accountId, target.inboxId);
   try {
-    await createSubscription(payload);
+    await createSubscription(payload, call);
   } catch (err) {
     if (!(err instanceof PushSetError) || err.type !== "overQuota") throw err;
     const room = roomToMake(subs.filter((s) => !mine.includes(s)), deviceId);
     if (!room.length) throw err;
-    await destroySubscriptions(room);
-    await createSubscription(payload);
+    await destroySubscriptions(room, call);
+    await createSubscription(payload, call);
   }
-  rememberEndpoint(sub.endpoint);
+  rememberEndpoint(sub.endpoint, target.endpointOf);
+}
+
+/**
+ * Register this browser in every other account signed in here,
+ * each through its own session, and tell the worker who they are so their
+ * notifications say whose they are and their buttons act on the right mail.
+ * One account failing doesn't stop the rest; the next start tries it again.
+ */
+async function registerOtherAccounts(key: string): Promise<void> {
+  const facts: OtherAccountFacts[] = [];
+  for (const account of await otherAccounts()) {
+    if (!account.mailAccountId) continue;
+    const call = otherAccountCall(account.id);
+    try {
+      const boxes = await call<GetResponse<Mailbox>>(
+        "Mailbox/get",
+        { accountId: account.mailAccountId, ids: null, properties: ["role"] },
+        [CAP.mail],
+      );
+      const roleId = (role: string) => boxes.list.find((m) => m.role === role)?.id ?? null;
+      await registerThisBrowser(key, { call, accountId: account.mailAccountId, inboxId: roleId("inbox"), endpointOf: account.mailAccountId });
+      facts.push({ accountId: account.mailAccountId, sessionId: account.id, username: account.username, archiveId: roleId("archive"), inboxId: roleId("inbox") });
+    } catch {
+      /* this one waits for the next start */
+    }
+  }
+  await setOtherAccountFacts(facts);
 }
 
 /**
@@ -189,14 +273,24 @@ export async function renewWebPush(): Promise<void> {
     // subscription is close to expiring, missing, or duplicated.
     await registerThisBrowser(key);
     listenForVerification();
+    await registerOtherAccounts(key);
   } catch {
     /* offline, or the server said no: the next start tries again */
   }
 }
 
-/** Remove this browser's subscription, at the browser and at the server. */
+/** Remove this browser's subscription, at the browser and at the server, in every signed-in account. */
 export async function disableWebPush(): Promise<void> {
+  await unsubscribeOtherAccounts();
   await unsubscribeThisDevice();
+}
+
+/** Remove this device's subscription from every account not in front. */
+export async function unsubscribeOtherAccounts(): Promise<void> {
+  for (const account of await otherAccounts()) {
+    await unsubscribeAccount(otherAccountCall(account.id), account.mailAccountId);
+  }
+  await setOtherAccountFacts([]);
 }
 
 /**

@@ -43,6 +43,7 @@ import {
 import { imageProxyHandler } from "./imageproxy.js";
 import { icsProxyHandler } from "./icsproxy.js";
 import { staticHandler } from "./static.js";
+import { ADD_REFUSED, MAX_ACCOUNTS, parseOthers, serializeOthers } from "./accounts.js";
 
 type Env = { Variables: { session: LiveSession } };
 
@@ -263,6 +264,132 @@ function setSessionCookie(c: Context, value: string, remember: boolean) {
   });
 }
 
+/*
+ * The other signed-in accounts, beside the one in front. See
+ * accounts.ts. Kept across a browser restart only when every account in it
+ * would be.
+ */
+const OTHERS_COOKIE = `${config.cookieName}_more`;
+
+function setOthersCookie(c: Context, cookies: string[]) {
+  if (!cookies.length) {
+    deleteCookie(c, OTHERS_COOKIE, { path: cookiePath });
+    return;
+  }
+  const remember = cookies.every((cookie) => sessions.resolve(cookie)?.remember === true);
+  setCookie(c, OTHERS_COOKIE, serializeOthers(cookies), {
+    httpOnly: true,
+    sameSite: "Lax",
+    secure: isSecureRequest(c),
+    path: cookiePath,
+    ...(remember ? { maxAge: config.sessionRememberTtl } : {}),
+  });
+}
+
+/** The other accounts still signed in, in their order; ended ones are left out. */
+function liveOthers(c: Context): { cookie: string; session: LiveSession }[] {
+  const out: { cookie: string; session: LiveSession }[] = [];
+  for (const cookie of parseOthers(getCookie(c, OTHERS_COOKIE))) {
+    const session = sessions.resolve(cookie);
+    if (session) out.push({ cookie, session });
+  }
+  return out;
+}
+
+/*
+ * What may be asked of a signed-in account that isn't in front.
+ *
+ * Its push subscription has to be registered, verified and renewed through
+ * its own session -- a JMAP push subscription belongs to whoever signs the
+ * request -- and a notification's Archive and Mark read act on its mail. Those
+ * four methods, and for Email/set only changes to keywords and mailboxes: the
+ * browser already holds the session, so this reaches nothing new, but it is
+ * kept to what the notifications need.
+ */
+const OTHER_ACCOUNT_METHODS = new Set(["PushSubscription/get", "PushSubscription/set", "Mailbox/get", "Email/set"]);
+
+export function otherAccountCallAllowed(call: unknown): boolean {
+  if (!Array.isArray(call) || call.length !== 3) return false;
+  const [method, args] = call as [unknown, unknown, unknown];
+  if (typeof method !== "string" || !OTHER_ACCOUNT_METHODS.has(method)) return false;
+  if (typeof args !== "object" || args === null) return false;
+  if (method !== "Email/set") return true;
+  const set = args as { create?: unknown; destroy?: unknown; update?: unknown };
+  if (set.create !== undefined || set.destroy !== undefined) return false;
+  if (typeof set.update !== "object" || set.update === null) return false;
+  return Object.values(set.update as Record<string, unknown>).every(
+    (patch) =>
+      typeof patch === "object" &&
+      patch !== null &&
+      Object.keys(patch).every((k) => k === "keywords" || k === "mailboxIds" || k.startsWith("keywords/") || k.startsWith("mailboxIds/")),
+  );
+}
+
+/** Inbox unread counts of accounts not in front, briefly kept. */
+const UNREAD_CACHE_MS = 60_000;
+const unreadCache = new Map<string, { unread: number | null; at: number }>();
+
+/** The Inbox's unread count for one session's account, or null when it has none. */
+async function inboxUnread(session: LiveSession): Promise<number | null> {
+  const upstream = await getUpstreamSession(session.id, session.authorization, upstreamFor(session.username));
+  const accountId = upstream.primaryAccounts?.["urn:ietf:params:jmap:mail"];
+  if (!accountId) return null;
+  const res = await fetch(absoluteUpstream(upstream.apiUrl, upstream.baseUrl), {
+    method: "POST",
+    headers: { authorization: session.authorization, "content-type": "application/json", accept: "application/json" },
+    body: JSON.stringify({
+      using: ["urn:ietf:params:jmap:core", "urn:ietf:params:jmap:mail"],
+      methodCalls: [["Mailbox/get", { accountId, ids: null, properties: ["role", "unreadEmails"] }, "0"]],
+    }),
+    signal: AbortSignal.timeout(config.upstreamTimeout),
+  });
+  if (!res.ok) return null;
+  const body = (await res.json()) as { methodResponses?: [string, { list?: { role?: string | null; unreadEmails?: number }[] }, string][] };
+  const inbox = body.methodResponses?.[0]?.[1]?.list?.find((m) => m.role === "inbox");
+  return typeof inbox?.unreadEmails === "number" ? inbox.unreadEmails : null;
+}
+
+/** Whether the account in front may have more beside it, or why not. */
+function addRefusal(c: Context): string | null {
+  if (1 + liveOthers(c).length >= MAX_ACCOUNTS) return "add_full";
+  return null;
+}
+
+/**
+ * A session just signed in to be added beside the one in front. It
+ * comes to the front and the old front joins the others; or, refused, it is
+ * ended and the front stays. Returns the refusal, or null.
+ */
+function joinAccount(c: Context, created: { cookie: string; session: LiveSession }): string | null {
+  const frontCookie = getCookie(c, config.cookieName);
+  const front = sessions.resolve(frontCookie);
+  if (!front || !frontCookie) {
+    // Nobody in front any more: an ordinary sign-in
+    setSessionCookie(c, created.cookie, created.session.remember);
+    return null;
+  }
+  const others = liveOthers(c);
+  const end = (code: string | null) => {
+    sessions.destroy(created.session.id);
+    forgetUpstreamSession(created.session.id);
+    return code;
+  };
+  if (upstreamFor(created.session.username) !== upstreamFor(front.username)) return end("add_other_server");
+  // Already open: that one comes to the front instead of a second copy
+  if (created.session.account === front.account) return end(null);
+  const existing = others.find((o) => o.session.account === created.session.account);
+  if (existing) {
+    end(null);
+    setSessionCookie(c, existing.cookie, existing.session.remember);
+    setOthersCookie(c, [frontCookie, ...others.filter((o) => o !== existing).map((o) => o.cookie)]);
+    return null;
+  }
+  if (1 + others.length >= MAX_ACCOUNTS) return end("add_full");
+  setSessionCookie(c, created.cookie, created.session.remember);
+  setOthersCookie(c, [frontCookie, ...others.map((o) => o.cookie)]);
+  return null;
+}
+
 function upstreamFailure(c: Context, err: unknown) {
   if (err instanceof UpstreamError) {
     return c.json({ error: err.status === 401 ? "invalid_credentials" : "upstream_error", message: err.message }, err.status as 401 | 502);
@@ -329,7 +456,7 @@ export function createApp(basePath = config.basePath): Hono<Env> {
       c.header("Retry-After", String(loginFloodLimiter.retryAfterSeconds(rateIp)));
       return c.json({ error: "rate_limited", message: "Too many login attempts. Please wait and try again." }, 429);
     }
-    let body: { username?: string; password?: string; totp?: string; remember?: boolean };
+    let body: { username?: string; password?: string; totp?: string; remember?: boolean; add?: boolean };
     try {
       body = await c.req.json();
     } catch {
@@ -392,6 +519,12 @@ export function createApp(basePath = config.basePath): Hono<Env> {
         userAgent: c.req.header("user-agent") ?? "",
         ip,
       });
+      // Beside the account in front, when that's what was asked
+      if (body.add && sessions.resolve(getCookie(c, config.cookieName))) {
+        const refused = joinAccount(c, { cookie, session });
+        if (refused) return c.json({ error: refused, message: ADD_REFUSED[refused] }, 403);
+        return c.json({ ok: true, added: true });
+      }
       setSessionCookie(c, cookie, session.remember);
       // Start the account's push subscription now, so it is usually verified
       // by the time the browser opens its stream. See push.ts.
@@ -462,7 +595,118 @@ export function createApp(basePath = config.basePath): Hono<Env> {
       sessions.destroy(session.id);
       forgetUpstreamSession(session.id);
     }
+    // Only this account ends; the next one comes to the front
+    const [next, ...rest] = liveOthers(c);
+    if (next) {
+      setSessionCookie(c, next.cookie, next.session.remember);
+      setOthersCookie(c, rest.map((o) => o.cookie));
+      return c.json({ ok: true, next: true });
+    }
     deleteCookie(c, config.cookieName, { path: cookiePath });
+    deleteCookie(c, OTHERS_COOKIE, { path: cookiePath });
+    return c.json({ ok: true });
+  });
+
+  /* Every account signed in here ends. */
+  api.post("/auth/logout-all", async (c) => {
+    const front = sessions.resolve(getCookie(c, config.cookieName));
+    for (const session of [front, ...liveOthers(c).map((o) => o.session)]) {
+      if (!session) continue;
+      sessions.destroy(session.id);
+      forgetUpstreamSession(session.id);
+    }
+    deleteCookie(c, config.cookieName, { path: cookiePath });
+    deleteCookie(c, OTHERS_COOKIE, { path: cookiePath });
+    return c.json({ ok: true });
+  });
+
+  /* The accounts signed in here, the one in front first, and whether one more may be added. */
+  api.get("/auth/accounts", requireSession, async (c) => {
+    const front = c.get("session");
+    const others = liveOthers(c);
+    if (others.length !== parseOthers(getCookie(c, OTHERS_COOKIE)).length) {
+      setOthersCookie(c, others.map((o) => o.cookie));
+    }
+    const canAdd = addRefusal(c) === null;
+    // Each one's mail account, which its push subscription and
+    // a notification's buttons need
+    const accounts = await Promise.all(
+      [front, ...others.map((o) => o.session)].map(async (s, i) => {
+        let mailAccountId: string | null = null;
+        try {
+          const upstream = await getUpstreamSession(s.id, s.authorization, upstreamFor(s.username));
+          mailAccountId = upstream.primaryAccounts?.["urn:ietf:params:jmap:mail"] ?? null;
+        } catch {
+          /* unknown for now: push for it waits for the next start */
+        }
+        return { id: s.id, username: s.username, front: i === 0, mailAccountId };
+      }),
+    );
+    return c.json({ accounts, canAdd, max: MAX_ACCOUNTS });
+  });
+
+  /*
+   * The Inbox unread count of each account not in front, asked
+   * through that account's own session, so the menu can say where new mail
+   * is. A minute's cache per account: the web app asks every few minutes, and
+   * several tabs may ask at once.
+   */
+  api.get("/auth/accounts/unread", requireSession, async (c) => {
+    const answers = await Promise.all(
+      liveOthers(c).map(async ({ session }) => {
+        const cached = unreadCache.get(session.id);
+        if (cached && Date.now() - cached.at < UNREAD_CACHE_MS) return { id: session.id, unread: cached.unread };
+        try {
+          const unread = await inboxUnread(session);
+          unreadCache.set(session.id, { unread, at: Date.now() });
+          return { id: session.id, unread };
+        } catch {
+          return { id: session.id, unread: null };
+        }
+      }),
+    );
+    return c.json({ accounts: answers });
+  });
+
+  /* A narrow JMAP route to a signed-in account not in front; see OTHER_ACCOUNT_METHODS. */
+  api.post("/auth/accounts/:id/jmap", requireSession, async (c) => {
+    const other = liveOthers(c).find((o) => o.session.id === c.req.param("id"));
+    if (!other) return c.json({ error: "not_found" }, 404);
+    let body: { using?: unknown; methodCalls?: unknown };
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: "bad_request" }, 400);
+    }
+    const calls = body.methodCalls;
+    if (!Array.isArray(calls) || calls.length === 0 || calls.length > 16 || !calls.every(otherAccountCallAllowed)) {
+      return c.json({ error: "forbidden", message: "Only push subscriptions, mailboxes and marking mail can be reached in another account." }, 403);
+    }
+    const using = Array.isArray(body.using) ? body.using.filter((u): u is string => typeof u === "string") : [];
+    const session = other.session;
+    try {
+      const upstream = await getUpstreamSession(session.id, session.authorization, upstreamFor(session.username));
+      const res = await fetch(absoluteUpstream(upstream.apiUrl, upstream.baseUrl), {
+        method: "POST",
+        headers: { authorization: session.authorization, "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify({ using, methodCalls: calls }),
+        signal: AbortSignal.timeout(config.upstreamTimeout),
+      });
+      if (res.status === 401 || res.status === 403) return c.json({ error: "unauthenticated" }, 401);
+      return c.json(await res.json(), res.ok ? 200 : 502);
+    } catch (err) {
+      return upstreamFailure(c, err);
+    }
+  });
+
+  /* Bring another signed-in account to the front. */
+  api.post("/auth/accounts/:id/front", requireSession, async (c) => {
+    const frontCookie = getCookie(c, config.cookieName)!;
+    const others = liveOthers(c);
+    const chosen = others.find((o) => o.session.id === c.req.param("id"));
+    if (!chosen) return c.json({ error: "not_found" }, 404);
+    setSessionCookie(c, chosen.cookie, chosen.session.remember);
+    setOthersCookie(c, [frontCookie, ...others.filter((o) => o !== chosen).map((o) => o.cookie)]);
     return c.json({ ok: true });
   });
 

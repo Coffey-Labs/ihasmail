@@ -1699,6 +1699,26 @@ export const catalog: Catalog = {
     // ── Spam filter: the language model's opinion ──────────────────
     "Language model's opinion": "Думка мовної моделі",
     "One of several signals the spam filter weighed": "Одна з кількох ознак, які врахував спам-фільтр",
+    // ── Shared and group mailboxes ──
+    "Mail to show": "Яку пошту показати",
+    "My mail": "Моя пошта",
+    "Shared mailbox:": "Спільна поштова скринька:",
+    "Back to my mail": "Повернутися до моєї пошти",
+    "Send or close the message you're writing first.": "Спочатку надішліть або закрийте лист, який пишете.",
+    "You no longer have access to {name}. Back to your own mail.": "У вас більше немає доступу до {name}. Повертаємося до вашої пошти.",
+    // ── Signed in to more than one account ──
+    "You can't add more accounts here.": "Додати тут ще облікові записи не можна.",
+    "That account is on another mail server. Only accounts on this server can be added.": "Цей обліковий запис розміщено на іншому поштовому сервері. Додати можна лише облікові записи цього сервера.",
+    "That account couldn't be added.": "Не вдалося додати цей обліковий запис.",
+    "Add an account": "Додати обліковий запис",
+    "Working…": "Виконується…",
+    "Add account": "Додати обліковий запис",
+    "Both accounts stay signed in here; switch between them from this menu.": "Обидва облікові записи залишаються тут у системі; перемикайтеся між ними в цьому меню.",
+    "Sign out of all accounts": "Вийти з усіх облікових записів",
+    // ── New mail in other accounts ──
+    "New mail for {name}": "Новий лист для {name}",
+    "Unread in the Inbox: {count}": "Непрочитаних у «Вхідних»: {count}",
+    "Account: new mail in another account": "Обліковий запис: нові листи в іншому обліковому записі",
   },
   plurals: {
     // ── Administration: domains ────────────────────────────────────

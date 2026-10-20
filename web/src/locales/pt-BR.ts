@@ -1706,6 +1706,26 @@ export const catalog: Catalog = {
     // ── Spam filter: the language model's opinion ──────────────────
     "Language model's opinion": "Opinião do modelo de linguagem",
     "One of several signals the spam filter weighed": "Um dos vários sinais considerados pelo filtro de spam",
+    // ── Shared and group mailboxes ──
+    "Mail to show": "E-mail a exibir",
+    "My mail": "Meu e-mail",
+    "Shared mailbox:": "Caixa postal compartilhada:",
+    "Back to my mail": "Voltar ao meu e-mail",
+    "Send or close the message you're writing first.": "Envie ou feche primeiro a mensagem que está escrevendo.",
+    "You no longer have access to {name}. Back to your own mail.": "Você não tem mais acesso a {name}. De volta ao seu próprio e-mail.",
+    // ── Signed in to more than one account ──
+    "You can't add more accounts here.": "Não é possível adicionar mais contas aqui.",
+    "That account is on another mail server. Only accounts on this server can be added.": "Essa conta está em outro servidor de e-mail. Só é possível adicionar contas deste servidor.",
+    "That account couldn't be added.": "Não foi possível adicionar essa conta.",
+    "Add an account": "Adicionar uma conta",
+    "Working…": "Processando…",
+    "Add account": "Adicionar conta",
+    "Both accounts stay signed in here; switch between them from this menu.": "As duas contas continuam conectadas aqui; alterne entre elas por este menu.",
+    "Sign out of all accounts": "Sair de todas as contas",
+    // ── New mail in other accounts ──
+    "New mail for {name}": "E-mail novo para {name}",
+    "Unread in the Inbox: {count}": "Não lidas na Caixa de entrada: {count}",
+    "Account: new mail in another account": "Conta: e-mail novo em outra conta",
   },
   plurals: {
     // ── Administration: domains ────────────────────────────────────
