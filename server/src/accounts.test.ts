@@ -16,6 +16,8 @@ process.env.MOCK_SECOND_USER = "second@example.com";
 process.env.MOCK_SECOND_PASS = "second-password";
 process.env.STALWART_URL = `http://127.0.0.1:${PORT}`;
 process.env.APP_SECRET = "test-secret-for-accounts";
+// Every test here signs in several times from one address
+process.env.LOGIN_RATE_LIMIT = "100";
 
 const mock = await import("./mock/index.js");
 const { createApp } = await import("./app.js");
@@ -134,4 +136,38 @@ test("the accounts not in front report their Inbox unread count", async () => {
   const listed = (await b.accounts()).find((a) => !a.front)!;
   assert.equal(other.id, listed.id);
   assert.equal(typeof other.unread, "number", JSON.stringify(res.body));
+});
+
+test("only push, mailboxes and marking mail reach an account not in front", async () => {
+  const { otherAccountCallAllowed } = await import("./app.js");
+  assert.equal(otherAccountCallAllowed(["PushSubscription/get", { ids: null }, "0"]), true);
+  assert.equal(otherAccountCallAllowed(["Mailbox/get", { accountId: "a" }, "0"]), true);
+  assert.equal(otherAccountCallAllowed(["Email/set", { accountId: "a", update: { m1: { "keywords/$seen": true } } }, "0"]), true);
+  assert.equal(otherAccountCallAllowed(["Email/set", { accountId: "a", update: { m1: { mailboxIds: { arch: true } } } }, "0"]), true);
+  // Anything else is refused
+  assert.equal(otherAccountCallAllowed(["Email/get", { accountId: "a" }, "0"]), false);
+  assert.equal(otherAccountCallAllowed(["Email/set", { accountId: "a", destroy: ["m1"] }, "0"]), false);
+  assert.equal(otherAccountCallAllowed(["Email/set", { accountId: "a", create: { x: {} } }, "0"]), false);
+  assert.equal(otherAccountCallAllowed(["Email/set", { accountId: "a", update: { m1: { subject: "x" } } }, "0"]), false);
+  assert.equal(otherAccountCallAllowed(["EmailSubmission/set", {}, "0"]), false);
+
+  const b = new Browser();
+  await b.signIn("first@example.com", "first-password");
+  const added = await b.signIn("second@example.com", "second-password", true);
+  assert.equal(added.status, 200, JSON.stringify(added.body));
+  const other = (await b.accounts()).find((a) => !a.front)!;
+  const ok = await b.call(`/api/auth/accounts/${other.id}/jmap`, {
+    method: "POST",
+    body: { using: ["urn:ietf:params:jmap:core"], methodCalls: [["PushSubscription/get", { ids: null }, "0"]] },
+  });
+  assert.equal(ok.status, 200, JSON.stringify(ok.body));
+  assert.equal(ok.body.methodResponses[0][0], "PushSubscription/get");
+  const refused = await b.call(`/api/auth/accounts/${other.id}/jmap`, {
+    method: "POST",
+    body: { using: [], methodCalls: [["Email/get", { accountId: "x", ids: null }, "0"]] },
+  });
+  assert.equal(refused.status, 403);
+  // The account in front isn't reached this way, nor a session not held here
+  const front = (await b.accounts()).find((a) => a.front)!;
+  assert.equal((await b.call(`/api/auth/accounts/${front.id}/jmap`, { method: "POST", body: { methodCalls: [] } })).status, 404);
 });

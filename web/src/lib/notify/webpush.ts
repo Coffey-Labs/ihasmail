@@ -22,6 +22,15 @@ import type { GetResponse, Id, SetResponse } from "@/jmap/types";
 import { isDeviceTrusted } from "@/lib/storage";
 
 export const VAPID_CAP = "urn:ietf:params:jmap:webpush-vapid";
+
+/**
+ * Who a push call is made as. A JMAP push subscription belongs
+ * to whoever signs the request, so registering one for an account that isn't
+ * in front goes through that account's own session (lib/notify/otherAccount).
+ * Everything here defaults to the account in front.
+ */
+export type JmapCall = <T>(method: string, args: Record<string, unknown>, using: string[]) => Promise<T>;
+export const frontCall: JmapCall = (method, args, using) => client.call(method, args, using);
 export const EMAILPUSH_CAP = "urn:ietf:params:jmap:emailpush";
 
 /**
@@ -285,13 +294,13 @@ export function needsRenewal(subs: JmapPushSubscription[], deviceId: string, now
   return at - now <= RENEW_WITHIN_MS;
 }
 
-export async function listSubscriptions(): Promise<JmapPushSubscription[]> {
-  const res = await client.call<GetResponse<JmapPushSubscription>>("PushSubscription/get", { ids: null }, [CAP.core, VAPID_CAP]);
+export async function listSubscriptions(call: JmapCall = frontCall): Promise<JmapPushSubscription[]> {
+  const res = await call<GetResponse<JmapPushSubscription>>("PushSubscription/get", { ids: null }, [CAP.core, VAPID_CAP]);
   return res.list;
 }
 
-export async function createSubscription(body: Record<string, unknown>): Promise<Id | null> {
-  const res = await client.call<SetResponse<JmapPushSubscription>>(
+export async function createSubscription(body: Record<string, unknown>, call: JmapCall = frontCall): Promise<Id | null> {
+  const res = await call<SetResponse<JmapPushSubscription>>(
     "PushSubscription/set",
     { create: { s: body } },
     [CAP.core, VAPID_CAP, EMAILPUSH_CAP],
@@ -307,16 +316,16 @@ export async function createSubscription(body: Record<string, unknown>): Promise
  * Seven days is JMAP's ceiling and what Stalwart grants a new one; the server
  * may shorten what is asked for, and whatever it keeps is what counts.
  */
-export async function extendSubscription(id: Id, now: number = Date.now()): Promise<void> {
+export async function extendSubscription(id: Id, now: number = Date.now(), call: JmapCall = frontCall): Promise<void> {
   const expires = new Date(now + 7 * 24 * 60 * 60 * 1000).toISOString().replace(/\.\d+Z$/, "Z");
-  const res = await client.call<SetResponse<JmapPushSubscription>>("PushSubscription/set", { update: { [id]: { expires } } }, [CAP.core, VAPID_CAP]);
+  const res = await call<SetResponse<JmapPushSubscription>>("PushSubscription/set", { update: { [id]: { expires } } }, [CAP.core, VAPID_CAP]);
   const err = res.notUpdated?.[id];
   if (err) throw new PushSetError(String(err.type), String(err.description ?? err.type));
 }
 
-export async function destroySubscriptions(ids: Id[]): Promise<void> {
+export async function destroySubscriptions(ids: Id[], call: JmapCall = frontCall): Promise<void> {
   if (!ids.length) return;
-  await client.call<SetResponse<JmapPushSubscription>>("PushSubscription/set", { destroy: ids }, [CAP.core, VAPID_CAP]);
+  await call<SetResponse<JmapPushSubscription>>("PushSubscription/set", { destroy: ids }, [CAP.core, VAPID_CAP]);
 }
 
 /**
@@ -353,8 +362,8 @@ export function rememberEndpoint(endpoint: string | null): void {
  * the client echoes it. A subscription left unverified looks registered and is
  * silent, which is the confusing failure worth being explicit about.
  */
-export async function verifySubscription(id: Id, verificationCode: string): Promise<void> {
-  const res = await client.call<SetResponse<JmapPushSubscription>>(
+export async function verifySubscription(id: Id, verificationCode: string, call: JmapCall = frontCall): Promise<void> {
+  const res = await call<SetResponse<JmapPushSubscription>>(
     "PushSubscription/set",
     { update: { [id]: { verificationCode } } },
     [CAP.core, VAPID_CAP],

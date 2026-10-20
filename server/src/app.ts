@@ -296,6 +296,35 @@ function liveOthers(c: Context): { cookie: string; session: LiveSession }[] {
   return out;
 }
 
+/*
+ * What may be asked of a signed-in account that isn't in front.
+ *
+ * Its push subscription has to be registered, verified and renewed through
+ * its own session -- a JMAP push subscription belongs to whoever signs the
+ * request -- and a notification's Archive and Mark read act on its mail. Those
+ * four methods, and for Email/set only changes to keywords and mailboxes: the
+ * browser already holds the session, so this reaches nothing new, but it is
+ * kept to what the notifications need.
+ */
+const OTHER_ACCOUNT_METHODS = new Set(["PushSubscription/get", "PushSubscription/set", "Mailbox/get", "Email/set"]);
+
+export function otherAccountCallAllowed(call: unknown): boolean {
+  if (!Array.isArray(call) || call.length !== 3) return false;
+  const [method, args] = call as [unknown, unknown, unknown];
+  if (typeof method !== "string" || !OTHER_ACCOUNT_METHODS.has(method)) return false;
+  if (typeof args !== "object" || args === null) return false;
+  if (method !== "Email/set") return true;
+  const set = args as { create?: unknown; destroy?: unknown; update?: unknown };
+  if (set.create !== undefined || set.destroy !== undefined) return false;
+  if (typeof set.update !== "object" || set.update === null) return false;
+  return Object.values(set.update as Record<string, unknown>).every(
+    (patch) =>
+      typeof patch === "object" &&
+      patch !== null &&
+      Object.keys(patch).every((k) => k === "keywords" || k === "mailboxIds" || k.startsWith("keywords/") || k.startsWith("mailboxIds/")),
+  );
+}
+
 /** Inbox unread counts of accounts not in front, briefly kept. */
 const UNREAD_CACHE_MS = 60_000;
 const unreadCache = new Map<string, { unread: number | null; at: number }>();
@@ -627,6 +656,37 @@ export function createApp(basePath = config.basePath): Hono<Env> {
       }),
     );
     return c.json({ accounts: answers });
+  });
+
+  /* A narrow JMAP route to a signed-in account not in front; see OTHER_ACCOUNT_METHODS. */
+  api.post("/auth/accounts/:id/jmap", requireSession, async (c) => {
+    const other = liveOthers(c).find((o) => o.session.id === c.req.param("id"));
+    if (!other) return c.json({ error: "not_found" }, 404);
+    let body: { using?: unknown; methodCalls?: unknown };
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: "bad_request" }, 400);
+    }
+    const calls = body.methodCalls;
+    if (!Array.isArray(calls) || calls.length === 0 || calls.length > 16 || !calls.every(otherAccountCallAllowed)) {
+      return c.json({ error: "forbidden", message: "Only push subscriptions, mailboxes and marking mail can be reached in another account." }, 403);
+    }
+    const using = Array.isArray(body.using) ? body.using.filter((u): u is string => typeof u === "string") : [];
+    const session = other.session;
+    try {
+      const upstream = await getUpstreamSession(session.id, session.authorization, upstreamFor(session.username));
+      const res = await fetch(absoluteUpstream(upstream.apiUrl, upstream.baseUrl), {
+        method: "POST",
+        headers: { authorization: session.authorization, "content-type": "application/json", accept: "application/json" },
+        body: JSON.stringify({ using, methodCalls: calls }),
+        signal: AbortSignal.timeout(config.upstreamTimeout),
+      });
+      if (res.status === 401 || res.status === 403) return c.json({ error: "unauthenticated" }, 401);
+      return c.json(await res.json(), res.ok ? 200 : 502);
+    } catch (err) {
+      return upstreamFailure(c, err);
+    }
   });
 
   /* Bring another signed-in account to the front. */
