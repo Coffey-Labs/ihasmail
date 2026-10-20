@@ -3,6 +3,8 @@ import { Plus, Trash2 } from "lucide-react";
 import { useSettings, type Template } from "@/store/settings";
 import { Dialog } from "@/ui/dialog";
 import { RichEditor } from "../compose/RichEditor";
+import { RecipientInput } from "../compose/RecipientInput";
+import { formatAddress } from "@/lib/address";
 import { htmlToText } from "@/lib/text/text";
 import { t as translate } from "@/lib/i18n";
 import { PLACEHOLDER_NAMES } from "@/lib/templatePlaceholders";
@@ -22,6 +24,7 @@ export function TemplatesSettings() {
             <button className="icon-btn sm danger" aria-label={translate("Delete template")} onClick={(e) => { e.stopPropagation(); update({ templates: templates.filter((x) => x.id !== t.id) }); }}><Trash2 size={16} /></button>
           </div>
           {t.subject && <div className="hint">{translate("Subject: {subject}", { subject: t.subject })}</div>}
+          {recipientCount(t) > 0 && <div className="hint truncate">{translate("Adds: {recipients}", { recipients: [...(t.to ?? []), ...(t.cc ?? []), ...(t.bcc ?? [])].map(formatAddress).join(", ") })}</div>}
           <div className="hint truncate">{htmlToText(t.html).slice(0, 140)}</div>
         </div>
       ))}
@@ -33,6 +36,21 @@ export function TemplatesSettings() {
             <div className="field"><label>{translate("Subject (optional)")}</label><input className="input" value={editing.subject} onChange={(e) => setEditing({ ...editing, subject: e.target.value })} /></div>
           </div>
           <div className="field">
+            <label htmlFor="template-to">{translate("To (optional)")}</label>
+            <RecipientInput id="template-to" value={editing.to ?? []} onChange={(to) => setEditing({ ...editing, to })} exclude={[...(editing.cc ?? []), ...(editing.bcc ?? [])]} />
+          </div>
+          <div className="field-row">
+            <div className="field">
+              <label htmlFor="template-cc">{translate("Cc (optional)")}</label>
+              <RecipientInput id="template-cc" value={editing.cc ?? []} onChange={(cc) => setEditing({ ...editing, cc })} exclude={[...(editing.to ?? []), ...(editing.bcc ?? [])]} />
+            </div>
+            <div className="field">
+              <label htmlFor="template-bcc">{translate("Bcc (optional)")}</label>
+              <RecipientInput id="template-bcc" value={editing.bcc ?? []} onChange={(bcc) => setEditing({ ...editing, bcc })} exclude={[...(editing.to ?? []), ...(editing.cc ?? [])]} />
+            </div>
+          </div>
+          <p className="hint">{translate("Added to the message when you insert the template, beside anyone already on it.")}</p>
+          <div className="field">
             <label>{translate("Body")}</label>
             <div style={{ border: "1px solid var(--border-strong)", borderRadius: 8, minHeight: 200, display: "flex", flexDirection: "column" }}>
               <RichEditor html={editing.html} onChange={(html) => setEditing({ ...editing, html })} showToolbar placeholder={translate("Template text…")} />
@@ -43,6 +61,10 @@ export function TemplatesSettings() {
       )}
     </div>
   );
+}
+
+function recipientCount(t: Template): number {
+  return (t.to?.length ?? 0) + (t.cc?.length ?? 0) + (t.bcc?.length ?? 0);
 }
 
 /**

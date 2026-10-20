@@ -1681,6 +1681,9 @@ select optgroup { background-color: var(--bg-elev); color: var(--fg); }
 .recipients { flex: 1; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; position: relative; }
 .recipients .chip { height: 24px; }
 .recipients input { flex: 1; min-width: 120px; border: 0; background: transparent; outline: none; height: 28px; }
+/* A template's recipients, in a settings form: drawn as an input like the fields beside it. */
+.field .recipients { min-height: 38px; padding: 4px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); background: var(--bg-elev); transition: border-color .12s, box-shadow .12s; }
+.field .recipients:focus-within { border-color: var(--accent); box-shadow: var(--focus-ring); }
 .composer-editor { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
 /* Quoted mail lands in the app document, so contain it as .message-body does: its positioning cannot reach past the editor. */
 .editor-area { flex: 1; min-height: 120px; overflow-y: auto; contain: layout; padding: 12px 16px; outline: none; line-height: 1.5; font-size: 14px; font-family: var(--font-sans); }

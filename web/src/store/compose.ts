@@ -13,7 +13,7 @@ import { ensureScheduledMailbox, useScheduled } from "./scheduled";
 import { formatScheduleTime, holdUntil } from "@/lib/schedule";
 import { t as translate } from "@/lib/i18n";
 import { BASE_PATH } from "@/lib/basePath";
-import { settings } from "./settings";
+import { settings, type Template } from "./settings";
 import { useContacts } from "./contacts";
 import { emlFilename } from "@/lib/text/emlName";
 import { fillPlaceholders, type PlaceholderContext } from "@/lib/templatePlaceholders";
@@ -128,7 +128,7 @@ interface ComposeState {
   send(key: string): Promise<void>;
   undoSend(key: string): void;
   setIdentity(key: string, identityId: Id): void;
-  insertTemplate(key: string, html: string, subject?: string): void;
+  insertTemplate(key: string, template: Pick<Template, "html" | "subject" | "to" | "cc" | "bcc">): void;
 }
 
 const AUTOSAVE_MS = 20_000;
@@ -785,20 +785,34 @@ export const useCompose = create<ComposeState>((set, get) => ({
     get().update(key, { identityId, html, text, signatureHtml: newSig, ...replyToPatch });
   },
 
-  insertTemplate(key, html, subject) {
+  insertTemplate(key, { html, subject, to = [], cc = [], bcc = [] }) {
     const d = get().drafts.find((x) => x.key === key);
     if (!d) return;
+    // The template's recipients join the ones already there. An address that
+    // is already on the message, in any field, stays where it is rather than
+    // appearing twice.
+    const present = [...d.to, ...d.cc, ...d.bcc];
+    const added = (list: EmailAddress[]) => {
+      const fresh = uniqueAddresses(list).filter((a) => !present.some((p) => sameAddress(p.email, a.email)));
+      present.push(...fresh);
+      return fresh;
+    };
+    const recipients = { to: [...d.to, ...added(to)], cc: [...d.cc, ...added(cc)], bcc: [...d.bcc, ...added(bcc)] };
     // Placeholders are filled against the draft as it stands right now, which
     // is why this happens on insert rather than on send: what the template is
     // filled with is visible and editable afterwards, instead of changing
-    // under the message between writing it and sending it.
+    // under the message between writing it and sending it. The template's own
+    // recipients count, so {{recipientName}} can name the person it is for.
     const ident = d.identityId ? useMail.getState().identities.find((i) => i.id === d.identityId) : undefined;
-    const ctx: PlaceholderContext = { to: d.to, from: ident ? { name: ident.name, email: ident.email } : null, subject: d.subject };
+    const ctx: PlaceholderContext = { to: recipients.to, from: ident ? { name: ident.name, email: ident.email } : null, subject: d.subject };
     // The body is filled once as HTML and the plain-text side derived from the
     // result, so the two cannot disagree about what a placeholder came to.
     const filled = fillPlaceholders(html, ctx, { html: true });
     const patch: Partial<Draft> = { html: `<div>${sanitizeEditorHtml(filled)}</div>${d.html}`, text: `${htmlToText(filled)}\n${d.text}` };
     if (subject && !d.subject) patch.subject = fillPlaceholders(subject, ctx, { html: false });
+    if (recipients.to.length !== d.to.length) patch.to = recipients.to;
+    if (recipients.cc.length !== d.cc.length) Object.assign(patch, { cc: recipients.cc, showCc: true });
+    if (recipients.bcc.length !== d.bcc.length) Object.assign(patch, { bcc: recipients.bcc, showBcc: true });
     get().update(key, patch);
   },
 }));

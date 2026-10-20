@@ -7,6 +7,7 @@ import { pendingSettingsKeys, queueSettingsPush } from "@/lib/settingsSync";
 import { policyChanges, policyDefaults, policyEnforced, type PolicyChange } from "@/lib/settingsPolicy";
 import { setDateTimePrefs, setUiLanguageForFormatting, type DateFormat, type TimeFormat } from "@/lib/datetime";
 import type { SwipeAction } from "@/lib/input/swipe";
+import type { EmailAddress } from "@/jmap/types";
 import { resolveUiLanguage } from "@/lib/languages";
 import { loadLanguage } from "@/lib/i18n";
 
@@ -55,6 +56,10 @@ export interface Template {
   name: string;
   subject: string;
   html: string;
+  /** Recipients added to the message when the template is inserted. Older templates have none. */
+  to?: EmailAddress[];
+  cc?: EmailAddress[];
+  bcc?: EmailAddress[];
 }
 
 /** A signer remembered for an address. See `knownSigners`. */
