@@ -472,6 +472,11 @@ export const catalog: Catalog = {
     "Bcc": "Bcc",
     "Subject": "Onderwerp",
     "Subject (optional)": "Onderwerp (optioneel)",
+    "To (optional)": "Aan (optioneel)",
+    "Cc (optional)": "Cc (optioneel)",
+    "Bcc (optional)": "Bcc (optioneel)",
+    "Adds: {recipients}": "Voegt toe: {recipients}",
+    "Added to the message when you insert the template, beside anyone already on it.": "Worden aan het bericht toegevoegd als je de sjabloon invoegt, naast wie er al op staat.",
     "Body": "Tekst",
     "Body text": "Bodytekst",
     "Attach files": "Bestanden bijvoegen",
@@ -644,6 +649,12 @@ export const catalog: Catalog = {
     "+{n} more": "+{n} meer",
 
     "Contacts": "Contacten",
+
+    "Collected": "Verzameld",
+
+    "Save people you write to as contacts": "Mensen aan wie je schrijft als contact opslaan",
+
+    "Everyone you send to who isn’t a contact yet is added to the Collected address book, so they’re suggested on every device. Your own addresses are never added.": "Iedereen aan wie je mailt en die nog geen contact is, wordt toegevoegd aan het adresboek Verzameld, zodat die op elk apparaat wordt voorgesteld. Je eigen adressen worden nooit toegevoegd.",
     "Contacts are not available": "Contacten zijn niet beschikbaar",
     "New contact": "Nieuw contact",
     "Edit contact": "Contact bewerken",
@@ -729,6 +740,8 @@ export const catalog: Catalog = {
 
     // ── Settings ───────────────────────────────────────────────────────
     "Settings": "Instellingen",
+    "Show folder list": "Mappenlijst tonen",
+    "Hide folder list": "Mappenlijst verbergen",
     "All settings": "Alle instellingen",
     "Sections": "Onderdelen",
     "General": "Algemeen",
@@ -1687,6 +1700,9 @@ export const catalog: Catalog = {
     "{app} will tell you if a later message from this address is signed by anybody else.": "{app} laat het weten als een later bericht van dit adres door iemand anders is ondertekend.",
     "itself, or an issuer it does not name": "zichzelf, of een uitgever die niet wordt genoemd",
     "no address": "geen adres",
+    // ── Spam filter: the language model's opinion ──────────────────
+    "Language model's opinion": "Oordeel van het taalmodel",
+    "One of several signals the spam filter weighed": "Een van meerdere signalen die het spamfilter heeft meegewogen",
   },
   plurals: {
     // ── Administration: domains ────────────────────────────────────

@@ -473,6 +473,11 @@ export const catalog: Catalog = {
     "Bcc": "Cco",
     "Subject": "Asunto",
     "Subject (optional)": "Asunto (opcional)",
+    "To (optional)": "Para (opcional)",
+    "Cc (optional)": "Cc (opcional)",
+    "Bcc (optional)": "Cco (opcional)",
+    "Adds: {recipients}": "Añade: {recipients}",
+    "Added to the message when you insert the template, beside anyone already on it.": "Se añaden al mensaje al insertar la plantilla, junto a quienes ya figuren en él.",
     "Body": "Cuerpo",
     "Body text": "Texto normal",
     "Attach files": "Adjuntar archivos",
@@ -644,6 +649,12 @@ export const catalog: Catalog = {
     "+{n} more": "+{n} más",
 
     "Contacts": "Contactos",
+
+    "Collected": "Recopilados",
+
+    "Save people you write to as contacts": "Guardar como contactos a las personas a las que escribes",
+
+    "Everyone you send to who isn’t a contact yet is added to the Collected address book, so they’re suggested on every device. Your own addresses are never added.": "Todas las personas a las que envías y que aún no son contactos se añaden a la libreta Recopilados, para que se sugieran en todos tus dispositivos. Tus propias direcciones nunca se añaden.",
     "Contacts are not available": "Los contactos no están disponibles",
     "New contact": "Contacto nuevo",
     "Edit contact": "Editar el contacto",
@@ -728,6 +739,8 @@ export const catalog: Catalog = {
 
     // ── Settings ───────────────────────────────────────────────────────
     "Settings": "Configuración",
+    "Show folder list": "Mostrar lista de carpetas",
+    "Hide folder list": "Ocultar lista de carpetas",
     "All settings": "Toda la configuración",
     "Sections": "Secciones",
     "General": "General",
@@ -1687,6 +1700,9 @@ export const catalog: Catalog = {
     "{app} will tell you if a later message from this address is signed by anybody else.": "{app} le avisará si un mensaje posterior de esta dirección lo firma otra persona.",
     "itself, or an issuer it does not name": "sí mismo, o un emisor que no nombra",
     "no address": "ninguna dirección",
+    // ── Spam filter: the language model's opinion ──────────────────
+    "Language model's opinion": "Opinión del modelo de lenguaje",
+    "One of several signals the spam filter weighed": "Una de varias señales que el filtro de spam ha tenido en cuenta",
   },
   plurals: {
     // ── Administration: domains ────────────────────────────────────

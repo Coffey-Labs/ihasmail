@@ -472,6 +472,11 @@ export const catalog: Catalog = {
     "Bcc": "Bcc",
     "Subject": "件名",
     "Subject (optional)": "件名（省略可）",
+    "To (optional)": "宛先（省略可）",
+    "Cc (optional)": "Cc（省略可）",
+    "Bcc (optional)": "Bcc（省略可）",
+    "Adds: {recipients}": "追加: {recipients}",
+    "Added to the message when you insert the template, beside anyone already on it.": "テンプレートを挿入するとメッセージに追加されます。すでにある宛先はそのまま残ります。",
     "Body": "本文",
     "Body text": "本文テキスト",
     "Attach files": "ファイルを添付",
@@ -643,6 +648,12 @@ export const catalog: Catalog = {
     "+{n} more": "他 {n} 件",
 
     "Contacts": "連絡先",
+
+    "Collected": "収集したアドレス",
+
+    "Save people you write to as contacts": "メールを送った相手を連絡先に保存する",
+
+    "Everyone you send to who isn’t a contact yet is added to the Collected address book, so they’re suggested on every device. Your own addresses are never added.": "まだ連絡先にない送信先は「収集したアドレス」アドレス帳に追加され、どのデバイスでも候補に表示されます。自分のアドレスは追加されません。",
     "Contacts are not available": "連絡先は利用できません",
     "New contact": "新しい連絡先",
     "Edit contact": "連絡先を編集",
@@ -728,6 +739,8 @@ export const catalog: Catalog = {
 
     // ── Settings ───────────────────────────────────────────────────────
     "Settings": "設定",
+    "Show folder list": "フォルダー一覧を表示",
+    "Hide folder list": "フォルダー一覧を隠す",
     "All settings": "すべての設定",
     "Sections": "セクション",
     "General": "一般",
@@ -1695,6 +1708,9 @@ export const catalog: Catalog = {
     "{app} will tell you if a later message from this address is signed by anybody else.": "このアドレスからの以降のメールが別の人の署名だった場合、{app} がお知らせします。",
     "itself, or an issuer it does not name": "自分自身、または名前のない発行者",
     "no address": "アドレスなし",
+    // ── Spam filter: the language model's opinion ──────────────────
+    "Language model's opinion": "言語モデルの見解",
+    "One of several signals the spam filter weighed": "迷惑メールフィルターが考慮した複数の判断材料のひとつ",
   },
   plurals: {
     // ── Administration: domains ────────────────────────────────────

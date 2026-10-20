@@ -15,6 +15,8 @@ import { emlFilename } from "@/lib/text/emlName";
 import { isTnef, parseTnef, type TnefAttachment } from "@/lib/tnef";
 import { internalDomains, isExternalSender, linkVerdict } from "@/lib/warnings";
 import { spamReport, type SpamReport } from "@/lib/spamScore";
+import { llmOpinion } from "@/lib/llmOpinion";
+import { LlmOpinionBanner, LlmOpinionDetail, llmBannerOpinion } from "./LlmOpinion";
 import { formatFullDate, formatListDate, formatSize } from "@/lib/format";
 import { displayName, domainOf, formatAddress } from "@/lib/address";
 import { remoteImagesAllowed } from "@/lib/mail/remoteImages";
@@ -193,6 +195,10 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
   const receiptRequested = Boolean(e["header:Disposition-Notification-To:asAddresses"]?.length);
   const authFailed = /\b(dkim|spf|dmarc)=fail\b/i.test(e["header:Authentication-Results:asText"] ?? "");
   const spam = useMemo(() => spamReport(e), [e]);
+  // The language model's opinion, where the server's AI spam classification wrote one
+  const llm = useMemo(() => llmOpinion(e), [e]);
+  const junkId = useMail((st) => st.roleId("junk"));
+  const llmBanner = llmBannerOpinion(llm, e.mailboxIds, junkId);
   const identities = useMail((st) => st.identities);
   /*
    * Only computed when the warning is on, because the domains it compares
@@ -380,6 +386,7 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
               {e["header:List-Id:asText"] && <><dt>{translate("List")}</dt><dd>{e["header:List-Id:asText"]}</dd></>}
               <dt>{translate("Size")}</dt><dd>{formatSize(e.size)}</dd>
               {spam && <><dt>{translate("Spam filter")}</dt><dd><SpamSummary report={spam} /></dd></>}
+              {llm && <><dt>{translate("Language model's opinion")}</dt><dd><LlmOpinionDetail opinion={llm} /></dd></>}
               {receiptRequested && <><dt>{translate("Receipt")}</dt><dd>{receipt.offer ? translate("Requested, to {address}. Never sent automatically.", { address: receipt.to!.email }) : translate(refusalText(receipt.refusal!))}</dd></>}
             </dl>
           )}
@@ -431,6 +438,7 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
             </div>
           )}
           <SignatureBanner state={signature} />
+          {llmBanner && <LlmOpinionBanner opinion={llmBanner} />}
           {externalSender && (
             <div className="remote-banner external-banner" style={{ margin: "0 16px 8px" }}>
               <ShieldAlert size={16} />

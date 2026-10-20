@@ -475,6 +475,11 @@ export const catalog: Catalog = {
     "Bcc": "Скрытая копия",
     "Subject": "Тема",
     "Subject (optional)": "Тема (необязательно)",
+    "To (optional)": "Кому (необязательно)",
+    "Cc (optional)": "Копия (необязательно)",
+    "Bcc (optional)": "Скрытая копия (необязательно)",
+    "Adds: {recipients}": "Добавляет: {recipients}",
+    "Added to the message when you insert the template, beside anyone already on it.": "Добавляются в письмо при вставке шаблона, рядом с уже указанными получателями.",
     "Body": "Текст",
     "Body text": "Обычный текст",
     "Attach files": "Прикрепить файлы",
@@ -646,6 +651,12 @@ export const catalog: Catalog = {
     "+{n} more": "+{n}",
 
     "Contacts": "Контакты",
+
+    "Collected": "Собранные",
+
+    "Save people you write to as contacts": "Сохранять адресатов как контакты",
+
+    "Everyone you send to who isn’t a contact yet is added to the Collected address book, so they’re suggested on every device. Your own addresses are never added.": "Все, кому вы пишете и кого ещё нет в контактах, добавляются в адресную книгу «Собранные» и предлагаются на всех устройствах. Ваши собственные адреса не добавляются.",
     "Contacts are not available": "Контакты недоступны",
     "New contact": "Новый контакт",
     "Edit contact": "Изменить контакт",
@@ -731,6 +742,8 @@ export const catalog: Catalog = {
 
     // ── Settings ───────────────────────────────────────────────────────
     "Settings": "Настройки",
+    "Show folder list": "Показать список папок",
+    "Hide folder list": "Скрыть список папок",
     "All settings": "Все настройки",
     "Sections": "Разделы",
     "General": "Общие",
@@ -1689,6 +1702,9 @@ export const catalog: Catalog = {
     "{app} will tell you if a later message from this address is signed by anybody else.": "{app} сообщит, если следующее письмо с этого адреса подпишет кто-то другой.",
     "itself, or an issuer it does not name": "самим собой или неназванным издателем",
     "no address": "нет адреса",
+    // ── Spam filter: the language model's opinion ──────────────────
+    "Language model's opinion": "Мнение языковой модели",
+    "One of several signals the spam filter weighed": "Один из нескольких признаков, которые учёл спам-фильтр",
   },
   plurals: {
     // ── Administration: domains ────────────────────────────────────

@@ -471,6 +471,11 @@ export const catalog: Catalog = {
     "Bcc": "密送",
     "Subject": "主题",
     "Subject (optional)": "主题（可选）",
+    "To (optional)": "收件人（可选）",
+    "Cc (optional)": "抄送（可选）",
+    "Bcc (optional)": "密送（可选）",
+    "Adds: {recipients}": "添加：{recipients}",
+    "Added to the message when you insert the template, beside anyone already on it.": "插入模板时添加到邮件中，已有的收件人保持不变。",
     "Body": "正文",
     "Body text": "正文文本",
     "Attach files": "添加附件",
@@ -642,6 +647,12 @@ export const catalog: Catalog = {
     "+{n} more": "还有 {n} 项",
 
     "Contacts": "联系人",
+
+    "Collected": "已收集",
+
+    "Save people you write to as contacts": "将您发信的联系人保存为联系人",
+
+    "Everyone you send to who isn’t a contact yet is added to the Collected address book, so they’re suggested on every device. Your own addresses are never added.": "您发信的对象如果还不是联系人，会被添加到“已收集”通讯录，在所有设备上都会作为建议显示。您自己的地址不会被添加。",
     "Contacts are not available": "联系人不可用",
     "New contact": "新建联系人",
     "Edit contact": "编辑联系人",
@@ -727,6 +738,8 @@ export const catalog: Catalog = {
 
     // ── Settings ───────────────────────────────────────────────────────
     "Settings": "设置",
+    "Show folder list": "显示文件夹列表",
+    "Hide folder list": "隐藏文件夹列表",
     "All settings": "全部设置",
     "Sections": "分区",
     "General": "常规",
@@ -1694,6 +1707,9 @@ export const catalog: Catalog = {
     "{app} will tell you if a later message from this address is signed by anybody else.": "如果此地址之后的邮件由他人签名，{app} 会提醒您。",
     "itself, or an issuer it does not name": "其自身，或一个未具名的颁发者",
     "no address": "无地址",
+    // ── Spam filter: the language model's opinion ──────────────────
+    "Language model's opinion": "语言模型的判断",
+    "One of several signals the spam filter weighed": "垃圾邮件过滤考虑的多个信号之一",
   },
   plurals: {
     // ── Administration: domains ────────────────────────────────────

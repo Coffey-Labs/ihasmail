@@ -481,6 +481,11 @@ export const catalog: Catalog = {
     "Bcc": "Bcc",
     "Subject": "Betreff",
     "Subject (optional)": "Betreff (optional)",
+    "To (optional)": "An (optional)",
+    "Cc (optional)": "Cc (optional)",
+    "Bcc (optional)": "Bcc (optional)",
+    "Adds: {recipients}": "Fügt hinzu: {recipients}",
+    "Added to the message when you insert the template, beside anyone already on it.": "Wird der Nachricht beim Einfügen der Vorlage hinzugefügt, neben allen, die schon darauf stehen.",
     "Body": "Text",
     "Body text": "Fließtext",
     "Attach files": "Dateien anhängen",
@@ -652,6 +657,12 @@ export const catalog: Catalog = {
     "+{n} more": "+{n} weitere",
 
     "Contacts": "Kontakte",
+
+    "Collected": "Gesammelt",
+
+    "Save people you write to as contacts": "Personen, denen Sie schreiben, als Kontakte speichern",
+
+    "Everyone you send to who isn’t a contact yet is added to the Collected address book, so they’re suggested on every device. Your own addresses are never added.": "Alle, an die Sie senden und die noch keine Kontakte sind, werden dem Adressbuch „Gesammelt“ hinzugefügt und auf jedem Gerät vorgeschlagen. Ihre eigenen Adressen werden nie hinzugefügt.",
     "Contacts are not available": "Kontakte sind nicht verfügbar",
     "New contact": "Neuer Kontakt",
     "Edit contact": "Kontakt bearbeiten",
@@ -733,6 +744,8 @@ export const catalog: Catalog = {
 
     // ── Settings ───────────────────────────────────────────────────────
     "Settings": "Einstellungen",
+    "Show folder list": "Ordnerliste einblenden",
+    "Hide folder list": "Ordnerliste ausblenden",
     "All settings": "Alle Einstellungen",
     "Sections": "Bereiche",
     "General": "Allgemein",
@@ -1714,6 +1727,9 @@ export const catalog: Catalog = {
     "{app} will tell you if a later message from this address is signed by anybody else.": "{app} weist Sie darauf hin, wenn eine spätere Nachricht von dieser Adresse von jemand anderem signiert ist.",
     "itself, or an issuer it does not name": "sich selbst, oder einem nicht genannten Aussteller",
     "no address": "keine Adresse",
+    // ── Spam filter: the language model's opinion ──────────────────
+    "Language model's opinion": "Einschätzung des Sprachmodells",
+    "One of several signals the spam filter weighed": "Eines von mehreren Signalen, die der Spamfilter berücksichtigt hat",
   },
   plurals: {
     // ── Administration: domains ────────────────────────────────────

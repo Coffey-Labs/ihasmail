@@ -469,6 +469,11 @@ export const catalog: Catalog = {
     "Bcc": "Прихована копія",
     "Subject": "Тема",
     "Subject (optional)": "Тема (необов'язково)",
+    "To (optional)": "Кому (необов'язково)",
+    "Cc (optional)": "Копія (необов'язково)",
+    "Bcc (optional)": "Прихована копія (необов'язково)",
+    "Adds: {recipients}": "Додає: {recipients}",
+    "Added to the message when you insert the template, beside anyone already on it.": "Додаються до листа, коли ви вставляєте шаблон, поряд з уже вказаними одержувачами.",
     "Body": "Текст",
     "Body text": "Звичайний текст",
     "Attach files": "Прикріпити файли",
@@ -640,6 +645,12 @@ export const catalog: Catalog = {
     "+{n} more": "+{n}",
 
     "Contacts": "Контакти",
+
+    "Collected": "Зібрані",
+
+    "Save people you write to as contacts": "Зберігати адресатів як контакти",
+
+    "Everyone you send to who isn’t a contact yet is added to the Collected address book, so they’re suggested on every device. Your own addresses are never added.": "Усі, кому ви пишете і кого ще немає в контактах, додаються до адресної книги «Зібрані» й пропонуються на всіх пристроях. Ваші власні адреси не додаються.",
     "Contacts are not available": "Контакти недоступні",
     "New contact": "Новий контакт",
     "Edit contact": "Змінити контакт",
@@ -725,6 +736,8 @@ export const catalog: Catalog = {
 
     // ── Settings ───────────────────────────────────────────────────────
     "Settings": "Налаштування",
+    "Show folder list": "Показати список тек",
+    "Hide folder list": "Сховати список тек",
     "All settings": "Усі налаштування",
     "Sections": "Розділи",
     "General": "Загальні",
@@ -1683,6 +1696,9 @@ export const catalog: Catalog = {
     "{app} will tell you if a later message from this address is signed by anybody else.": "{app} повідомить, якщо наступний лист із цієї адреси підпише хтось інший.",
     "itself, or an issuer it does not name": "самим собою або неназваним видавцем",
     "no address": "немає адреси",
+    // ── Spam filter: the language model's opinion ──────────────────
+    "Language model's opinion": "Думка мовної моделі",
+    "One of several signals the spam filter weighed": "Одна з кількох ознак, які врахував спам-фільтр",
   },
   plurals: {
     // ── Administration: domains ────────────────────────────────────

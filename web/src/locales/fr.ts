@@ -478,6 +478,11 @@ export const catalog: Catalog = {
     "Bcc": "Cci",
     "Subject": "Objet",
     "Subject (optional)": "Objet (facultatif)",
+    "To (optional)": "À (facultatif)",
+    "Cc (optional)": "Cc (facultatif)",
+    "Bcc (optional)": "Cci (facultatif)",
+    "Adds: {recipients}": "Ajoute : {recipients}",
+    "Added to the message when you insert the template, beside anyone already on it.": "Ajoutés au message quand vous insérez le modèle, à côté des destinataires déjà présents.",
     "Body": "Corps",
     "Body text": "Texte courant",
     "Attach files": "Joindre des fichiers",
@@ -649,6 +654,12 @@ export const catalog: Catalog = {
     "+{n} more": "+{n} autres",
 
     "Contacts": "Contacts",
+
+    "Collected": "Collectés",
+
+    "Save people you write to as contacts": "Enregistrer comme contacts les personnes à qui vous écrivez",
+
+    "Everyone you send to who isn’t a contact yet is added to the Collected address book, so they’re suggested on every device. Your own addresses are never added.": "Toute personne à qui vous écrivez et qui n’est pas encore un contact est ajoutée au carnet Collectés, pour vous être proposée sur tous vos appareils. Vos propres adresses ne sont jamais ajoutées.",
     "Contacts are not available": "Les contacts ne sont pas disponibles",
     "New contact": "Nouveau contact",
     "Edit contact": "Modifier le contact",
@@ -734,6 +745,8 @@ export const catalog: Catalog = {
 
     // ── Settings ───────────────────────────────────────────────────────
     "Settings": "Paramètres",
+    "Show folder list": "Afficher la liste des dossiers",
+    "Hide folder list": "Masquer la liste des dossiers",
     "All settings": "Tous les paramètres",
     "Sections": "Sections",
     "General": "Général",
@@ -1692,6 +1705,9 @@ export const catalog: Catalog = {
     "{app} will tell you if a later message from this address is signed by anybody else.": "{app} vous préviendra si un message ultérieur de cette adresse est signé par quelqu'un d'autre.",
     "itself, or an issuer it does not name": "lui-même, ou un émetteur qu'il ne nomme pas",
     "no address": "aucune adresse",
+    // ── Spam filter: the language model's opinion ──────────────────
+    "Language model's opinion": "Avis du modèle de langage",
+    "One of several signals the spam filter weighed": "Un signal parmi d'autres pris en compte par le filtre antispam",
   },
   plurals: {
     // ── Administration: domains ────────────────────────────────────

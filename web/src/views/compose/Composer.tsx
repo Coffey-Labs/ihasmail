@@ -350,7 +350,7 @@ export function Composer({ draft }: { draft: Draft }) {
             {settings.templates.length > 0 && <button className="icon-btn" title={translate("Insert template")} onClick={templateMenu.open}><FileText size={18} /></button>}
             <Popover anchor={templateMenu.anchor} onClose={templateMenu.close} side="top" width={260}>
               <MenuTitle>{translate("Templates")}</MenuTitle>
-              {settings.templates.map((t) => <MenuItem key={t.id} label={t.name} onClick={() => insertTemplate(key, t.html, t.subject)} />)}
+              {settings.templates.map((t) => <MenuItem key={t.id} label={t.name} onClick={() => insertTemplate(key, t)} />)}
             </Popover>
             <button className="icon-btn" onClick={moreMenu.open} aria-label={translate("More options")}><MoreVertical size={18} /></button>
             <Popover anchor={moreMenu.anchor} onClose={moreMenu.close} side="top" width={260}>
@@ -362,7 +362,7 @@ export function Composer({ draft }: { draft: Draft }) {
               <MenuItem label={translate("Normal")} checked={d.priority === "normal"} onClick={() => patch({ priority: "normal" })} />
               <MenuItem label={translate("Low")} checked={d.priority === "low"} onClick={() => patch({ priority: "low" })} />
               <MenuSep />
-              <MenuItem icon={<ChevronsDown size={16} />} label={translate("Save as template")} onClick={async () => { const name = await promptDialog({ title: translate("Save as template"), defaultValue: d.subject || translate("Template"), placeholder: translate("Template name") }); if (name) updateSettings({ templates: [...useSettings.getState().settings.templates, { id: `t${Date.now()}`, name, subject: d.subject, html: d.format === "html" ? d.html : textToHtml(d.text) }] }); }} />
+              <MenuItem icon={<ChevronsDown size={16} />} label={translate("Save as template")} onClick={async () => { const name = await promptDialog({ title: translate("Save as template"), defaultValue: d.subject || translate("Template"), placeholder: translate("Template name") }); if (name) updateSettings({ templates: [...useSettings.getState().settings.templates, { id: `t${Date.now()}`, name, subject: d.subject, html: d.format === "html" ? d.html : textToHtml(d.text), to: d.to, cc: d.cc, bcc: d.bcc }] }); }} />
               <MenuItem icon={<FileText size={16} />} label={translate("Save draft now")} onClick={() => void saveDraft(key)} />
             </Popover>
           </span>

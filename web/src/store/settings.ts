@@ -7,6 +7,7 @@ import { pendingSettingsKeys, queueSettingsPush } from "@/lib/settingsSync";
 import { policyChanges, policyDefaults, policyEnforced, type PolicyChange } from "@/lib/settingsPolicy";
 import { setDateTimePrefs, setUiLanguageForFormatting, type DateFormat, type TimeFormat } from "@/lib/datetime";
 import type { SwipeAction } from "@/lib/input/swipe";
+import type { EmailAddress } from "@/jmap/types";
 import { resolveUiLanguage } from "@/lib/languages";
 import { loadLanguage } from "@/lib/i18n";
 
@@ -55,6 +56,10 @@ export interface Template {
   name: string;
   subject: string;
   html: string;
+  /** Recipients added to the message when the template is inserted. Older templates have none. */
+  to?: EmailAddress[];
+  cc?: EmailAddress[];
+  bcc?: EmailAddress[];
 }
 
 /** A signer remembered for an address. See `knownSigners`. */
@@ -206,6 +211,15 @@ export interface Settings {
    * dates nobody put there is a surprise rather than a feature.
    */
   birthdayCalendar: boolean;
+  /**
+   * Save everyone written to who is not a contact yet, in an address book of
+   * its own, so they are suggested on every device rather than only in the
+   * browser that sent the message. On by default, as mail clients do; the
+   * address book can be emptied or deleted like any other.
+   */
+  collectRecipients: boolean;
+  /** The address book collected recipients go to, once there is one. */
+  collectedBookId: string | null;
   /**
    * Calendars subscribed to by URL. The subscription is the setting; the
    * events themselves are fetched on demand and never stored, so this follows
@@ -361,6 +375,8 @@ export const DEFAULT_SETTINGS: Settings = {
   timeZone: null,
   labelsSidebar: true,
   birthdayCalendar: false,
+  collectRecipients: true,
+  collectedBookId: null,
   icalSubscriptions: [],
   listSortPreset: "newest",
   listSortLevels: [],

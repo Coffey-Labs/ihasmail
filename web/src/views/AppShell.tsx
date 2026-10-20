@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
-import { BookOpen, Calendar, ChevronsUpDown, FolderOpen, Globe, HelpCircle, LogOut, Mail, Menu as MenuIcon, Moon, PenSquare, Plus, RefreshCw, Settings, ShieldCheck, Sun, Upload, Users, X } from "lucide-react";
+import { BookOpen, Calendar, ChevronsUpDown, FolderOpen, Globe, HelpCircle, LogOut, Mail, Menu as MenuIcon, Moon, PanelLeftClose, PanelLeftOpen, PenSquare, Plus, RefreshCw, Settings, ShieldCheck, Sun, Upload, Users, X } from "lucide-react";
 import { useSession } from "@/store/session";
 import { withBase } from "@/lib/basePath";
 import { DEFAULT_APP_NAME } from "@/lib/brand";
@@ -49,6 +49,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [location, navigate] = useLocation();
   const isMobile = useIsMobile();
   const collapsed = useSettings((s) => s.settings.sidebarCollapsed);
+  const inboxUnread = useMail((s) => Object.values(s.mailboxes).find((m) => m.role === "inbox")?.unreadEmails ?? 0);
   const sidebarWidth = useSettings((s) => s.settings.sidebarWidth);
   const update = useSettings((s) => s.update);
   /*
@@ -143,9 +144,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="app">
       <header className="topbar">
-        <button className="icon-btn" aria-label={t("Menu")} onClick={() => (isMobile ? setDrawer((d) => !d) : update({ sidebarCollapsed: !collapsed }))}>
-          <MenuIcon size={22} />
-        </button>
+        {/* On a wide screen the folder list is toggled from the bottom of the rail; phones keep the menu button for the drawer. */}
+        {isMobile && (
+          <button className="icon-btn" aria-label={t("Menu")} onClick={() => setDrawer((d) => !d)}>
+            <MenuIcon size={22} />
+          </button>
+        )}
         <Link href="/mail" className="brand">
           <img src={withBase("/img/logo.png")} alt="" />
           {/* A product name, not a word: translated it is a different product.
@@ -165,9 +169,12 @@ export function AppShell({ children }: { children: ReactNode }) {
             <HelpCircle size={21} />
           </button>
           <ThemeToggle />
-          <Link href="/settings" className={`icon-btn ${section === "settings" ? "active" : ""}`} aria-label={t("Settings")} title={t("Settings")}>
-            <Settings size={21} />
-          </Link>
+          {/* On a wide screen the rail carries Settings; phones have no rail, so they keep this one. */}
+          {isMobile && (
+            <Link href="/settings" className={`icon-btn ${section === "settings" ? "active" : ""}`} aria-label={t("Settings")} title={t("Settings")}>
+              <Settings size={21} />
+            </Link>
+          )}
           <button className="icon-btn" style={{ width: "auto", padding: "0 2px", borderRadius: 999 }} onClick={acctMenu.open} aria-label={t("Account")}>
             <Avatar who={{ name: session?.username, email: session?.username }} size="sm" />
           </button>
@@ -213,10 +220,30 @@ export function AppShell({ children }: { children: ReactNode }) {
       </header>
 
       <div
-        className={`app-body ${collapsed && !isMobile ? "collapsed" : ""} ${liveSidebarWidth != null ? "resizing" : ""}`}
+        className={`app-body ${!isMobile ? "has-rail" : ""} ${collapsed && !isMobile ? "collapsed" : ""} ${collapsed && !isMobile && section !== "mail" && section !== "search" ? "sidebar-hidden" : ""} ${liveSidebarWidth != null ? "resizing" : ""}`}
         style={shownSidebarWidth != null && !isMobile ? ({ "--sidebar-w": `${shownSidebarWidth}px` } as React.CSSProperties) : undefined}
       >
         <div className={`drawer-backdrop ${drawer ? "open" : ""}`} onClick={() => setDrawer(false)} />
+        {!isMobile && (
+          <nav className="app-rail" aria-label={t("Go to")}>
+            <RailLink href="/mail" icon={<Mail size={20} />} label={t("Mail")} active={section === "mail" || section === "search"} badge={inboxUnread} />
+            <RailLink href="/calendar" icon={<Calendar size={20} />} label={t("Calendar")} active={section === "calendar"} />
+            <RailLink href="/contacts" icon={<Users size={20} />} label={t("Contacts")} active={section === "contacts"} />
+            <RailLink href="/files" icon={<FolderOpen size={20} />} label={t("Files")} active={section === "files"} />
+            <span className="app-rail-spacer" />
+            <RailLink href="/settings" icon={<Settings size={20} />} label={t("Settings")} active={section === "settings"} />
+            <button
+              type="button"
+              className="rail-link rail-toggle"
+              aria-label={collapsed ? t("Show folder list") : t("Hide folder list")}
+              title={collapsed ? t("Show folder list") : t("Hide folder list")}
+              aria-expanded={!collapsed}
+              onClick={() => update({ sidebarCollapsed: !collapsed })}
+            >
+              {collapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
+            </button>
+          </nav>
+        )}
         <aside ref={sidebarRef} className={`sidebar ${drawer ? "open" : ""}`}>
           {/*
             The way back out.
@@ -265,12 +292,12 @@ export function AppShell({ children }: { children: ReactNode }) {
             {section === "admin" && <AdminNav />}
           </div>
           {(section === "mail" || section === "search") && <QuotaBar />}
-          <nav className="module-bar" aria-label={t("Go to")}>
+          {isMobile && <nav className="module-bar" aria-label={t("Go to")}>
             <ModuleLink href="/mail" icon={<Mail size={20} />} label={t("Mail")} active={section === "mail" || section === "search"} />
             <ModuleLink href="/calendar" icon={<Calendar size={20} />} label={t("Calendar")} active={section === "calendar"} />
             <ModuleLink href="/contacts" icon={<Users size={20} />} label={t("Contacts")} active={section === "contacts"} />
             <ModuleLink href="/files" icon={<FolderOpen size={20} />} label={t("Files")} active={section === "files"} />
-          </nav>
+          </nav>}
         </aside>
         {/* Not on a phone, where the sidebar is a drawer over the page, and not
             while collapsed to icons, where there is no width to choose. */}
@@ -352,6 +379,16 @@ export function AppShell({ children }: { children: ReactNode }) {
         />
       )}
     </div>
+  );
+}
+
+/** The app rail down the left edge, which replaces the module bar on a wide screen. */
+function RailLink({ href, icon, label, active, badge = 0 }: { href: string; icon: ReactNode; label: string; active: boolean; badge?: number }) {
+  return (
+    <Link href={href} className={`rail-link ${active ? "active" : ""}`} title={label} aria-label={label} aria-current={active ? "page" : undefined}>
+      {icon}
+      {badge > 0 && <span className="rail-badge">{badge > 999 ? "999+" : badge}</span>}
+    </Link>
   );
 }
 

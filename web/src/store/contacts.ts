@@ -2,10 +2,12 @@ import { create } from "zustand";
 import { accountKey, loadRaw, saveJson } from "@/lib/storage";
 import { CAP, chunk, client, JmapMethodError, setErrorMessage } from "@/jmap/client";
 import type { AddressBook, ChangesResponse, ContactCard, EmailAddress, GetResponse, Id, Principal, QueryResponse, SetError, SetResponse } from "@/jmap/types";
-import { contactDisplayName, contactEmails, sortKey } from "@/lib/contacts";
+import { contactDisplayName, contactEmails, contactFromAddress, sortKey } from "@/lib/contacts";
+import { uniqueAddresses } from "@/lib/address";
 import { parseLdif, uidFromDn } from "@/lib/ldif";
 import { cardFromLdif } from "@/lib/mozillaAb";
 import { useSettings } from "./settings";
+import { t as translate } from "@/lib/i18n";
 import { useSession } from "./session";
 import { useMail } from "./mail";
 
@@ -225,6 +227,8 @@ interface ContactsState {
    */
   emptyBook(bookId: Id): Promise<{ destroyed: number; unfiled: number; refused?: SetError }>;
   createBook(name: string): Promise<Id>;
+  /** Save the addresses that are not on any contact yet, in the Collected address book. */
+  collectRecipients(addrs: EmailAddress[], own: string[]): Promise<number>;
   updateBook(id: Id, patch: Partial<AddressBook>): Promise<void>;
   destroyBook(id: Id): Promise<void>;
   /** Import vCards, updating any whose UID this book already holds rather than duplicating it. */
@@ -615,6 +619,28 @@ export const useContacts = create<ContactsState>((set, get) => ({
     return { destroyed: gone.length, unfiled, refused };
   },
 
+  async collectRecipients(addrs, own) {
+    if (!get().available || !get().accountId) return 0;
+    // Every card has to be known, or someone already a contact gets a second card.
+    if (!get().loaded) await get().loadAll();
+    const ownSet = new Set(own.map((e) => e.toLowerCase()));
+    const fresh = uniqueAddresses(addrs).filter((a) => a.email && !ownSet.has(a.email.toLowerCase()) && !get().lookupByEmail(a.email));
+    if (!fresh.length) return 0;
+    const accountId = get().accountId!;
+    const { settings, update } = useSettings.getState();
+    let bookId = settings.collectedBookId && get().books[settings.collectedBookId] ? settings.collectedBookId : null;
+    if (!bookId) {
+      bookId = await get().createBook(translate("Collected"));
+      update({ collectedBookId: bookId });
+    }
+    const create = Object.fromEntries(
+      fresh.map((a, i) => [`c${i}`, { "@type": "Card", version: "1.0", uid: crypto.randomUUID(), kind: "individual", ...contactFromAddress(a), addressBookIds: { [bookId!]: true } }]),
+    );
+    const res = await client.call<SetResponse<ContactCard>>("ContactCard/set", { accountId, create });
+    await get().syncCards();
+    return Object.keys(res.created ?? {}).length;
+  },
+
   async createBook(name) {
     const accountId = get().accountId!;
     const res = await client.call<SetResponse<AddressBook>>("AddressBook/set", { accountId, create: { b: { name } } });
@@ -792,13 +818,28 @@ export const useContacts = create<ContactsState>((set, get) => ({
       seen.add(k);
       out.push(s);
     };
-    const score = (name: string | null, email: string): number => {
+    /*
+     * Words in any order: "jane smi" finds "Smith, Jane", and a nickname or the
+     * organization counts as much as the name. Each word typed has to start a
+     * word of the person's name, nickname, organization or address.
+     */
+    const tokens = q.split(/\s+/).filter(Boolean);
+    const wordsOf = (parts: Array<string | null | undefined>) =>
+      parts.flatMap((p) => (p ?? "").toLowerCase().split(/[\s,.;:@_+()<>"'-]+/)).filter(Boolean);
+    const score = (name: string | null, email: string, extra: Array<string | null | undefined> = []): number => {
       const n = (name ?? "").toLowerCase();
       const e = email.toLowerCase();
       if (e.startsWith(q) || n.startsWith(q)) return 0;
-      if (n.split(/\s+/).some((w) => w.startsWith(q))) return 1;
+      const words = wordsOf([name, email, ...extra]);
+      if (tokens.every((t) => words.some((w) => w.startsWith(t)))) return 1;
       if (e.includes(q) || n.includes(q)) return 2;
       return 99;
+    };
+    // Someone written to lately ranks a little above someone not, within the same kind of match.
+    const recentRank = new Map(st.recent.map((r, i) => [r.email.toLowerCase(), i] as const));
+    const recency = (email: string) => {
+      const i = recentRank.get(email.toLowerCase());
+      return i === undefined ? 0 : -0.3 * (1 - i / Math.max(1, st.recent.length));
     };
     const candidates: Array<Suggestion & { score: number }> = [];
     // A shared address book is only useful if it answers when you are writing
@@ -807,19 +848,20 @@ export const useContacts = create<ContactsState>((set, get) => ({
     const own = Object.values(st.cards).map((c) => ({ c, penalty: 0 }));
     const shared = Object.values(st.sharedCards).map((c) => ({ c, penalty: 0.5 }));
     for (const { c, penalty } of [...own, ...shared]) {
+      const extra = [...Object.values(c.nicknames ?? {}).map((x) => x.name), ...Object.values(c.organizations ?? {}).map((x) => x.name)];
       for (const a of contactEmails(c)) {
-        const sc = score(a.name, a.email);
-        if (sc < 99) candidates.push({ name: a.name, email: a.email, source: "contact", contactId: c.id, score: sc + penalty });
+        const sc = score(a.name, a.email, extra);
+        if (sc < 99) candidates.push({ name: a.name, email: a.email, source: "contact", contactId: c.id, score: sc + penalty + recency(a.email) });
       }
     }
     for (const p of st.principals) {
       if (!p.email) continue;
       const sc = score(p.name, p.email);
-      if (sc < 99) candidates.push({ name: p.name, email: p.email, source: "gal", score: sc + 0.5 });
+      if (sc < 99) candidates.push({ name: p.name, email: p.email, source: "gal", score: sc + 0.5 + recency(p.email) });
     }
     for (const r of st.recent) {
       const sc = score(r.name, r.email);
-      if (sc < 99) candidates.push({ name: r.name, email: r.email, source: "recent", score: sc + 0.25 });
+      if (sc < 99) candidates.push({ name: r.name, email: r.email, source: "recent", score: sc + 0.25 + recency(r.email) });
     }
     candidates.sort((a, b) => a.score - b.score || (a.name ?? a.email).localeCompare(b.name ?? b.email));
     for (const c of candidates) {

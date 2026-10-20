@@ -1,4 +1,5 @@
 import { SPAM_HEADER_PROPS } from "@/lib/spamScore";
+import { LLM_HEADER_PROP } from "@/lib/llmOpinion";
 
 
 /*
@@ -67,6 +68,8 @@ export const FULL_PROPS = [
   "header:Precedence:asText",
   "header:Authentication-Results:asText",
   ...SPAM_HEADER_PROPS,
+  // The language model's opinion, when the server wrote one
+  LLM_HEADER_PROP,
 ];
 
 export const BODY_PROPS = ["partId", "blobId", "size", "name", "type", "charset", "disposition", "cid", "language", "location", "subParts", "headers"];
