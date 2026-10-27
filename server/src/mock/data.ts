@@ -201,7 +201,7 @@ export function addEmail(o: { from: [string, string]; to?: string; subject: stri
     attachments,
     bodyValues: { "1": { value: text, isEncodingProblem: false, isTruncated: false }, ...(o.html ? { "2": { value: o.styled ? STYLED_MARKETING_HTML : html, isEncodingProblem: false, isTruncated: false } } : {}) },
     bodyStructure: { partId: null, blobId: null, size: 0, type: "multipart/mixed", name: null, charset: null, disposition: null, cid: null, subParts: [{ partId: "1", blobId: textBlob, size: text.length, type: "text/plain", name: null, charset: "utf-8", disposition: null, cid: null }, ...(o.html ? [{ partId: "2", blobId: htmlBlob, size: (o.styled ? STYLED_MARKETING_HTML : html).length, type: "text/html", name: null, charset: "utf-8", disposition: null, cid: null }] : []), ...attachments] },
-    "header:List-Unsubscribe:asText": o.from[1].includes("newsletter") ? "<mailto:unsub@newsletter.example?subject=unsubscribe>, <https://newsletter.example/unsub>" : null,
+    "header:List-Unsubscribe:asURLs": o.from[1].includes("newsletter") ? ["mailto:unsub@newsletter.example?subject=unsubscribe", "https://newsletter.example/unsub"] : null,
     "header:X-Priority:asText": o.subject.startsWith("Security") ? "1 (Highest)" : null,
     // Stalwart's spam filter writes the SpamAssassin-shaped set at delivery, so
     // delivered mail carries it and mail this account wrote does not.

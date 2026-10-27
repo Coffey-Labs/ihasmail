@@ -58,7 +58,7 @@ export const FULL_PROPS = [
   "textBody",
   "htmlBody",
   "attachments",
-  "header:List-Unsubscribe:asText",
+  "header:List-Unsubscribe:asURLs",
   "header:List-Unsubscribe-Post:asText",
   "header:List-Id:asText",
   "header:Disposition-Notification-To:asAddresses",

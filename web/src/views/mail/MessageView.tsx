@@ -190,7 +190,7 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
   const attachments = useMemo(() => (e.attachments ?? []).filter((a) => !(a.cid && a.disposition === "inline" && a.type.startsWith("image/") && htmlRaw?.includes(`cid:${a.cid}`))), [e.attachments, htmlRaw]);
   const icsPart = useMemo(() => findPart(e.bodyStructure, (p) => p.type === "text/calendar" || (p.name ?? "").toLowerCase().endsWith(".ics")), [e.bodyStructure]);
   const vcfParts = useMemo(() => (e.attachments ?? []).filter((p) => p.type === "text/vcard" || p.type === "text/x-vcard" || (p.name ?? "").toLowerCase().endsWith(".vcf")), [e.attachments]);
-  const unsubscribe = e["header:List-Unsubscribe:asText"];
+  const unsubscribe = e["header:List-Unsubscribe:asURLs"];
   const isHighPriority = /^[12]/.test(e["header:X-Priority:asText"] ?? "") || /high/i.test(e["header:Importance:asText"] ?? "");
   const receiptRequested = Boolean(e["header:Disposition-Notification-To:asAddresses"]?.length);
   const authFailed = /\b(dkim|spf|dmarc)=fail\b/i.test(e["header:Authentication-Results:asText"] ?? "");
@@ -248,8 +248,7 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
   };
 
   const onUnsubscribe = async () => {
-    if (!unsubscribe) return;
-    const urls = [...unsubscribe.matchAll(/<([^>]+)>/g)].map((m) => m[1]!);
+    const urls = unsubscribe ?? [];
     const mailto = urls.find((u) => u.startsWith("mailto:"));
     const http = urls.find((u) => /^https?:/i.test(u));
     if (mailto) {
@@ -463,12 +462,12 @@ export const MessageView = memo(function MessageView({ email: e, expanded, wasUn
             {showHtml && rendered ? <HtmlBody html={rendered.html} bodyStyle={rendered.bodyStyle} themed={themed} forced={forced} onShowImages={showImages} onFollowLink={linkGuard} /> : <TextBody text={textRaw ?? ""} onFollowLink={linkGuard} />}
           </div>
           {attachments.length > 0 && <AttachmentList attachments={attachments} accountId={accountId} email={e} />}
-          {unsubscribe && (
+          {unsubscribe?.length ? (
             <div className="unsubscribe-row">
               <span>{translate("This looks like a mailing list.")}</span>
               <button className="btn btn-ghost btn-sm" onClick={() => void onUnsubscribe()}>{translate("Unsubscribe")}</button>
             </div>
-          )}
+          ) : null}
         </>
       )}
       {addrMenu.node}
