@@ -107,6 +107,62 @@ jobs:
       - run: su node -p -c "npm test"
       - run: su node -p -c "npm run build"
 
+  # ---------------------------------------------------------- stalwart ------
+  # The fallback for GitHub ci.yml's `stalwart` job: web/src/jmap/__tests__/
+  # stalwart-compat.test.ts against a real, empty Stalwart of each supported
+  # version, from images pinned by digest. It needs the docker socket to start
+  # Stalwart beside the job, so it runs on `docker`. Both containers join
+  # ci-net, where this job container reaches Stalwart by name. The checkout
+  # lives in the job container rather than on the host, so it is copied into
+  # the test container, not mounted. The image runs Stalwart's binary
+  # directly and its user cannot write /etc/stalwart, so the config that keeps
+  # it out of bootstrap mode is written to /tmp and passed explicitly.
+  stalwart:
+    if: ${{ vars.BUILD_ON != 'github' }}
+    needs: [node]
+    runs-on: docker
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - version: "0.16.27"
+            image: stalwartlabs/stalwart@sha256:c429b311c93db5606598abc1c68225a85a6953183848ae01bee9c6a98885836c # v0.16.27
+          - version: "1.0.0"
+            image: stalwartlabs/stalwart@sha256:baafeacd6cbde77acdd94af49972d41c6709e54a376df48e18a9fe3f445eb3d5 # v1.0.0
+    container:
+      image: docker:28-cli@sha256:625d9431a9f54c5a2bc90f24f0e1c3d55b1349fd857dd85035f98c2c9acbdd4d # 28-cli
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
+    env:
+      STALWART_VERSION: ${{ matrix.version }}
+      IMAGE: ${{ matrix.image }}
+      NODE_IMAGE: node:26-bookworm-slim@sha256:582460f614631b59b824ac6020533b9bf339c7fdf3a6d7db31abb6b4065f0212 # 26-bookworm-slim
+      NET: ci-net
+    steps:
+      - uses: coffey-labs/actions/checkout@fab0c4d45e0162963965f1555df27b7bed5e20ec
+      - run: |
+          set -eu
+          # Names unique to this run and version; both containers go when the step ends.
+          sw="ihasmail-stalwart-${GITHUB_RUN_ID}-$(echo "$STALWART_VERSION" | tr . -)"
+          admin="admin:$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+          echo "::add-mask::${admin#admin:}"
+          trap 'docker rm -f "$sw" "$sw-test" >/dev/null 2>&1 || true' EXIT
+          docker run -d --name "$sw" --network "$NET" -e STALWART_RECOVERY_ADMIN="$admin" \
+            --entrypoint sh "$IMAGE" \
+            -c 'echo "{\"@type\":\"RocksDb\",\"path\":\"/var/lib/stalwart/\"}" > /tmp/config.json && exec /usr/local/bin/stalwart --config /tmp/config.json' >/dev/null
+          up=0
+          for _ in $(seq 1 60); do
+            if wget -q -O /dev/null "http://$sw:8080/healthz/live"; then up=1; break; fi
+            sleep 1
+          done
+          [ "$up" = 1 ] || { docker logs "$sw"; exit 1; }
+          docker create --name "$sw-test" --network "$NET" \
+            -e STALWART_COMPAT_URL="http://$sw:8080" -e STALWART_COMPAT_ADMIN="$admin" \
+            -w /src "$NODE_IMAGE" \
+            sh -c 'npm ci --ignore-scripts --no-audit --no-fund && cd web && npx vitest run src/jmap/__tests__/stalwart-compat.test.ts' >/dev/null
+          docker cp . "$sw-test:/src"
+          docker start -a "$sw-test" || { docker logs "$sw" 2>&1 | tail -100; exit 1; }
+
   # ------------------------------------------------------------- build ------
   # Proves the Dockerfile still builds on every change, without pushing. The
   # equivalent of ci.yml's final `docker build -t ihasmail:ci .` step. The
