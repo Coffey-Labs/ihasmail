@@ -364,8 +364,8 @@ export class JmapClient {
   }
 }
 
-/** Map method name prefix → required capability URNs. */
-function usingFor(method: string): string[] {
+/** Map method name prefix → required capability URNs. Exported for the server compatibility test. */
+export function usingFor(method: string): string[] {
   const type = method.split("/")[0] ?? "";
   // Stalwart's registry: accounts, domains, credentials. Advertised per
   // account rather than in the session, which supportedUsing() allows for.

@@ -80,6 +80,58 @@ jobs:
       - run: npm test
       - run: npm run build
 
+  # ---------------------------------------------------------- stalwart ------
+  # web/src/jmap/__tests__/stalwart-compat.test.ts against a real, empty
+  # Stalwart of each supported version: the app's own property lists and
+  # `using`, so a server that tightens its parsing fails here and not in a
+  # reader's inbox. Images pinned by digest like everything else; a new
+  # Stalwart release is a new matrix entry. The config file is what keeps the
+  # server out of bootstrap mode, and the recovery administrator is made up
+  # per run.
+  stalwart:
+    if: ${{ vars.BUILD_ON == 'github' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - version: "0.16.27"
+            image: stalwartlabs/stalwart@sha256:c429b311c93db5606598abc1c68225a85a6953183848ae01bee9c6a98885836c # v0.16.27
+          - version: "1.0.0"
+            image: stalwartlabs/stalwart@sha256:baafeacd6cbde77acdd94af49972d41c6709e54a376df48e18a9fe3f445eb3d5 # v1.0.0
+    name: stalwart (${{ matrix.version }})
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Start Stalwart ${{ matrix.version }}
+        env:
+          IMAGE: ${{ matrix.image }}
+        run: |
+          set -euo pipefail
+          admin="admin:$(openssl rand -hex 16)"
+          echo "::add-mask::${admin#admin:}"
+          echo "STALWART_COMPAT_ADMIN=$admin" >> "$GITHUB_ENV"
+          echo "STALWART_COMPAT_URL=http://127.0.0.1:8080" >> "$GITHUB_ENV"
+          mkdir -p "$RUNNER_TEMP/stalwart"
+          echo '{"@type":"RocksDb","path":"/var/lib/stalwart/"}' > "$RUNNER_TEMP/stalwart/config.json"
+          chmod 644 "$RUNNER_TEMP/stalwart/config.json"
+          docker run -d --name stalwart -e STALWART_RECOVERY_ADMIN="$admin" \
+            -v "$RUNNER_TEMP/stalwart/config.json:/etc/stalwart/config.json:ro" \
+            -p 127.0.0.1:8080:8080 "$IMAGE"
+          for _ in $(seq 1 60); do
+            curl -fsS -o /dev/null http://127.0.0.1:8080/.well-known/jmap && exit 0
+            sleep 1
+          done
+          docker logs stalwart; exit 1
+      - run: npx vitest run src/jmap/__tests__/stalwart-compat.test.ts
+        working-directory: web
+      - if: ${{ failure() }}
+        run: docker logs stalwart 2>&1 | tail -200
+
   # ------------------------------------------------------------- build ------
   # Proves the Dockerfile still builds on every change, without pushing.
   docker-build:
@@ -307,7 +359,7 @@ jobs:
   # so the pull request's own checks pass or fail with this run.
   report:
     if: ${{ always() && vars.BUILD_ON == 'github' }}
-    needs: [pending, node, docker-build, version, build, publish]
+    needs: [pending, node, stalwart, docker-build, version, build, publish]
     runs-on: ubuntu-latest
     steps:
       - env:
