@@ -9,7 +9,7 @@
 
 <p align="center">
   <a href="LICENSE"><img alt="License: AGPL-3.0-or-later" src="https://img.shields.io/badge/license-AGPL--3.0--or--later-2dd4bf?style=flat-square"></a>
-  <a href="https://stalw.art" target="_blank" rel="noreferrer"><img alt="Requires Stalwart 0.16 or newer; tested against 0.16.22" src="https://img.shields.io/badge/Stalwart-0.16.22-6366f1?style=flat-square"></a>
+  <a href="https://stalw.art" target="_blank" rel="noreferrer"><img alt="Supports Stalwart 0.16.27 and 1.0" src="https://img.shields.io/badge/Stalwart-0.16.27%20%7C%201.0-6366f1?style=flat-square"></a>
   <a href="https://docs.ihasmail.org" target="_blank" rel="noreferrer"><img alt="Documentation: docs.ihasmail.org" src="https://img.shields.io/badge/docs-docs.ihasmail.org-0ea5e9?style=flat-square"></a>
   <a href="https://coffeylabs.org" target="_blank" rel="noreferrer"><img alt="by Coffey Labs" src="https://img.shields.io/badge/by-Coffey%20Labs-0f766e?style=flat-square"></a>
   <a href="https://community.coffeylabs.org/c/ihasmail/9" target="_blank" rel="noreferrer"><img alt="Forum: community.coffeylabs.org" src="https://img.shields.io/badge/forum-community.coffeylabs.org-0f766e?style=flat-square"></a>
@@ -67,12 +67,31 @@ The long version is [FEATURES.md](FEATURES.md) and
 
 ## Requirements
 
-**Stalwart 0.16 or newer** — sign-in refuses anything older, by name. Tested
-against 0.16.22; what changed in each release is in
-[KNOWN-ISSUES.md](KNOWN-ISSUES.md).
+**Stalwart 0.16 or newer** — sign-in refuses anything older, by name. On
+Stalwart 1.0 you need ihasmail v2026.10.27 or newer. Which versions are
+supported is under [Support](#support); what changed in each Stalwart release
+is in [KNOWN-ISSUES.md](KNOWN-ISSUES.md).
 
 - **No Stalwart yet?** [ihasmail-oneshot](https://git.coffeylabs.org/coffey-labs/ihasmail-oneshot) deploys a new Stalwart and ihasmail together on one host, in one command.
 - **On Stalwart 0.15?** [stalwart-migrator](https://git.coffeylabs.org/coffey-labs/stalwart-migrator) upgrades it in place, or stay on the [`stalwart-0.15-support`](https://git.coffeylabs.org/coffey-labs/ihasmail/releases/tag/stalwart-0.15-support) release.
+
+## Support
+
+ihasmail is in maintenance mode. It gets security fixes, dependency updates
+and bug fixes, but no new features.
+
+| Stalwart | Status |
+| --- | --- |
+| 1.0.x | Supported, with ihasmail v2026.10.27 or newer |
+| 0.16.27 | Supported |
+| 0.16.0 – 0.16.26 | Signs in, but isn't tested. Upgrade to 0.16.27 |
+| 0.15 | The [`stalwart-0.15-support`](https://git.coffeylabs.org/coffey-labs/ihasmail/releases/tag/stalwart-0.15-support) release, with no further fixes |
+
+Every pull request runs ihasmail's own requests against real Stalwart 0.16.27
+and 1.0.0 servers. When Stalwart puts out a new release, we test against it
+and fix what breaks. If a release would need more than a bug fix to support,
+support stops at the last Stalwart version that works, and this table will say
+so.
 
 ## Quick start (Docker)
 

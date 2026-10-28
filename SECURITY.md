@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-ihasmail is in maintenance mode: it receives security fixes, dependency updates, Stalwart compatibility fixes and small bug fixes, but no new features. Security fixes are applied to the latest release on the `main` branch. Older tags/releases are not guaranteed to receive backported fixes.
+ihasmail is in maintenance mode: it receives security fixes, dependency updates, Stalwart compatibility fixes and small bug fixes, but no new features. Which Stalwart versions are supported is in the README, under [Support](README.md#support). Security fixes are applied to the latest release on the `main` branch. Older tags/releases are not guaranteed to receive backported fixes.
 
 | Version       | Supported          |
 | ------------- | ------------------ |
