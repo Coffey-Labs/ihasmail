@@ -62,8 +62,13 @@ describe("shared accounts", () => {
 
   it("are asked about files together when Files wants to know", async () => {
     await useFiles.getState().discoverShared();
-    expect(requests).toHaveLength(1);
-    expect(requests[0]!.map(([n, a]) => `${n} ${a.accountId}`)).toEqual(SHARED.map((id) => `FileNode/query ${id}`));
+    // The first FileNode call of a session asks the reader's own account which
+    // shape of FileNode the server wants (jmap/fileNodeShape.ts); the shared
+    // accounts are still asked in one request after it.
+    const [probe, ...rest] = requests;
+    expect(probe!.map(([n, a, id]) => `${n} ${a.accountId} ${id}`)).toEqual(["FileNode/query own shape"]);
+    expect(rest).toHaveLength(1);
+    expect(rest[0]!.map(([n, a]) => `${n} ${a.accountId}`)).toEqual(SHARED.map((id) => `FileNode/query ${id}`));
     expect(useFiles.getState().sharedAccounts).toEqual([{ id: "s2", name: "s2@example.com" }]);
   });
 
