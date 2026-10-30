@@ -332,13 +332,29 @@ interface CalendarState {
  * Explicit property list: when `properties` is null Stalwart omits the JMAP-only
  * fields baseEventId / utcStart / utcEnd, and we need baseEventId to update
  * recurring instances (synthetic ids can't be patched directly).
+ *
+ * `recurrenceOverrides` is left out. Stalwart 1.0 refuses a get that asks for
+ * it together with `utcStart` or `utcEnd` -- the whole call, with no ids at
+ * all -- and every read here wants the times: an occurrence is placed on the
+ * grid by them, and an occurrence's overrides are null anyway. The one read
+ * that needs the overrides, the export, asks with `SERIES_PROPS` instead.
  */
-const EVENT_PROPS = [
+export const EVENT_PROPS = [
   "id", "baseEventId", "calendarIds", "isDraft", "isOrigin", "utcStart", "utcEnd", "useDefaultAlerts", "mayInviteSelf", "mayInviteOthers", "hideAttendees",
   "uid", "relatedTo", "prodId", "created", "updated", "sequence", "title", "description", "descriptionContentType", "showWithoutTime",
   "locations", "virtualLocations", "links", "locale", "keywords", "categories", "color", "recurrenceId", "recurrenceIdTimeZone",
-  "recurrenceRules", "recurrenceRule", "excludedRecurrenceRules", "recurrenceOverrides", "excluded", "priority", "freeBusyStatus", "privacy", "replyTo", "organizerCalendarAddress",
+  "recurrenceRules", "recurrenceRule", "excludedRecurrenceRules", "excluded", "priority", "freeBusyStatus", "privacy", "replyTo", "organizerCalendarAddress",
   "sentBy", "participants", "requestStatus", "alerts", "timeZone", "start", "duration", "status",
+];
+
+/**
+ * A stored event whole, for writing it out: its "just this date" edits
+ * included, its server-computed times not. A master's own times are in
+ * `start`, `duration` and `timeZone`, which is all an export writes.
+ */
+export const SERIES_PROPS = [
+  ...EVENT_PROPS.filter((p) => p !== "utcStart" && p !== "utcEnd"),
+  "recurrenceOverrides",
 ];
 
 /**
@@ -1029,7 +1045,7 @@ export const useCalendar = create<CalendarState>((set, get) => ({
    */
   async exportIcs(calendarId) {
     const accountId = get().accountId!;
-    const events = await eventsInCalendar(accountId, calendarId, EVENT_PROPS);
+    const events = await eventsInCalendar(accountId, calendarId, SERIES_PROPS);
     if (!events.length) throw new Error("there is nothing in it to export");
     return { text: toIcs(events, get().calendars[calendarId]?.name), count: events.length };
   },

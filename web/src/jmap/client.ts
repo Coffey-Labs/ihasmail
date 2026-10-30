@@ -1,4 +1,5 @@
 import type { Id, Invocation, JmapResponse, JmapSession, MethodError, UploadResponse } from "./types";
+import { argsToServer, resultFromServer, shapeFromProbe, shapeProbe, type FileNodeShape } from "./fileNodeShape";
 import { withBase } from "@/lib/basePath";
 import { reauthAtFrontDoor } from "@/lib/frontDoor";
 
@@ -118,6 +119,8 @@ export class JmapClient {
   private stateHandlers = new Set<(sessionState: string) => void>();
   /** The last session state announced, so a burst of replies announces it once. */
   private announcedState: string | null = null;
+  /** The FileNode shape this session's server wants, asked once (fileNodeShape.ts). */
+  private fileShape: { session: JmapSession | null; shape: Promise<FileNodeShape> } | null = null;
 
   get maxCallsInRequest(): number {
     const core = this.session?.capabilities[CAP.core] as { maxCallsInRequest?: number } | undefined;
@@ -264,8 +267,42 @@ export class JmapClient {
     return using.filter((u) => u === CAP.core || this.hasCapabilityAnywhere(u));
   }
 
-  /** Low-level request: send invocations verbatim, return raw response. */
+  /**
+   * Low-level request: send invocations, return the raw response.
+   *
+   * Verbatim, except FileNode calls, which go out and come back through the
+   * translation in fileNodeShape.ts when the server is 1.0. Done here so that
+   * every caller keeps the one shape it was written for.
+   */
   async request(methodCalls: Invocation[], using: string[] = [CAP.core, CAP.mail], createdIds?: Record<string, Id>): Promise<JmapResponse> {
+    const fileCall = methodCalls.find(([m]) => m.startsWith("FileNode/"));
+    const accountId = fileCall?.[1].accountId;
+    if (typeof accountId !== "string") return this.send(methodCalls, using, createdIds);
+    const shape = await this.fileNodeShape(accountId);
+    const res = await this.send(methodCalls.map(([m, a, id]) => [m, argsToServer(shape, m, a), id]), using, createdIds);
+    return { ...res, methodResponses: res.methodResponses.map(([m, a, id]) => [m, resultFromServer(shape, m, a), id]) };
+  }
+
+  /**
+   * Ask once per session which FileNode shape the server wants, of the
+   * reader's own Files account where there is one. Until an answer decides
+   * it, the shape this client was written for, and the question stays open.
+   */
+  private fileNodeShape(accountId: Id): Promise<FileNodeShape> {
+    if (this.fileShape && this.fileShape.session === this.session) return this.fileShape.shape;
+    const undecided = (): FileNodeShape => {
+      this.fileShape = null;
+      return "0.16";
+    };
+    const shape = this.send([shapeProbe(this.primaryAccount(CAP.filenode) ?? accountId)], [CAP.core, CAP.filenode]).then(
+      (res) => shapeFromProbe(res.methodResponses[0]) ?? undecided(),
+      undecided,
+    );
+    this.fileShape = { session: this.session, shape };
+    return shape;
+  }
+
+  private async send(methodCalls: Invocation[], using: string[], createdIds?: Record<string, Id>): Promise<JmapResponse> {
     const body: Record<string, unknown> = { using: this.supportedUsing(using), methodCalls };
     if (createdIds) body.createdIds = createdIds;
     const res = await apiFetch<JmapResponse>("/api/jmap", { method: "POST", body: JSON.stringify(body) });

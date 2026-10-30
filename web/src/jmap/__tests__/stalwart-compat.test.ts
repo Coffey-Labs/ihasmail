@@ -2,8 +2,12 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { CAP, STALWART_CAP, usingFor } from "@/jmap/client";
 import { BODY_PROPS, FULL_PROPS, LIST_PROPS, MAILBOX_PROPS } from "@/store/mail/props";
-import { CALENDAR_PROPS } from "@/store/calendar";
+import { CALENDAR_PROPS, EVENT_PROPS, SERIES_PROPS } from "@/store/calendar";
 import { ADDRESS_BOOK_PROPS } from "@/store/contacts";
+import { argsToServer, resultFromServer, shapeFromProbe, shapeProbe } from "@/jmap/fileNodeShape";
+import { APP_FOLDER, folderProps, isAppFolder } from "@/lib/appFolder";
+import { directoryCreate, fileCreate, fileNodeProps } from "@/lib/filenode";
+import type { FileNode } from "@/jmap/types";
 
 /**
  * Runs against a real, empty Stalwart, not a mock. Skipped unless
@@ -184,6 +188,114 @@ describe.skipIf(!BASE)("a real Stalwart server", () => {
       ["x:AccountPassword/get", { accountId: aid }, "20"],
     ];
     await expectAnswered(alice, calls);
+  });
+
+  it("reads events with every property list the calendar asks for", async () => {
+    // Stalwart 1.0 refuses recurrenceOverrides together with utcStart/utcEnd
+    // for the whole call, even with no ids (Gitea issue #66), so the empty
+    // gets matter as much as the ones that find something.
+    await expectAnswered(alice, [
+      ["CalendarEvent/get", { accountId: aid, ids: [], properties: EVENT_PROPS }, "e"],
+      ["CalendarEvent/get", { accountId: aid, ids: [], properties: SERIES_PROPS }, "s"],
+    ]);
+
+    const calendars = (await jmap(alice, [["Calendar/get", { accountId: aid, properties: CALENDAR_PROPS }, "c"]]))[0]![1].list as { id: string }[];
+    let calendarId = calendars[0]?.id;
+    if (!calendarId) {
+      const made = await jmap(alice, [["Calendar/set", { accountId: aid, create: { c: { name: "Compat" } } }, "c"]]);
+      calendarId = (made[0]![1].created as Record<string, { id: string }>).c!.id;
+    }
+    const event = {
+      "@type": "Event",
+      uid: crypto.randomUUID(),
+      calendarIds: { [calendarId]: true },
+      title: "Compat weekly",
+      start: "2026-11-02T09:00:00",
+      timeZone: "Etc/UTC",
+      duration: "PT1H",
+      // The singular the editor writes: 0.16 refuses the RFC's list, and 1.0
+      // takes the list but drops it, leaving one event.
+      recurrenceRule: { "@type": "RecurrenceRule", frequency: "weekly", count: 3 },
+    };
+    const made = await jmap(alice, [["CalendarEvent/set", { accountId: aid, create: { e: event } }, "e"]]);
+    const masterId = (made[0]![1].created as Record<string, { id: string }>)?.e?.id;
+    expect(masterId, JSON.stringify(made[0]![1])).toBeTruthy();
+
+    // What the grid does: a window, expanded, read with EVENT_PROPS.
+    const grid = await jmap(alice, [
+      ["CalendarEvent/query", { accountId: aid, filter: { after: "2026-11-01T00:00:00", before: "2026-11-30T00:00:00" }, timeZone: "Etc/UTC", sort: [{ property: "start", isAscending: true }], expandRecurrences: true, limit: 2000 }, "q"],
+      ["CalendarEvent/get", { accountId: aid, "#ids": { resultOf: "q", name: "CalendarEvent/query", path: "/ids" }, properties: EVENT_PROPS, timeZone: "Etc/UTC" }, "g"],
+    ]);
+    expect(grid[1]![0], JSON.stringify(grid[1]![1]).slice(0, 300)).toBe("CalendarEvent/get");
+    const occurrences = grid[1]![1].list as { utcStart?: string }[];
+    expect(occurrences, JSON.stringify(occurrences.map((o) => o.utcStart))).toHaveLength(3);
+    expect(occurrences.every((o) => typeof o.utcStart === "string")).toBe(true);
+
+    // What the export does: the master, read with SERIES_PROPS.
+    const series = await jmap(alice, [["CalendarEvent/get", { accountId: aid, ids: [masterId], properties: SERIES_PROPS }, "g"]]);
+    expect(series[0]![0], JSON.stringify(series[0]![1]).slice(0, 300)).toBe("CalendarEvent/get");
+    expect((series[0]![1].list as Record<string, unknown>[])[0]!.recurrenceRule).toBeTruthy();
+  });
+
+  it("keeps the settings file the way the app does", async () => {
+    // The client's own translation, against whichever shape this server wants
+    // (fileNodeShape.ts). Stalwart 1.0 renamed nodeType and type, and refused
+    // the old names on every create, so the settings were never written
+    // (Gitea issue #66).
+    const shape = shapeFromProbe((await jmap(alice, [shapeProbe(aid) as Call]))[0]);
+    expect(shape, "the probe decided nothing").not.toBeNull();
+    const files = async (calls: Call[]): Promise<Response[]> =>
+      (await jmap(alice, calls.map(([m, a, id]) => [m, argsToServer(shape!, m, a), id] as Call))).map(([m, a, id]) => [m, resultFromServer(shape!, m, a), id] as Response);
+    const topLevel = async () =>
+      ((await files([
+        ["FileNode/query", { accountId: aid, filter: { isTopLevel: true }, limit: 1000 }, "q"],
+        ["FileNode/get", { accountId: aid, "#ids": { resultOf: "q", name: "FileNode/query", path: "/ids" }, properties: folderProps() }, "g"],
+      ]))[1]![1].list as FileNode[]);
+
+    // ensureFolder: found, or made and then found by the same test.
+    let folderId = (await topLevel()).find(isAppFolder)?.id;
+    if (!folderId) {
+      const made = await files([["FileNode/set", { accountId: aid, create: { d: directoryCreate(null, APP_FOLDER) } }, "s"]]);
+      expect(made[0]![1].notCreated, JSON.stringify(made[0]![1])).toBeFalsy();
+      folderId = (await topLevel()).find(isAppFolder)?.id;
+    }
+    expect(folderId).toBeTruthy();
+
+    // The Files tree asks for folders by kind and sorts them out itself.
+    const tree = await files([
+      ["FileNode/query", { accountId: aid, filter: { nodeType: "directory" }, sort: [{ property: "name", isAscending: true }], limit: 1000 }, "q"],
+      ["FileNode/get", { accountId: aid, "#ids": { resultOf: "q", name: "FileNode/query", path: "/ids" }, properties: fileNodeProps() }, "g"],
+    ]);
+    expect((tree[1]![1].list as FileNode[]).filter((n) => n.nodeType === "directory").map((n) => n.id)).toContain(folderId);
+
+    // writeSettings: upload, then create the file or update the one there.
+    const upload = async (text: string) => {
+      const res = await fetch(`${BASE}/jmap/upload/${aid}/`, { method: "POST", headers: { "content-type": "application/json", authorization: auth(alice) }, body: text });
+      expect(res.ok, `upload: HTTP ${res.status}`).toBe(true);
+      return ((await res.json()) as { blobId: string }).blobId;
+    };
+    const inFolder = async () =>
+      ((await files([
+        ["FileNode/query", { accountId: aid, filter: { parentId: folderId }, limit: 1000 }, "q"],
+        ["FileNode/get", { accountId: aid, "#ids": { resultOf: "q", name: "FileNode/query", path: "/ids" }, properties: ["id", "name", "parentId", "blobId", "size", "type", "nodeType"] }, "g"],
+      ]))[1]![1].list as FileNode[]).find((n) => n.name === "settings.json");
+
+    const first = '{"theme":"dark"}';
+    let existing = await inFolder();
+    if (!existing) {
+      const made = await files([["FileNode/set", { accountId: aid, create: { s: fileCreate(folderId!, "settings.json", await upload(first), "application/json") } }, "s"]]);
+      expect(made[0]![1].notCreated, JSON.stringify(made[0]![1])).toBeFalsy();
+      existing = await inFolder();
+    }
+    expect(existing).toMatchObject({ nodeType: "file", type: "application/json" });
+
+    const second = '{"theme":"light"}';
+    const updated = await files([["FileNode/set", { accountId: aid, update: { [existing!.id]: { blobId: await upload(second), type: "application/json", size: second.length } } }, "s"]]);
+    expect(updated[0]![1].notUpdated, JSON.stringify(updated[0]![1])).toBeFalsy();
+    // A stored blob has an id of its own, so the content is what is compared.
+    const stored = (await inFolder())!.blobId!;
+    const read = await fetch(`${BASE}/jmap/download/${aid}/${stored}/settings.json?accept=application/json`, { headers: { authorization: auth(alice) } });
+    expect(await read.text()).toBe(second);
   });
 
   it("answers every read the administration pages make", async () => {
