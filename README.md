@@ -68,7 +68,7 @@ The long version is [FEATURES.md](FEATURES.md) and
 ## Requirements
 
 **Stalwart 0.16 or newer** — sign-in refuses anything older, by name. On
-Stalwart 1.0 you need ihasmail v2026.10.27 or newer. Which versions are
+Stalwart 1.0 you need ihasmail v2026.10.30 or newer. Which versions are
 supported is under [Support](#support); what changed in each Stalwart release
 is in [KNOWN-ISSUES.md](KNOWN-ISSUES.md).
 
@@ -82,7 +82,7 @@ and bug fixes, but no new features.
 
 | Stalwart | Status |
 | --- | --- |
-| 1.0.x | Supported, with ihasmail v2026.10.27 or newer |
+| 1.0.x | Supported, with ihasmail v2026.10.30 or newer |
 | 0.16.27 | Supported |
 | 0.16.0 – 0.16.26 | Signs in, but isn't tested. Upgrade to 0.16.27 |
 | 0.15 | The [`stalwart-0.15-support`](https://git.coffeylabs.org/coffey-labs/ihasmail/releases/tag/stalwart-0.15-support) release, with no further fixes |
