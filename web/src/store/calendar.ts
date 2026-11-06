@@ -7,6 +7,7 @@ import { useContacts } from "./contacts";
 import { BIRTHDAY_CALENDAR_ID, birthdaysInRange, isBirthdayEvent, type Birthday } from "@/lib/birthdays";
 import { looksLikeCalendar, parseIcs, toIcs, type IcsEvent } from "@/lib/calendar/ics";
 import { withBase } from "@/lib/basePath";
+import { expandWindowMs, icsEventMatches, occurrenceQueries, searchCalls } from "@/lib/calendar/search";
 import { settings, useSettings } from "./settings";
 import { useSession } from "./session";
 
@@ -226,6 +227,16 @@ export function occurrencePatch(patch: Record<string, unknown>): { patch: Record
   return { patch: out, dropped };
 }
 
+/**
+ * One event search result. A series is one result, placed at its next date
+ * (or its latest, once it has ended), and `rule` says how it repeats: the
+ * occurrence it is placed at carries no rule of its own.
+ */
+export interface SearchHit {
+  inst: EventInstance;
+  rule?: JSCalendarRecurrenceRule;
+}
+
 /** A calendar somebody else shared, and the account it lives in. */
 export interface SharedCalendar {
   accountId: Id;
@@ -289,6 +300,8 @@ interface CalendarState {
   subscriptionsLoading: boolean;
   /** Waiting to be opened in the editor; see `EventDraft`. */
   draft: EventDraft | null;
+  /** Bumped whenever events are loaded again after a change, for views that hold their own copy. */
+  changes: number;
 
   init(): Promise<void>;
   loadCalendars(): Promise<void>;
@@ -301,6 +314,10 @@ interface CalendarState {
   instancesIn(start: Date, end: Date): EventInstance[];
   /** Re-fetch every subscribed calendar. */
   refreshSubscriptions(): Promise<void>;
+  /** Events matching `text`, from the reader's own calendars and the shared ones drawn beside them. */
+  searchEvents(text: string): Promise<SearchHit[]>;
+  /** The same search over subscribed calendars, which the server never sees. */
+  searchSubscriptions(text: string): SearchHit[];
   /*
    * The event calls take the account the event lives in -- `EventInstance`'s
    * `accountId` -- and default to the reader's own. See `EventInstance`.
@@ -440,6 +457,7 @@ export const useCalendar = create<CalendarState>((set, get) => ({
   subscriptionErrors: {},
   subscriptionsLoading: false,
   draft: null,
+  changes: 0,
 
   async init() {
     // The reader's own: a shared calendar is shown beside theirs, not instead.
@@ -738,6 +756,93 @@ export const useCalendar = create<CalendarState>((set, get) => ({
     }
     out.sort((a, b) => a.start.getTime() - b.start.getTime() || b.end.getTime() - a.end.getTime());
     return [...out, ...birthdays];
+  },
+
+  /*
+   * Searched account by account: the reader's own, and each account that
+   * shared a calendar the reader draws. Everything the reader has, hidden
+   * calendars included, because a search is for finding what isn't on screen.
+   * A shared account that refuses is left out rather than failing the rest;
+   * the reader's own refusing is an error worth showing.
+   */
+  async searchEvents(text) {
+    const own = get().accountId;
+    const tz = settings().timeZone ?? browserTimeZone;
+    const now = new Date();
+    const added = new Set(settings().addedShares);
+    const drawn: Record<Id, Record<Id, Calendar>> = {};
+    for (const c of get().sharedCalendars) {
+      // Reachable is not shared; see the same check in `instancesIn`.
+      if (!c.calendar.isSubscribed && !added.has(sharedKey(c.accountId, c.calendar.id))) continue;
+      (drawn[c.accountId] ??= {})[c.calendar.id] = c.calendar;
+    }
+    const accounts: { accountId: Id; calendars: Record<Id, Calendar>; shared: boolean }[] = [];
+    if (own) accounts.push({ accountId: own, calendars: get().calendars, shared: false });
+    for (const [accountId, calendars] of Object.entries(drawn)) accounts.push({ accountId, calendars, shared: true });
+
+    const answers = await Promise.all(accounts.map(async ({ accountId, calendars, shared }): Promise<SearchHit[]> => {
+      try {
+        const res = await client.chain(searchCalls(accountId, text, tz, EVENT_PROPS));
+        const found = (res.get("g")?.[0] as unknown as GetResponse<CalendarEvent>).list.filter((e) => {
+          const calId = Object.keys(e.calendarIds ?? {})[0];
+          return !shared || Boolean(calId && calendars[calId]);
+        });
+
+        /* Each series' next date, or its latest: asked for by uid, every one
+           in the same request (`client.call` batches a tick's calls). A
+           series whose lookup fails is listed at its first date. */
+        const windowMs = expandWindowMs(client.accountCapability<{ maxExpandedQueryDuration?: string }>(accountId, CAP.calendars)?.maxExpandedQueryDuration);
+        const series = found.filter((e) => isRecurring(e) && e.uid);
+        const wanted = await Promise.all(series.map(async (e) => {
+          const q = occurrenceQueries(accountId, e.uid!, now, windowMs, tz);
+          const [next, last] = await Promise.all([
+            client.call<QueryResponse>("CalendarEvent/query", q.next).catch(() => null),
+            client.call<QueryResponse>("CalendarEvent/query", q.last).catch(() => null),
+          ]);
+          return next?.ids?.[0] ?? last?.ids?.[0];
+        }));
+        const ids = wanted.filter((id): id is Id => Boolean(id));
+        const placed = new Map<Id, CalendarEvent>();
+        for (const part of chunk(ids, client.maxObjectsInGet)) {
+          const g = await client.call<GetResponse<CalendarEvent>>("CalendarEvent/get", { accountId, ids: part, properties: EVENT_PROPS, timeZone: tz });
+          // Keyed by the master it came from: a uid can name the same event
+          // in two calendars, and only this master's own date will do.
+          for (const occ of g.list) if (occ.baseEventId) placed.set(occ.baseEventId, occ);
+        }
+
+        const hits: SearchHit[] = [];
+        for (const e of found) {
+          const recurring = isRecurring(e);
+          const inst = toInstance((recurring && placed.get(e.id)) || e, calendars);
+          if (!inst) continue;
+          if (shared) {
+            inst.key = sharedKey(accountId, inst.event.id);
+            inst.accountId = accountId;
+          }
+          hits.push({ inst, rule: recurring ? eventRule(e) : undefined });
+        }
+        return hits;
+      } catch (err) {
+        if (!shared) throw err;
+        return [];
+      }
+    }));
+    return answers.flat();
+  },
+
+  searchSubscriptions(text) {
+    const hits: SearchHit[] = [];
+    for (const sub of settings().icalSubscriptions) {
+      const calId = subscriptionCalendarId(sub.id);
+      const cal = subscriptionCalendar(sub);
+      for (const e of get().subscriptionEvents[sub.id] ?? []) {
+        if (!icsEventMatches(e, text)) continue;
+        hits.push({
+          inst: { key: `${calId}:${e.uid}:${e.start.getTime()}`, event: synthesizeSubscriptionEvent(sub.id, e), start: e.start, end: e.end, allDay: e.allDay, calendar: cal },
+        });
+      }
+    }
+    return hits;
   },
 
   async getEvent(id, owner) {
@@ -1064,6 +1169,7 @@ export const useCalendar = create<CalendarState>((set, get) => ({
    * calendar go blank until the answers came back.
    */
   invalidate() {
+    set((s) => ({ changes: s.changes + 1 }));
     for (const k of Object.keys(get().ranges)) {
       const [s, e] = k.split("|").map(Number) as [number, number];
       void get().loadRange(new Date(s), new Date(e), true);

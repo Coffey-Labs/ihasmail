@@ -1191,6 +1191,13 @@ export const catalog: Catalog = {
     "Saved {when}": "Opgeslagen {when}",
     "Unsaved": "Niet opgeslagen",
     "Agenda from {date}": "Agenda vanaf {date}",
+    "Search events": "Afspraken zoeken",
+    "Results for “{query}”": "Resultaten voor ‘{query}’",
+    "No matching events": "Geen overeenkomende afspraken",
+    "Nothing in your calendars matches “{query}”.": "Niets in uw agenda's komt overeen met ‘{query}’.",
+    "Upcoming": "Komend",
+    "Past": "Voorbij",
+    "(untitled)": "(zonder titel)",
 
     // ── Toasts, dialogs and computed labels (second extraction pass) ───
     "(no subject)": "(geen onderwerp)",

@@ -2023,6 +2023,12 @@ select optgroup { background-color: var(--bg-elev); color: var(--fg); }
 .agenda-ev:hover { background: var(--bg-hover); }
 .agenda-ev .ev-dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
 .agenda-ev .ev-when { width: 140px; color: var(--fg-muted); font-size: .9em; flex: 0 0 auto; }
+/* Event search: Upcoming and Past headings, and past results faded the way
+   the calendars people come from show them. */
+.event-search .search-section { margin: 16px 0 0; font-size: .82em; font-weight: 650; text-transform: uppercase; letter-spacing: .04em; color: var(--fg-muted); }
+.event-search .search-section:first-child { margin-top: 4px; }
+.event-search .agenda-day.past { opacity: .55; }
+.event-search .agenda-day.past:hover { opacity: .85; }
 .event-popover { width: 360px; max-width: calc(100vw - 24px); padding: 14px 16px; }
 .event-popover h3 { margin: 0 0 6px; font-size: 1.15em; font-weight: 650; padding-left: 16px; position: relative; }
 .event-popover h3::before { content: ""; position: absolute; left: 0; top: 6px; width: 10px; height: 10px; border-radius: 3px; background: var(--ev-color, var(--accent)); }

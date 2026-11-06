@@ -3,6 +3,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { CAP, STALWART_CAP, usingFor } from "@/jmap/client";
 import { BODY_PROPS, FULL_PROPS, LIST_PROPS, MAILBOX_PROPS } from "@/store/mail/props";
 import { CALENDAR_PROPS, EVENT_PROPS, SERIES_PROPS } from "@/store/calendar";
+import { expandWindowMs, occurrenceQueries, searchCalls } from "@/lib/calendar/search";
 import { ADDRESS_BOOK_PROPS } from "@/store/contacts";
 import { argsToServer, resultFromServer, shapeFromProbe, shapeProbe } from "@/jmap/fileNodeShape";
 import { APP_FOLDER, folderProps, isAppFolder } from "@/lib/appFolder";
@@ -236,6 +237,63 @@ describe.skipIf(!BASE)("a real Stalwart server", () => {
     expect(series[0]![0], JSON.stringify(series[0]![1]).slice(0, 300)).toBe("CalendarEvent/get");
     expect((series[0]![1].list as Record<string, unknown>[])[0]!.recurrenceRule).toBeTruthy();
   });
+
+  it("finds events the way event search asks, and each series' next date", async () => {
+    const calendars = (await jmap(alice, [["Calendar/get", { accountId: aid, properties: CALENDAR_PROPS }, "c"]]))[0]![1].list as { id: string }[];
+    let calendarId = calendars[0]?.id;
+    if (!calendarId) {
+      const made = await jmap(alice, [["Calendar/set", { accountId: aid, create: { c: { name: "Compat" } } }, "c"]]);
+      calendarId = (made[0]![1].created as Record<string, { id: string }>).c!.id;
+    }
+    // A word of letters nobody else used, so a rerun on the same server finds only its own.
+    const word = Array.from(crypto.getRandomValues(new Uint8Array(10)), (b) => String.fromCharCode(97 + (b % 26))).join("");
+    const event = (title: string, start: string, extra: Record<string, unknown> = {}) => ({
+      "@type": "Event", uid: crypto.randomUUID(), calendarIds: { [calendarId!]: true }, title, start, timeZone: "Etc/UTC", duration: "PT1H", ...extra,
+    });
+    const made = await jmap(alice, [["CalendarEvent/set", { accountId: aid, create: {
+      past: event(`${word} lunch`, "2025-03-01T12:00:00"),
+      series: event(`Weekly ${word} class`, "2026-01-05T18:00:00", { recurrenceRule: { "@type": "RecurrenceRule", frequency: "weekly" } }),
+      described: event("Dentist", "2030-03-01T09:00:00", { description: `Then dinner at the ${word} place` }),
+      other: event("Unrelated", "2030-03-02T09:00:00"),
+    } }, "e"]]);
+    const created = made[0]![1].created as Record<string, { id: string }>;
+    expect(Object.keys(created ?? {}).sort(), JSON.stringify(made[0]![1]).slice(0, 300)).toEqual(["described", "other", "past", "series"]);
+
+    // The app's own request. 1.0 indexes in the background, so give it a moment.
+    let found: { id: string; uid: string; recurrenceRule?: unknown; recurrenceId?: string }[] = [];
+    for (let i = 0; i < 30; i++) {
+      const res = await jmap(alice, searchCalls(aid, word, "Etc/UTC", EVENT_PROPS));
+      expect(res[0]![0], JSON.stringify(res[0]![1]).slice(0, 300)).toBe("CalendarEvent/query");
+      expect(res[1]![0], JSON.stringify(res[1]![1]).slice(0, 300)).toBe("CalendarEvent/get");
+      found = res[1]![1].list as typeof found;
+      if (found.length >= 3) break;
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    // The title, the description, and the series once, as its master.
+    expect(found.map((e) => e.id).sort()).toEqual([created.described!.id, created.past!.id, created.series!.id].sort());
+    const master = found.find((e) => e.id === created.series!.id)!;
+    expect(master.recurrenceRule).toBeTruthy();
+    expect(master.recurrenceId ?? null).toBeNull();
+
+    // Its next date and its latest, by uid, in the window the server allows.
+    const session = await (await fetch(`${BASE}/jmap/session`, { headers: { authorization: auth(alice) } })).json() as { accounts: Record<string, { accountCapabilities: Record<string, { maxExpandedQueryDuration?: string }> }> };
+    const windowMs = expandWindowMs(session.accounts[aid]!.accountCapabilities[CAP.calendars]?.maxExpandedQueryDuration);
+    const now = new Date();
+    const q = occurrenceQueries(aid, master.uid, now, windowMs, "Etc/UTC");
+    const lookups = await jmap(alice, [["CalendarEvent/query", q.next, "n"], ["CalendarEvent/query", q.last, "l"]]);
+    for (const r of lookups) expect(r[0], JSON.stringify(r[1]).slice(0, 300)).toBe("CalendarEvent/query");
+    const [nextId] = lookups[0]![1].ids as string[];
+    const [lastId] = lookups[1]![1].ids as string[];
+    expect(nextId && lastId, JSON.stringify(lookups.map((r) => r[1].ids))).toBeTruthy();
+    const got = (await jmap(alice, [["CalendarEvent/get", { accountId: aid, ids: [nextId, lastId], properties: EVENT_PROPS, timeZone: "Etc/UTC" }, "g"]]))[0]![1].list as { id: string; baseEventId?: string; utcStart?: string }[];
+    const next = got.find((e) => e.id === nextId)!;
+    const last = got.find((e) => e.id === lastId)!;
+    // Placed by the master it came from, which is how the app pairs them.
+    expect(next.baseEventId).toBe(master.id);
+    expect(last.baseEventId).toBe(master.id);
+    expect(new Date(next.utcStart!).getTime()).toBeGreaterThan(now.getTime());
+    expect(new Date(last.utcStart!).getTime()).toBeLessThan(now.getTime());
+  }, 60_000);
 
   it("keeps the settings file the way the app does", async () => {
     // The client's own translation, against whichever shape this server wants

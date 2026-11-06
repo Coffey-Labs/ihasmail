@@ -1193,6 +1193,13 @@ export const catalog: Catalog = {
     "Saved {when}": "Сохранено {when}",
     "Unsaved": "Не сохранено",
     "Agenda from {date}": "Расписание с {date}",
+    "Search events": "Поиск событий",
+    "Results for “{query}”": "Результаты по запросу «{query}»",
+    "No matching events": "Подходящих событий нет",
+    "Nothing in your calendars matches “{query}”.": "В ваших календарях нет ничего по запросу «{query}».",
+    "Upcoming": "Предстоящие",
+    "Past": "Прошедшие",
+    "(untitled)": "(без названия)",
 
     // ── Toasts, dialogs and computed labels (second extraction pass) ───
     "(no subject)": "(без темы)",

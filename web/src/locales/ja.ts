@@ -1199,6 +1199,13 @@ export const catalog: Catalog = {
     "Saved {when}": "{when} に保存",
     "Unsaved": "未保存",
     "Agenda from {date}": "{date}からの予定",
+    "Search events": "予定を検索",
+    "Results for “{query}”": "「{query}」の検索結果",
+    "No matching events": "一致する予定はありません",
+    "Nothing in your calendars matches “{query}”.": "カレンダーに「{query}」に一致する予定はありません。",
+    "Upcoming": "今後の予定",
+    "Past": "過去の予定",
+    "(untitled)": "（無題）",
 
     // ── Toasts, dialogs and computed labels (second extraction pass) ───
     "(no subject)": "(件名なし)",
