@@ -383,15 +383,25 @@ export const handlers: Record<string, Handler> = {
   "CalendarEvent/query": (a) => {
     const list = eventsFor(a.accountId);
     const filter = (a.filter as Obj) ?? {};
-    const matching = list.filter((e) => !filter.uid || e.uid === filter.uid);
+    const wanted = typeof filter.text === "string" ? eventWords(filter.text) : [];
+    const matching = list.filter((e) => (!filter.uid || e.uid === filter.uid) && (!wanted.length || matchesEventText(e, wanted)));
+    // Sorted by start and paged, as event search asks: its "next date of this
+    // series" is the first occurrence, by start, with a limit of one.
+    const descending = (a.sort as { isAscending?: boolean }[] | undefined)?.[0]?.isAscending === false;
+    const order = (x: { start: string }, y: { start: string }) => (descending ? -1 : 1) * x.start.localeCompare(y.start);
+    const page = (ids: string[]) => {
+      const position = Number(a.position ?? 0);
+      const limit = a.limit == null ? ids.length : Number(a.limit);
+      return { accountId: a.accountId ?? ACCOUNT, queryState: "1", canCalculateChanges: false, position, ids: ids.slice(position, position + limit), total: ids.length };
+    };
     if (!a.expandRecurrences) {
-      return { accountId: a.accountId ?? ACCOUNT, queryState: "1", canCalculateChanges: false, position: 0, ids: matching.map((e) => e.id), total: matching.length };
+      return page(matching.map((e) => ({ id: e.id as string, start: String(e.start ?? "") })).sort(order).map((e) => e.id));
     }
     const from = filter.after ? new Date(filter.after as string) : new Date(-8640000000000);
     const to = filter.before ? new Date(filter.before as string) : new Date(8640000000000);
-    const ids: string[] = [];
-    for (const e of matching) for (const occ of expandOccurrences(e, from, to)) ids.push(syntheticId(e.id as string, occ.recurrenceId));
-    return { accountId: a.accountId ?? ACCOUNT, queryState: "1", canCalculateChanges: false, position: 0, ids, total: ids.length };
+    const found: { id: string; start: string }[] = [];
+    for (const e of matching) for (const occ of expandOccurrences(e, from, to)) found.push({ id: syntheticId(e.id as string, occ.recurrenceId), start: occ.start });
+    return page(found.sort(order).map((o) => o.id));
   },
   "CalendarEvent/get": (a) => {
     const list = eventsFor(a.accountId);
@@ -514,3 +524,19 @@ export const handlers: Record<string, Handler> = {
   },
 };
 
+
+/*
+ * `CalendarEvent/query`'s `text`, as Stalwart matches it (probed on 0.16.27
+ * and 1.0.0, 2026-11-06): every word of the query is a whole word of the
+ * title, the description or a location's name, in any case. "japan" does not
+ * find "Japanese".
+ */
+function eventWords(s: string): string[] {
+  return s.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+}
+
+function matchesEventText(e: Obj, wanted: string[]): boolean {
+  const locations = Object.values((e.locations as Record<string, Obj> | undefined) ?? {}).map((l) => String(l.name ?? ""));
+  const have = new Set(eventWords([e.title, e.description, ...locations].filter(Boolean).join(" ")));
+  return wanted.every((w) => have.has(w));
+}

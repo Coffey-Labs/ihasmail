@@ -6,22 +6,30 @@ import { keyboard } from "@/lib/input/keyboard";
 import { DateField } from "@/ui/datefield";
 import { t } from "@/lib/i18n";
 
+/*
+ * One bar, two searches. In the calendar it searches events
+ * (`/calendar/search?q=`), with no advanced panel: mail's operators mean
+ * nothing to an event, and keyword filters for events are left for later.
+ * Everywhere else it searches mail.
+ */
 export function SearchBar() {
   const [location, navigate] = useLocation();
   const search = useSearch();
+  const events = location.startsWith("/calendar");
+  const resultsPath = events ? "/calendar/search" : "/search";
   const [q, setQ] = useState("");
   const [adv, setAdv] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const mailboxes = useMail((s) => s.mailboxes);
   const [advFields, setAdvFields] = useState({ from: "", to: "", subject: "", words: "", hasAttachment: false, unread: false, folder: "", after: "", before: "" });
 
-  // Sync from URL when on /search
+  // Sync from URL when on a results page
   useEffect(() => {
-    if (location.startsWith("/search")) {
+    if (location.startsWith(resultsPath)) {
       const params = new URLSearchParams(search);
       setQ(params.get("q") ?? "");
     } else setQ("");
-  }, [location, search]);
+  }, [location, search, resultsPath]);
 
   useEffect(() => keyboard.pushScope("search", [{ keys: "/", description: "Search mail", group: "Navigation", handler: () => inputRef.current?.focus() }]), []);
 
@@ -30,7 +38,7 @@ export function SearchBar() {
     const query = q.trim();
     if (!query) return;
     setAdv(false);
-    navigate(`/search?q=${encodeURIComponent(query)}`);
+    navigate(`${resultsPath}?q=${encodeURIComponent(query)}`);
     inputRef.current?.blur();
   };
 
@@ -56,17 +64,19 @@ export function SearchBar() {
     <form className="searchbar" role="search" onSubmit={submit}>
       <div className="search-input">
         <Search size={18} className="muted" />
-        <input ref={inputRef} type="search" placeholder={t("Search mail  (from:, to:, subject:, has:attachment, is:unread, in:, before:, after:)")} value={q} onChange={(e) => setQ(e.target.value)} aria-label={t("Search mail")} enterKeyHint="search" />
+        <input ref={inputRef} type="search" placeholder={events ? t("Search events") : t("Search mail  (from:, to:, subject:, has:attachment, is:unread, in:, before:, after:)")} value={q} onChange={(e) => setQ(e.target.value)} aria-label={events ? t("Search events") : t("Search mail")} enterKeyHint="search" />
         {q && (
-          <button type="button" className="icon-btn sm" aria-label={t("Clear")} onClick={() => { setQ(""); if (location.startsWith("/search")) navigate("/mail"); }}>
+          <button type="button" className="icon-btn sm" aria-label={t("Clear")} onClick={() => { setQ(""); if (location.startsWith(resultsPath)) navigate(events ? "/calendar" : "/mail"); }}>
             <X size={16} />
           </button>
         )}
-        <button type="button" className={`icon-btn sm ${adv ? "active" : ""}`} aria-label={t("Advanced search")} title={t("Advanced search")} onClick={() => setAdv((v) => !v)}>
-          <SlidersHorizontal size={16} />
-        </button>
+        {!events && (
+          <button type="button" className={`icon-btn sm ${adv ? "active" : ""}`} aria-label={t("Advanced search")} title={t("Advanced search")} onClick={() => setAdv((v) => !v)}>
+            <SlidersHorizontal size={16} />
+          </button>
+        )}
       </div>
-      {adv && (
+      {adv && !events && (
         <div className="search-panel">
           <div className="grid">
             <label className="field"><span className="label">{t("From")}</span><input className="input sm" value={advFields.from} onChange={(e) => setAdvFields({ ...advFields, from: e.target.value })} /></label>

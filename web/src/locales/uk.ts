@@ -1187,6 +1187,13 @@ export const catalog: Catalog = {
     "Saved {when}": "Збережено {when}",
     "Unsaved": "Не збережено",
     "Agenda from {date}": "Розклад від {date}",
+    "Search events": "Пошук подій",
+    "Results for “{query}”": "Результати за запитом «{query}»",
+    "No matching events": "Відповідних подій немає",
+    "Nothing in your calendars matches “{query}”.": "У ваших календарях немає нічого за запитом «{query}».",
+    "Upcoming": "Майбутні",
+    "Past": "Минулі",
+    "(untitled)": "(без назви)",
 
     // ── Toasts, dialogs and computed labels (second extraction pass) ───
     "(no subject)": "(без теми)",

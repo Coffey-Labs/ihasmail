@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLocation } from "wouter";
-import { ChevronLeft, ChevronRight, Plus, Calendar as CalIcon } from "lucide-react";
-import { useCalendar, participantAddresses, type EventInstance } from "@/store/calendar";
+import { useLocation, useSearch } from "wouter";
+import { ChevronLeft, ChevronRight, Plus, Repeat, Search as SearchIcon, Calendar as CalIcon } from "lucide-react";
+import { useCalendar, participantAddresses, type EventInstance, type SearchHit } from "@/store/calendar";
+import { splitByNow } from "@/lib/calendar/search";
+import { describeRule } from "@/lib/calendar/recurrence";
 import { useSettings } from "@/store/settings";
 import { addDays, addMonths, DAY_MS, endOfDay, isSameDay, isToday, monthGrid, roundToNext, startOfDay, startOfWeek, toLocalDateOnly, weekDays} from "@/lib/dates";
 import { useSwipeNav } from "@/lib/input/touch";
@@ -44,6 +46,9 @@ export function CalendarView({ view: viewParam, date }: { view?: string; date?: 
   const cal = useCalendar();
   const settings = useSettings((s) => s.settings);
   const isMobile = useIsMobile();
+  // `/calendar/search?q=`: the search bar's results, in place of a period.
+  const searching = viewParam === "search";
+  const query = (new URLSearchParams(useSearch()).get("q") ?? "").trim();
   const view: View = (["month", "week", "day", "agenda"].includes(viewParam ?? "") ? viewParam : settings.calendarDefaultView) as View;
   const anchor = useMemo(() => {
     const d = date ? new Date(`${date}T00:00:00`) : new Date();
@@ -70,9 +75,9 @@ export function CalendarView({ view: viewParam, date }: { view?: string; date?: 
   }, [effectiveView, anchor, weekStart]);
 
   useEffect(() => {
-    if (cal.available) void cal.loadRange(range.start, range.end);
+    if (cal.available && !searching) void cal.loadRange(range.start, range.end);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cal.available, range.start.getTime(), range.end.getTime()]);
+  }, [cal.available, searching, range.start.getTime(), range.end.getTime()]);
 
   /*
    * An event begun elsewhere -- from a message -- opens here, because this is
@@ -177,7 +182,8 @@ export function CalendarView({ view: viewParam, date }: { view?: string; date?: 
   }
 
   const title =
-    effectiveView === "month" ? formatMonthYear(anchor)
+    searching ? translate("Results for “{query}”", { query })
+    : effectiveView === "month" ? formatMonthYear(anchor)
     : effectiveView === "week" ? `${formatDayMonth(range.start)} – ${formatDate(addDays(range.end, -1))}`
     : effectiveView === "day" ? formatWeekdayDate(anchor, true)
     : translate("Agenda from {date}", { date: formatDayMonth(anchor) });
@@ -201,22 +207,23 @@ export function CalendarView({ view: viewParam, date }: { view?: string; date?: 
     <div className="cal-main" ref={setMainEl}>
       <div className="cal-toolbar">
         <button className="btn btn-sm" onClick={() => go(view, new Date())}>{translate("Today")}</button>
-        <button className="icon-btn sm" onClick={() => step(-1)} aria-label={translate("Previous")}><ChevronLeft size={18} /></button>
-        <button className="icon-btn sm" onClick={() => step(1)} aria-label={translate("Next")}><ChevronRight size={18} /></button>
+        {!searching && <button className="icon-btn sm" onClick={() => step(-1)} aria-label={translate("Previous")}><ChevronLeft size={18} /></button>}
+        {!searching && <button className="icon-btn sm" onClick={() => step(1)} aria-label={translate("Next")}><ChevronRight size={18} /></button>}
         <h2 className="truncate">{title}</h2>
         <span className="spacer" />
         {cal.loading && <span className="spinner" />}
         <div className="view-switch">
           {(["day", "week", "month", "agenda"] as View[]).filter((v) => !(isMobile && v === "week")).map((v) => (
-            <button key={v} className={effectiveView === v ? "active" : ""} onClick={() => go(v, anchor)}>{VIEW_LABELS[v]()}</button>
+            <button key={v} className={!searching && effectiveView === v ? "active" : ""} onClick={() => go(v, anchor)}>{VIEW_LABELS[v]()}</button>
           ))}
         </div>
         {!isMobile && <button className="btn btn-primary btn-sm" onClick={() => openNew()}><Plus size={16} />  {translate("Event")}</button>}
       </div>
       {cal.error && <div className="error-box" style={{ margin: 12 }}>{cal.error}</div>}
-      {effectiveView === "month" && <MonthView onDragCommit={(i, patch) => void commitDrag(i, patch)} anchor={anchor} weekStart={weekStart} onDay={(d) => go("day", d)} onEvent={onEvent} onEventContext={onEventContext} onSlotContext={onSlotContext} onCreate={(d) => openNew(new Date(d.getTime() + 9 * 3600_000))} />}
-      {(effectiveView === "week" || effectiveView === "day") && <TimeGrid onDragCommit={(i, patch) => void commitDrag(i, patch)} days={effectiveView === "week" ? weekDays(anchor, weekStart) : [anchor]} onEvent={onEvent} onEventContext={onEventContext} onSlotContext={onSlotContext} onCreate={(s, e, allDay) => openNew(s, e, allDay)} onDayHeader={(d) => go("day", d)} workStart={settings.workDayStart} workEnd={settings.workDayEnd} />}
-      {effectiveView === "agenda" && <AgendaView start={anchor} onEvent={onEvent} onEventContext={onEventContext} />}
+      {searching && <EventSearch query={query} onEvent={onEvent} onEventContext={onEventContext} />}
+      {!searching && effectiveView === "month" && <MonthView onDragCommit={(i, patch) => void commitDrag(i, patch)} anchor={anchor} weekStart={weekStart} onDay={(d) => go("day", d)} onEvent={onEvent} onEventContext={onEventContext} onSlotContext={onSlotContext} onCreate={(d) => openNew(new Date(d.getTime() + 9 * 3600_000))} />}
+      {!searching && (effectiveView === "week" || effectiveView === "day") && <TimeGrid onDragCommit={(i, patch) => void commitDrag(i, patch)} days={effectiveView === "week" ? weekDays(anchor, weekStart) : [anchor]} onEvent={onEvent} onEventContext={onEventContext} onSlotContext={onSlotContext} onCreate={(s, e, allDay) => openNew(s, e, allDay)} onDayHeader={(d) => go("day", d)} workStart={settings.workDayStart} workEnd={settings.workDayEnd} />}
+      {!searching && effectiveView === "agenda" && <AgendaView start={anchor} onEvent={onEvent} onEventContext={onEventContext} />}
       {ctx && <CalendarContextMenu ctx={ctx} onClose={() => setCtx(null)} onOpen={(inst, a) => setPopover({ inst, anchor: a })} onEdit={(inst) => setEditor({ event: inst.event, accountId: inst.accountId, start: inst.start, end: inst.end, allDay: inst.allDay })} onCreate={(s, e, allDay) => { setCtx(null); openNew(s, e, allDay); }} />}
       {isMobile && <button className="fab" aria-label={translate("New event")} onClick={() => openNew()}><Plus size={24} /></button>}
       {popover && <EventPopover inst={popover.inst} anchor={popover.anchor} onClose={() => setPopover(null)} onEdit={() => { setEditor({ event: popover.inst.event, accountId: popover.inst.accountId, start: popover.inst.start, end: popover.inst.end, allDay: popover.inst.allDay }); setPopover(null); }} />}
@@ -347,7 +354,7 @@ function EventChip({ inst, day, onClick, onContext, onDragStart, dragging, suppr
     <div className={`ev-chip ${spansDay ? "" : "timed"} ${statusClass(inst)} ${dragging ? "dragging" : ""} ${onDragStart ? "draggable" : ""}`} style={{ background: color, borderColor: color }} onPointerDown={onDragStart} onClick={(e) => { e.stopPropagation(); if (suppressClick?.()) return; onClick(e.currentTarget); }} onContextMenu={onContext} title={inst.event.title ?? ""}>
       {!spansDay && <span className="ev-dot" style={{ background: color }} />}
       {!spansDay && <span className="ev-time">{formatTime(inst.start)}</span>}
-      <span className="truncate">{inst.event.title || "(untitled)"}</span>
+      <span className="truncate">{inst.event.title || translate("(untitled)")}</span>
     </div>
   );
 }
@@ -527,7 +534,7 @@ function TimeGrid({ days, onEvent, onEventContext, onSlotContext, onCreate, onDa
                            does not have to guess which one was meant. */
                         <div className="ev-resize" onPointerDown={(e) => beginDrag(inst, "resize", column, e)} aria-hidden="true" />
                       )}
-                      <div className="ev-title">{inst.event.title || "(untitled)"}</div>
+                      <div className="ev-title">{inst.event.title || translate("(untitled)")}</div>
                       {height > 30 && <div className="ev-time">{formatTime(inst.start)} – {formatTime(inst.end)}</div>}
                     </div>
                   );
@@ -630,8 +637,8 @@ function AgendaView({ start, onEvent, onEventContext }: { start: Date; onEvent: 
             {items.map((i) => (
               <div key={i.key + day.toISOString()} className={`agenda-ev ${statusClass(i)}`} onClick={(e) => onEvent(i, e.currentTarget)} onContextMenu={(e) => onEventContext(i, e)}>
                 <span className="ev-dot" style={{ background: colorOf(i) }} />
-                <span className="ev-when">{i.allDay ? "All day" : `${formatTime(i.start)} – ${formatTime(i.end)}`}</span>
-                <span className="grow truncate">{i.event.title || "(untitled)"}</span>
+                <span className="ev-when">{i.allDay ? translate("All day") : `${formatTime(i.start)} – ${formatTime(i.end)}`}</span>
+                <span className="grow truncate">{i.event.title || translate("(untitled)")}</span>
                 {Object.values(i.event.locations ?? {})[0]?.name && <span className="hint truncate" style={{ maxWidth: 200 }}>{Object.values(i.event.locations ?? {})[0]!.name}</span>}
               </div>
             ))}
@@ -639,6 +646,91 @@ function AgendaView({ start, onEvent, onEventContext }: { start: Date; onEvent: 
         </div>
       ))}
     </div>
+  );
+}
+
+/* ---------------- Search ---------------- */
+
+/*
+ * The search bar's results: upcoming soonest first, then past most recent
+ * first and faded, each under its day as in the agenda. Asked for again when
+ * events change, so an edit made from a result shows in the list.
+ */
+function EventSearch({ query, onEvent, onEventContext }: { query: string; onEvent: (i: EventInstance, el: Element) => void; onEventContext: EvCtx }) {
+  const searchEvents = useCalendar((s) => s.searchEvents);
+  const searchSubscriptions = useCalendar((s) => s.searchSubscriptions);
+  const changes = useCalendar((s) => s.changes);
+  const subscriptionEvents = useCalendar((s) => s.subscriptionEvents);
+  const [found, setFound] = useState<{ query: string; hits: SearchHit[] } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!query) return;
+    let current = true;
+    setError(null);
+    searchEvents(query).then(
+      (hits) => { if (current) setFound({ query, hits }); },
+      (err: Error) => { if (current) { setFound({ query, hits: [] }); setError(err.message); } },
+    );
+    return () => { current = false; };
+  }, [query, changes, searchEvents]);
+
+  // Subscriptions are matched here, so ones that finish loading after the search still appear.
+  const subscribed = useMemo(() => (query ? searchSubscriptions(query) : []), [query, subscriptionEvents, searchSubscriptions]);
+  const { upcoming, past } = useMemo(() => {
+    const hits = found?.query === query ? [...found.hits, ...subscribed] : [];
+    const split = splitByNow(hits.map((h) => ({ ...h, start: h.inst.start, end: h.inst.end })), new Date());
+    return { upcoming: split.upcoming, past: split.past };
+  }, [found, query, subscribed]);
+
+  if (!query) return <Empty icon={<SearchIcon size={36} />} title={translate("Search events")} />;
+  if (found?.query !== query) return <div className="p-16 row" style={{ justifyContent: "center" }}><span className="spinner" /></div>;
+  if (error) return <div className="error-box" style={{ margin: 12 }}>{error}</div>;
+  if (!upcoming.length && !past.length) {
+    return <Empty icon={<SearchIcon size={36} />} title={translate("No matching events")}>{translate("Nothing in your calendars matches “{query}”.", { query })}</Empty>;
+  }
+  return (
+    <div className="agenda event-search">
+      {upcoming.length > 0 && <h3 className="search-section">{translate("Upcoming")}</h3>}
+      <SearchRows hits={upcoming} onEvent={onEvent} onEventContext={onEventContext} />
+      {past.length > 0 && <h3 className="search-section">{translate("Past")}</h3>}
+      <SearchRows hits={past} past onEvent={onEvent} onEventContext={onEventContext} />
+    </div>
+  );
+}
+
+function SearchRows({ hits, past, onEvent, onEventContext }: { hits: SearchHit[]; past?: boolean; onEvent: (i: EventInstance, el: Element) => void; onEventContext: EvCtx }) {
+  const colorOf = useEventColor();
+  // Consecutive results on one day share its heading; the list is already in order.
+  const byDay: { day: Date; hits: SearchHit[] }[] = [];
+  for (const h of hits) {
+    const day = startOfDay(h.inst.start);
+    const last = byDay[byDay.length - 1];
+    if (last && isSameDay(last.day, day)) last.hits.push(h);
+    else byDay.push({ day, hits: [h] });
+  }
+  return (
+    <>
+      {byDay.map(({ day, hits: items }) => (
+        <div key={`${past ? "p" : "u"}${day.toISOString()}`} className={`agenda-day ${past ? "past" : ""}`}>
+          <div className={`ad-date ${isToday(day) ? "today" : ""}`}>
+            {formatWeekday(day, "long")}
+            <small>{formatDateLong(day, true)}</small>
+          </div>
+          <div>
+            {items.map(({ inst: i, rule }) => (
+              <div key={i.key} className={`agenda-ev ${statusClass(i)}`} onClick={(e) => onEvent(i, e.currentTarget)} onContextMenu={(e) => onEventContext(i, e)}>
+                <span className="ev-dot" style={{ background: colorOf(i) }} />
+                <span className="ev-when">{i.allDay ? translate("All day") : `${formatTime(i.start)} – ${formatTime(i.end)}`}</span>
+                <span className="grow truncate">{i.event.title || translate("(untitled)")}</span>
+                {rule && <span className="hint truncate row" style={{ maxWidth: 220, gap: 4 }}><Repeat size={13} />{describeRule(rule)}</span>}
+                {Object.values(i.event.locations ?? {})[0]?.name && <span className="hint truncate" style={{ maxWidth: 200 }}>{Object.values(i.event.locations ?? {})[0]!.name}</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </>
   );
 }
 

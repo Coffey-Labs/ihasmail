@@ -556,6 +556,17 @@ A mini calendar for jumping, *Today*, and next/previous by keyboard (`n`/`p`) or
 button. The default view, week start, working hours and default event duration
 are settings.
 
+## Search
+
+In the calendar the search bar searches events (`/calendar/search?q=`), through
+`CalendarEvent/query` with a `text` filter: titles, descriptions and locations,
+across your own calendars, hidden ones included, the shared calendars you've
+added, and subscribed calendars, which are matched in the browser. Results
+come in one list, upcoming soonest first, then past most recent first and
+faded. A repeating event is listed once, at its next date (or its latest, once
+it has ended), with how it repeats. Stalwart matches whole words, so "japan"
+does not find "Japanese".
+
 ## Calendars
 
 The sidebar keeps three groups apart:
