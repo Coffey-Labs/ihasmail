@@ -1133,18 +1133,32 @@ export function createApp(basePath = config.basePath): Hono<Env> {
       if (config.rawPushRelay) return relayPushRaw(c, url, session.authorization, session.username);
       const controller = new AbortController();
       c.req.raw.signal.addEventListener("abort", () => controller.abort());
-      const res = await fetch(url, {
+      const upstreamRes = fetch(url, {
         headers: { authorization: session.authorization, accept: "text/event-stream" },
         signal: controller.signal,
       });
-      if (!res.ok || !res.body) return c.json({ error: "upstream_error" }, 502);
-      const headers = new Headers({
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache, no-transform",
-        Connection: "keep-alive",
-        "X-Accel-Buffering": "no",
+      upstreamRes.catch(() => {});  // read in pull(); a tab gone first must not leave it unhandled
+      // Answer at once, as relayPushRaw() does (see RELAY_OPENING), and end
+      // the stream if the upstream fails.
+      let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+      const body = new ReadableStream<Uint8Array>({
+        start(ctrl) { ctrl.enqueue(new TextEncoder().encode(RELAY_OPENING)); },
+        async pull(ctrl) {
+          try {
+            if (!reader) {
+              const res = await upstreamRes;
+              if (!res.ok || !res.body) { await res.body?.cancel(); ctrl.close(); return; }
+              reader = res.body.getReader();
+            }
+            const { done, value } = await reader.read();
+            if (done) ctrl.close(); else ctrl.enqueue(value);
+          } catch {
+            ctrl.close();
+          }
+        },
+        cancel() { controller.abort(); },
       });
-      return new Response(res.body, { status: 200, headers });
+      return new Response(body, { status: 200, headers: SSE_HEADERS });
     } catch (err) {
       return upstreamFailure(c, err);
     }
@@ -1332,6 +1346,26 @@ async function readGated(stream: ReadableStream<Uint8Array>): Promise<string> {
 
 const PASSTHROUGH_HEADERS = new Set(["content-type", "content-disposition", "content-language", "etag", "last-modified", "retry-after"]);
 
+const SSE_HEADERS = {
+  "content-type": "text/event-stream",
+  "cache-control": "no-cache, no-transform",
+  connection: "keep-alive",
+  "x-accel-buffering": "no",
+} as const;
+
+/*
+ * Written to the browser the moment a relayed stream starts, before Stalwart
+ * has answered. Stalwart sends nothing on its event stream, not even response
+ * headers, until its first ping -- 30 seconds in with the ping=30 the client
+ * asks for (checked against 0.16.27 and 1.0.3). Waiting for that kept the
+ * live-updates dot on "reconnecting" for half a minute on every connect, and
+ * a proxy that gives up on a response that slow kept it there for good
+ * (issue #71). Headers and a comment line now go out at once; a comment is
+ * ignored by EventSource, but it is a body byte, so no hop buffers the
+ * response waiting for one.
+ */
+const RELAY_OPENING = ": relay\n\n";
+
 /**
  * Hold a push stream open with the least machinery that will do it.
  *
@@ -1347,14 +1381,7 @@ const PASSTHROUGH_HEADERS = new Set(["content-type", "content-disposition", "con
  * Returns a Response Hono treats as already sent: the raw bindings are
  * written to directly, and the returned value is never serialized.
  */
-const SSE_HEADERS = {
-  "content-type": "text/event-stream",
-  "cache-control": "no-cache, no-transform",
-  connection: "keep-alive",
-  "x-accel-buffering": "no",
-} as const;
-
-function relayPushRaw(c: Context<Env>, url: string, authorization: string, username?: string): Response {
+export function relayPushRaw(c: Context<Env>, url: string, authorization: string, username?: string): Response {
   const out = (c.env as { outgoing: import("node:http").ServerResponse }).outgoing;
   const target = new URL(url);
   const req = (target.protocol === "https:" ? httpsRequest : httpRequest)(target, {
@@ -1365,27 +1392,22 @@ function relayPushRaw(c: Context<Env>, url: string, authorization: string, usern
   const abort = () => req.destroy();
   signal.addEventListener("abort", abort);
   out.on("close", abort);
-  const fail = () => {
-    if (!out.headersSent) {
-      out.writeHead(502, { "content-type": "application/json", "cache-control": "no-store" });
-      out.end(JSON.stringify({ error: "upstream_error" }));
-    } else {
-      out.end();
-    }
-  };
+  out.writeHead(200, SSE_HEADERS);
+  out.write(RELAY_OPENING);
+  // The browser already has a 200, so an upstream failure ends the stream;
+  // EventSource reports that as an error and the client retries with backoff.
+  const fail = () => { out.end(); };
   /*
    * Once this account's subscription verifies, the upstream request goes and
-   * the browser stream below is served by fan-out instead. Three things have
-   * to be true for that to be seamless: the browser must already have its
-   * headers (verification can beat the upstream response); nothing may treat
-   * the torn-down upstream as an error; and nothing may keep a reference to
-   * it -- the request, its response and this handler's context are exactly
-   * the per-tab weight the subscription exists to shed.
+   * the browser stream below is served by fan-out instead. Two things have
+   * to be true for that to be seamless: nothing may treat the torn-down
+   * upstream as an error; and nothing may keep a reference to it -- the
+   * request, its response and this handler's context are exactly the per-tab
+   * weight the subscription exists to shed.
    */
   let migrated = false;
   const migrate = () => {
     migrated = true;
-    if (!out.headersSent) { out.writeHead(200, SSE_HEADERS); out.flushHeaders(); }
     signal.removeEventListener("abort", abort);
     out.removeListener("close", abort);
     req.removeAllListeners();
@@ -1396,7 +1418,6 @@ function relayPushRaw(c: Context<Env>, url: string, authorization: string, usern
   req.on("response", (res) => {
     if (migrated) { res.destroy(); return; }
     if (res.statusCode !== 200) { res.resume(); fail(); return; }
-    if (!out.headersSent) { out.writeHead(200, SSE_HEADERS); out.flushHeaders(); }
     // end: false -- the browser stream outlives the upstream if we migrate.
     res.pipe(out, { end: false });
     res.on("end", () => { if (!migrated) out.end(); });
