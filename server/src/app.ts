@@ -6,7 +6,7 @@ import { compress } from "hono/compress";
 import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import { RESPONSE_ALREADY_SENT } from "@hono/node-server/utils/response";
-import { attach as pushAttach, attachRelay as pushAttachRelay, prepare as pushPrepare, receive as pushReceive, pushStatus } from "./push.js";
+import { ALIVE_FRAME, attach as pushAttach, attachRelay as pushAttachRelay, prepare as pushPrepare, receive as pushReceive, pushStatus } from "./push.js";
 import { getConnInfo } from "@hono/node-server/conninfo";
 import { config } from "./config.js";
 import { fetchPermissions } from "./permissionSchema.js";
@@ -1127,7 +1127,7 @@ export function createApp(basePath = config.basePath): Hono<Env> {
       if (accountId && pushAttach(session.username, accountId, session.authorization, out)) {
         out.writeHead(200, SSE_HEADERS);
         out.flushHeaders();
-        out.write(": subscribed\n\n");
+        out.write(": subscribed\n\n" + ALIVE_FRAME);
         return RESPONSE_ALREADY_SENT;
       }
       if (config.rawPushRelay) return relayPushRaw(c, url, session.authorization, session.username);
@@ -1413,6 +1413,7 @@ export function relayPushRaw(c: Context<Env>, url: string, authorization: string
     req.removeAllListeners();
     req.on("error", () => {});
     req.destroy();
+    out.write(ALIVE_FRAME);
   };
   if (username) pushAttachRelay(username, out, migrate);
   req.on("response", (res) => {
