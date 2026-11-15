@@ -53,6 +53,15 @@ const byKey = new Map<string, AccountPush>();
 const byToken = new Map<string, AccountPush>();
 let sweeper: NodeJS.Timeout | null = null;
 
+/**
+ * An event the browser can see, sent when a stream is known to be live: at
+ * once on fan-out, and when a relayed tab moves to fan-out. The client shows
+ * "connected" only after an event arrives, not when the response opens --
+ * the relay answers before the upstream has (issue #71), so an open response
+ * alone proves nothing. Relayed tabs get the upstream's own first ping.
+ */
+export const ALIVE_FRAME = "event: ping\ndata: {}\n\n";
+
 export function pushEnabled(): boolean {
   return config.pushMode === "subscribe" && !!config.pushUrl;
 }

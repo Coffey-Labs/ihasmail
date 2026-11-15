@@ -74,11 +74,20 @@ class PushManager {
     const url = withBase(`/api/events?types=*&closeafter=no&ping=30`);
     const es = new EventSource(url, { withCredentials: true });
     this.es = es;
-    es.onopen = () => {
+    /*
+     * Connected means an event has arrived, not that the response opened.
+     * The server answers before the mail server has (issue #71), so an
+     * open stream can still be one that never delivers anything. Every live
+     * stream sends a ping soon after it starts -- the mail server's own, or
+     * ours on fan-out -- so the first event is the proof. The backoff resets
+     * here too, so a stream that opens and ends at once keeps backing off.
+     */
+    const alive = () => {
       this.backoff = 1000;
       this.setState("connected");
     };
     es.addEventListener("state", (ev) => {
+      alive();
       try {
         const data = JSON.parse((ev as MessageEvent).data as string) as StateChange;
         if (data["@type"] !== "StateChange") return;
@@ -94,9 +103,7 @@ class PushManager {
         /* ignore malformed */
       }
     });
-    es.addEventListener("ping", () => {
-      /* keepalive */
-    });
+    es.addEventListener("ping", alive);
     es.onerror = () => {
       es.close();
       this.es = null;
