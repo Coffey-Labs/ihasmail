@@ -32,18 +32,6 @@ FROM mirror.gcr.io/library/node:26-alpine AS runtime
 # Re-declared: an ARG does not cross stages.
 ARG IHASMAIL_VERSION=""
 ARG BASE_PATH=""
-# The commit being built, for the revision label.
-ARG IHASMAIL_REVISION=""
-# What the image says it is, for registries and anyone inspecting it.
-LABEL org.opencontainers.image.title="ihasmail" \
-      org.opencontainers.image.description="Immutable webmail for Stalwart Mail Server: mail, calendars, contacts, files and filters in one responsive app, talking only JMAP, with no database of its own." \
-      org.opencontainers.image.url="https://ihasmail.org/" \
-      org.opencontainers.image.documentation="https://docs.ihasmail.org/" \
-      org.opencontainers.image.source="https://git.coffeylabs.org/coffey-labs/ihasmail" \
-      org.opencontainers.image.licenses="AGPL-3.0-or-later" \
-      org.opencontainers.image.vendor="Coffey Labs LLC" \
-      org.opencontainers.image.version="$IHASMAIL_VERSION" \
-      org.opencontainers.image.revision="$IHASMAIL_REVISION"
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=8080 \
@@ -96,3 +84,18 @@ EXPOSE 8080
 # restart it forever.
 HEALTHCHECK --interval=30s --timeout=5s CMD BP="${BASE_PATH%/}"; case "$BP" in ""|/*) ;; *) BP="/$BP";; esac; wget -qO- "http://127.0.0.1:8080$BP/api/health" || exit 1
 CMD ["node", "server/dist/index.js"]
+
+# Last in the image, after everything that does work: a value that changes
+# every build (the version, the commit) then never costs a cached layer.
+# The commit being built, for the revision label.
+ARG IHASMAIL_REVISION=""
+# What the image says it is, for registries and anyone inspecting it.
+LABEL org.opencontainers.image.title="ihasmail" \
+      org.opencontainers.image.description="Immutable webmail for Stalwart Mail Server: mail, calendars, contacts, files and filters in one responsive app, talking only JMAP, with no database of its own." \
+      org.opencontainers.image.url="https://ihasmail.org/" \
+      org.opencontainers.image.documentation="https://docs.ihasmail.org/" \
+      org.opencontainers.image.source="https://git.coffeylabs.org/coffey-labs/ihasmail" \
+      org.opencontainers.image.licenses="AGPL-3.0-or-later" \
+      org.opencontainers.image.vendor="Coffey Labs LLC" \
+      org.opencontainers.image.version="$IHASMAIL_VERSION" \
+      org.opencontainers.image.revision="$IHASMAIL_REVISION"
