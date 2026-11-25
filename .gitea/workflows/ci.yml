@@ -255,6 +255,7 @@ jobs:
           docker buildx build \
             --platform linux/amd64,linux/arm64 \
             --build-arg IHASMAIL_VERSION="$VERSION" \
+            --build-arg IHASMAIL_REVISION="${{ github.sha }}" \
             --provenance=false --sbom=false \
             --tag "$IMAGE:$DOCKER_TAG" \
             --tag "$IMAGE:latest" \
